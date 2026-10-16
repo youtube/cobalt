@@ -16,6 +16,7 @@
 
 import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -134,6 +135,111 @@ class CheckTvosImpactTest(unittest.TestCase):
               test_targets=['base:base_unittests'],
               compile_targets=['//cobalt:cobalt'],
           ))
+
+
+def _git(cwd, *args):
+  return subprocess.run(
+      [
+          'git', '-c', 'user.name=test', '-c', 'user.email=test@example.com',
+          '-c', 'init.defaultBranch=main', *args
+      ],
+      cwd=cwd,
+      capture_output=True,
+      text=True,
+      check=True,
+  ).stdout.strip()
+
+
+class MergeCommitTest(unittest.TestCase):
+  """Tests against a local "origin" repo that mimics GitHub's PR refs."""
+
+  def setUp(self):
+    super().setUp()
+    tmp = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    self.addCleanup(tmp.cleanup)
+    root = pathlib.Path(tmp.name)
+    self.origin = root / 'origin'
+    self.origin.mkdir()
+    _git(self.origin, 'init')
+    self._commit('base.cc', 'base')
+    self._commit('old_name.h', 'header')
+
+    # The PR branches off here, while main moves on.
+    _git(self.origin, 'checkout', '-b', 'pr')
+    _git(self.origin, 'mv', 'old_name.h', 'new_name.h')
+    self.head_sha = self._commit('pr.cc', 'pr')
+    _git(self.origin, 'checkout', 'main')
+    self._commit('landed_on_main.cc', 'main')
+
+    _git(self.origin, 'checkout', '--detach', 'main')
+    _git(self.origin, 'merge', '--no-ff', '-m', 'merge', 'pr')
+    self.merge_sha = _git(self.origin, 'rev-parse', 'HEAD')
+    _git(self.origin, 'update-ref', 'refs/pull/1/merge', self.merge_sha)
+    _git(self.origin, 'checkout', 'main')
+
+    self.clone = root / 'clone'
+    _git(root, 'clone', '--depth=1', f'file://{self.origin}', str(self.clone))
+
+  def _commit(self, filename, content):
+    (self.origin / filename).write_text(content, encoding='utf-8')
+    _git(self.origin, 'add', '-A')
+    _git(self.origin, 'commit', '-m', filename)
+    return _git(self.origin, 'rev-parse', 'HEAD')
+
+  def test_fetches_merge_commit_and_lists_only_pr_changes(self):
+    merge_sha = check_tvos_impact.fetch_pr_merge_commit(
+        self.clone, '1', self.head_sha, attempts=1)
+    self.assertEqual(merge_sha, self.merge_sha)
+    # Doesn't include landed_on_main.cc, which landed after the PR branched.
+    self.assertEqual(
+        check_tvos_impact.get_merge_commit_changed_files(self.clone, merge_sha),
+        ['new_name.h', 'old_name.h', 'pr.cc'])
+
+  @mock.patch('time.sleep')
+  def test_retries_until_merge_commit_is_up_to_date(self, mock_sleep):
+    with self.assertRaises(check_tvos_impact.MergeCommitUnavailableError):
+      check_tvos_impact.fetch_pr_merge_commit(
+          self.clone, '1', 'f' * 40, attempts=3, retry_delay_seconds=5)
+    self.assertEqual(mock_sleep.call_args_list, [mock.call(5), mock.call(5)])
+
+  @mock.patch('time.sleep')
+  def test_raises_without_merge_ref(self, unused_sleep):
+    # E.g., the PR has merge conflicts.
+    with self.assertRaises(check_tvos_impact.MergeCommitUnavailableError):
+      check_tvos_impact.fetch_pr_merge_commit(
+          self.clone, '2', self.head_sha, attempts=2)
+
+  @mock.patch('time.sleep')
+  def test_main_defaults_to_affected_without_merge_commit(self, unused_sleep):
+    output = self.clone / 'github_output'
+    check_tvos_impact.main([
+        '--src-dir',
+        str(self.clone),
+        '--pr-number',
+        '2',
+        '--github-output',
+        str(output),
+    ])
+    self.assertEqual(output.read_text(encoding='utf-8'), 'affects_tvos=true\n')
+
+  @mock.patch('check_tvos_impact.check_tvos_impact', return_value=False)
+  def test_main_analyzes_merge_commit(self, mock_check):
+    output = self.clone / 'github_output'
+    check_tvos_impact.main([
+        '--src-dir',
+        str(self.clone),
+        '--pr-number',
+        '1',
+        '--pr-head-sha',
+        self.head_sha,
+        '--github-output',
+        str(output),
+    ])
+    self.assertEqual(output.read_text(encoding='utf-8'), 'affects_tvos=false\n')
+    self.assertEqual(mock_check.call_args.args[1],
+                     ['new_name.h', 'old_name.h', 'pr.cc'])
+    # The analysis runs on the merge commit.
+    self.assertEqual(_git(self.clone, 'rev-parse', 'HEAD'), self.merge_sha)
 
 
 if __name__ == '__main__':

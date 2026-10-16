@@ -23,10 +23,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any, Iterable, List, Optional, Sequence, Set
 
 PLATFORM = 'tvos-arm64-simulator'
 CONFIG = 'devel'
+
+# GitHub computes refs/pull/<num>/merge asynchronously, so right after a push it
+# may still point to the merge commit of the previous PR head.
+MERGE_REF_FETCH_ATTEMPTS = 6
+MERGE_REF_RETRY_DELAY_SECONDS = 10
 
 TEST_TARGETS_JSON_RELPATH = (
     f'cobalt/build/testing/targets/{PLATFORM}/test_targets.json')
@@ -214,24 +220,76 @@ def _find_gn_binary(src_dir: pathlib.Path) -> str:
   raise FileNotFoundError('Could not find `gn` binary in PATH or buildtools.')
 
 
-def get_pr_changed_files_via_git(
-    src_dir: pathlib.Path,
-    pr_number: str,
-) -> List[str]:
-  """Fetches PR head into FETCH_HEAD and returns changed files against HEAD."""
-  subprocess.run(
-      ['git', 'fetch', '--depth=1', 'origin', f'pull/{pr_number}/head'],
-      cwd=src_dir,
-      check=True,
-  )
-  proc = subprocess.run(
-      ['git', 'diff', '--name-only', 'HEAD', 'FETCH_HEAD'],
+class MergeCommitUnavailableError(Exception):
+  """Raised when the PR's up-to-date merge commit can't be fetched."""
+
+
+def _git(src_dir: pathlib.Path, *args: str) -> str:
+  return subprocess.run(
+      ['git', *args],
       cwd=src_dir,
       capture_output=True,
       text=True,
       check=True,
-  )
-  return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+  ).stdout.strip()
+
+
+def fetch_pr_merge_commit(
+    src_dir: pathlib.Path,
+    pr_number: str,
+    head_sha: Optional[str],
+    attempts: int = MERGE_REF_FETCH_ATTEMPTS,
+    retry_delay_seconds: float = MERGE_REF_RETRY_DELAY_SECONDS,
+) -> str:
+  """Fetches the PR's merge commit and returns its SHA.
+
+  `refs/pull/<num>/merge` is GitHub's merge of the PR head into the current tip
+  of the base branch: the same commit that `pull_request` workflows build and
+  test. When `head_sha` is given, retries until the merge commit's second parent
+  is `head_sha`, since GitHub updates the ref asynchronously after a push.
+
+  Raises MergeCommitUnavailableError if no up-to-date merge commit is available,
+  e.g., because the PR has merge conflicts.
+  """
+  merge_ref = f'refs/pull/{pr_number}/merge'
+  for attempt in range(1, attempts + 1):
+    proc = subprocess.run(
+        ['git', 'fetch', '--no-tags', '--depth=2', 'origin', merge_ref],
+        cwd=src_dir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode == 0:
+      merge_sha = _git(src_dir, 'rev-parse', 'FETCH_HEAD')
+      parents = _git(src_dir, 'rev-list', '--parents', '-n', '1',
+                     merge_sha).split()[1:]
+      if len(parents) == 2 and (head_sha is None or parents[1] == head_sha):
+        print(f'Using merge commit {merge_sha} of PR #{pr_number}.')
+        return merge_sha
+      print(f'{merge_ref} ({merge_sha}) is not the merge of PR head '
+            f'{head_sha} yet (parents: {parents}).')
+    else:
+      print(f'Failed to fetch {merge_ref}: {proc.stderr.strip()}')
+    if attempt < attempts:
+      time.sleep(retry_delay_seconds)
+  raise MergeCommitUnavailableError(
+      f'No up-to-date {merge_ref} after {attempts} attempts. The PR may have '
+      'merge conflicts.')
+
+
+def get_merge_commit_changed_files(
+    src_dir: pathlib.Path,
+    merge_sha: str,
+) -> List[str]:
+  """Returns the files the PR changes on top of the base branch tip.
+
+  That is the diff between the merge commit and its first parent. Renames are
+  listed as both the old and the new path.
+  """
+  output = _git(src_dir, 'diff', '--name-only', '--no-renames',
+                f'{merge_sha}^1', merge_sha)
+  return [line.strip() for line in output.splitlines() if line.strip()]
 
 
 def check_tvos_impact(
@@ -275,11 +333,10 @@ def check_tvos_impact(
       build_dir = out_dir
       build_dir.mkdir(parents=True, exist_ok=True)
 
-    wrapper_script = (
-        src_dir / 'cobalt/build/tvos_linux_script_wrapper.py').resolve()
-    script_exec_args = (
-        [f'--script-executable={wrapper_script}']
-        if sys.platform.startswith('linux') else [])
+    wrapper_script = (src_dir /
+                      'cobalt/build/tvos_linux_script_wrapper.py').resolve()
+    script_exec_args = ([f'--script-executable={wrapper_script}']
+                        if sys.platform.startswith('linux') else [])
 
     gn_py = src_dir / 'cobalt/build/gn.py'
     gn_gen_cmd = [
@@ -346,7 +403,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
       '--pr-number',
       type=str,
       default=None,
-      help='PR number to diff against HEAD via git fetch pull/<num>/head.',
+      help=('PR number to analyze. Checks out the PR\'s merge commit into the '
+            'base branch tip (refs/pull/<num>/merge) in --src-dir, and '
+            'analyzes the files it changes.'),
+  )
+  parser.add_argument(
+      '--pr-head-sha',
+      type=str,
+      default=None,
+      help=('Expected head SHA of --pr-number, used to make sure the merge '
+            'commit is up to date.'),
   )
   parser.add_argument(
       '--files-json',
@@ -388,7 +454,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError('--files-json must decode to a JSON list of strings.')
       files.extend(str(item) for item in parsed)
     if args.pr_number:
-      files.extend(get_pr_changed_files_via_git(src_dir, args.pr_number))
+      merge_sha = fetch_pr_merge_commit(src_dir, args.pr_number,
+                                        args.pr_head_sha)
+      files.extend(get_merge_commit_changed_files(src_dir, merge_sha))
+      # Analyzes the build graph that `pull_request` workflows would build.
+      _git(src_dir, 'checkout', '--detach', merge_sha)
 
     test_targets = (
         load_test_targets(src_dir, args.test_targets_json)

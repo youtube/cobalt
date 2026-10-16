@@ -1,10 +1,17 @@
 # Disable dangerous-triggers rule because this workflow uses pull_request_target
-# strictly to edit PR labels (pull-requests: write) without checking out or executing
-# untrusted code from PR branches.
+# to edit PR labels (pull-requests: write).
+#
+# The tvOS impact analysis checks out the PR's merge commit and runs `gn gen` on
+# it, which executes scripts from the PR (GN exec_script). This is the same trust
+# model as main.yaml, which builds PR merge commits on the same self-hosted
+# runners, and is limited to PRs authored by committers (see check-author). The
+# analysis job only has read permissions; labeling happens in a separate job
+# that doesn't run PR code.
 # actionlint: disable dangerous-triggers
 name: Auto Label Kokoro
 
-run-name: Auto Label Kokoro (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }})
+# tvos.yaml finds the run for its commit and event action by this name.
+run-name: Auto Label Kokoro (#${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }} (${{ github.event.action }}))
 
 on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
@@ -27,12 +34,40 @@ permissions:
   contents: read
 
 jobs:
-  analyze-tvos-impact:
+  check-author:
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      is_committer: ${{ steps.check.outputs.is_committer }}
+    steps:
+      - name: Check whether the PR author is a collaborator/committer
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
+
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
+          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
+
+          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
+            echo "is_committer=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Author '${PR_AUTHOR}' is not a committer. Skipping tvOS impact analysis and auto-labeling."
+            echo "is_committer=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  analyze-tvos-impact:
+    needs: check-author
+    if: github.event.pull_request.draft == false && needs.check-author.outputs.is_committer == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     permissions:
       contents: read
-      pull-requests: read
     timeout-minutes: 20
     container:
       image: ghcr.io/youtube/cobalt/linux:main
@@ -70,6 +105,8 @@ jobs:
           path: cobalt
           use_gcloud: true
 
+      # Checks out the base branch tip, which is in the cache. The analysis
+      # script then fetches and checks out the PR's merge commit on top of it.
       - name: Checkout
         uses: ./.github/actions/checkout
         with:
@@ -82,44 +119,45 @@ jobs:
         id: analyze
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
         run: |
           export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
           python3 "${GITHUB_WORKSPACE}/.github/scripts/check_tvos_impact.py" \
             --src-dir "${GITHUB_WORKSPACE}/cobalt/src" \
             --pr-number "${PR_NUMBER}" \
+            --pr-head-sha "${PR_HEAD_SHA}" \
             --test-targets-json "${TEST_TARGETS}" \
             --compile-targets "//cobalt:cobalt" \
             --github-output "${GITHUB_OUTPUT}"
 
   label-kokoro-run:
-    needs: analyze-tvos-impact
+    needs: [check-author, analyze-tvos-impact]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    if: github.event.pull_request.draft == false && needs.analyze-tvos-impact.outputs.affects_tvos == 'true'
+    # Fails safe: also labels when the analysis job didn't succeed (e.g., the
+    # runner or checkout failed, or it timed out).
+    if: >-
+      always() && !cancelled() &&
+      github.event.pull_request.draft == false &&
+      needs.check-author.outputs.is_committer == 'true' &&
+      (needs.analyze-tvos-impact.result != 'success' ||
+       needs.analyze-tvos-impact.outputs.affects_tvos == 'true')
     steps:
-      - name: Apply kokoro:run label to PR for collaborators/committers
+      - name: Apply kokoro:run label to PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
-          AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          REPO: ${{ github.repository }}
+          ANALYZE_RESULT: ${{ needs.analyze-tvos-impact.result }}
         run: |
-          echo "Author '${PR_AUTHOR}' association: ${AUTHOR_ASSOC}"
-
-          PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
-          echo "Author '${PR_AUTHOR}' permission: ${PERMISSION}"
-
-          if [[ "${AUTHOR_ASSOC}" == "OWNER" || "${AUTHOR_ASSOC}" == "MEMBER" || "${AUTHOR_ASSOC}" == "COLLABORATOR" || "${PERMISSION}" == "admin" || "${PERMISSION}" == "write" ]]; then
-            if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
-              echo "Author is a collaborator/committer. Applying kokoro:run label..."
-              gh pr edit "$PR_URL" --add-label "kokoro:run"
-            else
-              echo "kokoro:run label is already present."
-            fi
+          if [[ "${ANALYZE_RESULT}" != "success" ]]; then
+            echo "tvOS impact analysis result: ${ANALYZE_RESULT}. Defaulting to running the tvOS build."
+          fi
+          if ! echo "$PR_LABELS" | jq -e '.[] | select(.name == "kokoro:run")' > /dev/null; then
+            echo "Applying kokoro:run label..."
+            gh pr edit "$PR_URL" --add-label "kokoro:run"
           else
-            echo "Author '${PR_AUTHOR}' (assoc: '${AUTHOR_ASSOC}', perm: '${PERMISSION}') is not a committer. Skipping auto-labeling."
+            echo "kokoro:run label is already present."
           fi
