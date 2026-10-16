@@ -406,10 +406,17 @@ TEST_F(StarboardRendererWrapperTest, GetCurrentVideoFrame) {
 
 TEST_F(StarboardRendererWrapperTest, DecodeToTextureFrameIsClearWithoutCdm) {
   const gfx::Size kSize(320, 240);
+  gpu::SharedImageMetadata metadata;
+  metadata.format = viz::SinglePlaneFormat::kRGBA_8888;
+  metadata.size = kSize;
+  metadata.color_space = gfx::ColorSpace::CreateSRGB();
+  metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+  metadata.alpha_type = kOpaque_SkAlphaType;
+  metadata.usage = gpu::SharedImageUsageSet();
   scoped_refptr<VideoFrame> frame =
       renderer_wrapper_->CreateVideoFrameForTesting(
           PIXEL_FORMAT_ABGR, kSize, gfx::Rect(kSize), kSize,
-          gpu::ClientSharedImage::CreateForTesting());
+          gpu::ClientSharedImage::CreateForTesting(metadata));
   ASSERT_TRUE(frame);
   EXPECT_FALSE(frame->metadata().protected_video);
   EXPECT_FALSE(frame->metadata().hw_protected);
@@ -424,10 +431,17 @@ TEST_F(StarboardRendererWrapperTest, DecodeToTextureFrameIsProtectedWithCdm) {
   renderer_wrapper_->SetCdm(&cdm_context, cdm_attached_cb.Get());
 
   const gfx::Size kSize(320, 240);
+  gpu::SharedImageMetadata metadata;
+  metadata.format = viz::SinglePlaneFormat::kRGBA_8888;
+  metadata.size = kSize;
+  metadata.color_space = gfx::ColorSpace::CreateSRGB();
+  metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+  metadata.alpha_type = kOpaque_SkAlphaType;
+  metadata.usage = gpu::SharedImageUsageSet();
   scoped_refptr<VideoFrame> frame =
       renderer_wrapper_->CreateVideoFrameForTesting(
           PIXEL_FORMAT_ABGR, kSize, gfx::Rect(kSize), kSize,
-          gpu::ClientSharedImage::CreateForTesting());
+          gpu::ClientSharedImage::CreateForTesting(metadata));
   ASSERT_TRUE(frame);
   // Decode-to-texture frames are GPU-readable, so they are software protected
   // only.
