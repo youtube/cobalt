@@ -28,8 +28,6 @@ import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
-import android.view.ViewParent;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
@@ -94,8 +92,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
-
-  private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
 
@@ -937,75 +933,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
-  }
-
-  public void resetVideoSurface() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            createNewSurfaceView();
-          }
-        });
-  }
-
-  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    if (width == 0 || height == 0) {
-      // The SurfaceView should be covered by our UI layer in this case.
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
-            // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
-            // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
-              frameLayoutParams.setMargins(x, y, x + width, y + height);
-            } else {
-              Log.w(
-                  TAG,
-                  "Unexpected video surface layout params class "
-                      + layoutParams.getClass().getName());
-            }
-            layoutParams.width = width;
-            layoutParams.height = height;
-            // Even though as a NativeActivity we're not using the Android UI framework, by setting
-            // the  layout params it will force a layout to be requested. That will cause the
-            // SurfaceView to position its underlying Surface to match the screen coordinates of
-            // where the view would be in a UI layout and to set the surface transform matrix to
-            // match the view's size.
-            mVideoSurfaceView.setLayoutParams(layoutParams);
-          }
-        });
-  }
-
-  private void createNewSurfaceView() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout frameLayout) {
-      int index = frameLayout.indexOfChild(mVideoSurfaceView);
-      frameLayout.removeView(mVideoSurfaceView);
-      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
-
-      mVideoSurfaceView = new VideoSurfaceView(this);
-      frameLayout.addView(
-          mVideoSurfaceView,
-          index,
-          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
-    } else {
-      Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
-    }
   }
 
   public void evaluateJavaScript(String jsCode) {
