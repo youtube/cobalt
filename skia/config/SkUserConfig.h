@@ -58,6 +58,7 @@
 
 // Log the file and line number for assertions.
 #define SkDebugf(...) SkDebugf_FileLine(__FILE__, __LINE__, __VA_ARGS__)
+
 #define SkLog(...) SkLog_FileLine(__FILE__, __LINE__, __VA_ARGS__)
 SK_API void SkDebugf_FileLine(const char* file,
                               int line,
@@ -75,6 +76,13 @@ SK_API void SkLog_FileLine(const char* file,
                                           int line,
                                           const char* format,
                                           ...);
+
+#if defined(SK_BUILD_GANESH_GLYPH_ENTRY_FIX)
+#define fGlyphEntryKey(id, format) \
+  fGlyphEntryKey{id, format} {} \
+  const GlyphEntryKey fGlyphEntryKey; \
+  [[maybe_unused]] void _dummy_init_key()
+#endif
 
 #if !defined(ANDROID)   // On Android, we use the skia default settings.
 #define SK_A32_SHIFT    24

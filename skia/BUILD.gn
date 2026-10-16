@@ -580,6 +580,7 @@ component("skia") {
   }
 
   if (skia_support_gpu) {
+    defines += [ "SK_BUILD_GANESH_GLYPH_ENTRY_FIX" ]
     public += skia_gpu_public
     public += skia_gpu_chromium_public
     sources += skia_ganesh_private

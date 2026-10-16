@@ -892,6 +892,7 @@ void OnGetSecurePaymentConfirmationCapabilitiesComplete(
 
   resolver->Resolve(std::move(results));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }  // namespace
 
 // static
@@ -965,11 +966,16 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                 "The \"payment\" permission policy is not enabled."));
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()
       ->GetSecurePaymentConfirmationCapabilities(
           BindOnce(&OnGetSecurePaymentConfirmationCapabilitiesComplete,
                    std::make_unique<ScopedPromiseResolver>(resolver)));
+#else
+  resolver->Reject(MakeGarbageCollected<DOMException>(
+      DOMExceptionCode::kNotSupportedError, "The feature is not enabled."));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   return promise;
 }

@@ -13,7 +13,6 @@
 #include "src/core/SkDescriptor.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTHash.h"
-#include "src/gpu/AtlasTypes.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +28,10 @@ struct SkPackedGlyphID;
 #ifndef SK_DEFAULT_GPU_FONT_CACHE_LIMIT
     #define SK_DEFAULT_GPU_FONT_CACHE_LIMIT     (2 * 1024 * 1024)
 #endif
+
+namespace skgpu {
+enum class MaskFormat : int;
+}
 
 namespace sktext::gpu {
 
