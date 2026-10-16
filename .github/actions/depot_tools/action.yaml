@@ -160,8 +160,6 @@ runs:
       shell: bash
       if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
       working-directory: cobalt
-      env:
-        REF: ${{ github.sha }}
       run: |
         # Synchronize sub-repositories with minimal disk footprint and network transfer:
         # --shallow / --no-history: fetch only latest commits without full commit history
@@ -175,7 +173,7 @@ runs:
           --nohooks \
           --force \
           --delete_unversioned_trees \
-          --revision "${REF}"
+          --revision "$(git -C src rev-parse HEAD)"
 
     - name: Publish Golden Workspace Snapshot
       # Publish only when a sync actually happened (DEPS or .gclient changed, or
