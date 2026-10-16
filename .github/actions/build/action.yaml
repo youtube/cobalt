@@ -4,9 +4,6 @@ inputs:
   targets:
     description: "JSON list of ninja targets for Cobalt build."
     required: true
-  test_root_target:
-    description: "The root target from which to deduce what tests to run."
-    required: true
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
@@ -82,17 +79,14 @@ runs:
             skip=$(python3 cobalt/build/filter_platform.py \
               --out-dir "out/${{ matrix.platform }}_${{ matrix.config }}" \
               --changed-files changed_files.txt \
-              --targets '${{ inputs.targets }}' \
-              --test-root-target "${{ inputs.test_root_target }}")
+              --targets '${{ inputs.targets }}')
           fi
           echo "skip=${skip}" >> $GITHUB_OUTPUT
       - name: Calculate test targets
-        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
-        if: steps.filter-platform.outputs.skip != 'true' && matrix.config == 'devel' # && inputs.test_root_target != 'null'
+        if: steps.filter-platform.outputs.skip != 'true' && matrix.config == 'devel'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
-          ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json

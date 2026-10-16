@@ -55,10 +55,9 @@ def main():
   parser.add_argument('--out-dir', required=True)
   parser.add_argument('--changed-files', required=True)
   parser.add_argument('--targets', default='[]')
-  parser.add_argument('--test-root-target', default='')
   args = parser.parse_args()
   files = Path(args.changed_files).read_text(encoding='utf-8').split()
-  targets = json.loads(args.targets) + [args.test_root_target]
+  targets = json.loads(args.targets)
   print('true' if should_skip(args.out_dir, files, targets) else 'false')
 
 

@@ -211,13 +211,6 @@ jobs:
           set -x
           test_chromedriver=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_chromedriver')
           echo "test_chromedriver=${test_chromedriver}" >> "${GITHUB_OUTPUT}"
-      - name: Set root target for unit tests
-        id: set-test-root-target
-        shell: bash
-        run: |
-          set -x
-          test_root_target=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_root_target')
-          echo "test_root_target=${test_root_target}" >> "${GITHUB_OUTPUT}"
       - name: Set E2E test device type
         id: set-test-device-family
         shell: bash
@@ -396,7 +389,6 @@ jobs:
       test_yts_finch: ${{ steps.set-test-yts-finch.outputs.test_yts_finch }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_chromedriver: ${{ steps.set-test-chromedriver.outputs.test_chromedriver }}
-      test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
       yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
@@ -571,7 +563,6 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-          test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           enable_sccache: ${{ needs.initialize.outputs.enable_sccache == 'true' }}
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
