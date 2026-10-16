@@ -350,7 +350,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
                              cwd=args.repo_path,
                              capture_output=True,
                              text=True,
-                             check=False).stdout.strip()
+                             check=True).stdout.strip()
   log.info("=" * 80)
   log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
   if args.reasoning_engine_id:
