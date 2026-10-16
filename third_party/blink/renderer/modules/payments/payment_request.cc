@@ -871,8 +871,6 @@ void OnSecurePaymentConfirmationAvailabilityResponse(
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       ToV8SecurePaymentConfirmationAvailabilityEnum(result)));
 }
-<<<<<<< HEAD
-
 void OnGetSecurePaymentConfirmationCapabilitiesComplete(
     std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
     const Vector<payments::mojom::blink::SecurePaymentConfirmationCapabilityPtr>
@@ -894,10 +892,6 @@ void OnGetSecurePaymentConfirmationCapabilitiesComplete(
 
   resolver->Resolve(std::move(results));
 }
-
-=======
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace
 
 // static

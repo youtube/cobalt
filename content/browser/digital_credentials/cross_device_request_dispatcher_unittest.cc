@@ -12,16 +12,10 @@
 #include "content/browser/digital_credentials/cross_device_request_dispatcher.h"
 #include "content/public/browser/cross_device_request_info.h"
 #include "content/public/browser/digital_credentials_cross_device.h"
-<<<<<<< HEAD
-#include "device/bluetooth/bluetooth_adapter_factory.h"
-#include "device/fido/cable/cable_mock_bluetooth_adapter.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
 #include "device/bluetooth/bluetooth_adapter_factory.h"  // nogncheck
-#include "device/bluetooth/test/mock_bluetooth_adapter.h"  // nogncheck
+#include "device/fido/cable/cable_mock_bluetooth_adapter.h"
 #endif
-#include "device/fido/cable/fido_cable_discovery.h"
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "device/fido/cable/pairing.h"
 #include "device/fido/cable/v2_authenticator.h"
 #include "device/fido/cable/v2_constants.h"
@@ -63,13 +57,8 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
                  POINT_CONVERSION_UNCOMPRESSED, peer_identity_x962_,
                  sizeof(peer_identity_x962_), /*ctx=*/nullptr));
 
-<<<<<<< HEAD
-    mock_adapter_ = device::cablev2::CableMockBluetoothAdapter::MakePoweredOn();
-=======
 #if !BUILDFLAG(IS_COBALT)
-    mock_adapter_ =
-        base::MakeRefCounted<NiceMock<device::MockBluetoothAdapter>>();
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    mock_adapter_ = device::cablev2::CableMockBluetoothAdapter::MakePoweredOn();
     device::BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter_);
 #endif
   }
@@ -147,13 +136,9 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
       0};
   const std::array<uint8_t, device::cablev2::kQRSeedSize> zero_seed_ = {0};
 
-<<<<<<< HEAD
-  scoped_refptr<device::cablev2::CableMockBluetoothAdapter> mock_adapter_;
-=======
 #if !BUILDFLAG(IS_COBALT)
-  scoped_refptr<NiceMock<device::MockBluetoothAdapter>> mock_adapter_;
+  scoped_refptr<device::cablev2::CableMockBluetoothAdapter> mock_adapter_;
 #endif
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   base::test::TaskEnvironment task_environment;
 };

@@ -1331,20 +1331,16 @@ if (!is_robolectric && enable_java_templates) {
       test_suite = invoker.target_name
       test_type = "junit"
       ignore_all_data_deps = true
-<<<<<<< HEAD
-      if (_enable_resources) {
-        resource_apk = _apkbuilder_output
-      } else {
-        resource_apk = ""
-      }
-=======
       if (is_cobalt && defined(invoker.ignore_all_data_deps)) {
         # TODO(b/524712602): Refactor runtime deps generation for Robolectric
         # binaries for Cobalt.
         ignore_all_data_deps = invoker.ignore_all_data_deps
       }
-      resource_apk = _apkbuilder_output
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      if (_enable_resources) {
+        resource_apk = _apkbuilder_output
+      } else {
+        resource_apk = ""
+      }
       deps = [
         ":$_build_config_target_name",
         ":${_java_binary_target_name}__host",
