@@ -25,15 +25,13 @@
 #define _LIBCPP_HAS_THREADS 1
 #define _LIBCPP_HAS_MONOTONIC_CLOCK 1
 #define _LIBCPP_HAS_TERMINAL 1
-<<<<<<< HEAD
 
+#if !defined(_LIBCPP_HAS_MUSL_LIBC)
 #ifdef ANDROID_HOST_MUSL
 #define _LIBCPP_HAS_MUSL_LIBC 1
 #else
-=======
-#if !defined(_LIBCPP_HAS_MUSL_LIBC)
->>>>>>> parent of 2f41215db12 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #define _LIBCPP_HAS_MUSL_LIBC 0
+#endif
 #endif
 
 #ifdef _WIN32
