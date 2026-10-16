@@ -23,7 +23,6 @@
 #include <sys/syscall.h>
 
 // TODO(crbug.com/446280907): Can we assume that __NR_getrandom is defined?
-#if !defined(STARBOARD)
 #if defined(OPENSSL_X86_64)
 #define EXPECTED_NR_getrandom 318
 #elif defined(OPENSSL_X86)
@@ -35,7 +34,6 @@
 #elif defined(OPENSSL_RISCV64)
 #define EXPECTED_NR_getrandom 278
 #endif
-#endif  // !defined(STARBOARD)
 
 #if !defined(__NR_getrandom) && defined(EXPECTED_NR_getrandom)
 #define __NR_getrandom EXPECTED_NR_getrandom

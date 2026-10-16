@@ -27,10 +27,6 @@ MEDIA_EXPORT base::ByteCount GetDemuxerStreamVideoMemoryLimit(
 // The maximum amount of data (in bytes) a demuxer can keep in memory overall.
 MEDIA_EXPORT base::ByteCount GetDemuxerMemoryLimit(DemuxerType demuxer_type);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT void SetVideoBufferSizeReductionPercent(int reduction_pct);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace internal {
 
 // These values should not be used directly, they are selected by functions
