@@ -17,6 +17,7 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Dict, List, Optional
 import warnings
@@ -270,6 +271,59 @@ class DependentPhaseError(RuntimeError):
   """gclient sync or gn gen, re-run after a patch, failed."""
 
 
+def restore_files_outside_build(repo_path: str, start_sha: str, out_dir: str,
+                                target: str) -> List[str]:
+  """Puts changed files that `target` does not build back to start_sha.
+
+  The agent may change files the built target never compiles, such as web
+  test expectations. Each file changed since start_sha that `gn analyze`
+  finds no dependency on is checked out from start_sha. The agent only
+  edits existing files, so `git diff` lists every change. DEPS is kept: gn
+  does not read it, but gclient sync does. Returns the restored paths.
+  """
+
+  def run(cmd: List[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd, cwd=repo_path, capture_output=True, text=True, check=False)
+
+  build_dir = os.path.join("out", out_dir)
+  labels = [
+      l for l in run(["gn", "ls", build_dir]).stdout.split()
+      if l.endswith(":" + target)
+  ]
+  if len(labels) != 1:
+    log.warning("[WARNING] No unique GN label for %s; keeping all files.",
+                target)
+    return []
+  changed = run(
+      ["git", "diff", "--name-only", "--ignore-submodules",
+       start_sha]).stdout.splitlines()
+
+  restored = []
+  with tempfile.TemporaryDirectory() as tmp:
+    query = os.path.join(tmp, "query.json")
+    answer = os.path.join(tmp, "answer.json")
+    for rel in changed:
+      if rel == "DEPS":
+        continue
+      with open(query, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "files": ["//" + rel],
+                "test_targets": [],
+                "additional_compile_targets": labels,
+            }, f)
+      if run(["gn", "analyze", build_dir, query, answer]).returncode != 0:
+        log.warning("[WARNING] gn analyze failed for %s; keeping it.", rel)
+        continue
+      with open(answer, encoding="utf-8") as f:
+        if json.load(f).get("status") != "No dependency":
+          continue
+      run(["git", "checkout", start_sha, "--", rel])
+      restored.append(rel)
+  return restored
+
+
 def run_pipeline(args: argparse.Namespace) -> int:
   """Executes the end-to-end multi-phase Cobalt rebase pipeline."""
   if args.mode == "resolve-conflicts":
@@ -290,6 +344,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
     effective_target = "cobalt_apk"
 
   start_time = time.time()
+  # Files the agent changed but the target does not build are put back to
+  # this commit after Phase 4.
+  start_sha = subprocess.run(["git", "rev-parse", "HEAD"],
+                             cwd=args.repo_path,
+                             capture_output=True,
+                             text=True,
+                             check=False).stdout.strip()
   log.info("=" * 80)
   log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
   if args.reasoning_engine_id:
@@ -516,6 +577,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
     log.info("=" * 80)
     if not run_phase("Phase 4", "Compiler Loop", autoninja_resolver):
       return 1
+    restored = restore_files_outside_build(args.repo_path, start_sha, out_dir,
+                                           effective_target)
+    log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
+             len(restored), effective_target)
+    for rel in restored:
+      log.info("  - %s", rel)
 
   elapsed = time.time() - start_time
   summary_path = write_report("SUCCESS (All Phases Complete)")
