@@ -361,19 +361,9 @@ public class AudioOutputManager {
   /** Returns the minimum buffer size of AudioTrack. */
   @CalledByNative
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
-    int channelConfig;
-    switch (channelCount) {
-      case 1:
-        channelConfig = AudioFormat.CHANNEL_OUT_MONO;
-        break;
-      case 2:
-        channelConfig = AudioFormat.CHANNEL_OUT_STEREO;
-        break;
-      case 6:
-        channelConfig = AudioFormat.CHANNEL_OUT_5POINT1;
-        break;
-      default:
-        throw new RuntimeException("Unsupported channel count: " + channelCount);
+    final int channelConfig = getChannelMaskForChannelCount(channelCount);
+    if (channelConfig == AudioFormat.CHANNEL_INVALID) {
+      throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
     return AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
   }
@@ -403,6 +393,44 @@ public class AudioOutputManager {
     return audioManager.generateAudioSessionId();
   }
 
+  /**
+   * Returns whether audio with `encoding`, `sampleRate` and `channelCount` can be played directly
+   * (i.e. without going through the software mixer and resampler of the Android audio framework).
+   *
+   * <p>When `requireHwAvSync` is true, the check uses the same AudioAttributes (with
+   * FLAG_HW_AV_SYNC) as the tunnel mode AudioTrack created in AudioTrackBridge. It always returns
+   * false on API levels lower than 29, where direct playback support cannot be queried.
+   */
+  @CalledByNative
+  boolean getDirectPlaybackSupport(
+      int encoding, int sampleRate, int channelCount, boolean requireHwAvSync) {
+    if (Build.VERSION.SDK_INT < 29) {
+      Log.i(
+          TAG,
+          "getDirectPlaybackSupport() returns false, as direct playback support cannot be queried"
+              + " on api %d.",
+          Build.VERSION.SDK_INT);
+      return false;
+    }
+
+    final AudioAttributes attributes = getDefaultAudioAttributes(requireHwAvSync);
+
+    try {
+      final AudioFormat format = getAudioFormat(encoding, sampleRate, channelCount);
+      return isDirectPlaybackSupported(format, attributes);
+    } catch (IllegalArgumentException e) {
+      Log.w(
+          TAG,
+          "getDirectPlaybackSupport() failed to query encoding %d, sample rate %d, channel count"
+              + " %d: ",
+          encoding,
+          sampleRate,
+          channelCount,
+          e);
+      return false;
+    }
+  }
+
   /** Returns whether passthrough on `encoding` is supported. */
   @CalledByNative
   boolean hasPassthroughSupportFor(int encoding) {
@@ -424,6 +452,7 @@ public class AudioOutputManager {
 
     // Sample rate is not provided when the function is called, assume it is 48000.
     final int defaultSurroundSampleRate = 48000;
+    final int defaultSurroundChannelCount = 6;
 
     if (hasPassthroughSupportForV23(deviceInfos, encoding)) {
       Log.i(
@@ -441,7 +470,8 @@ public class AudioOutputManager {
             Build.VERSION.SDK_INT);
         return false;
       }
-      if (hasDirectSurroundPlaybackSupportForV29(encoding, defaultSurroundSampleRate)) {
+      if (hasDirectSurroundPlaybackSupportForV29(
+          encoding, defaultSurroundSampleRate, defaultSurroundChannelCount)) {
         Log.i(
             TAG,
             "Passthrough on encoding %d is supported, as"
@@ -462,8 +492,8 @@ public class AudioOutputManager {
     try {
       AudioTrack audioTrack =
           new AudioTrack(
-              getDefaultAudioAttributes(),
-              getPassthroughAudioFormatFor(encoding, defaultSurroundSampleRate),
+              getDefaultAudioAttributes(/* requireHwAvSync= */ false),
+              getAudioFormat(encoding, defaultSurroundSampleRate, defaultSurroundChannelCount),
               AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_5POINT1, encoding),
               AudioTrack.MODE_STREAM,
               AudioManager.AUDIO_SESSION_ID_GENERATE);
@@ -529,8 +559,12 @@ public class AudioOutputManager {
   }
 
   @RequiresApi(29)
-  /** Returns whether direct playback on surround `encoding` is supported for API 29 and above. */
-  private boolean hasDirectSurroundPlaybackSupportForV29(int encoding, int sampleRate) {
+  /**
+   * Returns whether direct playback on surround `encoding` with `sampleRate` and `channelCount` is
+   * supported for API 29 and above.
+   */
+  private boolean hasDirectSurroundPlaybackSupportForV29(
+      int encoding, int sampleRate, int channelCount) {
     if (!isPassthroughEncoding(encoding)) {
       Log.w(
           TAG,
@@ -541,28 +575,80 @@ public class AudioOutputManager {
 
     boolean supported =
         AudioTrack.isDirectPlaybackSupported(
-            getPassthroughAudioFormatFor(encoding, sampleRate), getDefaultAudioAttributes());
+            getAudioFormat(encoding, sampleRate, channelCount),
+            getDefaultAudioAttributes(/* requireHwAvSync= */ false));
     Log.i(TAG, "isDirectPlaybackSupported() for encoding %d returned %b.", encoding, supported);
     return supported;
   }
 
+  /**
+   * Returns whether audio in `format` can be played directly with `attributes`, i.e. without going
+   * through the software mixer of the Android audio framework. Always returns false on API levels
+   * lower than 29, where direct playback support cannot be queried.
+   */
+  private boolean isDirectPlaybackSupported(AudioFormat format, AudioAttributes attributes) {
+    if (Build.VERSION.SDK_INT < 29) {
+      return false;
+    }
+    if (Build.VERSION.SDK_INT < 33) {
+      return AudioTrack.isDirectPlaybackSupported(format, attributes);
+    }
+    // AudioTrack.isDirectPlaybackSupported() is deprecated in API 33.
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+    return audioManager.getDirectPlaybackSupport(format, attributes)
+        != AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED;
+  }
+
   // TODO: Move utility functions into a separate class.
-  /** Returns AudioFormat for surround `encoding` and `sampleRate`. */
-  static AudioFormat getPassthroughAudioFormatFor(int encoding, int sampleRate) {
+  /**
+   * Returns AudioFormat for `encoding`, `sampleRate` and `channelCount`.
+   *
+   * @throws IllegalArgumentException if `channelCount` isn't supported, or if any of the parameters
+   *     is rejected by AudioFormat.Builder.
+   */
+  static AudioFormat getAudioFormat(int encoding, int sampleRate, int channelCount) {
+    final int channelMask = getChannelMaskForChannelCount(channelCount);
+    if (channelMask == AudioFormat.CHANNEL_INVALID) {
+      throw new IllegalArgumentException("Unsupported channel count " + channelCount);
+    }
     return new AudioFormat.Builder()
-        .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
+        .setChannelMask(channelMask)
         .setEncoding(encoding)
         .setSampleRate(sampleRate)
         .build();
   }
 
-  /** Returns default AudioAttributes for surround playbacks. */
-  static AudioAttributes getDefaultAudioAttributes() {
+  /**
+   * Returns the AudioFormat channel mask for `channelCount`, or AudioFormat.CHANNEL_INVALID if
+   * `channelCount` isn't supported.
+   */
+  static int getChannelMaskForChannelCount(int channelCount) {
+    switch (channelCount) {
+      case 1:
+        return AudioFormat.CHANNEL_OUT_MONO;
+      case 2:
+        return AudioFormat.CHANNEL_OUT_STEREO;
+      case 6:
+        return AudioFormat.CHANNEL_OUT_5POINT1;
+      default:
+        return AudioFormat.CHANNEL_INVALID;
+    }
+  }
+
+  /**
+   * Returns default AudioAttributes for media playbacks. When `requireHwAvSync` is true, the
+   * returned AudioAttributes has FLAG_HW_AV_SYNC set, which is required by tunnel mode.
+   */
+  static AudioAttributes getDefaultAudioAttributes(boolean requireHwAvSync) {
     // TODO: Turn this into a static variable after it is moved into a separate class.
-    return new AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_MEDIA)
-        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-        .build();
+    AudioAttributes.Builder builder =
+        new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE);
+    if (requireHwAvSync) {
+      builder.setFlags(AudioAttributes.FLAG_HW_AV_SYNC);
+    }
+    return builder.build();
   }
 
   private static AudioDeviceCallback sAudioDeviceCallback =
