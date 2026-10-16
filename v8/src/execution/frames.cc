@@ -1838,7 +1838,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     auto pair =
         wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
     wasm::WasmCode* wasm_code = pair.first;
-    safepoint_entry.CopyFrom(pair.second);
+    safepoint_entry = pair.second;
     DCHECK(wasm_code);
     interpreter_wasm_code = DrumBrakeWasmCode::Compiled(wasm_code);
   }
