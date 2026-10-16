@@ -7484,7 +7484,8 @@ TEST_F(UpdateClientTest, Install_StopCancelsActiveDownload) {
     void DoCancelDownload() override {}
 #endif
 #if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+    base::OnceClosure DoStartDownload(const GURL& url,
+                                      std::string* dst) override {
 #else
     base::OnceClosure DoStartDownload(const GURL& url) override {
 #endif

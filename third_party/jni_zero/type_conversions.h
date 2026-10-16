@@ -227,7 +227,8 @@ inline T FromJniCollection(JNIEnv* env, const JavaRef<jobject>& obj) {
 }
 #undef JNI_ZERO_CONVERSION_FAILED_MSG
 
-#if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 // Handles non-JavaRef types that are passed by reference or have cv-qualifiers
 // by decaying them to their base type and calling the base FromJniType.
 template <typename T>
@@ -235,7 +236,8 @@ template <typename T>
 inline auto FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
   return FromJniType<std::decay_t<T>>(env, obj);
 }
-#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 }  // namespace jni_zero
 

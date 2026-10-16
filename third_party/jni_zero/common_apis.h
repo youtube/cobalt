@@ -54,7 +54,8 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ListSet(
 #if BUILDFLAG(IS_COBALT)
 template <typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
@@ -82,7 +83,8 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionAdd(
 #if BUILDFLAG(IS_COBALT)
 template <typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
@@ -129,9 +131,11 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> MapPut(
 
 // Helper that calls ToJniType on the key and value before calling MapPut.
 #if BUILDFLAG(IS_COBALT)
-template <typename K, typename V
+template <typename K,
+          typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!IsJavaRef<K> && !IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<K> && !IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
