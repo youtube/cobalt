@@ -7,6 +7,8 @@ Google Cloud Vertex AI Reasoning Engine service.
 """
 
 import argparse
+import contextvars
+import copyreg
 import os
 import sys
 from typing import Optional
@@ -36,6 +38,10 @@ from reasoning_engine.engine import CobaltReasoningEngine
 # Register module to pickle by value so class and cached skills are
 # self-contained in deployment artifact.
 cloudpickle.register_pickle_by_value(engine_mod)
+# Pickling by value copies module globals, but a ContextVar cannot be pickled;
+# re-create it by name in the deployed engine instead.
+copyreg.pickle(contextvars.ContextVar, lambda var: (contextvars.ContextVar,
+                                                    (var.name,)))
 
 
 def _normalize_resource_name(resource_id: str, project_id: str,

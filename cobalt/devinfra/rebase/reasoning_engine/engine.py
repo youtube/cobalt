@@ -44,16 +44,16 @@ SKILLS_DIR = os.path.join(
 _SKILL_CACHE: Dict[str, str] = {}
 
 # Token usage of the model calls made while serving the current query(). A
-# ContextVar keeps concurrent queries on the hosted engine apart and, unlike
-# an instance attribute, is not pickled when the engine is deployed.
-_QUERY_USAGE: contextvars.ContextVar[Optional[List[Dict[str, Any]]]] = (
-    contextvars.ContextVar("query_usage", default=None))
+# ContextVar keeps concurrent queries on the hosted engine apart. It cannot be
+# pickled, so deploy.py re-creates it by name when the engine is deployed.
+_QUERY_USAGE: contextvars.ContextVar[List[Dict[str, Any]]] = (
+    contextvars.ContextVar("query_usage"))
 
 
 def _record_usage(model: str, prompt: Optional[int],
                   completion: Optional[int]) -> None:
   """Adds one model call's token counts to the current query's usage."""
-  usage = _QUERY_USAGE.get()
+  usage = _QUERY_USAGE.get(None)
   if usage is None:
     return
   prompt = prompt or 0
