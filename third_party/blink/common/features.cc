@@ -478,6 +478,12 @@ BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Skips unconditional UpdateLayoutObject() in
+// HTMLMediaElement::ProgressEventTimerFired when native controls are not shown.
+BASE_FEATURE(kCobaltSkipMediaProgressLayoutUpdate,
+             "CobaltSkipMediaProgressLayoutUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Enable legacy `viewport-width` client hint.
