@@ -105,12 +105,6 @@ std::string JavaByteArrayToString(
   return out;
 }
 
-ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
-                                                     std::string_view data) {
-  return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(data.data()),
-                         data.size());
-}
-
 DrmOperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
@@ -164,7 +158,7 @@ DrmOperationResult MediaDrmBridge::CreateSession(int ticket,
   JNIEnv* env = AttachCurrentThread();
 
   jint j_ticket = static_cast<jint>(ticket);
-  auto j_init_data = ToScopedJavaByteArray(env, init_data);
+  auto j_init_data = ToJavaByteArray(env, init_data);
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
   return ToOperationResult(
@@ -184,7 +178,7 @@ DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
   JNIEnv* env = AttachCurrentThread();
   return ToOperationResult(
       env, Java_MediaDrmBridge_provideProvisionResponse(
-               env, j_media_drm_bridge_, ToScopedJavaByteArray(env, response)));
+               env, j_media_drm_bridge_, ToJavaByteArray(env, response)));
 }
 
 DrmOperationResult MediaDrmBridge::UpdateSession(
@@ -193,8 +187,8 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
     std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  auto j_session_id = ToScopedJavaByteArray(env, session_id);
-  auto j_response = ToScopedJavaByteArray(env, key);
+  auto j_session_id = ToJavaByteArray(env, session_id);
+  auto j_response = ToJavaByteArray(env, key);
 
   return ToOperationResult(
       env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
@@ -204,7 +198,7 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  auto j_session_id = ToScopedJavaByteArray(env, session_id);
+  auto j_session_id = ToJavaByteArray(env, session_id);
 
   Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
