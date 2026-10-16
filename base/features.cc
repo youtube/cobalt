@@ -48,6 +48,8 @@ BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
 
+// TODO: Align with <AssociatedFeatureName>_<ParamName> naming convention
+// for Finch experiment.
 BASE_FEATURE_PARAM(int,
                    kCobaltMemoryPressureCooldownSeconds,
                    &kCobaltMemoryPressureCooldown,
@@ -70,6 +72,8 @@ BASE_FEATURE(kCobaltCCImageCacheLimitItems,
              "CobaltCCImageCacheLimitItems",
              FEATURE_DISABLED_BY_DEFAULT);
 
+// TODO: Align with <AssociatedFeatureName>_<ParamName> naming convention
+// for Finch experiment.
 BASE_FEATURE_PARAM(int,
                    kCobaltCCImageCacheLimitItemsCount,
                    &kCobaltCCImageCacheLimitItems,
@@ -80,7 +84,7 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE_PARAM(int,
                    kCobaltCCImageCacheLimitItemsMbs,
                    &kCobaltCCImageCacheLimitItems,
-                   "cc_image_cache_limit_mbs",
+                   "CobaltCCImageCacheLimitItems_mbs",
                    -1);
 
 BASE_FEATURE(kCobaltForceGpuMemAvailable,
@@ -90,7 +94,7 @@ BASE_FEATURE(kCobaltForceGpuMemAvailable,
 BASE_FEATURE_PARAM(int,
                    kCobaltForceGpuMemAvailableMb,
                    &kCobaltForceGpuMemAvailable,
-                   "force_gpu_mem_available_mb",
+                   "CobaltForceGpuMemAvailable_mb",
                    64);
 
 // Enabled by default on 3P/Starboard platforms so that they use the 1 MB GPU
@@ -121,7 +125,7 @@ BASE_FEATURE(kCobaltV8MaxOldSpaceSize,
 BASE_FEATURE_PARAM(int,
                    kCobaltV8MaxOldSpaceSizeMb,
                    &kCobaltV8MaxOldSpaceSize,
-                   "max_old_space_size_mb",
+                   "CobaltV8MaxOldSpaceSize_mb",
                    512);
 
 BASE_FEATURE(kCobaltV8InitialOldSpaceSize,
@@ -131,7 +135,7 @@ BASE_FEATURE(kCobaltV8InitialOldSpaceSize,
 BASE_FEATURE_PARAM(int,
                    kCobaltV8InitialOldSpaceSizeMb,
                    &kCobaltV8InitialOldSpaceSize,
-                   "initial_old_space_size_mb",
+                   "CobaltV8InitialOldSpaceSize_mb",
                    16);
 
 // Enabled by default on Android to preserve existing production behavior, and
@@ -157,6 +161,8 @@ BASE_FEATURE(kCobaltSkewportTargetTime,
              FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// TODO: Align with <AssociatedFeatureName>_<ParamName> naming convention
+// for Finch experiment.
 BASE_FEATURE_PARAM(double,
                    kCobaltSkewportTargetTimeInSeconds,
                    &kCobaltSkewportTargetTime,
@@ -180,7 +186,7 @@ BASE_FEATURE(kCobaltMaxMemoryForPrepaint,
 BASE_FEATURE_PARAM(int,
                    kCobaltMaxMemoryForPrepaintPercentage,
                    &kCobaltMaxMemoryForPrepaint,
-                   "max_memory_for_prepaint_percentage",
+                   "CobaltMaxMemoryForPrepaint_percentage",
                    0);
 
 #if BUILDFLAG(IS_ANDROID)
