@@ -10020,7 +10020,7 @@ void RenderFrameHostImpl::CreateNewWindow(
 
 =======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Fenced frames that have revoked network access can't open popups.
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {

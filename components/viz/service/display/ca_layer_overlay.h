@@ -52,7 +52,7 @@ class VIZ_SERVICE_EXPORT CALayerOverlayProcessor {
           render_pass_backdrop_filters,
       OverlayCandidateList* ca_layer_overlays,
       const OverlayCandidateFactory& candidate_factory) const;
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Returns true if all quads in the root render pass have been replaced by
   // CALayerOverlays. Virtual for testing.

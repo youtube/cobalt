@@ -36,7 +36,7 @@ namespace internal {
 #if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 template <typename T>
 concept HasReserve = requires(T t) { t.reserve(0); };
@@ -132,7 +132,7 @@ inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
 // Base template that is resolved only when other specializations are missing.
 =======
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <typename T>
   requires(!internal::HasSpecificSpecialization<T>)
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& obj) {
@@ -185,7 +185,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Allow conversions using pointers by wrapping non-pointer conversions.
 // Cannot live in default_conversions.h because we want code to be able to
 // specialize it.
@@ -213,7 +213,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T* value) {
 // Convert from an stl container to a Java array. Uses ToJniType() on each
 // element.
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 template <typename T>
 inline ScopedJavaLocalRef<jobjectArray> ToJniArray(JNIEnv* env,
                                                    const T& obj,

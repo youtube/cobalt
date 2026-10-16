@@ -1533,7 +1533,7 @@ class ResourceFetcherStrongReferenceThresholdTest : public ResourceFetcherTest {
   // encoded length (103 bytes for `kTestResourceFilename`)
   static constexpr size_t kMockResourceSizeLowerBound = 3700 + 103;
   static constexpr size_t kMockResourceSizeUpperBound = 4800 + 103;
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Set up the strong reference feature so that the memory cache can keep
   // strong references to 2 resources, but not 3.

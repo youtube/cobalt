@@ -64,7 +64,7 @@ struct GlyphEntry {
 =======
     const GlyphEntryKey fGlyphEntryKey;
     AtlasLocator fAtlasLocator;
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 /** Adapts GlyphEntry* to conform to GlyphVectors GlyphType requirements. */

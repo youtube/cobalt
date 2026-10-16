@@ -959,7 +959,7 @@ void QuotaDatabase::Commit() {
   db_->BeginTransactionDeprecated();
 #endif
   DCHECK_EQ(1, db_->transaction_nesting());
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -1058,7 +1058,7 @@ QuotaError QuotaDatabase::EnsureOpened() {
     return QuotaError::kDatabaseError;
   }
 #else
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   db_->BeginTransactionDeprecated();
 #endif
 

@@ -69,7 +69,7 @@ template <typename V
 template <typename V>
   requires(!internal::IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 inline ScopedJavaLocalRef<jobject> ListSet(JNIEnv* env,
                                            const JavaRef<jobject>& list,
                                            int32_t idx,
@@ -103,7 +103,7 @@ template <typename V
 template <typename V>
   requires(!internal::IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 inline ScopedJavaLocalRef<jobject>
 CollectionAdd(JNIEnv* env, const JavaRef<jobject>& collection, const V& value) {
   return CollectionAdd(env, collection, ToJniType(env, value));
@@ -158,7 +158,7 @@ template <typename K, typename V
 template <typename K, typename V>
   requires(!internal::IsJavaRef<K> && !internal::IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 inline ScopedJavaLocalRef<jobject> MapPut(JNIEnv* env,
                                           const JavaRef<jobject>& map,
                                           const K& key,

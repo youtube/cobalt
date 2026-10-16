@@ -1344,7 +1344,7 @@ if (!is_robolectric && enable_java_templates) {
         ignore_all_data_deps = invoker.ignore_all_data_deps
       }
       resource_apk = _apkbuilder_output
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       deps = [
         ":$_build_config_target_name",
         ":${_java_binary_target_name}__host",

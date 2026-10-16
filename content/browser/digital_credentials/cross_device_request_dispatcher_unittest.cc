@@ -21,7 +21,7 @@
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"  // nogncheck
 #endif
 #include "device/fido/cable/fido_cable_discovery.h"
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "device/fido/cable/pairing.h"
 #include "device/fido/cable/v2_authenticator.h"
 #include "device/fido/cable/v2_constants.h"
@@ -69,7 +69,7 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
 #if !BUILDFLAG(IS_COBALT)
     mock_adapter_ =
         base::MakeRefCounted<NiceMock<device::MockBluetoothAdapter>>();
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     device::BluetoothAdapterFactory::SetAdapterForTesting(mock_adapter_);
 #endif
   }
@@ -153,7 +153,7 @@ class DigitalCredentialsCrossDeviceRequestDispatcherTest
 #if !BUILDFLAG(IS_COBALT)
   scoped_refptr<NiceMock<device::MockBluetoothAdapter>> mock_adapter_;
 #endif
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   base::test::TaskEnvironment task_environment;
 };

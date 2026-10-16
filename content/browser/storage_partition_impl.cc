@@ -3230,7 +3230,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
                          CreateTaskCompletionClosure(TracingDataType::kQuota)));
     }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_LOCAL_STORAGE) {

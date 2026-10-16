@@ -756,7 +756,7 @@ class CC_EXPORT GpuImageDecodeCache
   // callbacks.
   base::WeakPtr<GpuImageDecodeCache> weak_ptr_;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 

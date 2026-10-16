@@ -609,7 +609,7 @@ void HangWatcher::UpdateConfiguration() {
       std::memory_order_relaxed);
 }
 #endif
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // static
 void HangWatcher::InitializeOnMainThread(ProcessType process_type,

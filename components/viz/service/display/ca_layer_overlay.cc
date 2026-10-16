@@ -371,7 +371,7 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
         render_pass_backdrop_filters,
     OverlayCandidateList* ca_layer_overlays,
     const OverlayCandidateFactory& candidate_factory) const {
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   bool failed = false;
 
   for (auto it = quad_list->begin(); it != quad_list->end(); ++it) {
@@ -415,7 +415,7 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
               it, resource_provider, render_pass, display_rect, quad,
               render_pass_filters, render_pass_backdrop_filters,
               protected_video_type, ca_layer_overlays, candidate_factory)) {
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         failed = true;
         break;
       }
@@ -537,7 +537,7 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
       && at->material != DrawQuad::Material::kVideoHole
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ) {
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of b1c356e9a3e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return false;
   }
 
