@@ -3201,36 +3201,23 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
       remove_mask_ & REMOVE_DATA_MASK_FILE_SYSTEMS ||
       remove_mask_ & REMOVE_DATA_MASK_SERVICE_WORKERS ||
       remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE) {
-<<<<<<< HEAD
     ClearQuotaManagedData(
         quota_manager, begin, end,
         StoragePartitionImpl::GenerateQuotaClientTypes(remove_mask_),
         storage_key, storage_policy_ref, combined_storage_key_matcher,
         perform_storage_cleanup,
         CreateTaskCompletionClosure(TracingDataType::kQuota));
-=======
-    GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&DataDeletionHelper::ClearQuotaManagedDataOnIOThread,
-                       base::Unretained(this),
-                       base::WrapRefCounted(quota_manager), begin, end,
-                       storage_key, storage_policy_ref,
-                       combined_storage_key_matcher, perform_storage_cleanup,
-                       CreateTaskCompletionClosure(TracingDataType::kQuota)));
 #if BUILDFLAG(IS_COBALT)
     if (cache_quota_manager &&
         (remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE)) {
-      GetIOThreadTaskRunner({})->PostTask(
-          FROM_HERE,
-          base::BindOnce(&DataDeletionHelper::ClearQuotaManagedDataOnIOThread,
-                         base::Unretained(this),
-                         base::WrapRefCounted(cache_quota_manager), begin, end,
-                         storage_key, storage_policy_ref,
-                         combined_storage_key_matcher, perform_storage_cleanup,
-                         CreateTaskCompletionClosure(TracingDataType::kQuota)));
+      ClearQuotaManagedData(
+          cache_quota_manager, begin, end,
+          StoragePartitionImpl::GenerateQuotaClientTypes(remove_mask_),
+          storage_key, storage_policy_ref, combined_storage_key_matcher,
+          perform_storage_cleanup,
+          CreateTaskCompletionClosure(TracingDataType::kQuota));
     }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_LOCAL_STORAGE) {

@@ -77,17 +77,11 @@ void OverlayProcessorMac::ProcessForOverlays(
     context.supports_mask_filter = true;
     const OverlayCandidateFactory factory(
         render_pass, resource_provider, &surface_damage_rect_list,
-        &output_color_matrix,
-        gfx::RectF(primary_plane_params.viewport_size),
-        &render_pass_filters, context);
+        &output_color_matrix, gfx::RectF(primary_plane_params.viewport_size),
+        context);
     ca_layer_overlay_processor_->PutForcedOverlayContentIntoUnderlays(
         resource_provider, render_pass, gfx::RectF(render_pass->output_rect),
-<<<<<<< HEAD
-        &render_pass->quad_list, candidates);
-=======
-        &render_pass->quad_list, render_pass_filters,
-        render_pass_backdrop_filters, candidates, factory);
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+        &render_pass->quad_list, candidates, factory);
 
     // Mac doesn't use the plane_z_order field and it needs to have primary
     // plane last in the list of overlays.

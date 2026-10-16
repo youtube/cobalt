@@ -58,13 +58,8 @@ struct GlyphEntryKey {
 struct GlyphEntry {
     explicit GlyphEntry(SkPackedGlyphID id, MaskFormat format) : fGlyphEntryKey(id, format) {}
 
-<<<<<<< HEAD
-    const SkPackedGlyphID fPackedID;
-    GrAtlasLocator fAtlasLocator;
-=======
     const GlyphEntryKey fGlyphEntryKey;
-    AtlasLocator fAtlasLocator;
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    GrAtlasLocator fAtlasLocator;
 };
 
 /** Adapts GlyphEntry* to conform to GlyphVectors GlyphType requirements. */

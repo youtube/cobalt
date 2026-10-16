@@ -75,7 +75,7 @@ public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivit
     mShellManager = new ShellManager(this);
     IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid =
-        new ActivityWindowAndroid(
+        ActivityWindowAndroid.create(
             this,
             /* listenToActivityState= */ true,
             intentRequestTracker,
@@ -117,8 +117,7 @@ public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivit
             /* scheduleFlushStartupTasks= */ false,
             new StartupCallback() {
               @Override
-              public void onSuccess(
-                  BrowserStartupController.@Nullable StartupMetrics metrics) {
+              public void onSuccess(BrowserStartupController.@Nullable StartupMetrics metrics) {
                 // The C++ test harness is running thanks to runTests() above, but
                 // it waits for Java initialization to complete. This tells C++
                 // that it may continue now to finish running the tests.
