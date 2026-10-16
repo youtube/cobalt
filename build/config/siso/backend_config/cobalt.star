@@ -7,6 +7,11 @@
 This file was forked from:
 //build/config/siso/backend_config/google.star with only the default
 worker pool to match Cobalt's RBE instance.
+
+Cobalt's RBE instance has no dedicated large worker pool, so "large" is
+aliased to the default pool. Without it, rules that set
+platform_ref = "large" (e.g. mojo.star, android.star, blink_all.star) fail
+remotely with InvalidArgument or run locally only.
 """
 
 load("@builtin//struct.star", "module")
@@ -15,6 +20,11 @@ def __platform_properties(ctx):
     container_image = "docker://gcr.io/chops-public-images-prod/rbe/siso-chromium/linux@sha256:ef35d347f4a4a2d32b76fd908e66e96f59bf8ba7379fd5626548244c45343b2b"
     return {
         "default": {
+            "OSFamily": "Linux",
+            "container-image": container_image,
+            "label:action_default": "1",
+        },
+        "large": {
             "OSFamily": "Linux",
             "container-image": container_image,
             "label:action_default": "1",
