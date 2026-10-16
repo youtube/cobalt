@@ -418,7 +418,6 @@ BASE_DECLARE_FEATURE(kDurableMessages);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
 
-<<<<<<< HEAD
 // If enabled, the forbidden header checks for requests can be bypassed. This is
 // the network service side of the feature. The renderer side uses this same
 // feature via the cors::IsBypassRequestForbiddenHeadersCheckEnabled() function.
@@ -435,7 +434,7 @@ BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
 // initiated from content scripts or user scripts.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltDynamicMojoPipeSizing);
@@ -453,7 +452,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltDynamicMojoPipeSizingMediaSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> parent of 2f41215db12 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace network::features
 
