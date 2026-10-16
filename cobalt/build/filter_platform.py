@@ -21,7 +21,8 @@ def _resolve_labels(all_labels: set[str], raw_targets: list[str]) -> list[str]:
       continue
     label = target if target.startswith('//') else f'//{target}'
     matched = [label] if label in all_labels else [
-        l for l in all_labels if ':' not in target and l.endswith(f':{target}')]
+        l for l in all_labels if ':' not in target and l.endswith(f':{target}')
+    ]
     if not matched:
       raise ValueError(f'Cannot resolve target label: {target}')
     resolved.update(matched)
@@ -35,13 +36,15 @@ def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
       subprocess.check_output(['gn', 'ls', out_dir], text=True).splitlines())
   in_file = Path(out_dir) / 'analyze_in.json'
   out_file = Path(out_dir) / 'analyze_out.json'
-  in_file.write_text(json.dumps({
-      'files': [f'//{f}' for f in files],
-      'additional_compile_targets': _resolve_labels(all_labels, targets),
-      'test_targets': [],
-  }))
+  in_file.write_text(
+      json.dumps({
+          'files': [f'//{f}' for f in files],
+          'additional_compile_targets': _resolve_labels(all_labels, targets),
+          'test_targets': [],
+      }),
+      encoding='utf-8')
   subprocess.check_call(['gn', 'analyze', out_dir, in_file, out_file])
-  result = json.loads(out_file.read_text())
+  result = json.loads(out_file.read_text(encoding='utf-8'))
   if 'error' in result:
     raise RuntimeError(result['error'])
   return result.get('status') == 'No dependency'
@@ -54,7 +57,7 @@ def main():
   parser.add_argument('--targets', default='[]')
   parser.add_argument('--test-root-target', default='')
   args = parser.parse_args()
-  files = Path(args.changed_files).read_text().split()
+  files = Path(args.changed_files).read_text(encoding='utf-8').split()
   targets = json.loads(args.targets) + [args.test_root_target]
   print('true' if should_skip(args.out_dir, files, targets) else 'false')
 
