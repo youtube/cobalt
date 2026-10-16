@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+
 #include "starboard/common/log.h"
+#include "starboard/common/span.h"
 #include "starboard/drm.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
@@ -38,6 +41,6 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->UpdateServerCertificate(
-      ticket, std::string_view(static_cast<const char*>(certificate),
-                               certificate_size));
+      ticket, starboard::MakeSpan(static_cast<const uint8_t*>(certificate),
+                                  static_cast<size_t>(certificate_size)));
 }
