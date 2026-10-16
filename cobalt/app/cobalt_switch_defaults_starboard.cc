@@ -118,10 +118,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // fragmentation.
        "--no-decommit-pooled-pages "
        // Disable v8 concurrent marking by default.
-       "--no-concurrent-marking "
-       // Let Wasm call [NoAllocDirectCall] Web APIs (H5vccWasmImports)
-       // without going through JavaScript.
-       "--wasm-fast-api"},
+       "--no-concurrent-marking"},
   };
   return kCobaltSwitchDefaults;
 }
