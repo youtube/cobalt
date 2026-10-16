@@ -135,7 +135,7 @@ template <typename K,
           typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
           ,
-          std::enable_if_t<!IsJavaRef<K> && !IsJavaRef<V>, int> = 0
+          std::enable_if_t<!IsJavaRef<K> || !IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
