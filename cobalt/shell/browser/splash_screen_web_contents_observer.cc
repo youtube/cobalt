@@ -75,4 +75,12 @@ void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
   Shell::MaybeHideSystemSplashScreen();
 }
 
+void SplashScreenWebContentsObserver::MediaStartedPlaying(
+    const MediaPlayerInfo& video_type,
+    const MediaPlayerId& id) {
+  if (video_type.has_video && on_video_started_) {
+    on_video_started_.Run();
+  }
+}
+
 }  // namespace content
