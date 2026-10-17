@@ -115,10 +115,12 @@ runs:
           fetch_args+=(--unshallow)
         fi
         retry git -C "${DEST_PATH}" fetch "${fetch_args[@]}" origin "${GITHUB_BASE_REF}"
+        rm -f "${DEST_PATH}/.git/index.lock"
         git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
         git -C "${DEST_PATH}" merge --squash "${REF}"
         git -C "${DEST_PATH}" commit --quiet --allow-empty \
           --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
         else
+          rm -f "${DEST_PATH}/.git/index.lock"
           git -C "${DEST_PATH}" checkout "${REF}"
         fi
