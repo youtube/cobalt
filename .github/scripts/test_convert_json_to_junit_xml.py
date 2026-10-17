@@ -24,8 +24,8 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from convert_json_to_junit_xml import convert
-from cobalt.tools.junit_mini_parser import find_failing_tests
+from convert_json_to_junit_xml import convert  # pylint: disable=wrong-import-position
+from cobalt.tools.junit_mini_parser import find_failing_tests  # pylint: disable=wrong-import-position
 
 
 class TestConvertJsonToJunitXml(unittest.TestCase):
@@ -107,9 +107,12 @@ class TestConvertJsonToJunitXml(unittest.TestCase):
   def test_convert_sanitizes_xml_characters_and_attributes(self):
     root, _ = self._convert({
         'tests': [{
-            'test_title': 'test_\x00_title_\ud800',
-            'class_name': 'ControlChar_\x1b_Class',
-            'result': 'FAIL',
+            'test_title':
+                'test_\x00_title_\ud800',
+            'class_name':
+                'ControlChar_\x1b_Class',
+            'result':
+                'FAIL',
             'errors': [
                 'Error with \x00 null, \x08 backspace, \x1b escape, '
                 'keep \t and \n, and ]]> tag'
