@@ -31,9 +31,3 @@ cobalt_version = string_replace(string_replace(_cobalt_version_defines[0],
                                 "\"",
                                 "",
                                 1)
-
-# True if |cobalt_version| is an LTS release version, e.g. "27.lts.10", as
-# opposed to a development version such as "27.master.0". Only LTS versions
-# have a corresponding Evergreen version.
-cobalt_is_lts_version =
-    string_replace(cobalt_version, ".lts.", "", 1) != cobalt_version
