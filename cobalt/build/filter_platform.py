@@ -20,8 +20,9 @@ def _resolve_labels(all_labels: set[str], raw_targets: list[str]) -> list[str]:
     if not target or target == 'null':
       continue
     label = target if target.startswith('//') else f'//{target}'
-    matched = [label] if label in all_labels else [
-        l for l in all_labels if ':' not in target and l.endswith(f':{target}')
+    matched = [
+        l for l in all_labels if l.split('(')[0] == label or
+        (':' not in target and l.split('(')[0].endswith(f':{target}'))
     ]
     if not matched:
       raise ValueError(f'Cannot resolve target label: {target}')
@@ -73,15 +74,10 @@ def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      '--out-dir',
-      required=False,
-      help='Path to GN output directory for live gn analyze.')
+      '--out-dir', help='Path to GN output directory for live gn analyze.')
   parser.add_argument(
       '--deps-file',
-      required=False,
-      help=('Path to precomputed target dependencies JSON (e.g. for tvos on'
-            ' Linux).'),
-  )
+      help='Path to precomputed target dependencies JSON (e.g. tvos on Linux).')
   parser.add_argument('--changed-files', required=True)
   parser.add_argument('--targets', default='[]')
   args = parser.parse_args()

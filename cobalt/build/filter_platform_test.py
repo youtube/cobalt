@@ -107,6 +107,25 @@ class FilterPlatformTest(unittest.TestCase):
           filter_platform.should_skip(
               str(out_dir), ['cobalt/browser/main.cc'], ['cobalt']))
 
+  def test_resolve_labels(self):
+    # pylint: disable=protected-access
+    all_labels = {
+        '//cobalt:cobalt',
+        '//cobalt:gn_all(//build/toolchain/linux:clang_x64)',
+        '//starboard:nplb',
+    }
+    self.assertEqual(
+        filter_platform._resolve_labels(all_labels, ['//cobalt:cobalt']),
+        ['//cobalt:cobalt'])
+    self.assertEqual(
+        filter_platform._resolve_labels(all_labels, ['cobalt:gn_all']),
+        ['//cobalt:gn_all(//build/toolchain/linux:clang_x64)'])
+    self.assertEqual(
+        filter_platform._resolve_labels(all_labels, ['nplb']),
+        ['//starboard:nplb'])
+    with self.assertRaises(ValueError):
+      filter_platform._resolve_labels(all_labels, ['nonexistent'])
+
 
 if __name__ == '__main__':
   unittest.main()
