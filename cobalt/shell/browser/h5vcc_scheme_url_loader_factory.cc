@@ -23,6 +23,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -509,6 +510,22 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
 }
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
+
+// static
+base::span<const uint8_t> H5vccSchemeURLLoaderFactory::GetBuiltInResource(
+    const std::string& name) {
+  // Built from this file only, so that the embedded data isn't duplicated.
+  static const base::NoDestructor<GeneratedResourceMap> resource_map([] {
+    GeneratedResourceMap map;
+    LoaderEmbeddedResources::GenerateMap(map);
+    return map;
+  }());
+  const FileContents* contents = base::FindOrNull(*resource_map, name);
+  if (!contents || !contents->data || contents->size <= 0) {
+    return {};
+  }
+  return base::span(contents->data, static_cast<size_t>(contents->size));
+}
 
 void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     mojo::PendingReceiver<network::mojom::URLLoader> receiver,

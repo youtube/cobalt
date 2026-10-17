@@ -194,6 +194,10 @@ target(link_target_type, "renderer") {
       sources -= [ "media/inspector_media_event_handler.cc" ]
       sources += [ "media/cobalt/inspector_media_event_handler_stub.h" ]
     }
+    sources += [
+      "media/cobalt/video_hole_web_media_player.cc",
+      "media/cobalt/video_hole_web_media_player.h",
+    ]
   }
 
   if (is_linux || is_chromeos) {
