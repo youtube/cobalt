@@ -713,9 +713,9 @@ void Shell::LoadSplashScreenWebContents() {
     } else {
       // The page loads before its video shows anything, so the splash screen
       // starts with the video's first frame instead (see
-      // OnSplashScreenLoadComplete()).
-      awaiting_splash_video_first_frame_ = true;
+      // OnSplashScreenLoadComplete()), if it's observed.
       if (splash_screen_web_contents_observer_) {
+        awaiting_splash_video_first_frame_ = true;
         splash_screen_web_contents_observer_->set_on_video_started(
             base::BindRepeating(&Shell::OnSplashScreenVideoStarted,
                                 weak_factory_.GetWeakPtr()));
