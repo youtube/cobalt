@@ -60,6 +60,9 @@ class NativeSplashVideoPlayer {
     base::OnceClosure on_ended;
     // Playback failed. No other callback runs afterwards.
     base::OnceCallback<void(Error)> on_error;
+    // The video that the WebApp cached isn't valid, or the platform doesn't
+    // play it, so the built-in video plays instead.
+    base::OnceClosure on_cached_video_rejected;
   };
 
   // Starts playing `webm`, which must stay valid until the player is
@@ -73,13 +76,16 @@ class NativeSplashVideoPlayer {
       const gfx::Rect& bounds,
       Callbacks callbacks);
 
-  // Like Create(), for the built-in video that splash.html would play for
-  // `topic`: the 1080p video if the platform plays 4K VP9, the 480p one
-  // otherwise. `bounds` defaults to the whole screen if empty. Returns nullptr
-  // if the video isn't valid. If the platform doesn't play VP9, reports
-  // Error::kUnsupported.
-  static std::unique_ptr<NativeSplashVideoPlayer> CreateForBuiltInVideo(
+  // Like Create(), for the video that splash.html would play for `topic`:
+  // `cached_webm`, the video that the WebApp cached, if it's valid and the
+  // platform plays its size; otherwise, the built-in 1080p video if the
+  // platform plays 4K VP9, and the 480p one if not. `cached_webm` is untrusted,
+  // so it's only checked on the player's thread. `bounds` defaults to the whole
+  // screen if empty. Returns nullptr if the built-in video isn't valid. If the
+  // platform doesn't play VP9, reports Error::kUnsupported.
+  static std::unique_ptr<NativeSplashVideoPlayer> CreateForSplashScreen(
       const std::string& topic,
+      std::string cached_webm,
       const gfx::Rect& bounds,
       Callbacks callbacks);
 

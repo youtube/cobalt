@@ -303,8 +303,9 @@ SplashVideoIndex& SplashVideoIndex::operator=(SplashVideoIndex&&) = default;
 SplashVideoIndex::~SplashVideoIndex() = default;
 
 std::optional<SplashVideoIndex> IndexSplashVideoWebM(
-    base::span<const uint8_t> webm) {
-  if (webm.empty() || webm.size() > kMaxSplashVideoFileSize) {
+    base::span<const uint8_t> webm,
+    size_t max_file_size) {
+  if (webm.empty() || webm.size() > max_file_size) {
     return std::nullopt;
   }
   const uint8_t* const data = webm.data();

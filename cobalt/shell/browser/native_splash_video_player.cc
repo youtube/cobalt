@@ -32,11 +32,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/splash_video_webm_indexer.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "media/base/video_util.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -128,10 +130,15 @@ SbDecodeTargetGraphicsContextProvider* GetDecodeTargetProvider() {
 }  // namespace
 
 struct NativeSplashVideoPlayer::Video {
-  // Stays valid until the player is destroyed, e.g., a built-in resource.
+  // A video that stays valid until the player is destroyed, e.g., a built-in
+  // resource. Empty if the video is `owned_webm`.
   base::span<const uint8_t> webm;
+  // A video that the WebApp cached: untrusted, so it's only indexed on the
+  // player's thread, and only played if the platform plays its size.
+  std::string owned_webm;
   SplashVideoIndex index;
-  const char* required_mime;
+  // The MIME type that the platform must play for the video.
+  std::string required_mime;
 };
 
 // Owns the SbPlayer. Lives on a dedicated thread, which makes every SbPlayer
@@ -234,16 +241,52 @@ class NativeSplashVideoPlayer::Core {
   bool ChooseVideo() {
     std::vector<Video> videos = std::move(videos_);
     for (Video& video : videos) {
-      if (SbMediaCanPlayMimeAndKeySystem(video.required_mime, "") !=
-          kSbMediaSupportTypeNotSupported) {
-        webm_ = video.webm;
-        index_ = std::move(video.index);
-        video_stream_info_.frame_width = index_.width;
-        video_stream_info_.frame_height = index_.height;
-        return true;
+      const bool cached = !video.owned_webm.empty();
+      if (cached) {
+        std::optional<SplashVideoIndex> index =
+            IndexSplashVideoWebM(base::as_byte_span(video.owned_webm),
+                                 switches::kMaxSplashContentSize);
+        if (!index) {
+          LOG(WARNING) << "NativeSplash: Invalid cached splash screen video, "
+                          "playing the built-in one.";
+          ReportCachedVideoRejected();
+          continue;
+        }
+        video.index = std::move(*index);
+        video.required_mime =
+            base::StringPrintf("%s; width=%d; height=%d", kVp9Mime,
+                               video.index.width, video.index.height);
       }
+      if (SbMediaCanPlayMimeAndKeySystem(video.required_mime.c_str(), "") ==
+          kSbMediaSupportTypeNotSupported) {
+        if (cached) {
+          LOG(WARNING) << "NativeSplash: The platform doesn't play the cached "
+                          "splash screen video ("
+                       << video.index.width << "x" << video.index.height
+                       << "), playing the built-in one.";
+          ReportCachedVideoRejected();
+        }
+        continue;
+      }
+      if (cached) {
+        LOG(INFO) << "NativeSplash: Playing the cached splash screen video.";
+        owned_webm_ = std::move(video.owned_webm);
+        webm_ = base::as_byte_span(owned_webm_);
+      } else {
+        webm_ = video.webm;
+      }
+      index_ = std::move(video.index);
+      video_stream_info_.frame_width = index_.width;
+      video_stream_info_.frame_height = index_.height;
+      return true;
     }
     return false;
+  }
+
+  void ReportCachedVideoRejected() {
+    if (callbacks_.on_cached_video_rejected) {
+      std::move(callbacks_.on_cached_video_rejected).Run();
+    }
   }
 
   // Shows the video centered in `bounds_`, fit inside it with the video's
@@ -264,7 +307,8 @@ class NativeSplashVideoPlayer::Core {
                       video_bounds.height());
   }
 
-  // The frames are read in place from `webm_`, which outlives the player.
+  // The frames are read in place from `webm_`, which outlives the player, as
+  // `owned_webm_` does if it points to it.
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer) {}
@@ -395,6 +439,8 @@ class NativeSplashVideoPlayer::Core {
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   // The candidates, until ChooseVideo() picks one: `webm_` and `index_`.
   std::vector<Video> videos_;
+  // The video that the WebApp cached, if it's the one playing.
+  std::string owned_webm_;
   base::span<const uint8_t> webm_;
   SplashVideoIndex index_;
   gfx::Rect bounds_;
@@ -439,8 +485,10 @@ std::unique_ptr<NativeSplashVideoPlayer> NativeSplashVideoPlayer::Create(
     LOG(ERROR) << "NativeSplash: Invalid splash screen video.";
     return nullptr;
   }
-  std::vector<Video> videos;
-  videos.push_back({webm, std::move(*index), kVp9Mime});
+  std::vector<Video> videos(1);
+  videos[0].webm = webm;
+  videos[0].index = std::move(*index);
+  videos[0].required_mime = kVp9Mime;
   return CreateForVideos(std::move(videos), bounds, std::move(callbacks));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   return nullptr;
@@ -449,14 +497,18 @@ std::unique_ptr<NativeSplashVideoPlayer> NativeSplashVideoPlayer::Create(
 
 // static
 std::unique_ptr<NativeSplashVideoPlayer>
-NativeSplashVideoPlayer::CreateForBuiltInVideo(const std::string& topic,
+NativeSplashVideoPlayer::CreateForSplashScreen(const std::string& topic,
+                                               std::string cached_webm,
                                                const gfx::Rect& bounds,
                                                Callbacks callbacks) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // The same choice as splash.html's: the 1080p video if the platform plays 4K
-  // VP9, the 480p one otherwise.
-  const std::string prefix = topic == kMusicTopic ? "music_" : "";
+  // The same choice as splash.html's: the cached video, then the 1080p video
+  // if the platform plays 4K VP9, and the 480p one otherwise.
   std::vector<Video> videos;
+  if (!cached_webm.empty()) {
+    videos.emplace_back().owned_webm = std::move(cached_webm);
+  }
+  const std::string prefix = topic == kMusicTopic ? "music_" : "";
   for (const auto& [suffix, required_mime] :
        {std::pair{"", kVp9Mime4k}, std::pair{"_480", kVp9Mime}}) {
     const std::string name = base::StrCat({prefix, "splash", suffix, ".webm"});
@@ -467,7 +519,10 @@ NativeSplashVideoPlayer::CreateForBuiltInVideo(const std::string& topic,
       LOG(ERROR) << "NativeSplash: Invalid built-in " << name;
       return nullptr;
     }
-    videos.push_back({webm, std::move(*index), required_mime});
+    Video& video = videos.emplace_back();
+    video.webm = webm;
+    video.index = std::move(*index);
+    video.required_mime = required_mime;
   }
   return CreateForVideos(std::move(videos),
                          bounds.IsEmpty() ? GetFullScreenBounds() : bounds,
@@ -491,6 +546,11 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
       base::BindPostTaskToCurrentDefault(std::move(callbacks.on_ended));
   core_callbacks.on_error =
       base::BindPostTaskToCurrentDefault(std::move(callbacks.on_error));
+  if (callbacks.on_cached_video_rejected) {
+    core_callbacks.on_cached_video_rejected =
+        base::BindPostTaskToCurrentDefault(
+            std::move(callbacks.on_cached_video_rejected));
+  }
 
   base::SequenceBound<Core> core(
       base::ThreadPool::CreateSingleThreadTaskRunner(

@@ -48,6 +48,7 @@
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #endif
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -272,7 +273,8 @@ enum class NativeSplashVideoOutcome {
   kUnsupported = 4,
   kCreateFailed = 5,
   kPlaybackError = 6,
-  kMaxValue = kPlaybackError,
+  kCachedVideoRejected = 7,
+  kMaxValue = kCachedVideoRejected,
 };
 
 void RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome outcome) {
@@ -768,8 +770,16 @@ void Shell::LoadSplashScreenWebContents() {
     MarkStartupEvent(SplashScreenMetrics::Event::kSplashStart);
     GetPlatform()->LoadSplashScreenContents(this);
 
-    LoadSplashScreenURL(/*native_video=*/is_native_video_splash_screen_ &&
-                        MaybeStartNativeSplashVideo());
+    if (is_native_video_splash_screen_) {
+      // The page shows the video through a video hole. The video starts once
+      // the one that the WebApp cached, if any, is read, as splash.html would
+      // play it.
+      awaiting_splash_video_first_frame_ = true;
+      LoadSplashScreenURL(/*native_video=*/true);
+      ReadCachedSplashVideo();
+    } else {
+      LoadSplashScreenURL(/*native_video=*/false);
+    }
 
     if (is_main_frame_loaded_) {
       // Main frame loaded before splash screen started.
@@ -825,7 +835,32 @@ void Shell::LoadSplashScreenURL(bool native_video) {
   splash_screen_web_contents_->GetController().LoadURLWithParams(params);
 }
 
-bool Shell::MaybeStartNativeSplashVideo() {
+void Shell::ReadCachedSplashVideo() {
+  // The same entry as splash.html's: splash.webm in the topic's cache.
+  splash_cache_reader_ = H5vccSchemeURLLoaderFactory::CreateSplashCacheReader(
+      web_contents_->GetBrowserContext());
+  splash_cache_reader_->Read(
+      "splash.webm",
+      splash_topic_.empty() ? std::u16string(switches::kDefaultSplashCacheName)
+                            : base::UTF8ToUTF16(splash_topic_),
+      base::BindOnce(&Shell::OnCachedSplashVideoRead,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void Shell::OnCachedSplashVideoRead(SplashScreenFetchedState state,
+                                    std::string cached_webm) {
+  splash_cache_reader_.reset();
+  RecordSplashScreenFetchedState(state);
+  if (has_switched_to_main_frame_ || !splash_screen_web_contents_ ||
+      splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+    return;
+  }
+  if (!MaybeStartNativeSplashVideo(std::move(cached_webm))) {
+    LoadSplashScreenURL(/*native_video=*/false);
+  }
+}
+
+bool Shell::MaybeStartNativeSplashVideo(std::string cached_webm) {
   NativeSplashVideoPlayer::Callbacks callbacks;
   callbacks.on_first_frame = base::BindOnce(
       &Shell::OnNativeSplashVideoFirstFrame, weak_factory_.GetWeakPtr());
@@ -833,8 +868,12 @@ bool Shell::MaybeStartNativeSplashVideo() {
                                       weak_factory_.GetWeakPtr());
   callbacks.on_error = base::BindOnce(&Shell::OnNativeSplashVideoError,
                                       weak_factory_.GetWeakPtr());
-  native_splash_video_player_ = NativeSplashVideoPlayer::CreateForBuiltInVideo(
-      splash_topic_, GetNativeSplashVideoBounds(), std::move(callbacks));
+  callbacks.on_cached_video_rejected =
+      base::BindOnce(&RecordNativeSplashVideoOutcome,
+                     NativeSplashVideoOutcome::kCachedVideoRejected);
+  native_splash_video_player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
+      splash_topic_, std::move(cached_webm), GetNativeSplashVideoBounds(),
+      std::move(callbacks));
   if (!native_splash_video_player_) {
     LOG(WARNING) << "NativeSplash: Can't play the splash screen video "
                     "natively, falling back to the HTML video.";
@@ -935,6 +974,7 @@ void Shell::OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error) {
 }
 
 void Shell::StopNativeSplashVideo() {
+  splash_cache_reader_.reset();
   native_splash_video_player_.reset();
   awaiting_splash_video_first_frame_ = false;
 }
@@ -1528,6 +1568,7 @@ void Shell::SwitchToMainWebContents(
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
     }
+    splash_cache_reader_.reset();
     native_splash_video_player_.reset();
     if (splash_screen_web_contents_) {
       splash_screen_web_contents_.reset();
