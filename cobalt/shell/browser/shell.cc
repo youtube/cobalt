@@ -226,6 +226,10 @@ GURL GetSplashScreenURL() {
   return GURL(switches::kSplashScreenURL);
 }
 
+// How long the splash screen waits for the first frame of its video before its
+// duration starts anyway, e.g., if the video can't play.
+constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
+
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
@@ -682,6 +686,16 @@ void Shell::LoadSplashScreenWebContents() {
     if (!is_video_splash_screen_) {
       splash_screen_url =
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    } else {
+      // The page loads before its video shows anything, so the splash screen
+      // starts with the video's first frame instead (see
+      // OnSplashScreenLoadComplete()).
+      awaiting_splash_video_first_frame_ = true;
+      if (splash_screen_web_contents_observer_) {
+        splash_screen_web_contents_observer_->set_on_video_started(
+            base::BindRepeating(&Shell::OnSplashScreenVideoStarted,
+                                weak_factory_.GetWeakPtr()));
+      }
     }
     if (!splash_topic_.empty()) {
       splash_screen_url =
@@ -1291,13 +1305,38 @@ void Shell::SwitchToMainWebContents() {
 }
 
 void Shell::OnSplashScreenLoadComplete() {
-  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
-      splash_screen_start_time_.is_null()) {
-    splash_screen_start_time_ = base::TimeTicks::Now();
-    if (is_main_frame_loaded_) {
-      ScheduleSwitchToMainWebContents();
-    }
+  if (awaiting_splash_video_first_frame_) {
+    // The page of a video loads before the video shows anything, so the splash
+    // screen starts with the video's first frame instead (see
+    // OnSplashScreenVideoStarted()), within a limit.
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&Shell::StartSplashScreenTimer,
+                       weak_factory_.GetWeakPtr()),
+        kMaxSplashVideoFirstFrameDelay);
+    return;
   }
+  StartSplashScreenTimer();
+}
+
+void Shell::StartSplashScreenTimer() {
+  if (splash_state_ < STATE_SPLASH_SCREEN_STARTED ||
+      !splash_screen_start_time_.is_null()) {
+    return;
+  }
+  splash_screen_start_time_ = base::TimeTicks::Now();
+  if (is_main_frame_loaded_) {
+    ScheduleSwitchToMainWebContents();
+  }
+}
+
+void Shell::OnSplashScreenVideoStarted() {
+  if (!awaiting_splash_video_first_frame_) {
+    return;
+  }
+  VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
+  awaiting_splash_video_first_frame_ = false;
+  StartSplashScreenTimer();
 }
 
 void Shell::ClosingSplashScreenWebContents() {

@@ -15,6 +15,8 @@
 #ifndef COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 
+#include <utility>
+
 #include "base/functional/callback.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -40,11 +42,20 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void DidStopLoading() override;
 
   void DidFirstVisuallyNonEmptyPaint() override;
+  void MediaStartedPlaying(const MediaPlayerInfo& video_type,
+                           const MediaPlayerId& id) override;
+
+  // Runs `on_video_started` whenever a video starts playing in the splash
+  // screen, which is once it has its first frame.
+  void set_on_video_started(base::RepeatingClosure on_video_started) {
+    on_video_started_ = std::move(on_video_started);
+  }
 
  private:
   void LoadProgressChanged(double progress) override;
 
   base::OnceClosure on_load_complete_;
+  base::RepeatingClosure on_video_started_;
 };
 
 }  // namespace content
