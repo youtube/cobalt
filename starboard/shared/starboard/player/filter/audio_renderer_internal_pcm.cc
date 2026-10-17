@@ -210,7 +210,8 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  audio_renderer_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
+  audio_renderer_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? playback_rate_
+                                                             : 0.0);
   if (audio_renderer_sink_->HasStarted()) {
     // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
     // support play/pause.
@@ -705,8 +706,8 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
-  scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
-      max_cached_frames_ - frames_in_buffer, playback_rate_);
+  scoped_refptr<DecodedAudio> decoded_audio =
+      time_stretcher_.Read(max_cached_frames_ - frames_in_buffer, 1);
   SB_DCHECK(decoded_audio);
 
   {
@@ -714,7 +715,7 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     if (decoded_audio->frames() == 0 && eos_state_ == kEOSDecoded) {
       eos_state_ = kEOSSentToSink;
     }
-    audio_frame_tracker_.AddFrames(decoded_audio->frames(), playback_rate_);
+    audio_frame_tracker_.AddFrames(decoded_audio->frames(), 1);
   }
 
   // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and

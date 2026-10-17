@@ -118,6 +118,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            const SbMediaColorMetadata* color_metadata,
                            bool require_software_codec,
                            const FrameRenderedCB& frame_rendered_cb,
+                           const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
@@ -126,9 +127,12 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
+      first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
+  SB_DCHECK(first_tunnel_frame_ready_cb_);
+  SB_DCHECK(tunnel_mode_audio_session_id == -1 || first_tunnel_frame_ready_cb);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
@@ -233,6 +237,15 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
     return;
   }
   media_codec_bridge_->SetPlaybackRate(playback_rate);
+}
+
+void MediaDecoder::Seek(int64_t seek_to_time) {
+  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+  SB_DCHECK(media_codec_bridge_);
+  if (!media_codec_bridge_) {
+    return;
+  }
+  media_codec_bridge_->Seek(seek_to_time);
 }
 
 // static
@@ -669,6 +682,10 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
+}
+
+void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
+  first_tunnel_frame_ready_cb_();
 }
 
 bool MediaDecoder::Flush() {

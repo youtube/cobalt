@@ -53,6 +53,7 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
   typedef std::function<void(int64_t)> FrameRenderedCB;
+  typedef std::function<void(void)> FirstTunnelFrameReadyCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -96,6 +97,7 @@ class MediaDecoder final
                const SbMediaColorMetadata* color_metadata,
                bool require_software_codec,
                const FrameRenderedCB& frame_rendered_cb,
+               const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
@@ -107,6 +109,8 @@ class MediaDecoder final
   void WriteEndOfStream();
 
   void SetPlaybackRate(double playback_rate);
+
+  void Seek(int64_t seek_to_time);
 
   size_t GetNumberOfPendingTasks() const {
     return number_of_pending_tasks_.load();
@@ -173,6 +177,7 @@ class MediaDecoder final
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
   void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
@@ -181,6 +186,7 @@ class MediaDecoder final
   DrmSystem* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const bool tunnel_mode_enabled_;
+  const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
 
   ErrorCB error_cb_;
 

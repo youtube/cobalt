@@ -14,6 +14,9 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <memory>
+#include <string>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
@@ -96,6 +99,17 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFrameRendered(
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -495,6 +509,11 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
       j_media_codec_bridge_, "setPlaybackRate", "(D)V", playback_rate);
 }
 
+void MediaCodecBridge::Seek(int64_t seek_to_time) {
+  JniEnvExt::Get()->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "seek", "(J)V", seek_to_time);
+}
+
 bool MediaCodecBridge::Restart() {
   return JniEnvExt::Get()->CallBooleanMethodOrAbort(
              j_media_codec_bridge_, "restart", "()Z") == JNI_TRUE;
@@ -572,6 +591,10 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {

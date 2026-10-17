@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
+#include "starboard/android/shared/audio_renderer_tunnel_pcm.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -41,6 +42,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -55,7 +57,7 @@ namespace shared {
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
 // mode on all playbacks.
-constexpr bool kForceTunnelMode = false;
+constexpr bool kForceTunnelMode = true;
 
 // By default, the platform Opus decoder is only enabled for encrypted playback.
 // Set the following variable to true to force it for clear playback.
@@ -74,12 +76,12 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
-constexpr bool kForceFlushDecoderDuringReset = false;
+constexpr bool kForceFlushDecoderDuringReset = true;
 
 // By default, Cobalt teardowns AudioDecoder during Reset().
 // Set the following variable to true to force it reset audio decoder
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
-constexpr bool kForceResetAudioDecoder = false;
+constexpr bool kForceResetAudioDecoder = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -174,6 +176,27 @@ class PlayerComponentsPassthrough
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
 
+class PlayerComponentsTunnelPcm
+    : public starboard::shared::starboard::player::filter::PlayerComponents {
+ public:
+  PlayerComponentsTunnelPcm(
+      std::unique_ptr<AudioRendererTunnelPcm> audio_renderer,
+      std::unique_ptr<VideoRenderer> video_renderer)
+      : audio_renderer_(std::move(audio_renderer)),
+        video_renderer_(std::move(video_renderer)) {}
+
+ private:
+  // PlayerComponents methods
+  MediaTimeProvider* GetMediaTimeProvider() override {
+    return audio_renderer_.get();
+  }
+  AudioRenderer* GetAudioRenderer() override { return audio_renderer_.get(); }
+  VideoRenderer* GetVideoRenderer() override { return video_renderer_.get(); }
+
+  std::unique_ptr<AudioRendererTunnelPcm> audio_renderer_;
+  std::unique_ptr<VideoRenderer> video_renderer_;
+};
+
 // TODO: Invesigate if the implementation of member functions should be moved
 //       into .cc file.
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
@@ -186,6 +209,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       AudioDecoderBase;
   typedef starboard::shared::starboard::player::filter::AudioRendererSink
       AudioRendererSink;
+  typedef starboard::shared::starboard::player::filter::MediaTimeProviderImpl
+      MediaTimeProviderImpl;
   typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
       AudioRendererSinkImpl;
   typedef starboard::shared::starboard::player::filter::PlayerComponents
@@ -194,6 +219,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       VideoDecoderBase;
   typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
       VideoRenderAlgorithmBase;
+  typedef starboard::shared::starboard::player::filter::VideoRendererImpl
+      VideoRendererImpl;
   typedef starboard::shared::starboard::player::filter::VideoRendererSink
       VideoRendererSink;
 
@@ -209,11 +236,110 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
+    const std::string video_mime =
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone
+            ? creation_parameters.video_mime()
+            : "";
+    MimeType video_mime_type(video_mime);
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
         creation_parameters.audio_codec() != kSbMediaAudioCodecEac3) {
-      SB_LOG(INFO) << "Creating non-passthrough components.";
-      return PlayerComponents::Factory::CreateComponents(creation_parameters,
-                                                         error_message);
+      int tunnel_mode_audio_session_id = -1;
+      bool enable_tunnel_mode = false;
+      if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+          creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+        enable_tunnel_mode =
+            video_mime_type.GetParamBoolValue("tunnelmode", false);
+
+        SB_LOG(INFO) << "Tunnel mode is "
+                     << (enable_tunnel_mode ? "enabled. " : "disabled. ")
+                     << "Video mime parameter \"tunnelmode\" value: "
+                     << video_mime_type.GetParamStringValue("tunnelmode",
+                                                            "<not provided>")
+                     << ".";
+      } else {
+        SB_LOG(INFO)
+            << "Tunnel mode requires both an audio and video stream. "
+            << "Audio codec: "
+            << GetMediaAudioCodecName(creation_parameters.audio_codec())
+            << ", Video_codec: "
+            << GetMediaVideoCodecName(creation_parameters.video_codec())
+            << ". Tunnel mode is disabled.";
+      }
+
+      if (kForceTunnelMode && !enable_tunnel_mode) {
+        SB_LOG(INFO)
+            << "`kForceTunnelMode` is set to true, force enabling tunnel"
+            << " mode.";
+        enable_tunnel_mode = true;
+      }
+
+      bool force_secure_pipeline_under_tunnel_mode = false;
+      if (enable_tunnel_mode) {
+        if (IsTunnelModeSupported(creation_parameters,
+                                  &force_secure_pipeline_under_tunnel_mode)) {
+          tunnel_mode_audio_session_id =
+              GenerateAudioSessionId(creation_parameters);
+          SB_LOG(INFO) << "Generated tunnel mode audio session id "
+                       << tunnel_mode_audio_session_id;
+        } else {
+          SB_LOG(INFO)
+              << "IsTunnelModeSupported() failed, disable tunnel mode.";
+        }
+      } else {
+        SB_LOG(INFO) << "Tunnel mode not enabled.";
+      }
+
+      if (tunnel_mode_audio_session_id == -1) {
+        SB_LOG(INFO) << "Creating non-passthrough components.";
+        return PlayerComponents::Factory::CreateComponents(creation_parameters,
+                                                           error_message);
+      } else {
+        SB_LOG(INFO) << "Creating non-passthrough tunnel components.";
+        std::unique_ptr<AudioDecoderBase> audio_decoder;
+        std::unique_ptr<AudioRendererSink> audio_renderer_sink;
+        std::unique_ptr<VideoDecoderBase> video_decoder;
+        std::unique_ptr<VideoRenderAlgorithmBase> video_render_algorithm;
+        scoped_refptr<VideoRendererSink> video_renderer_sink;
+
+        if (!CreateSubComponents(creation_parameters, &audio_decoder,
+                                 &audio_renderer_sink, &video_decoder,
+                                 &video_render_algorithm, &video_renderer_sink,
+                                 error_message)) {
+          return std::unique_ptr<PlayerComponents>();
+        }
+
+        std::unique_ptr<MediaTimeProviderImpl> media_time_provider_impl;
+        std::unique_ptr<AudioRendererTunnelPcm> audio_renderer;
+        std::unique_ptr<VideoRendererImpl> video_renderer;
+
+        if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
+          SB_DCHECK(audio_decoder);
+          SB_DCHECK(audio_renderer_sink);
+
+          int max_cached_frames, min_frames_per_append;
+          GetAudioRendererParams(creation_parameters, &max_cached_frames,
+                                 &min_frames_per_append);
+
+          audio_renderer.reset(new AudioRendererTunnelPcm(
+              std::move(audio_decoder), std::move(audio_renderer_sink),
+              creation_parameters.audio_stream_info(), max_cached_frames,
+              min_frames_per_append));
+        }
+
+        if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+          SB_DCHECK(video_decoder);
+          SB_DCHECK(video_render_algorithm);
+
+          video_renderer.reset(new VideoRendererImpl(
+              std::move(video_decoder), audio_renderer.get(),
+              std::move(video_render_algorithm), video_renderer_sink));
+        }
+
+        SB_DCHECK(audio_renderer || video_renderer);
+        return std::unique_ptr<PlayerComponents>(new PlayerComponentsTunnelPcm(
+            std::move(audio_renderer), std::move(video_renderer)));
+      }
     }
 
     if (!creation_parameters.audio_mime().empty()) {

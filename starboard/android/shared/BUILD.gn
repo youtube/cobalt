@@ -291,6 +291,8 @@ static_library("starboard_platform") {
     "audio_decoder_passthrough.h",
     "audio_renderer_passthrough.cc",
     "audio_renderer_passthrough.h",
+    "audio_renderer_tunnel_pcm.cc",
+    "audio_renderer_tunnel_pcm.h",
     "audio_sink_get_max_channels.cc",
     "audio_sink_get_min_buffer_size_in_frames.cc",
     "audio_sink_get_nearest_supported_sample_frequency.cc",
