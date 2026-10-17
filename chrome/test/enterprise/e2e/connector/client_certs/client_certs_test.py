@@ -126,7 +126,7 @@ class ClientCertsTest(ChromeEnterpriseTestCase):
     """
     basename = posixpath.basename(urlparse(gcs_url).path)
     dest = ntpath.join(r'c:\temp', basename)
-    self.RunCommand(instance_name, f'gsutil cp {gcs_url} {dest}')
+    self.RunCommand(instance_name, f'gcloud storage cp {gcs_url} {dest}')
     return dest
 
   def get_fingerprint_from_der(self, der: bytes) -> str:

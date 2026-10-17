@@ -42,7 +42,7 @@ def _gsutil(cmd, cwd):
 
 def _get_fuzzilli_corpora(arch):
   output = subprocess.check_output(
-      ['gsutil', 'ls',
+      ['gcloud', 'storage', 'ls',
        CORPORA_BUCKET_BASE_URL_BY_TYPE[FUZZILLI_CORPORA_TYPE]]).decode('utf-8')
   regex = {
       'x64': 'autozilli-[0-9]+\.tgz',
@@ -67,7 +67,7 @@ def _download_corpus(args):
     corpus_url = os.path.join(url, target, 'latest.zip')
 
   subprocess.run(['mkdir', corpus_dir], cwd=download_dir)
-  cmd = ['gsutil', 'cp', corpus_url, corpus_dir]
+  cmd = ['gcloud', 'storage', 'cp', corpus_url, corpus_dir]
   _gsutil(cmd, download_dir)
 
 

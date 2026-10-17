@@ -87,7 +87,7 @@ are two ways to work with such crashes.
   * On step 1, instead of downloading a single testcase, you need to download
     corpus backup. This can be done using the following command:
 ```
-gsutil cp gs://clusterfuzz-libfuzzer-backup/corpus/libfuzzer/$FUZZER_NAME/latest.zip .
+gcloud storage cp gs://clusterfuzz-libfuzzer-backup/corpus/libfuzzer/$FUZZER_NAME/latest.zip .
 ```
 
   * Alternatively, you can navigate to the following URL in your browser and

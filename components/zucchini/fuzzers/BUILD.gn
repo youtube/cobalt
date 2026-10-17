@@ -17,7 +17,7 @@ static_library("zucchini_fuzz_utils") {
 }
 
 # To download the corpus for local fuzzing use:
-# gsutil -m rsync \
+# gcloud storage rsync \
 #   gs://clusterfuzz-corpus/libfuzzer/zucchini_disassembler_dex_fuzzer \
 #   components/zucchini/fuzzing/testdata/disassembler_dex_fuzzer/
 fuzzer_test("zucchini_disassembler_dex_fuzzer") {
@@ -29,7 +29,7 @@ fuzzer_test("zucchini_disassembler_dex_fuzzer") {
 }
 
 # To download the corpus for local fuzzing use:
-# gsutil -m rsync \
+# gcloud storage rsync \
 #   gs://clusterfuzz-corpus/libfuzzer/zucchini_disassembler_win32_fuzzer \
 #   components/zucchini/fuzzing/testdata/disassembler_win32_fuzzer/
 fuzzer_test("zucchini_disassembler_win32_fuzzer") {
@@ -42,7 +42,7 @@ fuzzer_test("zucchini_disassembler_win32_fuzzer") {
 }
 
 # To download the corpus for local fuzzing use:
-# gsutil -m rsync \
+# gcloud storage rsync \
 #   gs://clusterfuzz-corpus/libfuzzer/zucchini_disassembler_elf_fuzzer \
 #   components/zucchini/fuzzing/testdata/disassembler_elf_fuzzer/
 fuzzer_test("zucchini_disassembler_elf_fuzzer") {
