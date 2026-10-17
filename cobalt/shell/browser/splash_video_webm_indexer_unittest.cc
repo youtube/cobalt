@@ -224,6 +224,20 @@ TEST(SplashVideoWebMIndexerTest, RejectsEmptyAndTruncatedFiles) {
   }
 }
 
+TEST(SplashVideoWebMIndexerTest, AppliesTheFileSizeLimit) {
+  const Bytes webm = TwoFrameWebM();
+  EXPECT_TRUE(IndexSplashVideoWebM(webm, webm.size()));
+  EXPECT_FALSE(IndexSplashVideoWebM(webm, webm.size() - 1));
+
+  // Over the default limit, e.g., a video that the WebApp cached.
+  Bytes frame(kMaxSplashVideoFileSize, 0);
+  frame[0] = kKeyFrameByte;
+  const Bytes large =
+      WebM(Concat({Info(), Tracks(), Cluster(0, SimpleBlock(0, true, frame))}));
+  EXPECT_FALSE(IndexSplashVideoWebM(large));
+  EXPECT_TRUE(IndexSplashVideoWebM(large, 2 * kMaxSplashVideoFileSize));
+}
+
 TEST(SplashVideoWebMIndexerTest, RejectsOtherFormats) {
   const Bytes not_webm(64, 0x42);
   EXPECT_FALSE(IndexSplashVideoWebM(not_webm));
