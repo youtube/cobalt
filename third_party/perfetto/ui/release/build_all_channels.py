@@ -137,14 +137,14 @@ def main():
   # TODO(primiano): re-enable caching once the gzip-related outage is restored.
   # cache_hdr = 'Cache-Control:public, max-age=3600'
   cache_hdr = 'Cache-Control:no-cache'
-  cp_cmd = ['gsutil', '-m', '-h', cache_hdr, 'cp', '-j', 'html,js,css,wasm,map']
+  cp_cmd = ['gcloud', 'storage', 'cp', '--cache-control=no-cache', '--gzip-in-flight']
   for name in os.listdir(merged_dist_dir):
     path = pjoin(merged_dist_dir, name)
     if os.path.isdir(path):
       if version_exists(name):
         print('Skipping upload of %s because it already exists on GCS' % name)
         continue
-      check_call_and_log(cp_cmd + ['-r', path, 'gs://%s/' % BUCKET_NAME])
+      check_call_and_log(cp_cmd + ['--recursive', path, 'gs://%s/' % BUCKET_NAME])
     else:
       # /index.html or /service_worker.js{,.map}
       check_call_and_log(cp_cmd + [path, 'gs://%s/%s' % (BUCKET_NAME, name)])

@@ -158,7 +158,7 @@ def DownloadOrderfile(orderfile_hash, output_filename):
   cloud_storage_path = (
       'gs://clank-archive/orderfile-clankium/%s' % orderfile_hash)
   subprocess.check_call(
-      ['gsutil.py', 'cp', cloud_storage_path, output_filename])
+      ['gcloud', 'storage', 'cp', cloud_storage_path, output_filename])
 
 
 def GetOrderfilesFromCommit(commit_hash):
