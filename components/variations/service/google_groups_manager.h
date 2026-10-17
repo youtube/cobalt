@@ -12,7 +12,10 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
+#include "components/sync/buildflags/buildflags.h"
+#if BUILDFLAG(ENABLE_SYNC)
 #include "components/sync/service/sync_service_observer.h"
+#endif
 #include "components/variations/service/google_groups_manager_prefs.h"
 
 namespace syncer {
@@ -25,8 +28,11 @@ class PrefRegistrySyncable;
 
 // Service responsible for one-way synchronization of Google group information
 // from per-profile sync data to local-state.
-class GoogleGroupsManager : public KeyedService,
-                                   public syncer::SyncServiceObserver {
+class GoogleGroupsManager : public KeyedService
+#if BUILDFLAG(ENABLE_SYNC)
+                          , public syncer::SyncServiceObserver
+#endif
+{
  public:
   explicit GoogleGroupsManager(PrefService& target_prefs,
                                       const std::string& key,
@@ -58,11 +64,13 @@ class GoogleGroupsManager : public KeyedService,
   // KeyedService overrides.
   void Shutdown() override;
 
+#if BUILDFLAG(ENABLE_SYNC)
   void OnSyncServiceInitialized(syncer::SyncService* sync_service);
 
   // syncer::SyncServiceObserver overrides.
   void OnStateChanged(syncer::SyncService* sync) override;
   void OnSyncShutdown(syncer::SyncService* sync) override;
+#endif
 
  private:
   // Clears state that should only exist for a signed in user.
@@ -97,8 +105,10 @@ class GoogleGroupsManager : public KeyedService,
 
   // The SyncService observation. When Sync gets disabled (most likely due to
   // user signout), the groups-related preferences must be cleared.
+#if BUILDFLAG(ENABLE_SYNC)
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_service_observation_{this};
+#endif
 };
 
 #endif  // COMPONENTS_VARIATIONS_SERVICE_GOOGLE_GROUPS_MANAGER_H_

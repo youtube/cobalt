@@ -4,6 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chrome_build.gni")
+import("//components/sync/features.gni")
 
 declare_args() {
   # Set to true make a build that disables activation of field trial tests
@@ -72,7 +73,7 @@ static_library("service") {
     "//components/network_time",
     "//components/pref_registry",
     "//components/prefs",
-    "//components/sync/service",
+    "//components/sync/buildflags",
     "//components/variations",
     "//components/variations/field_trial_config",
     "//components/variations/proto",
@@ -82,6 +83,10 @@ static_library("service") {
     "//services/network/public/cpp",
     "//ui/base",
   ]
+
+  if (enable_sync) {
+    deps += [ "//components/sync/service" ]
+  }
 }
 
 source_set("unit_tests") {
@@ -106,8 +111,7 @@ source_set("unit_tests") {
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs:test_support",
-    "//components/sync:test_support",
-    "//components/sync_preferences:test_support",
+    "//components/sync/buildflags",
     "//components/variations",
     "//components/variations:test_support",
     "//components/variations/field_trial_config",
@@ -120,4 +124,11 @@ source_set("unit_tests") {
     "//services/network/public/cpp",
     "//testing/gtest",
   ]
+
+  if (enable_sync) {
+    deps += [
+      "//components/sync:test_support",
+      "//components/sync_preferences:test_support",
+    ]
+  }
 }
