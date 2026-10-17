@@ -41,12 +41,16 @@ class CobaltToEvergreenVersionTest(unittest.TestCase):
     self.assertEqual(
         generate_manifest.cobalt_to_evergreen_version('25.lts.30'), '5.30.2')
 
-  def testRejectsNonLtsVersions(self):
+  def testNonLtsVersionsMapToDefaultVersion(self):
     for version in ('27.master.0', '27.lts', 'lts.10', '27.lts.10.1',
                     '27.LTS.10', 'v27.lts.10', '27.lts.10 ', ''):
       with self.subTest(version=version):
-        with self.assertRaises(ValueError):
-          generate_manifest.cobalt_to_evergreen_version(version)
+        self.assertEqual(
+            generate_manifest.cobalt_to_evergreen_version(version),
+            generate_manifest.DEFAULT_EVERGREEN_VERSION)
+
+  def testDefaultVersionIsOneZeroZero(self):
+    self.assertEqual(generate_manifest.DEFAULT_EVERGREEN_VERSION, '1.0.0')
 
   def testRejectsPreEvergreenMajorVersions(self):
     with self.assertRaises(ValueError):
@@ -90,12 +94,21 @@ class MainTest(unittest.TestCase):
       with open(output_path, 'r', encoding='utf-8') as f:
         self.assertEqual(json.load(f)['version'], '7.11.2')
 
-  def testFailsForMasterVersion(self):
+  def testWritesDefaultManifestForMasterVersion(self):
     with tempfile.TemporaryDirectory() as temp_dir:
       output_path = os.path.join(temp_dir, 'manifest.json')
       self.assertEqual(
           generate_manifest.main(
-              ['--cobalt-version', '27.master.0', '--output', output_path]), 1)
+              ['--cobalt-version', '27.master.0', '--output', output_path]), 0)
+      with open(output_path, 'r', encoding='utf-8') as f:
+        self.assertEqual(json.load(f)['version'], '1.0.0')
+
+  def testFailsForPreEvergreenVersion(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      output_path = os.path.join(temp_dir, 'manifest.json')
+      self.assertEqual(
+          generate_manifest.main(
+              ['--cobalt-version', '20.lts.1', '--output', output_path]), 1)
       self.assertFalse(os.path.exists(output_path))
 
 

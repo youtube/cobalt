@@ -22,9 +22,10 @@ documented at go/cobalt-evergreen-versioning:
 where <RC> is the release candidate type and 2 denotes the "latest" package.
 For example, Cobalt 27.lts.10 maps to Evergreen 7.10.2.
 
-Only LTS versions are supported. Non-LTS versions (e.g. 27.master.0) have no
-Evergreen counterpart; callers are expected to skip manifest generation for
-them (see the |is_lts_version| helper).
+Non-LTS versions (e.g. 27.master.0) have no Evergreen counterpart, so the
+manifest is written with the default Evergreen version 1.0.0 instead. This is
+the version the loader app and the updater assume when no manifest is present,
+so development builds keep their existing behavior.
 """
 
 import argparse
@@ -40,6 +41,10 @@ _EVERGREEN_MAJOR_VERSION_OFFSET = 20
 # Release candidate type of the "latest" Evergreen package.
 _LATEST_RELEASE_CANDIDATE = 2
 
+# The Evergreen version used when the Cobalt version has no Evergreen
+# counterpart. Must match |kDefaultManifestVersion| in cobalt/updater/util.cc.
+DEFAULT_EVERGREEN_VERSION = '1.0.0'
+
 
 def is_lts_version(cobalt_version):
   """Returns True if |cobalt_version| is an LTS version, e.g. '27.lts.10'."""
@@ -47,20 +52,22 @@ def is_lts_version(cobalt_version):
 
 
 def cobalt_to_evergreen_version(cobalt_version):
-  """Converts a Cobalt LTS version string to an Evergreen version string.
+  """Converts a Cobalt version string to an Evergreen version string.
 
   Args:
-    cobalt_version: The Cobalt version, e.g. '27.lts.10'.
+    cobalt_version: The Cobalt version, e.g. '27.lts.10' or '27.master.0'.
 
   Returns:
-    The Evergreen version, e.g. '7.10.2'.
+    The Evergreen version, e.g. '7.10.2' for '27.lts.10', or
+    DEFAULT_EVERGREEN_VERSION for non-LTS versions such as '27.master.0'.
 
   Raises:
-    ValueError: If |cobalt_version| is not an LTS version.
+    ValueError: If |cobalt_version| is an LTS version that predates Evergreen
+      versioning.
   """
   match = _LTS_VERSION_PATTERN.match(cobalt_version)
   if not match:
-    raise ValueError(f'Not a Cobalt LTS version: {cobalt_version!r}')
+    return DEFAULT_EVERGREEN_VERSION
   major = int(match.group(1)) - _EVERGREEN_MAJOR_VERSION_OFFSET
   if major < 1:
     raise ValueError(
@@ -92,7 +99,7 @@ def main(argv):
   parser.add_argument(
       '--cobalt-version',
       required=True,
-      help='The Cobalt version, e.g. 27.lts.10.')
+      help='The Cobalt version, e.g. 27.lts.10 or 27.master.0.')
   parser.add_argument(
       '--output', required=True, help='Path of the manifest.json to write.')
   args = parser.parse_args(argv)
