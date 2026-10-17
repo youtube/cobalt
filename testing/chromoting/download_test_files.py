@@ -47,7 +47,7 @@ def main():
       # Copy the file to the output folder, with same name as source file.
       output_file = os.path.join(args.output_folder, ntpath.basename(line))
       # Download specified file from GCS.
-      cp_cmd = ['gsutil.py', 'cp', line, output_file]
+      cp_cmd = ['gcloud', 'storage', 'cp', line, output_file]
       try:
         subprocess.check_call(cp_cmd)
       except subprocess.CalledProcessError as e:

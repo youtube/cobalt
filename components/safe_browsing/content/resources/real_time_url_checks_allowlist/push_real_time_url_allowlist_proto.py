@@ -7,7 +7,7 @@
 # GCS so that the component update system will pick them up and push them to
 # users.  See README.md before running this.
 #
-# Requires ninja and gsutil to be in the user's path.
+# Requires ninja and gcloud to be in the user's path.
 
 import optparse
 import os
@@ -60,7 +60,7 @@ def main():
     # Don't overwrite existing files, in case we forgot to increment the
     # version.
     vers_dir = dirs[0]
-    command = ['gsutil', 'cp', '-Rn', vers_dir, DEST_BUCKET]
+    command = ['gcloud', 'storage', 'cp', '--recursive', '--no-clobber', vers_dir, DEST_BUCKET]
 
     print('\nGoing to run the following command')
     print('   ', ' '.join(command))
