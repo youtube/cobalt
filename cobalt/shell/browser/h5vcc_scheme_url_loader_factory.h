@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 
+#include "base/containers/span.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -78,6 +79,10 @@ class H5vccSchemeURLLoaderFactory final
 
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
+
+  // Returns the built-in resource `name`, e.g., "splash.webm", or an empty span
+  // if there's none. The data has static storage duration.
+  static base::span<const uint8_t> GetBuiltInResource(const std::string& name);
 
   // Whether to read the splash assets that the WebApp cached:
   // kEnableCachedSplashFile, unless overridden for testing.
