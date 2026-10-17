@@ -36,7 +36,7 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
   void RunSbDecodeTargetFunctionOnGpu(
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context,
-      base::WaitableEvent* done_event) override;
+      scoped_refptr<GlesClosureRun> run) override;
   void RunCallbackOnGpu(base::OnceCallback<void()> callback,
                         base::WaitableEvent* done_event) override;
   void PostCallbackToGpu(base::OnceCallback<void()> callback) override;
@@ -56,6 +56,9 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
   void OnWillDestroyStub(bool have_context) override;
 
   GetStubCB get_stub_cb_;
+
+  base::UnguessableToken channel_token_;
+  int32_t route_id_ = 0;
 
   raw_ptr<gpu::CommandBufferStub> stub_ = nullptr;
 

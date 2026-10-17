@@ -34,7 +34,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
-#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/starboard/experimental_features.h"
 #include "media/base/starboard/sbmedia_interface.h"
@@ -45,9 +44,11 @@
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "third_party/blink/public/web/web_view_observer.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -150,6 +151,34 @@ class CobaltWidevineL3KeySystemInfo : public cdm::WidevineKeySystemInfo {
   }
 };
 
+// Holds a deferred media load until the page is visible again, then runs it.
+// Deletes itself once the load has run, or when the WebView is destroyed.
+class MediaLoadDeferrer : public blink::WebViewObserver {
+ public:
+  MediaLoadDeferrer(blink::WebView* web_view, base::OnceClosure load_cb)
+      : blink::WebViewObserver(web_view), load_cb_(std::move(load_cb)) {}
+
+  MediaLoadDeferrer(const MediaLoadDeferrer&) = delete;
+  MediaLoadDeferrer& operator=(const MediaLoadDeferrer&) = delete;
+
+  // blink::WebViewObserver implementation.
+  void OnDestruct() override { delete this; }
+
+  void OnPageVisibilityChanged(
+      blink::mojom::PageVisibilityState visibility_state) override {
+    if (visibility_state != blink::mojom::PageVisibilityState::kVisible) {
+      return;
+    }
+    std::move(load_cb_).Run();
+    delete this;
+  }
+
+ private:
+  ~MediaLoadDeferrer() override = default;
+
+  base::OnceClosure load_cb_;
+};
+
 }  // namespace
 
 void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
@@ -167,7 +196,9 @@ void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
 }
 
 CobaltContentRendererClient::CobaltContentRendererClient()
-    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+    : media_memory_allocator_(
+          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>()),
+      h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 }
 
@@ -227,6 +258,40 @@ void CobaltContentRendererClient::RenderThreadStarted() {
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+
+  // Register platform-specific DRM init data type string.
+#if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+  RegisterPlatformInitDataTypes();
+#endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+}
+
+void CobaltContentRendererClient::
+    SetRuntimeFeaturesDefaultsBeforeBlinkInitialization() {
+  // Cobalt deliberately skips construction of several Content services (see
+  // the IS_COBALT carve-outs in content/browser/browser_main_loop.cc). Any web
+  // API whose backing service is absent must also be hidden from script.
+  // Leaving the API visible makes feature detection report support that does
+  // not exist, and the resulting call reaches a browser-side handler that has
+  // no service behind it.
+  //
+  // SpeechRecognitionManagerImpl is not created for Cobalt, so hide the Web
+  // Speech *recognition* entry points. `webkitSpeechRecognition` is a
+  // LegacyWindowAlias gated on this feature, and the `SpeechRecognition`
+  // interface itself is [LegacyNoInterfaceObject], so disabling the feature
+  // removes the only way to construct one. Script then observes a catchable
+  // ReferenceError/TypeError, which is what callers that feature-detect expect.
+  //
+  // This is the only guard: SpeechRecognitionDispatcherHost is left unmodified
+  // and would dereference the null manager if a session were started. Command
+  // line switches are applied after this function, so
+  // --enable-blink-features=ScriptedSpeechRecognition would re-expose the API;
+  // Cobalt does not pass that switch, and release builds ignore intent-supplied
+  // command line arguments.
+  //
+  // Note this does not affect speech *synthesis* (ScriptedSpeechSynthesis),
+  // which Cobalt still supports.
+  blink::WebRuntimeFeatures::EnableFeatureFromString(
+      "ScriptedSpeechRecognition", /*enable=*/false);
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
@@ -240,6 +305,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
   const base::flat_set<::media::CdmSessionType> kSessionTypes = {
       ::media::CdmSessionType::kTemporary};
 
+#if !BUILDFLAG(IS_IOS_TVOS)
   key_system_infos->push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
       codecs,                        // Regular codecs.
       kEncryptionSchemes,            // Encryption schemes.
@@ -251,6 +317,8 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       Robustness::HW_SECURE_ALL,     // Max video robustness.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+
+#endif  // !BUILDFLAG(IS_IOS_TVOS)
 
   key_system_infos->push_back(std::make_unique<CobaltWidevineL3KeySystemInfo>(
       codecs,                                        // Regular codecs.
@@ -318,9 +386,11 @@ bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
 
 ::media::ExternalMemoryAllocator*
 CobaltContentRendererClient::GetMediaAllocator() {
-  base::AutoLock scoped_lock(media_allocator_lock_);
-  return is_external_memory_pool_enabled_ ? media_memory_allocator_.get()
-                                          : nullptr;
+  // The external memory pool allocates from DecoderBufferAllocator, which is
+  // not installed when kCobaltDisableDecoderBufferAllocator is enabled.
+  return ::media::DecoderBuffer::Allocator::Get()
+             ? media_memory_allocator_.get()
+             : nullptr;
 }
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
@@ -336,8 +406,11 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   CHECK(content::RenderThread::IsMainThread());
 
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-  renderer_factory_traits->audio_write_duration_local =
-      base::Microseconds(kSbPlayerWriteDurationLocal);
+  // Note: The local audio write duration intentionally differs from
+  // |kSbPlayerWriteDurationLocal| (0.5s) to align with Cobalt C25 and earlier,
+  // which use 1s. It can be overridden by the "CobaltAudioWriteDuration"
+  // feature for experiments (e.g., 0.5s). See b/433993748.
+  renderer_factory_traits->audio_write_duration_local = base::Seconds(1);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
@@ -358,24 +431,6 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     experimental_features = ParseH5vccSettings(std::move(settings));
   }
   renderer_factory_traits->experimental_features = experimental_features;
-
-  // For experimental purposes, we check both command-line feature flags and
-  // H5vcc settings here so web apps can toggle external memory pooling
-  // dynamically. Once this feature is finalized and enabled by default, this
-  // initialization should be moved back to
-  // CobaltContentRendererClient::RenderThreadStarted().
-  const bool enable_external_pool =
-      base::FeatureList::IsEnabled(
-          ::media::kCobaltUseExternalMediaMemoryPool) ||
-      experimental_features.GetBool(::media::kMediaUseExternalMediaMemoryPool);
-  {
-    base::AutoLock scoped_lock(media_allocator_lock_);
-    is_external_memory_pool_enabled_ = enable_external_pool;
-    if (is_external_memory_pool_enabled_ && !media_memory_allocator_) {
-      media_memory_allocator_ =
-          std::make_unique<::media::StarboardMediaExternalMemoryAllocator>();
-    }
-  }
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
@@ -409,6 +464,26 @@ CobaltContentRendererClient::OverrideDemuxerForUrl(
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   return nullptr;
+}
+
+bool CobaltContentRendererClient::DeferMediaLoad(
+    content::RenderFrame* render_frame,
+    bool has_played_media_before,
+    base::OnceClosure closure) {
+  CHECK(content::RenderThread::IsMainThread());
+  // The page is hidden while the app is concealed or preloading, when there is
+  // no window to create an SbPlayer on, so hold every media load until the
+  // page is visible again (b/568868974). Unlike Chrome, this includes pages
+  // that have played media before. Players that already exist are suspended
+  // by ShellPlatformDelegate::OnConceal().
+  blink::WebView* web_view = render_frame->GetWebView();
+  if (web_view && web_view->GetVisibilityState() !=
+                      blink::mojom::PageVisibilityState::kVisible) {
+    new MediaLoadDeferrer(web_view, std::move(closure));
+    return true;
+  }
+  std::move(closure).Run();
+  return false;
 }
 
 }  // namespace cobalt

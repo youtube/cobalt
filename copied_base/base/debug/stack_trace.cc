@@ -320,13 +320,25 @@ __attribute__((always_inline)) size_t TraceStackFramePointersInternal(
     size_t skip_initial,
     bool enable_scanning,
     const void** out_trace) {
+  // Since the stack frame contains the return address (meaning the
+  // address of the next instruction in relation to the caller), it
+  // is necessary to decrement the size of the call instruction, in
+  // order to obtain the address to the call instruction.
+#if defined(ARCH_CPU_ARM64)
+  static constexpr uintptr_t kCallInstructionSize = 4;
+#else
+  // For all other ARCH, the call stack may be sightly off by 1 instruction
+  static constexpr uintptr_t kCallInstructionSize = 0;
+#endif
+
   size_t depth = 0;
   while (depth < max_depth) {
     uintptr_t pc = GetStackFramePC(fp);
     if (skip_initial != 0) {
       skip_initial--;
     } else {
-      out_trace[depth++] = reinterpret_cast<const void*>(pc);
+      out_trace[depth++] =
+          reinterpret_cast<const void*>(pc - kCallInstructionSize);
     }
 
     uintptr_t next_fp = GetNextStackFrame(fp);
@@ -357,6 +369,16 @@ NOINLINE size_t TraceStackFramePointers(const void** out_trace,
       reinterpret_cast<uintptr_t>(__builtin_frame_address(0)) -
           kStackFrameAdjustment,
       GetStackEnd(), max_depth, skip_initial, enable_scanning, out_trace);
+}
+
+NOINLINE size_t TraceStackFramePointers(span<const void*> out_trace,
+                                        size_t skip_initial,
+                                        bool enable_scanning) {
+  return TraceStackFramePointersInternal(
+      reinterpret_cast<uintptr_t>(__builtin_frame_address(0)) -
+          kStackFrameAdjustment,
+      GetStackEnd(), out_trace.size(), skip_initial, enable_scanning,
+      out_trace.data());
 }
 
 NOINLINE size_t TraceStackFramePointersFromBuffer(uintptr_t fp,

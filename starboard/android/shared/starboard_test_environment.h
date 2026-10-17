@@ -24,6 +24,7 @@ class StarboardTestEnvironment final : public ::testing::Environment {
   ~StarboardTestEnvironment() override;
 
   void SetUp() override;
+  void TearDown() override;
 };
 }  // namespace starboard
 

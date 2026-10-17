@@ -218,7 +218,14 @@ ExportedSymbols::ExportedSymbols() {
 
   // Standard POSIX or Linux symbols.
   REGISTER_SYMBOL(alarm);
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+#endif
   REGISTER_SYMBOL(aligned_alloc);
+#if BUILDFLAG(IS_ANDROID) && __ANDROID_API__ < 28 && defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(dup);
@@ -235,7 +242,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
-  REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
@@ -323,6 +329,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(inotify_init1);      // Linux API
   REGISTER_WRAPPER(inotify_rm_watch);   // Linux API
   REGISTER_WRAPPER(ioctl_FIONREAD);     // Linux API
+  REGISTER_WRAPPER(isatty);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);

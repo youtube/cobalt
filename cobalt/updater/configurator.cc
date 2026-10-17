@@ -289,6 +289,9 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (updater_channel == "27nightly" || updater_channel == "27nightlyqa") {
     return kOmahaCobalt27NightlyAppID;
   }
+  if (updater_channel == "dogfood" || updater_channel == "dogfoodqa") {
+    return kOmahaCobalt27DogfoodAppID;
+  }
   if (version.find(".lts.") == std::string::npos &&
       version.find(".master.") != std::string::npos) {
     return kOmahaCobaltTrunkAppID;

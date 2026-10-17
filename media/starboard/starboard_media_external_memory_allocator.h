@@ -54,6 +54,9 @@ class MEDIA_EXPORT StarboardMediaExternalMemoryAllocator
   std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
       base::span<const uint8_t> span,
       DemuxerStream::Type type) override;
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> parts,
+      DemuxerStream::Type type) override;
 };
 
 }  // namespace media

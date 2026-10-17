@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "gpu/command_buffer/client/client_test_helper.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder_mock.h"
 #include "gpu/command_buffer/service/gpu_service_test.h"
@@ -20,6 +21,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_mock.h"
 #include "ui/gl/gl_switches.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#include "base/test/scoped_feature_list.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 using ::testing::Pointee;
 using ::testing::_;
@@ -532,6 +539,87 @@ TEST_F(ServiceDiscardableManagerTest, MemoryPressure) {
   discardable_manager_.HandleMemoryPressure(
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
 }
+
+#if BUILDFLAG(IS_COBALT)
+
+namespace {
+constexpr size_t kOneMb = 1024 * 1024;
+}  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+// Android TV already gets 1 MB from the upstream low-end path, so the feature
+// is disabled by default there.
+TEST(CobaltDiscardableCacheSizeLimitTest, DisabledByDefaultOnAndroid) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitWithEmptyFeatureAndFieldTrialLists();
+
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      base::features::kCobaltGpuDiscardableCacheLimit));
+}
+#else   // BUILDFLAG(IS_ANDROID)
+TEST(CobaltDiscardableCacheSizeLimitTest, DefaultsToOneMb) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitWithEmptyFeatureAndFieldTrialLists();
+
+  EXPECT_TRUE(base::FeatureList::IsEnabled(
+      base::features::kCobaltGpuDiscardableCacheLimit));
+  EXPECT_EQ(DiscardableCacheSizeLimit(), kOneMb);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+TEST(CobaltDiscardableCacheSizeLimitTest, UsesFeatureParam) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltGpuDiscardableCacheLimit,
+      {{base::features::kCobaltGpuDiscardableCacheLimitMb.name, "128"}});
+
+  EXPECT_EQ(DiscardableCacheSizeLimit(), 128 * kOneMb);
+}
+
+TEST(CobaltDiscardableCacheSizeLimitTest, ZeroParamIsHonored) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltGpuDiscardableCacheLimit,
+      {{base::features::kCobaltGpuDiscardableCacheLimitMb.name, "0"}});
+
+  EXPECT_EQ(DiscardableCacheSizeLimit(), 0u);
+}
+
+// 4096 and INT_MAX would wrap around a 32-bit size_t without the cap.
+TEST(CobaltDiscardableCacheSizeLimitTest, ParamIsCappedAt256Mb) {
+  for (const char* value : {"256", "257", "4096", "2147483647"}) {
+    base::test::ScopedFeatureList scoped_features;
+    scoped_features.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltGpuDiscardableCacheLimit,
+        {{base::features::kCobaltGpuDiscardableCacheLimitMb.name, value}});
+
+    EXPECT_EQ(DiscardableCacheSizeLimit(), 256 * kOneMb) << value;
+  }
+}
+
+// The upstream Android default depends on low-end device mode, so the fallback
+// is only checked where it is deterministic: 192 MB, or 256 MB with 4 GB+ RAM.
+#if !BUILDFLAG(IS_ANDROID)
+TEST(CobaltDiscardableCacheSizeLimitTest, DisabledFallsBackToUpstreamDefault) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndDisableFeature(
+      base::features::kCobaltGpuDiscardableCacheLimit);
+
+  EXPECT_GE(DiscardableCacheSizeLimit(), 192 * kOneMb);
+}
+
+TEST(CobaltDiscardableCacheSizeLimitTest,
+     NegativeParamFallsBackToUpstreamDefault) {
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltGpuDiscardableCacheLimit,
+      {{base::features::kCobaltGpuDiscardableCacheLimitMb.name, "-1"}});
+
+  EXPECT_GE(DiscardableCacheSizeLimit(), 192 * kOneMb);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gles2
 }  // namespace gpu

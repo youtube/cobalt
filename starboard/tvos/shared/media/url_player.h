@@ -43,11 +43,7 @@ typedef struct SbUrlPlayerExtraInfo {
   int64_t buffer_duration;
 } SbUrlPlayerExtraInfo;
 
-// Callback to queue an encrypted event for initialization data
-// encountered in media data. |init_data_type| should be a string
-// matching one of the EME initialization data types : "cenc",
-// "fairplay", "keyids", or "webm", |init_data| is the initialization
-// data, and |init_data_length| is the length of the data.
+// Callback for encrypted media init data encountered in media data.
 typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
     SbPlayer player,
     void* context,
@@ -70,6 +66,14 @@ typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
 // of SbPlayerCreateWithUrl, it takes in a callback,
 // |encrypted_media_init_data_encountered_cb|, which is run when encrypted media
 // initial data is encountered.
+//
+// |url| is prepared asynchronously. On success kSbPlayerStateInitialized is
+// reported once, with SB_PLAYER_INITIAL_TICKET; SbPlayerGetInfo() then reports
+// the frame size once it is known, and the duration, NSIntegerMax when the
+// asset is indefinite or live, or SB_PLAYER_NO_DURATION when it is not
+// known. A failure is reported through |player_error_func| instead. An
+// SbPlayerSeek() issued before Initialized is ignored, so a caller that
+// needs one must hold it until Initialized.
 SbPlayer SbUrlPlayerCreate(const char* url,
                            SbWindow window,
                            SbPlayerStatusFunc player_status_func,

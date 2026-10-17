@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <link.h>
+#include <stdint.h>
 #include <unwind.h>
 
 #include "starboard/common/log.h"
@@ -32,7 +32,7 @@ _Unwind_Reason_Code UnwindCallback(struct _Unwind_Context* uwc,
                                    void* user_context) {
   CallbackContext* callback_context =
       static_cast<CallbackContext*>(user_context);
-  _Unwind_Ptr ip = _Unwind_GetIP(uwc);
+  uintptr_t ip = _Unwind_GetIP(uwc);
 
   if (ip == 0) {
     return _URC_END_OF_STACK;

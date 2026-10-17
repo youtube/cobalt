@@ -226,10 +226,12 @@ test("cobalt_browsertests") {
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
     "//cobalt/browser/cache_storage_browsertest.cc",
+    "//cobalt/browser/custom_mime_type_browsertest.cc",
     "//cobalt/browser/experiments/experiment_config_browsertest.cc",
     "//cobalt/browser/h5vcc_memory_browsertest.cc",
     "//cobalt/browser/h5vcc_runtime_browsertest.cc",
     "//cobalt/browser/h5vcc_system_browsertest.cc",
+    "//cobalt/browser/i18n_browsertest.cc",
 
     # TODO(b/511244766): separate target for perf test.
     "//cobalt/browser/metrics/cobalt_memory_threshold_browsertest.cc",
@@ -271,6 +273,10 @@ test("cobalt_browsertests") {
   if (is_linux || is_android) {
     # This currently tests Linux/Android-specific information and operations.
     sources += [ "granular_memory_browsertest.cc" ]
+  }
+
+  if ((is_linux || is_android) && !is_starboard) {
+    sources += [ "//cobalt/browser/performance/performance_browsertest.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]

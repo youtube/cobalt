@@ -21,6 +21,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include "starboard/android/shared/media_codec.h"
@@ -135,10 +136,19 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   FakeMediaCodec* last_created_video_codec() const {
     return last_created_video_codec_;
   }
+  int video_codec_create_count() const { return video_codec_create_count_; }
+  std::optional<SbMediaColorMetadata> last_video_color_metadata() const {
+    std::lock_guard lock(mutex_);
+    return last_video_color_metadata_;
+  }
 
  private:
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
   std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
+  std::atomic<int> video_codec_create_count_{0};
+  mutable std::mutex mutex_;
+  std::optional<SbMediaColorMetadata>
+      last_video_color_metadata_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

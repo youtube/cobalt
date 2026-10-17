@@ -86,6 +86,13 @@ const base::FeatureParam<int> kCpuMetricsIntervalParam{
 const base::FeatureParam<int> kMemoryMetricsIntervalParam{
     &kCobaltMetricsIntervalFeature, "memory-metrics-interval", 300};
 
+BASE_FEATURE(kCobaltVirtualAddressSpaceMetrics,
+             "CobaltVirtualAddressSpaceMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kVirtualAddressSpaceSampleProbabilityParam{
+    &kCobaltVirtualAddressSpaceMetrics, "sample_probability", 0.01};
+
 BASE_FEATURE(kCobaltMemoryAttributionManager,
              "CobaltMemoryAttributionManager",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -115,6 +122,24 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kSplashScreenConfig,
+             "SplashScreenConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenTimeoutParam,
+                   &kSplashScreenConfig,
+                   "timeout",
+                   base::Milliseconds(1500));
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+BASE_FEATURE_PARAM(std::string,
+                   kSplashScreenUrlParam,
+                   &kSplashScreenConfig,
+                   "url",
+                   "");
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
@@ -138,6 +163,61 @@ const base::FeatureParam<int> kMemoryAblationSizeMBParam{
 
 const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
     &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
+
+BASE_FEATURE(kCobaltGpuMemoryAblation,
+             "CobaltGpuMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
+    &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
+    base::Seconds(0)};
+
+BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
+             "CobaltSystemMemoryPressureEvaluator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "moderate_fraction", 0.85};
+
+const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
+    &kCobaltSystemMemoryPressureEvaluator, "critical_fraction", 0.95};
+
+const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
+    &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
+
+const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
+
+const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
+    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
+
+BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
+             "CobaltSkipTrustedHeaderClient",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFreezeOnBackground,
+             "CobaltFreezeOnBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
+    &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltProcessStateSummary,
+             "CobaltProcessStateSummary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kProcessStateSummaryMinFlushIntervalParam,
+                   &kCobaltProcessStateSummary,
+                   "min_flush_interval",
+                   base::Seconds(15));
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features
 }  // namespace cobalt

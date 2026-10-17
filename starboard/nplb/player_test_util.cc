@@ -21,6 +21,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -252,6 +253,18 @@ SbPlayer CallSbPlayerCreate(
 
   SbPlayerCreationParam param = {};
   creation_param.ConvertTo(&param);
+
+  auto* experimental_features_extension = static_cast<
+      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+      SbSystemGetExtension(
+          kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &features);
+  }
+
   return SbPlayerCreate(window, &param, sample_deallocate_func,
                         decoder_status_func, player_status_func,
                         player_error_func, context, context_provider);

@@ -18,6 +18,7 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "starboard/common/size.h"
 #include "starboard/configuration.h"
@@ -26,10 +27,14 @@
 
 namespace starboard {
 
-bool IsSoftwareDecoderRequired(const std::string& max_video_capabilities);
+class ExperimentalFeatures;
+
+bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
+                               const std::string& max_video_capabilities);
 
 std::optional<Size> ParseMaxResolution(
     const std::string& max_video_capabilities,
+    std::string_view param_name,
     const Size& frame_size);
 
 bool Equal(const SbMediaMasteringMetadata& lhs,
@@ -44,6 +49,12 @@ struct DecodeTargetGeometry {
 DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
     const std::array<float, 16>& matrix4x4,
     const Size& display_size);
+
+// Returns a Size containing the minimum width and minimum height of |a| and
+// |b|. If only one optional contains a value, returns that value. If neither
+// contains a value, returns std::nullopt.
+std::optional<Size> GetLowestResolution(const std::optional<Size>& a,
+                                        const std::optional<Size>& b);
 
 }  // namespace starboard
 

@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
+#include <sys/random.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
@@ -55,6 +56,7 @@
 #define SYS_openat SYS_openat
 #define SYS_unlinkat SYS_unlinkat
 #define SYS_fstatat SYS_fstatat
+#define SYS_getrandom SYS_getrandom
 
 // For Starboard builds, the syscall SYS_foo names are not mapped to numbers,
 // allowing these wrappers to use the SYS_foo syscall name.
@@ -73,6 +75,7 @@
 #define libc_wrapper_SYS_fstatat(fildes, pathname, statbuf, flag) fstatat(fildes, pathname, statbuf, flag)
 #define libc_wrapper_SYS_openat(fildes, pathname, flags, mode) openat(fildes, pathname, flags, mode)
 #define libc_wrapper_SYS_unlinkat(fildes, pathname, flag) unlinkat(fildes, pathname, flag)
+#define libc_wrapper_SYS_getrandom(buf, bufsize, flags) getrandom(buf, bufsize, flags)
 
 // Redirection wrappers.
 #define libc_wrapper_SYS_lstat(pathname, statbuf) fstatat(AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW)
@@ -84,5 +87,6 @@
 // Define wrappers for unsupported syscalls that it called by code that can
 // handle unsupported syscall functions.
 #define libc_wrapper_SYS_memfd_create(name, flags) (errno = ENOSYS, -1)
+#define libc_wrapper_SYS_process_vm_readv(pid, lvec, lcnt, rvec, rcnt, flags) (errno = ENOSYS, -1)
 
 #endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_SYSCALL_ARCH_H_

@@ -85,8 +85,18 @@ class WebSourceBuffer {
   // one RunSegmentParserLoop() call will be necessary to actually parse the new
   // bytes. Note, for zero-length appendBuffers, the caller can skip this call
   // and just run the segment parser loop asynchronously once.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the underlying stream parser, which may retain the
+  // span rather than copying it, and must remain valid until `release_runner`
+  // is destroyed. A null `release_runner` means `data` is not retained for the
+  // parser, which must therefore copy it.
+  [[nodiscard]] virtual bool AppendToParseBuffer(
+      base::span<const unsigned char> data,
+      base::ScopedClosureRunner release_runner) = 0;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] virtual bool AppendToParseBuffer(
       base::span<const unsigned char> data) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Intended to be called potentially asynchronously after
   // SourceBuffer.appendBuffer() and potentially repeatedly, runs the segment

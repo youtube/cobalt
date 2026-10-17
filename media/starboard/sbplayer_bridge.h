@@ -115,6 +115,7 @@ class SbPlayerBridge {
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const std::string& max_video_capabilities,
+                 const std::string& max_video_resolution,
                  int max_video_input_size,
                  const ExperimentalFeatures& experimental_features
 #if BUILDFLAG(IS_ANDROID)
@@ -356,6 +357,7 @@ class SbPlayerBridge {
 
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
+  std::string max_video_resolution_;
 
   const ExperimentalFeatures experimental_features_;
   const bool enable_batched_buffer_deallocation_;

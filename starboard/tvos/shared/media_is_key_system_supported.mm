@@ -32,7 +32,6 @@ bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
   constexpr std::string_view kSupportedWidevineSystems[] = {
       "com.youtube.widevine.l3",
       "com.youtube.widevine.forcehdcp",
-      "com.widevine.alpha",
   };
 
   if (base::Contains(kSupportedWidevineSystems, key_system)) {

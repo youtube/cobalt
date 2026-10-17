@@ -1340,14 +1340,6 @@ component("base") {
       sources += [ "android/reached_code_profiler_stub.cc" ]
     }
 
-    # TODO(https://crbug.com/495203133): the native_target partner toolchain
-    # compiles debug/stack_trace_android.cc but links neither an unwinder nor
-    # Starboard's unwind_starboard, leaving the _Unwind_* symbols it references
-    # undefined.
-    if (!is_starboard) {
-      sources += [ "debug/cobalt_unwind_stubs.cc" ]
-    }
-
     # This is actually a linker script, but it can be added to the link in the
     # same way as a library.
     libs += [ "android/library_loader/anchor_functions.lds" ]

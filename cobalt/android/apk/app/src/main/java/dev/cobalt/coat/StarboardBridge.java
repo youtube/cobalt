@@ -43,7 +43,7 @@ public class StarboardBridge extends BaseStarboardBridge {
       String[] args,
       String startDeepLink) {
     super(appContext, activityHolder, serviceHolder, args, startDeepLink);
-    mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
+    mCobaltMediaSession = new CobaltMediaSession(appContext, artworkDownloader);
     mVolumeStateReceiver = new VolumeStateReceiver(appContext);
   }
 
@@ -78,7 +78,7 @@ public class StarboardBridge extends BaseStarboardBridge {
         }
       }
     }
-    StartupGuard.getInstance().setStartupMilestone(37);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PLATFORM_ERROR_RAISED);
     mPlatformError = new PlatformError(mActivityHolder, errorType, data, url, disableDismiss);
     mPlatformError.raise();
   }
@@ -114,7 +114,7 @@ public class StarboardBridge extends BaseStarboardBridge {
   }
 
   @Override
-  protected void setStartupMilestone(int milestone) {
+  protected void setStartupMilestone(@StartupGuard.Milestone int milestone) {
     StartupGuard.getInstance().setStartupMilestone(milestone);
   }
 

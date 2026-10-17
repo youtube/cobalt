@@ -16,8 +16,11 @@
 #define STARBOARD_AOSP_SHARED_APPLICATION_AOSP_H_
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
 
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/window.h"
 
@@ -38,18 +41,8 @@ namespace starboard {
 // into Starboard before this object exists and after it is gone.
 class ApplicationAOSP : public QueueApplication {
  public:
-  explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback)
-      : QueueApplication(sb_event_handle_callback) {
-    g_instance.store(this, std::memory_order_release);
-  }
-  ~ApplicationAOSP() override {
-    // Clear here instead of letting ~Application clear it because it runs only
-    // after ~QueueApplication has already destroyed the event queue. If a JNI
-    // thread would Inject() between the queue destruction and the application
-    // destruction could inject into a destroyed queue. So we destroy the
-    // application instance here to prevent it.
-    g_instance.store(nullptr, std::memory_order_release);
-  }
+  explicit ApplicationAOSP(SbEventHandleCallback sb_event_handle_callback);
+  ~ApplicationAOSP() override;
 
   // Returns the live application, or nullptr when there is none.
   static ApplicationAOSP* GetIfExists() {
@@ -72,6 +65,23 @@ class ApplicationAOSP : public QueueApplication {
                       int action,
                       int unicode_char,
                       int meta_state);
+
+  // Injects kSbEventTypeConceal and blocks the caller until the engine has
+  // destroyed the Starboard window, or times out.
+  //
+  // Android invalidates the Surface as soon as SurfaceHolder.surfaceDestroyed()
+  // returns, so the engine has to let go of the ANativeWindow first, otherwise
+  // it could use a stale surface.
+  bool ReleaseWindowSurfaceAndWait(int64_t timeout_usec);
+
+  // Reports that the engine has let go of the Android surface, releasing a
+  // caller blocked in ReleaseWindowSurfaceAndWait().
+  void NotifySurfaceReleased();
+
+  // Same, but only when the conceal found no window to destroy and nothing
+  // will ever reach DestroyWindow(). Avoids waiting for the whole timeout if
+  // the window was already destroyed. Starboard thread only.
+  void NotifySurfaceReleaseIfNoWindow();
 
  protected:
   // Creates the platform audio sink. Android TV does it from the
@@ -96,9 +106,24 @@ class ApplicationAOSP : public QueueApplication {
   // The live instance, or nullptr when there is none.
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
 
+  // starboard_bridge_ is a global singleton, use a raw pointer to not
+  // interfere with its lifecycle management. Not raw_ptr<> (unlike
+  // ApplicationAndroid's equivalent member): that would pull in //base on
+  // AOSP, where starboard shouldn't depend on it, and BackupRefPtr
+  // protection is moot anyway since PartitionAlloc is disabled on partner
+  // toolchains.
+  StarboardBridge* const starboard_bridge_ = StarboardBridge::GetInstance();
+
   // The window CreateWindow() handed out, so injected input events can name the
-  // window they belong to.
-  SbWindow window_ = kSbWindowInvalid;
+  // window they belong to. Written on the Starboard thread, read on the Android
+  // UI thread from InjectKeyEvent().
+  std::atomic<SbWindow> window_{kSbWindowInvalid};
+
+  std::mutex surface_release_mutex_;
+  std::condition_variable surface_release_cv_;
+  // Tells if the engine has let go of the Android surface. Guarded by
+  // |surface_release_mutex_|.
+  bool surface_released_ = false;
 };
 
 }  // namespace starboard

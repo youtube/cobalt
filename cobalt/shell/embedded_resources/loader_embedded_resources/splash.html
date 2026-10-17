@@ -43,7 +43,18 @@
 
         const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
-          window.close();
+          // Stay until the timeout, if specified.
+          const timeoutMs = Number(
+              new URLSearchParams(window.location.search).get('timeout')) || 0;
+          const loadEndMs =
+              performance.getEntriesByType('navigation')[0]?.loadEventEnd || 0;
+          const remainingMs =
+              Math.max(0, timeoutMs - (performance.now() - loadEndMs));
+          if (remainingMs > 0) {
+            setTimeout(() => window.close(), remainingMs);
+          } else {
+            window.close();
+          }
         }
 
         videoEl.addEventListener('ended', () => {

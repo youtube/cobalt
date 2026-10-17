@@ -3,6 +3,8 @@
 #include "time_impl.h"
 #include "starboard/common/log.h"
 
+const char __utc[] = "UTC";
+
 // Cobalt's hermetic implementation of timezone gives us a
 // platform agnostic method to query for the name of a timezone
 // given a  struct tm.

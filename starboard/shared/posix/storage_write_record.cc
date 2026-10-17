@@ -55,8 +55,6 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     return false;
   }
 
-  ftruncate(temp_file, 0);
-
   const char* source = data;
   int64_t to_write = data_size;
   while (to_write > 0) {

@@ -103,6 +103,8 @@ class PlatformWindowStarboard : public PlatformWindow,
     kInactive,
   };
 
+  void EnsureAcceleratedWidgetAvailable();
+
   SbWindow sb_window_ = kSbWindowInvalid;
   bool use_native_frame_ = false;
   bool widget_available_ = false;

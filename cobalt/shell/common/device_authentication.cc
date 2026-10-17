@@ -24,7 +24,6 @@
 #include "base/strings/escape.h"
 #include "base/time/time.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "crypto/hmac.h"
 #include "starboard/system.h"
 
 namespace content {
@@ -40,10 +39,6 @@ bool ComputeSignatureFromSignAPI(const std::string& message,
       signature, kSHA256DigestSize);
 }
 
-// Check to see if we can query the platform for the secret key.  If so,
-// go ahead and use it to sign the message, otherwise try to use the
-// SbSystemSignWithCertificationSecretKey() method to sign the message.  If
-// both methods fail, return an empty string.
 std::string ComputeBase64Signature(const std::string& message) {
   uint8_t signature[kSHA256DigestSize];
 
@@ -187,25 +182,6 @@ std::string ComputeMessage(const std::string& cert_scope,
   // Build message from cert_scope and start_time.
   return BuildMessageFragment("cert_scope", cert_scope) +
          BuildMessageFragment("start_time", start_time);
-}
-
-void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
-                                               const std::string& base64_key,
-                                               uint8_t* signature,
-                                               size_t signature_size_in_bytes) {
-  CHECK_GE(signature_size_in_bytes, 32U);
-
-  std::string key;
-  base::Base64Decode(base64_key, &key);
-
-  // Generate signature from message using HMAC-SHA256.
-  crypto::HMAC hmac(crypto::HMAC::SHA256);
-  if (!hmac.Init(key)) {
-    DLOG(ERROR) << "Unable to initialize HMAC-SHA256.";
-  }
-  if (!hmac.Sign(message, signature, signature_size_in_bytes)) {
-    DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
-  }
 }
 
 }  // namespace content

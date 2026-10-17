@@ -30,11 +30,6 @@ bool GLContextVirtual::InitializeImpl(gl::GLSurface* compatible_surface,
 }
 
 void GLContextVirtual::Destroy() {
-#if BUILDFLAG(IS_COBALT)
-  if (!shared_context_) {
-    return;
-  }
-#endif
   OnContextWillDestroy();
   shared_context_->OnReleaseVirtuallyCurrent(this);
   shared_context_ = nullptr;

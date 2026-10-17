@@ -12,6 +12,7 @@
 #include <thread>
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -41,6 +42,12 @@ TEST_F(GrShaderCacheTest, DoesNotCacheForIncognito) {
   int32_t incognito_client_id = 2;
   auto key = SkData::MakeWithCString(kShaderKey);
   auto shader = SkData::MakeWithCString(kShader);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt's single-process bypasses Chromium's multi-process GpuClient IPC routing,
+  // meaning `client_ids_to_cache_on_disk_` is not populated. Cobalt overrides the
+  // cache restriction by checking the command-line flag. 
+  base::CommandLine::ForCurrentProcess()->AppendSwitch("incognito");
+#endif
   {
     GrShaderCache::ScopedCacheUse cache_use(&cache_, incognito_client_id);
     EXPECT_EQ(cache_.load(*key), nullptr);
@@ -49,6 +56,9 @@ TEST_F(GrShaderCacheTest, DoesNotCacheForIncognito) {
   EXPECT_EQ(disk_cache_.size(), 0u);
 
   int32_t regular_client_id = 3;
+#if BUILDFLAG(IS_COBALT)
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch("incognito");
+#endif
   cache_.CacheClientIdOnDisk(regular_client_id);
   {
     GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);

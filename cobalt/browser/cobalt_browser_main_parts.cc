@@ -32,12 +32,14 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
+#include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -50,6 +52,17 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/memory/memory_pressure_monitor.h"
+#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // nogncheck
+#include "media/media_buildflags.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_client.h"
+#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -71,7 +84,8 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "components/crash/content/browser/process_exit_reason_from_system_android.h"
+#include "base/android/jni_android.h"
+#include "cobalt/android/jni_headers/ProcessExitReasonHelper_jni.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -250,18 +264,8 @@ void RecordPriorSessionExitReasons() {
       base::android::SDK_VERSION_R) {
     return;
   }
-  base::FilePath base_dir;
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir)) {
-    return;
-  }
-  base::FilePath metrics_dir =
-      base_dir.AppendASCII(kBrowserStabilityMetricsName);
-  for (base::ProcessId pid :
-       ExtractPriorSessionPids(metrics_dir, kBrowserStabilityMetricsName,
-                               base::GetCurrentProcId())) {
-    crash_reporter::ProcessExitReasonFromSystem::RecordExitReasonToUma(
-        pid, "Cobalt.Stability.Android.SystemExitReason");
-  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
 }
 #endif
 
@@ -441,15 +445,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   auto* native_stability_manager =
       h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Only 3P (Evergreen) platforms currently provide native stability tracking
+  // for crashes.
+  //
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
   native_stability_manager->ArmCrashUuidAnnotation();
-  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
+  native_stability_manager->PruneStorage();
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
@@ -459,7 +468,41 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Register the Cobalt system memory pressure evaluator on Starboard platforms
+  // when enabled via Finch or command line.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSystemMemoryPressureEvaluator)) {
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
+    // |monitor| may be nullptr in browser tests or if memory monitoring is
+    // disabled.
+    if (monitor) {
+      cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+          media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      media_allowance_getter = base::BindRepeating(
+          &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
+#endif
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+              monitor->CreateVoter(), std::move(media_allowance_getter)));
+      LOG(INFO)
+          << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluator.";
+    }
+  } else {
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   StartStorageMigration();
+  ScheduleCobaltStorageMetricsRecording();
 
   return result;
 }

@@ -134,15 +134,15 @@ TEST(SymbolizeInProcessHeapTest, NamedMappingAndroidTV) {
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
   ASSERT_TRUE(parsed->is_dict());
 
-  const base::Value::List* events = parsed->GetDict().FindList("traceEvents");
+  const base::ListValue* events = parsed->GetDict().FindList("traceEvents");
   ASSERT_TRUE(events != nullptr);
   ASSERT_EQ(events->size(), 1u);
 
-  const base::Value::Dict* dumps =
+  const base::DictValue* dumps =
       (*events)[0].GetDict().FindDictByDottedPath("args.dumps");
   ASSERT_TRUE(dumps != nullptr);
 
-  const base::Value::List* strings =
+  const base::ListValue* strings =
       dumps->FindListByDottedPath("heaps_v2.maps.strings");
   ASSERT_TRUE(strings != nullptr);
   ASSERT_EQ(strings->size(), 5u);
@@ -223,7 +223,7 @@ TEST(SymbolizeInProcessHeapTest, EvergreenAnonymousMappingRDK) {
   auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
 
-  const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
+  const base::ListValue* strings = parsed->GetDict().FindListByDottedPath(
       "traceEvents[0].args.dumps.heaps_v2.maps.strings");
   ASSERT_TRUE(strings != nullptr);
   ASSERT_EQ(strings->size(), 3u);
@@ -314,7 +314,7 @@ TEST(SymbolizeInProcessHeapTest, MultiSegmentAndSerializedStringDumps) {
   auto parsed = base::JSONReader::ReadAndReturnValueWithError(result_content);
   ASSERT_TRUE(parsed.has_value()) << parsed.error().message;
 
-  const base::Value::List* strings = parsed->GetDict().FindListByDottedPath(
+  const base::ListValue* strings = parsed->GetDict().FindListByDottedPath(
       "traceEvents[0].args.dumps.heaps_v2.maps.strings");
   ASSERT_TRUE(strings != nullptr);
   ASSERT_EQ(strings->size(), 2u);

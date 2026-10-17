@@ -142,10 +142,39 @@ bool AppEventDelegate::IsFrozenLocked() const {
 }
 
 void AppEventDelegate::HandleEvent(const SbEvent* event) {
-  // Use a lock to ensure thread safety as HandleEvent might be called from
-  // different threads (e.g., Starboard thread, UI thread).
-  base::AutoLock lock(lock_);
-  HandleEventLocked(event);
+  if (event->type == kSbEventTypeConceal || event->type == kSbEventTypeFreeze ||
+      event->type == kSbEventTypeStop) {
+    // Wait for the Conceal, Freeze, or Stop transition to complete natively
+    // before allowing HandleEvent to return (or proceeding to teardown on
+    // Stop), ensuring the platform return-time state contract is satisfied
+    // (SbWindow destroyed and GPU resources released on Conceal; persistent
+    // storage flushed on Freeze) and event callbacks are invoked only after
+    // Cobalt has reached the target state.
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+
+    // SetQuitClosure / quit_closure_ receives the callback to quit this local
+    // run_loop; it does not quit the application. This unblocks HandleEvent to
+    // return once the target state is reached.
+    {
+      base::AutoLock lock(lock_);
+      quit_closure_ = run_loop.QuitClosure();
+      HandleEventLocked(event);
+    }
+    run_loop.Run();
+
+    if (event->type == kSbEventTypeStop) {
+      // Run pending tasks until idle before teardown.
+      base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).RunUntilIdle();
+
+      // Start synchronous teardown.
+      DoTeardown();
+    }
+  } else {
+    // Use a lock to ensure thread safety as HandleEvent might be called from
+    // different threads (e.g., Starboard thread, UI thread).
+    base::AutoLock lock(lock_);
+    HandleEventLocked(event);
+  }
 }
 
 void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
@@ -154,6 +183,9 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       target_state_ == ApplicationState::kStopped) {
     LOG(WARNING) << "Received event " << event->type
                  << " after stopping. Event is ignored.";
+    if (quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
     return;
   }
 

@@ -237,7 +237,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
                  << ", max job takes " << max_job_interval_;
     for (int i = 0; i < job_record.stack_size; ++i) {
       char function_name[1024];
-      if (SbSystemSymbolize(job_record.stack[i], function_name,
+      // Subtract one as return address of function may be in the next function
+      // when a function is annotated as noreturn.
+      const void* call = static_cast<const char*>(job_record.stack[i]) - 1;
+      if (SbSystemSymbolize(call, function_name,
                             SB_ARRAY_SIZE_INT(function_name))) {
         SB_LOG(INFO) << "    " << function_name;
       } else {

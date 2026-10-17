@@ -8,6 +8,7 @@
 -CacheStorageBrowserTest.*
 -CobaltMetricsBrowserTest.*
 -CommitNavigationRaceBrowserTest.*
+-CustomMimeTypeBrowserTest.*
 -DeferSpeculativeRFHCreationReuseRFHTest.*
 -DeferSpeculativeRFHCreationTest.*
 -DocumentPolicyBrowserTest.*
