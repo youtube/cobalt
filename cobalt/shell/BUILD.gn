@@ -206,7 +206,10 @@ static_library("cobalt_shell_switches") {
 }
 
 static_library("cobalt_shell_lib") {
-  deps = [ "//cobalt/browser:features" ]
+  deps = [
+    "//cobalt/browser:features",
+    "//ui/display",
+  ]
 
   public_deps = [
     ":cobalt_shell_lib_deps",
@@ -215,6 +218,8 @@ static_library("cobalt_shell_lib") {
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
+    "browser/native_splash_video_player.cc",
+    "browser/native_splash_video_player.h",
     "browser/picture_in_picture/picture_in_picture_window_manager.cc",
     "browser/picture_in_picture/picture_in_picture_window_manager.h",
     "browser/shell.cc",
@@ -246,6 +251,8 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_delegate.h",
     "browser/splash_screen_web_contents_observer.cc",
     "browser/splash_screen_web_contents_observer.h",
+    "browser/splash_video_webm_indexer.cc",
+    "browser/splash_video_webm_indexer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",

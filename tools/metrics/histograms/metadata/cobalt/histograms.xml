@@ -444,6 +444,30 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.NativeVideo.Outcome"
+    enum="NativeSplashVideoOutcome" expires_after="2027-10-16">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Records the progress of the splash screen video played natively with
+    SbPlayer, with the NativeVideoSplashScreen feature enabled: once when it
+    starts or can't start, and once for each of its first frame, its end and
+    its failure. When it can't start or fails, the HTML video splash screen is
+    shown instead.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.NativeVideo.TimeToFirstFrame" units="ms"
+    expires_after="2027-10-16">
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time from starting the splash screen video played natively with
+    SbPlayer, with the NativeVideoSplashScreen feature enabled, to the SbPlayer
+    presenting its first frame. Recorded once per launch.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Stability.Android.SystemExitReason"
     enum="AndroidProcessExitReason" expires_after="never">
   <owner>avvall@google.com</owner>
