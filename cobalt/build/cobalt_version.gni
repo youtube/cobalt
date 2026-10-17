@@ -1,0 +1,39 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Exposes the Cobalt version defined in //cobalt/version.h to GN.
+#
+# read_file() registers //cobalt/version.h as an input of the build graph, so
+# GN automatically regenerates when the version changes.
+
+_cobalt_version_defines =
+    filter_include(read_file("//cobalt/version.h", "list lines"),
+                   [ "#define COBALT_VERSION \"*\"" ])
+assert(_cobalt_version_defines != [],
+       "COBALT_VERSION is not defined in //cobalt/version.h")
+
+# The Cobalt version string, e.g. "27.lts.10" or "27.master.0".
+cobalt_version = string_replace(string_replace(_cobalt_version_defines[0],
+                                               "#define COBALT_VERSION \"",
+                                               "",
+                                               1),
+                                "\"",
+                                "",
+                                1)
+
+# True if |cobalt_version| is an LTS release version, e.g. "27.lts.10", as
+# opposed to a development version such as "27.master.0". Only LTS versions
+# have a corresponding Evergreen version.
+cobalt_is_lts_version =
+    string_replace(cobalt_version, ".lts.", "", 1) != cobalt_version
