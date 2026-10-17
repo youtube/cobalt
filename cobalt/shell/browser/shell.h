@@ -300,6 +300,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ClosingSplashScreenWebContents();
   void OnSplashScreenLoadComplete();
   void MarkStartupEvent(SplashScreenMetrics::Event event);
+  // Starts the splash screen's minimum duration, once, and schedules the
+  // switch to the main WebContents if it has loaded.
+  void StartSplashScreenTimer();
+  // Called when the video of the splash screen starts playing, which is once
+  // it has its first frame.
+  void OnSplashScreenVideoStarted();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -315,6 +321,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Startup timing metrics of the launch. Null for windows other than the
   // first one.
   std::unique_ptr<SplashScreenMetrics> splash_screen_metrics_;
+  // Whether the splash screen waits for the first frame of its video to start
+  // its minimum duration.
+  bool awaiting_splash_video_first_frame_ = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
