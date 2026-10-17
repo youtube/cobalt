@@ -74,7 +74,7 @@ jobs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
       skipped: ${{ steps.check-skip.outputs.skipped }}
     steps:
-      # Skips the build unless Auto Label Kokoro requested it.
+      # Skips (outputs skipped=true), continues to wait for Kokoro, or fails.
       - name: Check if tvOS build should be skipped
         id: check-skip
         if: github.event_name == 'pull_request'
@@ -89,6 +89,8 @@ jobs:
           skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
           [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
 
+          # Wait up to 20 min for the Auto Label Kokoro run of this commit and
+          # event, which decides whether to add the kokoro:run label.
           for _ in {1..120}; do
             run=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
               --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
@@ -96,13 +98,16 @@ jobs:
             sleep 10
           done
 
-          # Kokoro posts a pending status before removing the label.
+          # Continue if a Kokoro build was requested. Kokoro posts a pending
+          # status before removing the label, so one of them is always visible.
           labeled=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
             --jq 'any(.labels[]; .name == "kokoro:run" or .name == "kokoro:force-run")' || echo false)
           started=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/status?per_page=100" \
             --jq 'any(.statuses[]; .context == "kokoro")' || echo false)
           [[ "${labeled}" == "true" || "${started}" == "true" ]] && exit 0
 
+          # No build requested. Skip if Auto Label Kokoro decided so, or if this
+          # commit is outdated. Otherwise it didn't finish: fail rather than skip.
           conclusion=$(jq -r '.conclusion // "timed out"' <<< "${run}")
           [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
           head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
@@ -308,7 +313,8 @@ jobs:
               test_failures: {}
             }' > shepherd_report.json
 
-          # run-tests is also skipped if download-artifacts fails.
+          # Check the gate's output. Not RUN_TESTS_RESULT == "skipped", which causes run-tests
+          # skipped when a job it needs fails.
           if [[ "${GATE_SKIPPED}" == "true" ]]; then
             echo "tvOS build skipped."
             exit 0
