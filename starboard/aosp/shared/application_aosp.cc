@@ -83,15 +83,24 @@ void ApplicationAOSP::Initialize() {
 }
 
 SbWindow ApplicationAOSP::CreateWindow(const SbWindowOptions* /*options*/) {
-  ANativeWindow* native_window = android::shared::AcquireWindowSurface();
-  if (native_window == nullptr) {
-    SB_LOG(ERROR) << "SbWindowCreate: no Android surface available.";
-    return kSbWindowInvalid;
+  while (true) {
+    {
+      // ReleaseWindowSurfaceAndWait() clears the surface under the same lock,
+      // so a window is never created on a surface that is going away.
+      std::lock_guard<std::mutex> lock(window_mutex_);
+      ANativeWindow* native_window = android::shared::AcquireWindowSurface();
+      if (native_window != nullptr) {
+        SbWindow window = new SbWindowPrivate();
+        window->native_window = native_window;
+        window_.store(window);
+        return window;
+      }
+    }
+    // The app went to the background before the window was created. Wait
+    // until it comes back and Android provides a new surface.
+    SB_LOG(WARNING) << "SbWindowCreate: no Android surface, waiting for one.";
+    android::shared::WaitForWindowSurface();
   }
-  SbWindow window = new SbWindowPrivate();
-  window->native_window = native_window;
-  window_.store(window);
-  return window;
 }
 
 bool ApplicationAOSP::DestroyWindow(SbWindow window) {
@@ -158,12 +167,25 @@ void ApplicationAOSP::NotifySurfaceReleaseIfNoWindow() {
 }
 
 bool ApplicationAOSP::ReleaseWindowSurfaceAndWait(int64_t timeout_usec) {
+  bool has_window;
+  {
+    // Clear the surface first, so no new window is created on it.
+    std::lock_guard<std::mutex> lock(window_mutex_);
+    android::shared::SetWindowSurface(nullptr);
+    has_window = SbWindowIsValid(window_.load());
+  }
   {
     std::lock_guard<std::mutex> lock(surface_release_mutex_);
     surface_released_ = false;
   }
 
+  // The engine still needs to know it's concealed.
   Conceal(this, &OnConcealDispatched);
+
+  if (!has_window) {
+    // No window holds the surface, so there's nothing to wait for.
+    return true;
+  }
 
   bool released;
   {
@@ -175,10 +197,6 @@ bool ApplicationAOSP::ReleaseWindowSurfaceAndWait(int64_t timeout_usec) {
   if (!released) {
     SB_LOG(WARNING) << "Timed out waiting to release the Android surface.";
   }
-
-  // Even if the release timed out, null the surface reference so a stale ref
-  // won't be used.
-  android::shared::SetWindowSurface(nullptr);
   return released;
 }
 
