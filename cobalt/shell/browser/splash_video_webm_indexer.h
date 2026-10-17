@@ -46,7 +46,8 @@ struct SplashVideoIndex {
   std::vector<SplashVideoFrame> frames;
 };
 
-// Limits on the splash screen videos accepted by IndexSplashVideoWebM().
+// Limits on the splash screen videos accepted by IndexSplashVideoWebM(). The
+// file size limit is the default one, for the built-in videos.
 inline constexpr size_t kMaxSplashVideoFileSize = 1024 * 1024;
 inline constexpr size_t kMaxSplashVideoFrames = 300;
 inline constexpr int64_t kMaxSplashVideoDurationUs = 10'000'000;
@@ -57,11 +58,13 @@ inline constexpr int kMaxSplashVideoDimension = 4096;
 // Extensions pipeline.
 //
 // Accepts a single VP9 video track whose frames aren't laced, whose first frame
-// is a key frame and whose timestamps increase, within the limits above. Every
-// frame must start with a VP9 frame marker. Returns std::nullopt for anything
-// else, so that `webm` can come from an untrusted source.
+// is a key frame and whose timestamps increase, within the limits above, in a
+// file of at most `max_file_size` bytes. Every frame must start with a VP9
+// frame marker. Returns std::nullopt for anything else, so that `webm` can come
+// from an untrusted source.
 std::optional<SplashVideoIndex> IndexSplashVideoWebM(
-    base::span<const uint8_t> webm);
+    base::span<const uint8_t> webm,
+    size_t max_file_size = kMaxSplashVideoFileSize);
 
 }  // namespace content
 
