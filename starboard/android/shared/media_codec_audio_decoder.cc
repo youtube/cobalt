@@ -262,7 +262,8 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       // its channels so the audio sink can play it with the correct pitch.
       for (size_t i = 0; i < size / sizeof(int16_t); i++) {
         data[i / 2] = (static_cast<int32_t>(data[i]) +
-                       static_cast<int32_t>(data[i + 1]) / 2);
+                       static_cast<int32_t>(data[i + 1])) /
+                      2;
       }
       size /= 2;
     }
