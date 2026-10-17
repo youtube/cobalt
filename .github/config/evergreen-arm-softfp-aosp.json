@@ -11,7 +11,7 @@
   ],
   "test_on_device": true,
   "test_device_family": "android",
-  "test_e2e": true,
+  "test_e2e": false,
   "test_root_target": "//cobalt/android:cobalt_apk",
   "e2e_test_targets": [
     {

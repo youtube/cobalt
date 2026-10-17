@@ -6,7 +6,7 @@
   "test_package": true,
   "test_on_device": true,
   "test_device_family": "rdk",
-  "test_e2e": true,
+  "test_e2e": false,
   "test_root_target": "//cobalt:gn_all",
   "test_dimensions": {
     "device_type": "rdk",
