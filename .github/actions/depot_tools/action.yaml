@@ -165,15 +165,13 @@ runs:
         # --shallow / --no-history: fetch only latest commits without full commit history
         # --nohooks: defer hooks so they run as an explicit, separately timed workflow step
         # --force / --delete_unversioned_trees: clean up untracked or mismatched trees left by prior builds
-        # --revision: pin checkout to the exact triggering commit SHA
         gclient sync \
           --verbose \
           --shallow \
           --no-history \
           --nohooks \
           --force \
-          --delete_unversioned_trees \
-          --revision "$(git -C src rev-parse HEAD)"
+          --delete_unversioned_trees
 
     - name: Publish Golden Workspace Snapshot
       # Publish only when a sync actually happened (DEPS or .gclient changed, or

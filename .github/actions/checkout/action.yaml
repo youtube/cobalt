@@ -29,25 +29,29 @@ runs:
       run: |
         set -ex
 
-        retry() {
-          for delay in 0 5 15 30; do
-            sleep "${delay}"
-            rm -rf "${DEST_PATH}"
-            "$@" && return
-          done
-          return 1
-        }
+        if [ ! -d "${DEST_PATH}/.git" ]; then
+          retry() {
+            for delay in 0 5 15 30; do
+              sleep "${delay}"
+              rm -rf "${DEST_PATH}"
+              "$@" && return
+            done
+            return 1
+          }
 
-        depth_arg=()
-        if [ "${FETCH_DEPTH}" -ne 0 ]; then
-          depth_arg+=(--depth "${FETCH_DEPTH}")
+          depth_arg=()
+          if [ "${FETCH_DEPTH}" -ne 0 ]; then
+            depth_arg+=(--depth "${FETCH_DEPTH}")
+          fi
+
+          retry git clone \
+            --filter=blob:none \
+            "${depth_arg[@]}" \
+            "${REPO_URL}" \
+            "${DEST_PATH}"
+        else
+          echo "Repository already exists at ${DEST_PATH}. Skipping clone."
         fi
-
-        retry git clone \
-          --filter=blob:none \
-          "${depth_arg[@]}" \
-          "${REPO_URL}" \
-          "${DEST_PATH}"
 
         git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
 
