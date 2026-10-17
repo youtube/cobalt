@@ -257,15 +257,23 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
     int size = dequeue_output_result.num_bytes;
     if (2 * audio_stream_info_.samples_per_second ==
         static_cast<uint32_t>(output_sample_rate_)) {
-      // The audio is encoded using implicit HE-AAC.  As the audio sink has
-      // been created already we try to down-mix the decoded data to half of
-      // its channels so the audio sink can play it with the correct pitch.
-      for (size_t i = 0; i < size / sizeof(int16_t); i++) {
-        data[i / 2] = (static_cast<int32_t>(data[i]) +
-                       static_cast<int32_t>(data[i + 1])) /
-                      2;
+      // The audio is encoded using implicit HE-AAC, so the decoder outputs
+      // twice as many frames per second as the audio sink, which has already
+      // been created at the sample rate of the stream, expects.  Halve the
+      // frame rate in place by averaging each pair of consecutive frames per
+      // channel, so the audio sink can play it with the correct pitch.
+      const size_t channels = audio_stream_info_.number_of_channels;
+      SB_DCHECK_GT(channels, 0u);
+      const size_t frames = size / sizeof(int16_t) / channels;
+      for (size_t frame = 0; frame + 1 < frames; frame += 2) {
+        for (size_t channel = 0; channel < channels; ++channel) {
+          data[frame / 2 * channels + channel] =
+              (static_cast<int32_t>(data[frame * channels + channel]) +
+               static_cast<int32_t>(data[(frame + 1) * channels + channel])) /
+              2;
+        }
       }
-      size /= 2;
+      size = frames / 2 * channels * sizeof(int16_t);
     }
 
     DecodedAudio decoded_audio(
