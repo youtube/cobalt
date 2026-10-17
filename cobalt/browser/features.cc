@@ -122,6 +122,10 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kNativeVideoSplashScreen,
+             "NativeVideoSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSplashScreenConfig,
              "SplashScreenConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);

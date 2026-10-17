@@ -28,6 +28,7 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
@@ -45,6 +46,7 @@
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #endif
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -226,6 +228,31 @@ GURL GetSplashScreenURL() {
   return GURL(switches::kSplashScreenURL);
 }
 
+// How long the splash screen waits for the first frame of its video before its
+// duration starts anyway, e.g., if the video can't play.
+constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
+
+// The progress of the splash screen video played natively. These values are
+// persisted to logs. Entries should not be renumbered and numeric values
+// should never be reused. Keep in sync with NativeSplashVideoOutcome in
+// tools/metrics/histograms/metadata/cobalt/enums.xml.
+enum class NativeSplashVideoOutcome {
+  kStarted = 0,
+  kFirstFrame = 1,
+  kEnded = 2,
+  kNotStarted = 3,
+  kUnsupported = 4,
+  kCreateFailed = 5,
+  kPlaybackError = 6,
+  kCachedVideoRejected = 7,
+  kMaxValue = kCachedVideoRejected,
+};
+
+void RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome outcome) {
+  base::UmaHistogramEnumeration("Cobalt.SplashScreen.NativeVideo.Outcome",
+                                outcome);
+}
+
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
@@ -257,8 +284,13 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
+      // The native video splash screen shows the same video.
       is_video_splash_screen_(base::FeatureList::IsEnabled(
-          cobalt::features::kForceVideoSplashScreen)) {
+                                  cobalt::features::kForceVideoSplashScreen) ||
+                              base::FeatureList::IsEnabled(
+                                  cobalt::features::kNativeVideoSplashScreen)),
+      is_native_video_splash_screen_(base::FeatureList::IsEnabled(
+          cobalt::features::kNativeVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -352,6 +384,9 @@ void Shell::OnFocus() {
 // static
 void Shell::OnConceal() {
   CHECK(g_platform);
+  for (Shell* shell : windows_) {
+    shell->StopNativeSplashVideo();
+  }
   if (g_platform->IsVisible()) {
     g_platform->OnConceal();
   }
@@ -678,28 +713,16 @@ void Shell::LoadSplashScreenWebContents() {
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
     GetPlatform()->LoadSplashScreenContents(this);
 
-    GURL splash_screen_url = GetSplashScreenURL();
-    if (!is_video_splash_screen_) {
-      splash_screen_url =
-          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    if (is_native_video_splash_screen_) {
+      // The page shows the video through a video hole. The video starts once
+      // the one that the WebApp cached, if any, is read, as splash.html would
+      // play it.
+      awaiting_splash_video_first_frame_ = true;
+      LoadSplashScreenURL(/*native_video=*/true);
+      ReadCachedSplashVideo();
+    } else {
+      LoadSplashScreenURL(/*native_video=*/false);
     }
-    if (!splash_topic_.empty()) {
-      splash_screen_url =
-          net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
-    }
-    if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
-      // Lets the splash screen stay up until the timeout, instead of closing
-      // when its animation ends.
-      splash_screen_url = net::AppendQueryParameter(
-          splash_screen_url, "timeout",
-          base::NumberToString(cobalt::features::kSplashScreenTimeoutParam.Get()
-                                   .InMilliseconds()));
-    }
-    NavigationController::LoadURLParams params(splash_screen_url);
-    params.frame_name = std::string();
-    params.transition_type = ui::PageTransitionFromInt(
-        ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
-    splash_screen_web_contents_->GetController().LoadURLWithParams(params);
 
     if (is_main_frame_loaded_) {
       // Main frame loaded before splash screen started.
@@ -707,6 +730,188 @@ void Shell::LoadSplashScreenWebContents() {
       ScheduleSwitchToMainWebContents();
     }
   }
+}
+
+void Shell::LoadSplashScreenURL(bool native_video) {
+  GURL splash_screen_url = GetSplashScreenURL();
+  if (native_video) {
+    splash_screen_url =
+        net::AppendQueryParameter(splash_screen_url, "native_video", "true");
+  } else if (!is_video_splash_screen_) {
+    splash_screen_url =
+        net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+  } else {
+    // The page loads before its video shows anything, so the splash screen
+    // starts with the video's first frame instead (see
+    // OnSplashScreenLoadComplete()), if it's observed.
+    if (splash_screen_web_contents_observer_) {
+      awaiting_splash_video_first_frame_ = true;
+      splash_screen_web_contents_observer_->set_on_video_started(
+          base::BindRepeating(&Shell::OnSplashScreenVideoStarted,
+                              weak_factory_.GetWeakPtr()));
+    }
+  }
+  if (!splash_topic_.empty()) {
+    splash_screen_url =
+        net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
+  }
+  if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
+    // Lets the splash screen stay up until the timeout, instead of closing
+    // when its animation ends.
+    splash_screen_url = net::AppendQueryParameter(
+        splash_screen_url, "timeout",
+        base::NumberToString(cobalt::features::kSplashScreenTimeoutParam.Get()
+                                 .InMilliseconds()));
+  }
+  NavigationController::LoadURLParams params(splash_screen_url);
+  params.frame_name = std::string();
+  params.transition_type = ui::PageTransitionFromInt(
+      ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+  splash_screen_web_contents_->GetController().LoadURLWithParams(params);
+}
+
+void Shell::ReadCachedSplashVideo() {
+  // The same entry as splash.html's: splash.webm in the topic's cache.
+  splash_cache_reader_ = H5vccSchemeURLLoaderFactory::CreateSplashCacheReader(
+      web_contents_->GetBrowserContext());
+  splash_cache_reader_->Read(
+      "splash.webm",
+      splash_topic_.empty() ? std::u16string(switches::kDefaultSplashCacheName)
+                            : base::UTF8ToUTF16(splash_topic_),
+      base::BindOnce(&Shell::OnCachedSplashVideoRead,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void Shell::OnCachedSplashVideoRead(SplashScreenFetchedState state,
+                                    std::string cached_webm) {
+  splash_cache_reader_.reset();
+  RecordSplashScreenFetchedState(state);
+  if (has_switched_to_main_frame_ || !splash_screen_web_contents_ ||
+      splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+    return;
+  }
+  if (!MaybeStartNativeSplashVideo(std::move(cached_webm))) {
+    LoadSplashScreenURL(/*native_video=*/false);
+  }
+}
+
+bool Shell::MaybeStartNativeSplashVideo(std::string cached_webm) {
+  NativeSplashVideoPlayer::Callbacks callbacks;
+  callbacks.on_first_frame = base::BindOnce(
+      &Shell::OnNativeSplashVideoFirstFrame, weak_factory_.GetWeakPtr());
+  callbacks.on_ended = base::BindOnce(&Shell::OnNativeSplashVideoEnded,
+                                      weak_factory_.GetWeakPtr());
+  callbacks.on_error = base::BindOnce(&Shell::OnNativeSplashVideoError,
+                                      weak_factory_.GetWeakPtr());
+  callbacks.on_cached_video_rejected =
+      base::BindOnce(&RecordNativeSplashVideoOutcome,
+                     NativeSplashVideoOutcome::kCachedVideoRejected);
+  native_splash_video_player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
+      splash_topic_, std::move(cached_webm), GetNativeSplashVideoBounds(),
+      std::move(callbacks));
+  if (!native_splash_video_player_) {
+    LOG(WARNING) << "NativeSplash: Can't play the splash screen video "
+                    "natively, falling back to the HTML video.";
+    RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kNotStarted);
+    return false;
+  }
+  VLOG(1) << "NativeSplash: Playing the splash screen video natively.";
+  RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kStarted);
+  native_splash_video_start_time_ = base::TimeTicks::Now();
+  awaiting_splash_video_first_frame_ = true;
+  if (splash_screen_web_contents_observer_) {
+    // The video follows the splash screen, e.g., when the window manager fits
+    // the window to the screen.
+    splash_screen_web_contents_observer_->set_on_resized(base::BindRepeating(
+        &Shell::OnSplashScreenResized, weak_factory_.GetWeakPtr()));
+  }
+  return true;
+}
+
+gfx::Rect Shell::GetNativeSplashVideoBounds() const {
+  RenderWidgetHostView* view =
+      splash_screen_web_contents_
+          ? splash_screen_web_contents_->GetRenderWidgetHostView()
+          : nullptr;
+  if (!view) {
+    return gfx::Rect();
+  }
+  // The splash screen fills the window, so the video's bounds are relative to
+  // the window, like the bounds of punch-out video in the main WebContents.
+  return gfx::ScaleToEnclosingRect(gfx::Rect(view->GetViewBounds().size()),
+                                   view->GetDeviceScaleFactor());
+}
+
+void Shell::OnSplashScreenResized() {
+  if (native_splash_video_player_) {
+    native_splash_video_player_->SetBounds(GetNativeSplashVideoBounds());
+  }
+}
+
+void Shell::OnNativeSplashVideoFirstFrame() {
+  VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
+  RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kFirstFrame);
+  base::UmaHistogramMediumTimes(
+      "Cobalt.SplashScreen.NativeVideo.TimeToFirstFrame",
+      base::TimeTicks::Now() - native_splash_video_start_time_);
+  // The splash screen page's first paint normally hid it already.
+  MaybeHideSystemSplashScreen();
+  // The splash screen shows from the first frame of the video, which comes
+  // after its page has loaded, so its duration counts from here.
+  awaiting_splash_video_first_frame_ = false;
+  StartSplashScreenTimer();
+}
+
+void Shell::OnNativeSplashVideoEnded() {
+  VLOG(1) << "NativeSplash: The splash screen video ended.";
+  RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kEnded);
+  // Like splash.html when its video ends: the splash screen closes now or, with
+  // SplashScreenConfig, once the timeout has passed since it loaded. The last
+  // frame stays on screen until the switch to the main WebContents.
+  base::TimeDelta remaining_delay;
+  if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig) &&
+      !splash_screen_start_time_.is_null()) {
+    remaining_delay = cobalt::features::kSplashScreenTimeoutParam.Get() -
+                      (base::TimeTicks::Now() - splash_screen_start_time_);
+  }
+  if (remaining_delay.is_positive()) {
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&Shell::ClosingSplashScreenWebContents,
+                       weak_factory_.GetWeakPtr()),
+        remaining_delay);
+  } else {
+    ClosingSplashScreenWebContents();
+  }
+}
+
+void Shell::OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error) {
+  switch (error) {
+    case NativeSplashVideoPlayer::Error::kUnsupported:
+      RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kUnsupported);
+      break;
+    case NativeSplashVideoPlayer::Error::kCreateFailed:
+      RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kCreateFailed);
+      break;
+    case NativeSplashVideoPlayer::Error::kPlaybackError:
+      RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kPlaybackError);
+      break;
+  }
+  native_splash_video_player_.reset();
+  awaiting_splash_video_first_frame_ = false;
+  if (has_switched_to_main_frame_ || !splash_screen_web_contents_ ||
+      splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+    return;
+  }
+  LOG(WARNING) << "NativeSplash: The splash screen video failed, falling back "
+                  "to the HTML video.";
+  LoadSplashScreenURL(/*native_video=*/false);
+}
+
+void Shell::StopNativeSplashVideo() {
+  splash_cache_reader_.reset();
+  native_splash_video_player_.reset();
+  awaiting_splash_video_first_frame_ = false;
 }
 
 void Shell::LoadURL(const GURL& url) {
@@ -1282,6 +1487,8 @@ void Shell::SwitchToMainWebContents() {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
     }
+    splash_cache_reader_.reset();
+    native_splash_video_player_.reset();
     if (splash_screen_web_contents_) {
       splash_screen_web_contents_.reset();
       splash_screen_web_contents_observer_.reset();
@@ -1291,13 +1498,41 @@ void Shell::SwitchToMainWebContents() {
 }
 
 void Shell::OnSplashScreenLoadComplete() {
-  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
-      splash_screen_start_time_.is_null()) {
-    splash_screen_start_time_ = base::TimeTicks::Now();
-    if (is_main_frame_loaded_) {
-      ScheduleSwitchToMainWebContents();
-    }
+  if (awaiting_splash_video_first_frame_) {
+    // The page of a video loads before the video shows anything, so the splash
+    // screen starts with the video's first frame instead (see
+    // OnNativeSplashVideoFirstFrame() and OnSplashScreenVideoStarted()),
+    // within a limit.
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&Shell::StartSplashScreenTimer,
+                       weak_factory_.GetWeakPtr()),
+        kMaxSplashVideoFirstFrameDelay);
+    return;
   }
+  StartSplashScreenTimer();
+}
+
+void Shell::StartSplashScreenTimer() {
+  if (splash_state_ < STATE_SPLASH_SCREEN_STARTED ||
+      !splash_screen_start_time_.is_null()) {
+    return;
+  }
+  splash_screen_start_time_ = base::TimeTicks::Now();
+  if (is_main_frame_loaded_) {
+    ScheduleSwitchToMainWebContents();
+  }
+}
+
+void Shell::OnSplashScreenVideoStarted() {
+  // The page of the video played natively only shows a video hole, which
+  // doesn't play; that video reports its own first frame.
+  if (!awaiting_splash_video_first_frame_ || native_splash_video_player_) {
+    return;
+  }
+  VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
+  awaiting_splash_video_first_frame_ = false;
+  StartSplashScreenTimer();
 }
 
 void Shell::ClosingSplashScreenWebContents() {

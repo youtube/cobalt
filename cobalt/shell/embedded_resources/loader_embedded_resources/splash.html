@@ -1,9 +1,25 @@
 <html>
   <head>
+    <script>
+      // The video plays natively behind this page (see the
+      // NativeVideoSplashScreen feature), which shows it through a video hole.
+      if (new URLSearchParams(window.location.search).get('native_video') ===
+          'true') {
+        document.documentElement.classList.add('native-video');
+      }
+    </script>
     <style>
       body {
         margin: 0;
         background: #0f0f0f;
+      }
+      .native-video .video {
+        position: fixed;
+        top: 0;
+        left: 0;
+      }
+      .native-video .placeholder {
+        display: none;
       }
       video {
         height: 100%;
@@ -41,6 +57,13 @@
           return;
         }
 
+        // When the video starts playing, i.e., with its first frame: the
+        // timeout of a video counts from there, as in Shell.
+        let videoStartMs = 0;
+        videoEl.addEventListener('playing', () => {
+          videoStartMs = performance.now();
+        }, {once: true});
+
         const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
           // Stay until the timeout, if specified.
@@ -48,8 +71,9 @@
               new URLSearchParams(window.location.search).get('timeout')) || 0;
           const loadEndMs =
               performance.getEntriesByType('navigation')[0]?.loadEventEnd || 0;
+          const startMs = videoStartMs || loadEndMs;
           const remainingMs =
-              Math.max(0, timeoutMs - (performance.now() - loadEndMs));
+              Math.max(0, timeoutMs - (performance.now() - startMs));
           if (remainingMs > 0) {
             setTimeout(() => window.close(), remainingMs);
           } else {
@@ -175,7 +199,13 @@
         return handleVideo(params, splashTopic, afterVideoStart);
       }
 
-      animate(() => console.log('splash animation completed!'));
+      if (document.documentElement.classList.contains('native-video')) {
+        // Shows the native video through the hole of a VideoHoleWebMediaPlayer.
+        getVideoEl().src =
+            URL.createObjectURL(new Blob()) + '#cobalt-video-hole';
+      } else {
+        animate(() => console.log('splash animation completed!'));
+      }
     </script>
   </footer>
 </html>

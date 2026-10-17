@@ -28,7 +28,9 @@
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "cobalt/build/configs/buildflags.h"
+#include "cobalt/shell/browser/native_splash_video_player.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "components/js_injection/browser/js_communication_host.h"
@@ -36,6 +38,7 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ipc/ipc_channel.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -295,6 +298,39 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ScheduleSwitchToMainWebContents();
   void ClosingSplashScreenWebContents();
   void OnSplashScreenLoadComplete();
+  // Starts the splash screen's minimum duration, once, and schedules the
+  // switch to the main WebContents if it has loaded.
+  void StartSplashScreenTimer();
+  // Called when the video of the splash screen starts playing, which is once
+  // it has its first frame.
+  void OnSplashScreenVideoStarted();
+
+  // Loads the splash screen page into the splash screen WebContents. With
+  // `native_video`, the page shows the splash screen video played natively
+  // through a video hole, instead of playing it.
+  void LoadSplashScreenURL(bool native_video);
+
+  // Reads the splash screen video that the WebApp cached, if any, to play it
+  // natively.
+  void ReadCachedSplashVideo();
+  void OnCachedSplashVideoRead(SplashScreenFetchedState state,
+                               std::string cached_webm);
+  // Starts playing the splash screen video natively: `cached_webm` if it's
+  // valid, the built-in video otherwise. Returns false if it can't be played
+  // this way.
+  bool MaybeStartNativeSplashVideo(std::string cached_webm);
+  // Where the splash screen video played natively is shown: the splash screen
+  // WebContents, in pixels, whose page shows the video through a video hole.
+  // Empty if not known yet.
+  gfx::Rect GetNativeSplashVideoBounds() const;
+  void OnSplashScreenResized();
+  void OnNativeSplashVideoFirstFrame();
+  void OnNativeSplashVideoEnded();
+  void OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error);
+  // Stops the splash screen video played natively, e.g., when the app is
+  // concealed. The switch to the main WebContents still happens once it has
+  // loaded.
+  void StopNativeSplashVideo();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -304,9 +340,20 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   const std::string splash_topic_;
   bool skip_for_testing_;
   bool is_video_splash_screen_;
+  bool is_native_video_splash_screen_;
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
+  // Whether the splash screen waits for the first frame of its video to start
+  // its minimum duration.
+  bool awaiting_splash_video_first_frame_ = false;
+
+  // Reads the splash screen video that the WebApp cached, before the native
+  // video splash screen plays it.
+  std::unique_ptr<SplashCacheReader> splash_cache_reader_;
+  // Plays the splash screen video of the native video splash screen.
+  std::unique_ptr<NativeSplashVideoPlayer> native_splash_video_player_;
+  base::TimeTicks native_splash_video_start_time_;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
