@@ -55,10 +55,12 @@ runs:
       env:
         DEST_PATH: ${{ inputs.path }}
         REF: ${{ inputs.ref }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
       shell: bash
       run: |
         set -ex
 
+        if [ -n "${GITHUB_BASE_REF}" ] && [[ "${DEST_PATH}" != *"depot_tools"* ]]; then
         retry() {
           for delay in 0 5 15 30; do
             sleep "${delay}"
@@ -84,6 +86,7 @@ runs:
         echo "GIT_AUTHOR_NAME=${author_name}" >> "${GITHUB_ENV}"
         echo "GIT_AUTHOR_EMAIL=${author_email}" >> "${GITHUB_ENV}"
         echo "GIT_AUTHOR_DATE=${commit_date}" >> "${GITHUB_ENV}"
+        fi
 
     - name: Checkout Ref
       env:
@@ -94,6 +97,7 @@ runs:
       run: |
         set -ex
 
+        if [ -n "${GITHUB_BASE_REF}" ] && [[ "${DEST_PATH}" != *"depot_tools"* ]]; then
         retry() {
           for delay in 0 5 15 30; do
             sleep "${delay}"
@@ -111,3 +115,6 @@ runs:
         git -C "${DEST_PATH}" merge --squash "${REF}"
         git -C "${DEST_PATH}" commit --quiet --allow-empty \
           --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
+        else
+          git -C "${DEST_PATH}" checkout "${REF}"
+        fi
