@@ -40,7 +40,12 @@ void AggregatableReport::Provider::SetDisableEncryptionForTestingTool(
 
 class SplashScreenTest : public ShellTestBase {
  public:
-  SplashScreenTest() = default;
+  SplashScreenTest() {
+    // The tests are for the image splash screen, unless they enable the video
+    // one, which some platforms enable by default, e.g., tvOS.
+    scoped_feature_list_.InitAndDisableFeature(
+        cobalt::features::kForceVideoSplashScreen);
+  }
 
   void SetUp() override {
     ShellTestBase::SetUp();
@@ -131,6 +136,9 @@ class SplashScreenTest : public ShellTestBase {
   void ExpectStateEnded(Shell* shell) {
     EXPECT_EQ(GetSplashState(shell), Shell::STATE_SPLASH_SCREEN_ENDED);
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(SplashScreenTest, ParallelLoading) {
