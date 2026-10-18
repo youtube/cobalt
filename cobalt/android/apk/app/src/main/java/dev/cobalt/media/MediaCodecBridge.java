@@ -31,7 +31,9 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Process;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
@@ -39,6 +41,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.lang.annotation.Retention;
@@ -47,6 +50,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.CommandLine;
 import org.chromium.base.metrics.RecordHistogram;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -92,6 +96,30 @@ class MediaCodecBridge {
     return DecoderFramework.UNKNOWN;
   }
 
+  @GuardedBy("MediaCodecBridge.class")
+  private static Handler sCallbackThreadHandler;
+
+  /**
+   * Returns the handler that MediaCodec callbacks run on. This is the main thread, unless the
+   * {@link JavaSwitches#ENABLE_MEDIA_CODEC_CALLBACK_THREAD_SWITCH} command-line switch is set, in
+   * which case it is a high priority thread shared by all codecs, so that work on the main thread
+   * doesn't delay the callbacks, and thus the decoding and rendering of frames.
+   */
+  private static synchronized Handler getCallbackHandler() {
+    if (!CommandLine.isInitialized()
+        || !CommandLine.getInstance()
+            .hasSwitch(JavaSwitches.ENABLE_MEDIA_CODEC_CALLBACK_THREAD_SWITCH)) {
+      return new Handler(Looper.getMainLooper());
+    }
+    if (sCallbackThreadHandler == null) {
+      HandlerThread thread = new HandlerThread("MediaCodecCallback", Process.THREAD_PRIORITY_AUDIO);
+      thread.start();
+      sCallbackThreadHandler = new Handler(thread.getLooper());
+      Log.i(TAG, "MediaCodec callbacks run on a dedicated thread.");
+    }
+    return sCallbackThreadHandler;
+  }
+
   private final Object mNativeBridgeLock = new Object();
 
   @GuardedBy("mNativeBridgeLock")
@@ -101,10 +129,10 @@ class MediaCodecBridge {
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
-  // mMainHandler is used to ensure that MediaCodec callbacks and state transitions
-  // (like resetting mIsFlushing) happen on the main thread, providing a consistent
+  // mCallbackHandler is used to ensure that MediaCodec callbacks and state transitions
+  // (like resetting mIsFlushing) happen on one thread, providing a consistent
   // execution environment and avoiding potential race conditions with the native layer.
-  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+  private final Handler mCallbackHandler = getCallbackHandler();
   private volatile boolean mIsFlushing = false;
 
   private final MediaCodec.Callback mCallback;
@@ -388,7 +416,7 @@ class MediaCodecBridge {
           }
         };
 
-    mMediaCodec.get().setCallback(mCallback, mMainHandler);
+    mMediaCodec.get().setCallback(mCallback, mCallbackHandler);
 
     if (mEnableFrameRendererListener) {
       mFrameRendererListener =
@@ -405,7 +433,7 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mCallbackHandler);
     } else {
       mFrameRendererListener = null;
     }
@@ -721,10 +749,10 @@ class MediaCodecBridge {
   @CalledByNative
   private int flush() {
     // When a flush is initiated on the player thread, there could still be pending
-    // callbacks (e.g. onOutputBufferAvailable) already posted to the main thread's
-    // looper queue from before the flush.
+    // callbacks (e.g. onOutputBufferAvailable) already posted to the looper queue of
+    // mCallbackHandler from before the flush.
     // To prevent processing these stale callbacks after the flush starts, we set
-    // mIsFlushing to true here to discard them. Then we post a runnable to the main
+    // mIsFlushing to true here to discard them. Then we post a runnable to the same
     // looper queue which will reset mIsFlushing to false once all prior pending
     // callbacks have been sequentialized and discarded.
     synchronized (mNativeBridgeLock) {
@@ -743,7 +771,7 @@ class MediaCodecBridge {
       if (mFrameRateEstimator != null) {
         mFrameRateEstimator.reset();
       }
-      mMainHandler.post(
+      mCallbackHandler.post(
           () -> {
             synchronized (mNativeBridgeLock) {
               mIsFlushing = false;
@@ -1116,7 +1144,7 @@ class MediaCodecBridge {
           };
       mMediaCodec
           .get()
-          .setOnFirstTunnelFrameReadyListener(mMainHandler, mFirstTunnelFrameReadyListener);
+          .setOnFirstTunnelFrameReadyListener(mCallbackHandler, mFirstTunnelFrameReadyListener);
     } else {
       Log.w(
           TAG,

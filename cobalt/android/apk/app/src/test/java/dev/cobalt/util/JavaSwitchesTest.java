@@ -472,4 +472,21 @@ public class JavaSwitchesTest {
     assertThat(args).contains("--force-device-scale-factor=1");
     assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
   }
+
+  @Test
+  public void testGetExtraCommandLineArgs_EnableMediaCodecCallbackThread() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.ENABLE_MEDIA_CODEC_CALLBACK_THREAD, "1");
+
+    JavaSwitches.setOverrideForTesting(true);
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    assertThat(args).contains("--enable-media-codec-callback-thread");
+  }
+
+  @Test
+  public void testGetExtraCommandLineArgs_EnableMediaCodecCallbackThread_SwitchAbsent() {
+    JavaSwitches.setOverrideForTesting(true);
+    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
+    assertThat(args).doesNotContain("--enable-media-codec-callback-thread");
+  }
 }
