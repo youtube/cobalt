@@ -59,6 +59,7 @@
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif
 
 #if BUILDFLAG(USE_EVERGREEN)
@@ -117,6 +118,13 @@ class AppEventRunnerImpl : public AppEventRunner,
       result.push_back(shell->web_contents());
     }
     return result;
+  }
+
+  void PrecreateWindow() override {
+#if BUILDFLAG(IS_STARBOARD)
+    ui::PlatformWindowStarboard::PrecreateSbWindow(
+        content::Shell::GetShellDefaultSize());
+#endif
   }
 
   cobalt::CobaltMainDelegate* GetMainDelegate() override {

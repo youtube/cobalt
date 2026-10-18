@@ -87,6 +87,8 @@ class PlatformWindowStarboard : public PlatformWindow,
 
   void SetWaitingForRevealAck(bool waiting);
 
+  static void PrecreateSbWindow(const gfx::Size& size);
+
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;
   void ProcessFocusEvent(bool is_focused) override;
