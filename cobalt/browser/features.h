@@ -113,11 +113,13 @@ extern const base::Feature kForceVideoSplashScreen;
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
-// How long after the splash screen finishes loading Cobalt switches to the main
-// WebContents, once that has loaded (default: 1500ms). If SplashScreenConfig is
-// enabled, it is also passed to the splash screen as the "timeout" query param
-// (in ms), and the built-in splash screen stays up until then instead of
-// closing when its animation ends. Values need a unit, e.g., "3s" or "2500ms".
+// How long after the splash screen starts Cobalt switches to the main
+// WebContents, once that has loaded (default: 1500ms). The splash screen starts
+// when its page finishes loading or, for a video, when the video presents its
+// first frame, within 2s. If SplashScreenConfig is enabled, it is also passed
+// to the splash screen as the "timeout" query param (in ms), and the built-in
+// splash screen stays up until then instead of closing when its animation
+// ends. Values need a unit, e.g., "3s" or "2500ms".
 // Locally: --enable-features=SplashScreenConfig:timeout/3s
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 
