@@ -538,6 +538,21 @@ class MediaCodecBridge {
               + " (%d, %d)",
           maxWidth,
           maxHeight);
+
+      // For H264, cap the max size at 1080p.
+      // TODO(b/568493652): Revisit this cap to see if it is still needed.
+      if (MimeTypes.VIDEO_H264.equals(mime)) {
+        boolean isPortrait = heightHint > widthHint;
+        maxWidth = Math.min(maxWidth, isPortrait ? 1080 : 1920);
+        maxHeight = Math.min(maxHeight, isPortrait ? 1920 : 1080);
+        Log.i(
+            TAG,
+            "Capped H264 maxWidth and maxHeight to (%d, %d) for size hint (%d, %d)",
+            maxWidth,
+            maxHeight,
+            widthHint,
+            heightHint);
+      }
     }
 
     if (fps > 0) {
