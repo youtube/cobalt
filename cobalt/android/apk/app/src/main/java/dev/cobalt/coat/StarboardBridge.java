@@ -100,10 +100,6 @@ public class StarboardBridge extends BaseStarboardBridge {
     mVolumeStateReceiver.setWebContents(webContents);
   }
 
-  public CobaltMediaSession cobaltMediaSession() {
-    return mCobaltMediaSession;
-  }
-
   @Override
   protected void hideSplashScreen() {
     mPlatformError = null;
