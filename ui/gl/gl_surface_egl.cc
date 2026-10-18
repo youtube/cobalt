@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "ui/gl/gl_surface_egl.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_frame_metrics.h"
+#endif
 
 #include <stddef.h>
 #include <stdint.h>
@@ -569,6 +572,9 @@ gfx::SwapResult NativeViewGLSurfaceEGL::SwapBuffers(
   GLSurfacePresentationHelper::ScopedSwapBuffers scoped_swap_buffers(
       presentation_helper_.get(), std::move(callback), new_frame_id);
 
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks cobalt_swap_start = base::TimeTicks::Now();
+#endif
   if (!eglSwapBuffers(display_->GetDisplay(), surface_)) {
     DVLOG(1) << "eglSwapBuffers failed with error "
              << GetLastEGLErrorString();
@@ -576,6 +582,11 @@ gfx::SwapResult NativeViewGLSurfaceEGL::SwapBuffers(
   } else if (use_egl_timestamps_) {
     UpdateSwapEvents(new_frame_id, new_frame_id_is_valid);
   }
+#if BUILDFLAG(IS_COBALT)
+  if (scoped_swap_buffers.result() == gfx::SwapResult::SWAP_ACK) {
+    RecordFramePrepTime(cobalt_swap_start, base::TimeTicks::Now());
+  }
+#endif
 
   return scoped_swap_buffers.result();
 }
@@ -902,6 +913,9 @@ gfx::SwapResult NativeViewGLSurfaceEGL::SwapBuffersWithDamage(
 
   GLSurfacePresentationHelper::ScopedSwapBuffers scoped_swap_buffers(
       presentation_helper_.get(), std::move(callback));
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks cobalt_damage_swap_start = base::TimeTicks::Now();
+#endif
   if (!eglSwapBuffersWithDamageKHR(display_->GetDisplay(), surface_,
                                    const_cast<EGLint*>(rects.data()),
                                    static_cast<EGLint>(rects.size() / 4))) {
@@ -909,6 +923,11 @@ gfx::SwapResult NativeViewGLSurfaceEGL::SwapBuffersWithDamage(
              << GetLastEGLErrorString();
     scoped_swap_buffers.set_result(gfx::SwapResult::SWAP_FAILED);
   }
+#if BUILDFLAG(IS_COBALT)
+  if (scoped_swap_buffers.result() == gfx::SwapResult::SWAP_ACK) {
+    RecordFramePrepTime(cobalt_damage_swap_start, base::TimeTicks::Now());
+  }
+#endif
   return scoped_swap_buffers.result();
 }
 
@@ -1169,5 +1188,20 @@ void* SurfacelessEGL::GetShareHandle() {
 SurfacelessEGL::~SurfacelessEGL() {
   InvalidateWeakPtrs();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void NativeViewGLSurfaceEGL::RecordFramePrepTime(base::TimeTicks swap_start,
+                                                 base::TimeTicks swap_end) {
+  if (!last_swap_end_.is_null()) {
+    base::TimeDelta active_prep = swap_start - last_swap_end_;
+    // Filter out long pauses between user interactions (e.g. >250ms)
+    if (active_prep > base::TimeDelta() &&
+        active_prep < base::Milliseconds(250)) {
+      base::cobalt::SetLastCpuFramePrepTimeMs(active_prep.InMillisecondsF());
+    }
+  }
+  last_swap_end_ = swap_end;
+}
+#endif
 
 }  // namespace gl
