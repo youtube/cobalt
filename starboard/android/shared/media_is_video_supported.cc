@@ -42,7 +42,9 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            bool decode_to_texture_required) {
   const bool must_support_hdr =
       !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
-  if (must_support_hdr &&
+  // 10-bit video with SDR color doesn't need an HDR display. It still needs a
+  // decoder that handles 10-bit, which |must_support_hdr| checks below.
+  if (must_support_hdr && !IsSDRColor(primary_id, transfer_id, matrix_id) &&
       !MediaCapabilitiesCache::GetInstance()
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;

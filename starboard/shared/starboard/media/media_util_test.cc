@@ -274,6 +274,26 @@ TEST(MediaUtilTest, IsSDRVideo) {
                           kSbMediaMatrixIdBt2020NonconstantLuminance));
 }
 
+TEST(MediaUtilTest, IsSDRColor) {
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                         kSbMediaMatrixIdBt709));
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdUnspecified,
+                         kSbMediaTransferIdUnspecified,
+                         kSbMediaMatrixIdUnspecified));
+  EXPECT_TRUE(IsSDRColor(kSbMediaPrimaryIdSmpte170M,
+                         kSbMediaTransferIdSmpte170M,
+                         kSbMediaMatrixIdSmpte170M));
+
+  EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt2020, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt709, kSbMediaTransferIdSmpteSt2084,
+                          kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt709, kSbMediaTransferIdAribStdB67,
+                          kSbMediaMatrixIdBt709));
+  EXPECT_FALSE(IsSDRColor(kSbMediaPrimaryIdBt709, kSbMediaTransferIdBt709,
+                          kSbMediaMatrixIdBt2020NonconstantLuminance));
+}
+
 TEST(MediaUtilTest, IsSDRVideo_Mime) {
   // Standard 8-bit AVC / H.264 stream without HDR colorimetry.
   EXPECT_TRUE(IsSDRVideo("video/mp4; codecs=\"avc1.4d401e\""));
