@@ -2511,7 +2511,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     sent_stalled_event_ = false;
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
-            features::kCobaltSkipMediaProgressLayoutUpdate) ||
+            features::kCobaltSkipHiddenMediaControlsWork) ||
         ShouldShowControls()) {
       UpdateLayoutObject();
     }
@@ -4511,6 +4511,17 @@ void HTMLMediaElement::EnsureMediaControls() {
 void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt does not show native controls or the cast overlay button, so skip
+  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
+  // when native controls are not needed.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsWork) &&
+      !ShouldShowControls()) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   bool native_controls = ShouldShowControls();
 
