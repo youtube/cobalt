@@ -62,8 +62,7 @@ template("modular_apk") {
     renaming_destinations = [ "app/${_name}/lib/${_lib_name}.lz4" ]
 
     # Cobalt Evergreen uses the empty font package.
-    renaming_sources +=
-        [ "$root_build_dir/app/${_name}/content/fonts/fonts.xml" ]
+    renaming_sources += [ "//starboard/content/fonts/config/empty/fonts.xml" ]
     renaming_destinations += [ "app/${_name}/content/fonts/fonts.xml" ]
 
     # The platform provides the fonts from cobalt_font_package.
@@ -77,26 +76,22 @@ template("modular_apk") {
 
     foreach(_cert, network_certs) {
       _cert_file = get_path_info(_cert, "file")
-      renaming_sources +=
-          [ "$root_build_dir/app/${_name}/content/ssl/certs/$_cert_file" ]
+      renaming_sources += [ _cert ]
       renaming_destinations += [ "app/${_name}/content/ssl/certs/$_cert_file" ]
     }
 
     deps = [
-      ":copy_${_name}_certs($default_toolchain)",
-      ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
       "//starboard/content/fonts:copy_fonts($default_toolchain)",
       "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
 
     if (icu_use_data_file) {
-      renaming_sources += [ "$root_build_dir/icudtl.dat" ]
+      renaming_sources += [ "//third_party/icu/cobalt/icudtl.dat" ]
       renaming_destinations += [ "app/${_name}/content/icudtl.dat" ]
-      deps += [ "//third_party/icu:icudata($default_toolchain)" ]
     }
 
-    if (!_testonly) {
+    if (!_testonly || _name == "cobalt_browsertests") {
       renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
       renaming_destinations += [ "app/${_name}/content/cobalt_shell.pak" ]
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]

@@ -202,21 +202,22 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests'):
-      if not use_android_deps_path:
-        _handle_browsertests(source_dir, out_dir, destination_dir, compression)
-        # If this was the only target, we are done.
-        if len(targets) == 1:
-          return
-        continue
-      else:
-        # Generate host runner archive and lightweight device archive
-        _handle_browsertests(
-            source_dir,
-            out_dir,
-            destination_dir,
-            compression,
-            archive_name='cobalt_browsertests_host_deps')
+    if target.endswith(':cobalt_browsertests') and not use_android_deps_path:
+      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+      # If this was the only target, we are done.
+      if len(targets) == 1:
+        return
+      continue
+    if (target.endswith(
+        (':cobalt_browsertests', ':cobalt_browsertests_loader')) and
+        use_android_deps_path):
+      # Generate host runner archive and lightweight device archive
+      _handle_browsertests(
+          source_dir,
+          out_dir,
+          destination_dir,
+          compression,
+          archive_name='cobalt_browsertests_host_deps')
 
     # Junit tests have some exceptions to normal packaging steps.
     is_junit_test = 'junit' in target
