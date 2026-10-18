@@ -127,7 +127,7 @@ EOF
     if [[ -f "${test_targets_json}" ]]; then
       # Extract test targets from the JSON file (list of dicts schema)
       # and format them as a space-separated list of target names (after the colon).
-      json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e]; print(' '.join(t.split(':')[-1] for t in targets))")
+      json_targets=$(python3 -c "import json, re; data=json.loads(re.sub(r'//.*', '', open('${test_targets_json}').read())); targets=[e['target'] for e in data if isinstance(e, dict) and 'target' in e and e.get('build') is not False]; print(' '.join(t.split(':')[-1] for t in targets))")
       GN_TARGET="${GN_TARGET:-} ${json_targets}"
     fi
   fi

@@ -18,9 +18,19 @@ inputs:
     required: true
   test_device_family:
     description: "Test device family."
-    required: true
-  test_attempts:
-    description: "Number of attempts for the tests."
+    required: false
+    default: ""
+  test_type:
+    description: "Test type (unit_test, e2e_test, yts_test, yts_wpt_test)."
+    required: false
+    default: "unit_test"
+  artifact_name:
+    description: "Name of the artifact on GCS (e.g. Cobalt.apk)."
+    required: false
+    default: ""
+  cobalt_path:
+    description: "GCS path to Cobalt artifact/directory."
+    required: false
     default: ""
   retry_all:
     description: "Whether to retry all tests instead of analyzing previous results."
@@ -34,7 +44,6 @@ runs:
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters
       with:
-        test_results_key: ${{ inputs.test_results_key }}
         platform: ${{ matrix.platform }}
         retry_all: ${{ inputs.retry_all }}
     - name: Install Requirements
@@ -74,8 +83,9 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_BASE_REF: ${{ github.base_ref || github.ref_name }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: unit_test
+        TEST_TYPE: ${{ inputs.test_type }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        COBALT_PATH: ${{ inputs.cobalt_path }}
         PLATFORM: ${{ matrix.platform }}
         TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
@@ -83,40 +93,41 @@ runs:
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         PYTHONPATH: "${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
       run: |
-        set -x
+        set -euxo pipefail
 
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
+        cobalt_path="${COBALT_PATH:-${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa}"
+
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
+          --token "${GITHUB_TOKEN}" \
           trigger \
-          --test_type ${TEST_TYPE} \
-          --device_family "${TEST_DEVICE_FAMILY}" \
+          --test_type "${TEST_TYPE}" \
+          ${TEST_DEVICE_FAMILY:+--device_family "${TEST_DEVICE_FAMILY}"} \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${FILTER_DIR}" \
-          --label chrobalt_on_device_test \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${PLATFORM} \
-          --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
-          --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}} \
-          --label branch:${GITHUB_REF_NAME} \
-          --label target_branch:${GITHUB_BASE_REF} \
+          --label "chrobalt_on_device_test" \
+          --label "github_${GITHUB_PR_NUMBER:-postsubmit}" \
+          --label "builder-${PLATFORM}" \
+          --label "builder_url-${GITHUB_RUN_URL}" \
+          --label "${TEST_TYPE}" \
+          --label "github" \
+          --label "${GITHUB_EVENT_NAME}" \
+          --label "${GITHUB_WORKFLOW}" \
+          --label "actor-${GITHUB_ACTOR}" \
+          --label "actor_id-${GITHUB_ACTOR_ID}" \
+          --label "triggering_actor-${GITHUB_TRIGGERING_ACTOR}" \
+          --label "sha-${GITHUB_SHA}" \
+          --label "repository-${GITHUB_REPO}" \
+          --label "author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}}" \
+          --label "author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}}" \
+          --label "branch:${GITHUB_REF_NAME}" \
+          --label "target_branch:${GITHUB_BASE_REF}" \
           --dimensions "${TEST_DIMENSIONS}" \
-          ${TEST_ATTEMPTS:+"--test_attempts" "${TEST_ATTEMPTS}"} \
+          --cobalt_path "${cobalt_path}" \
+          ${ARTIFACT_NAME:+--artifact_name "${ARTIFACT_NAME}"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
-            # Fail the job so it's easy to retrigger.
             exit 1
           }
         echo "Finished running tests..."
@@ -135,9 +146,9 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> "${GITHUB_ENV}"
 
-        # Test results (xml and logs) must be in a subfolder in results_dir.
+        # Test results (xml and logs) must be in a subfolder in results_dir
         # to be picked up by the test result processor.
-        mkdir -p "${test_output}/${PLATFORM}"
+        mkdir -p "${test_output}/${PLATFORM}/1"
         gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
         # Check for missing result xml files.
@@ -149,21 +160,48 @@ runs:
               --filter-dir "${FILTER_DIR}" \
               --target "${test_target}")
           if [ "${test_filter}" == "-*" ]; then
-            # Target was skipped.
             continue
           fi
 
           xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+
+          # Convert JSON report to JUnit XML if XML is not present.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # Target was NOT skipped, but XML is missing -> Crash.
+            json_reports=(
+              "${test_output}/${PLATFORM}"/**/"${test_target}"*.json
+              "${test_output}/${PLATFORM}"/**/results.json
+            )
+            for json_report in "${json_reports[@]}"; do
+              if [ -f "${json_report}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+                  "${json_report}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" || true
+                break
+              fi
+            done
+            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+          fi
+
+          # If XML is still missing, attempt to generate crash report from logs.
+          if [[ "${#xml_files[@]}" -eq 0 ]]; then
             echo "Test result xml is missing for ${test_target}."
-            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
-            if [ -f "${log_paths[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
-            fi
+            log_files=(
+              "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
+              "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
+            )
+            for log_file in "${log_files[@]}"; do
+              if [ -f "${log_file}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" || true
+                break
+              fi
+            done
+            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+          fi
+
+          if [[ "${#xml_files[@]}" -eq 0 ]]; then
+            echo "::error::Test result xml is missing for ${test_target}."
             target_failed=1
           elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-            # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
             target_failed=1
           fi
