@@ -51,11 +51,7 @@ class MediaCodecBridge : public MediaCodec {
       // doesn't have to be directly related to the resolution of the video.
       const Size& frame_size_hint,
       int fps,
-      // `max_frame_size` can be set to positive values to specify the maximum
-      // resolutions the video can be adapted to.  When they are not set,
-      // MediaCodecBridge will set them to the maximum resolutions the platform
-      // can decode.
-      const std::optional<Size>& max_frame_size,
+      Size max_frame_size,
       Handler* handler,
       const jni_zero::JavaRef<jobject>& j_surface,
       const jni_zero::JavaRef<jobject>& j_media_crypto,
