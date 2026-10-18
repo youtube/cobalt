@@ -188,8 +188,9 @@ runs:
       env:
         PLATFORM: ${{ inputs.platform || matrix.platform }}
       run: |
+        set -euo pipefail
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
+        ARCHIVE="/runner-cache/golden-${PLATFORM}.$$.tar.zst"
         TARGET_URI="gs://${BUCKET}/${PLATFORM}"
         trap 'rm -f "${ARCHIVE}"' EXIT
 
