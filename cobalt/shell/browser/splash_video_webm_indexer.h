@@ -58,10 +58,10 @@ inline constexpr int kMaxSplashVideoDimension = 4096;
 // Extensions pipeline.
 //
 // Accepts a single VP9 video track whose frames aren't laced, whose first frame
-// is a key frame and whose timestamps increase, within the limits above, in a
-// file of at most `max_file_size` bytes. Every frame must start with a VP9
-// frame marker. Returns std::nullopt for anything else, so that `webm` can come
-// from an untrusted source.
+// is a key frame at 0 and whose timestamps increase, within the limits above,
+// in a file of at most `max_file_size` bytes. Every frame must start with a VP9
+// frame marker, and be of profile 0 (8-bit 4:2:0). Returns std::nullopt for
+// anything else, so that `webm` can come from an untrusted source.
 std::optional<SplashVideoIndex> IndexSplashVideoWebM(
     base::span<const uint8_t> webm,
     size_t max_file_size = kMaxSplashVideoFileSize);

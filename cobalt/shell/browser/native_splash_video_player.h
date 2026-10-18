@@ -15,14 +15,12 @@
 #ifndef COBALT_SHELL_BROWSER_NATIVE_SPLASH_VIDEO_PLAYER_H_
 #define COBALT_SHELL_BROWSER_NATIVE_SPLASH_VIDEO_PLAYER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/containers/span.h"
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -36,6 +34,7 @@ namespace content {
 // See cobalt::features::kNativeVideoSplashScreen.
 //
 // Must be created and destroyed on the same sequence, where the callbacks run.
+// No callback runs after it's destroyed.
 class NativeSplashVideoPlayer {
  public:
   enum class Error {
@@ -43,8 +42,11 @@ class NativeSplashVideoPlayer {
     kUnsupported,
     // SbPlayerCreate() failed.
     kCreateFailed,
-    // The SbPlayer reported an error.
+    // The SbPlayer reported an error before the first frame.
     kPlaybackError,
+    // The SbPlayer reported an error after the first frame, which stays on
+    // screen until the player is destroyed.
+    kPlaybackErrorAfterFirstFrame,
   };
 
   struct Callbacks {
@@ -63,26 +65,20 @@ class NativeSplashVideoPlayer {
     // The video that the WebApp cached isn't valid, or the platform doesn't
     // play it, so the built-in video plays instead.
     base::OnceClosure on_cached_video_rejected;
+    // The video that the WebApp cached failed before its first frame, so the
+    // built-in video plays instead.
+    base::OnceClosure on_cached_video_failed;
   };
 
-  // Starts playing `webm`, which must stay valid until the player is
-  // destroyed, e.g., a built-in resource. The video is shown in `bounds`, in
-  // pixels of the window, centered and fit inside, keeping its aspect ratio,
-  // like a <video> with the default object-fit; it's left to the platform if
-  // `bounds` is empty. Returns nullptr if `webm` isn't a valid splash screen
-  // video.
-  static std::unique_ptr<NativeSplashVideoPlayer> Create(
-      base::span<const uint8_t> webm,
-      const gfx::Rect& bounds,
-      Callbacks callbacks);
-
-  // Like Create(), for the video that splash.html would play for `topic`:
+  // Starts playing the video that splash.html would play for `topic`:
   // `cached_webm`, the video that the WebApp cached, if it's valid and the
   // platform plays its size; otherwise, the built-in 1080p video if the
   // platform plays 4K VP9, and the 480p one if not. `cached_webm` is untrusted,
-  // so it's only checked on the player's thread. `bounds` defaults to the whole
-  // screen if empty. Returns nullptr if the built-in video isn't valid. If the
-  // platform doesn't play VP9, reports Error::kUnsupported.
+  // so it's only checked on the player's thread. The video is shown in
+  // `bounds`, in pixels of the window, centered and fit inside, keeping its
+  // aspect ratio, like a <video> with the default object-fit; `bounds` defaults
+  // to the whole screen if empty. Returns nullptr if the built-in video isn't
+  // valid. If the platform doesn't play VP9, reports Error::kUnsupported.
   static std::unique_ptr<NativeSplashVideoPlayer> CreateForSplashScreen(
       const std::string& topic,
       std::string cached_webm,
@@ -95,8 +91,8 @@ class NativeSplashVideoPlayer {
   // Destroys the SbPlayer on its thread, without blocking.
   ~NativeSplashVideoPlayer();
 
-  // Shows the video in `bounds` instead, as in Create(), e.g., when the window
-  // is resized. Ignored if empty.
+  // Shows the video in `bounds` instead, as in CreateForSplashScreen(), e.g.,
+  // when the window is resized. Ignored if empty.
   void SetBounds(const gfx::Rect& bounds);
 
  private:
@@ -111,9 +107,18 @@ class NativeSplashVideoPlayer {
       const gfx::Rect& bounds,
       Callbacks callbacks);
 
-  explicit NativeSplashVideoPlayer(base::SequenceBound<Core> core);
+  explicit NativeSplashVideoPlayer(Callbacks callbacks);
 
+  // Run `callbacks_` for `core_`, unless `this` is destroyed first.
+  void OnFirstFrame();
+  void OnEnded();
+  void OnError(Error error);
+  void OnCachedVideoRejected();
+  void OnCachedVideoFailed();
+
+  Callbacks callbacks_;
   base::SequenceBound<Core> core_;
+  base::WeakPtrFactory<NativeSplashVideoPlayer> weak_factory_{this};
 };
 
 }  // namespace content

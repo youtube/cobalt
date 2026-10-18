@@ -39,9 +39,10 @@ constexpr uint8_t kKeyFrameFlag = 0x80;  // SimpleBlock only.
 constexpr uint8_t kLacingFlags = 0x06;
 
 // Every VP9 frame, and every superframe, starts with the 2-bit frame marker
-// 0b10.
-bool HasVp9FrameMarker(uint8_t first_byte) {
-  return (first_byte & 0xC0) == 0x80;
+// 0b10, then the low and high bits of the profile: 0 for 8-bit 4:2:0, the only
+// format that the player is configured for.
+bool IsVp9Profile0Frame(uint8_t first_byte) {
+  return (first_byte & 0xF0) == 0x80;
 }
 
 // Parses the header of a SimpleBlock or Block: the track number (an EBML
@@ -113,7 +114,7 @@ class SplashVideoWebMClient : public media::WebMParserClient {
     int64_t previous_timestamp_us = -1;
     for (const Frame& frame : frames_) {
       if (frame.track_number != *track_number_ ||
-          !HasVp9FrameMarker(webm_[frame.offset])) {
+          !IsVp9Profile0Frame(webm_[frame.offset])) {
         return std::nullopt;
       }
       int64_t timestamp_ns = 0;
@@ -122,7 +123,10 @@ class SplashVideoWebMClient : public media::WebMParserClient {
         return std::nullopt;
       }
       const int64_t timestamp_us = timestamp_ns / 1000;
-      if (timestamp_us < 0 || timestamp_us <= previous_timestamp_us ||
+      // The video starts at 0, where the player seeks to start it.
+      const bool is_first_frame = index.frames.empty();
+      if ((is_first_frame && timestamp_us != 0) ||
+          (!is_first_frame && timestamp_us <= previous_timestamp_us) ||
           timestamp_us > kMaxSplashVideoDurationUs) {
         return std::nullopt;
       }

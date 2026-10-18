@@ -25,6 +25,7 @@
 #include <optional>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -186,7 +187,21 @@ class NativeSplashVideoPlayer::Core {
       return;
     }
     SetDefaultExperimentalFeaturesForCurrentThread();
+    CreatePlayer();
+  }
 
+  void SetBounds(const gfx::Rect& bounds) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (bounds.IsEmpty() || bounds == bounds_) {
+      return;
+    }
+    bounds_ = bounds;
+    ApplyBounds();
+  }
+
+ private:
+  // Creates the player of the chosen video, and starts prerolling it.
+  void CreatePlayer() {
     SbPlayerCreationParam creation_param = {};
     creation_param.drm_system = kSbDrmSystemInvalid;
     creation_param.audio_stream_info.codec = kSbMediaAudioCodecNone;
@@ -220,27 +235,18 @@ class NativeSplashVideoPlayer::Core {
         SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo));
     ApplyBounds();
     SbPlayerSetPlaybackRate(player_, 1.0);
-    // The player needs a seek to start prerolling.
+    // The player needs a seek to start prerolling. The video starts at 0, as
+    // IndexSplashVideoWebM() requires.
     SbPlayerSeek(player_, /*seek_to_timestamp=*/0, ++ticket_);
   }
 
-  void SetBounds(const gfx::Rect& bounds) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    if (bounds.IsEmpty() || bounds == bounds_) {
-      return;
-    }
-    bounds_ = bounds;
-    ApplyBounds();
-  }
-
- private:
-  // Picks the first of `videos_` that the platform plays, like splash.html.
+  // Picks the next of `videos_` that the platform plays, like splash.html.
   // The platform's media capabilities can be slow to query the first time,
   // e.g., Android enumerates its codecs, so they're queried here rather than on
   // the thread that creates the player, e.g., the main thread at startup.
   bool ChooseVideo() {
-    std::vector<Video> videos = std::move(videos_);
-    for (Video& video : videos) {
+    while (next_video_ < videos_.size()) {
+      Video& video = videos_[next_video_++];
       const bool cached = !video.owned_webm.empty();
       if (cached) {
         std::optional<SplashVideoIndex> index =
@@ -275,12 +281,37 @@ class NativeSplashVideoPlayer::Core {
       } else {
         webm_ = video.webm;
       }
+      cached_ = cached;
       index_ = std::move(video.index);
       video_stream_info_.frame_width = index_.width;
       video_stream_info_.frame_height = index_.height;
       return true;
     }
     return false;
+  }
+
+  // Plays the built-in video instead of the one that the WebApp cached, which
+  // failed before its first frame: splash.html would only play it again.
+  void PlayNextVideo() {
+    SbPlayerDestroy(player_);
+    player_ = kSbPlayerInvalid;
+    // Ignores the callbacks of the destroyed player still in flight.
+    ++ticket_;
+    // The destroyed player no longer reads the frames.
+    webm_ = {};
+    std::string().swap(owned_webm_);
+    next_frame_ = 0;
+    end_of_stream_written_ = false;
+    if (!ChooseVideo()) {
+      ReportError(Error::kPlaybackError);
+      return;
+    }
+    LOG(WARNING) << "NativeSplash: The cached splash screen video failed, "
+                    "playing the built-in one.";
+    if (callbacks_.on_cached_video_failed) {
+      std::move(callbacks_.on_cached_video_failed).Run();
+    }
+    CreatePlayer();
   }
 
   void ReportCachedVideoRejected() {
@@ -342,8 +373,11 @@ class NativeSplashVideoPlayer::Core {
                             SbPlayerError error,
                             const char* message) {
     Core* core = static_cast<Core*>(context);
+    // `player` identifies the player that failed, as an integer: SbPlayer
+    // points to a type that isn't defined, which base::BindOnce() can't bind.
     core->task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&Core::OnPlayerError, core->weak_this_, error,
+        FROM_HERE, base::BindOnce(&Core::OnPlayerError, core->weak_this_,
+                                  reinterpret_cast<uintptr_t>(player), error,
                                   std::string(message ? message : "")));
   }
 
@@ -407,6 +441,7 @@ class NativeSplashVideoPlayer::Core {
     }
     switch (state) {
       case kSbPlayerStatePresenting:
+        first_frame_presented_ = true;
         if (callbacks_.on_first_frame) {
           std::move(callbacks_.on_first_frame).Run();
         }
@@ -421,9 +456,23 @@ class NativeSplashVideoPlayer::Core {
     }
   }
 
-  void OnPlayerError(SbPlayerError error, const std::string& message) {
+  void OnPlayerError(uintptr_t player,
+                     SbPlayerError error,
+                     const std::string& message) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (player != reinterpret_cast<uintptr_t>(player_)) {
+      // From a player destroyed since.
+      return;
+    }
     LOG(ERROR) << "NativeSplash: SbPlayer error " << error << ": " << message;
+    if (first_frame_presented_) {
+      ReportError(Error::kPlaybackErrorAfterFirstFrame);
+      return;
+    }
+    if (cached_) {
+      PlayNextVideo();
+      return;
+    }
     ReportError(Error::kPlaybackError);
   }
 
@@ -437,11 +486,14 @@ class NativeSplashVideoPlayer::Core {
 
   // The thread that owns `this` and makes every SbPlayer call.
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  // The candidates, until ChooseVideo() picks one: `webm_` and `index_`.
+  // The candidates, in order: ChooseVideo() picks the next one that the
+  // platform plays, as `webm_` and `index_`.
   std::vector<Video> videos_;
+  size_t next_video_ = 0;
   // The video that the WebApp cached, if it's the one playing.
   std::string owned_webm_;
   base::span<const uint8_t> webm_;
+  bool cached_ = false;
   SplashVideoIndex index_;
   gfx::Rect bounds_;
   Callbacks callbacks_;
@@ -453,6 +505,7 @@ class NativeSplashVideoPlayer::Core {
   int max_samples_per_write_ = 1;
   size_t next_frame_ = 0;
   bool end_of_stream_written_ = false;
+  bool first_frame_presented_ = false;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -473,27 +526,6 @@ NativeSplashVideoPlayer::Callbacks::Callbacks(Callbacks&&) = default;
 NativeSplashVideoPlayer::Callbacks&
 NativeSplashVideoPlayer::Callbacks::operator=(Callbacks&&) = default;
 NativeSplashVideoPlayer::Callbacks::~Callbacks() = default;
-
-// static
-std::unique_ptr<NativeSplashVideoPlayer> NativeSplashVideoPlayer::Create(
-    base::span<const uint8_t> webm,
-    const gfx::Rect& bounds,
-    Callbacks callbacks) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::optional<SplashVideoIndex> index = IndexSplashVideoWebM(webm);
-  if (!index) {
-    LOG(ERROR) << "NativeSplash: Invalid splash screen video.";
-    return nullptr;
-  }
-  std::vector<Video> videos(1);
-  videos[0].webm = webm;
-  videos[0].index = std::move(*index);
-  videos[0].required_mime = kVp9Mime;
-  return CreateForVideos(std::move(videos), bounds, std::move(callbacks));
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  return nullptr;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-}
 
 // static
 std::unique_ptr<NativeSplashVideoPlayer>
@@ -538,32 +570,39 @@ std::unique_ptr<NativeSplashVideoPlayer>
 NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
                                          const gfx::Rect& bounds,
                                          Callbacks callbacks) {
-  // The callbacks run on the sequence of the caller.
+  auto player =
+      base::WrapUnique(new NativeSplashVideoPlayer(std::move(callbacks)));
+  // The callbacks run on the sequence of the caller, through `player`, which
+  // drops them once it's destroyed: `core_` is destroyed asynchronously, and
+  // its callbacks may be in flight already.
+  base::WeakPtr<NativeSplashVideoPlayer> weak_player =
+      player->weak_factory_.GetWeakPtr();
   Callbacks core_callbacks;
-  core_callbacks.on_first_frame =
-      base::BindPostTaskToCurrentDefault(std::move(callbacks.on_first_frame));
-  core_callbacks.on_ended =
-      base::BindPostTaskToCurrentDefault(std::move(callbacks.on_ended));
-  core_callbacks.on_error =
-      base::BindPostTaskToCurrentDefault(std::move(callbacks.on_error));
-  if (callbacks.on_cached_video_rejected) {
-    core_callbacks.on_cached_video_rejected =
-        base::BindPostTaskToCurrentDefault(
-            std::move(callbacks.on_cached_video_rejected));
-  }
+  core_callbacks.on_first_frame = base::BindPostTaskToCurrentDefault(
+      base::BindOnce(&NativeSplashVideoPlayer::OnFirstFrame, weak_player));
+  core_callbacks.on_ended = base::BindPostTaskToCurrentDefault(
+      base::BindOnce(&NativeSplashVideoPlayer::OnEnded, weak_player));
+  core_callbacks.on_error = base::BindPostTaskToCurrentDefault(
+      base::BindOnce(&NativeSplashVideoPlayer::OnError, weak_player));
+  core_callbacks.on_cached_video_rejected =
+      base::BindPostTaskToCurrentDefault(base::BindOnce(
+          &NativeSplashVideoPlayer::OnCachedVideoRejected, weak_player));
+  core_callbacks.on_cached_video_failed =
+      base::BindPostTaskToCurrentDefault(base::BindOnce(
+          &NativeSplashVideoPlayer::OnCachedVideoFailed, weak_player));
 
-  base::SequenceBound<Core> core(
+  player->core_ = base::SequenceBound<Core>(
       base::ThreadPool::CreateSingleThreadTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
           base::SingleThreadTaskRunnerThreadMode::DEDICATED),
       std::move(videos), bounds, std::move(core_callbacks));
-  core.AsyncCall(&Core::Start);
-  return base::WrapUnique(new NativeSplashVideoPlayer(std::move(core)));
+  player->core_.AsyncCall(&Core::Start);
+  return player;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-NativeSplashVideoPlayer::NativeSplashVideoPlayer(base::SequenceBound<Core> core)
-    : core_(std::move(core)) {}
+NativeSplashVideoPlayer::NativeSplashVideoPlayer(Callbacks callbacks)
+    : callbacks_(std::move(callbacks)) {}
 
 NativeSplashVideoPlayer::~NativeSplashVideoPlayer() = default;
 
@@ -571,6 +610,36 @@ void NativeSplashVideoPlayer::SetBounds(const gfx::Rect& bounds) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   core_.AsyncCall(&Core::SetBounds).WithArgs(bounds);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+void NativeSplashVideoPlayer::OnFirstFrame() {
+  if (callbacks_.on_first_frame) {
+    std::move(callbacks_.on_first_frame).Run();
+  }
+}
+
+void NativeSplashVideoPlayer::OnEnded() {
+  if (callbacks_.on_ended) {
+    std::move(callbacks_.on_ended).Run();
+  }
+}
+
+void NativeSplashVideoPlayer::OnError(Error error) {
+  if (callbacks_.on_error) {
+    std::move(callbacks_.on_error).Run(error);
+  }
+}
+
+void NativeSplashVideoPlayer::OnCachedVideoRejected() {
+  if (callbacks_.on_cached_video_rejected) {
+    std::move(callbacks_.on_cached_video_rejected).Run();
+  }
+}
+
+void NativeSplashVideoPlayer::OnCachedVideoFailed() {
+  if (callbacks_.on_cached_video_failed) {
+    std::move(callbacks_.on_cached_video_failed).Run();
+  }
 }
 
 }  // namespace content

@@ -317,10 +317,19 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Called with whether splash.html plays its video rather than its image.
   void OnSplashScreenVideoSupportChecked(bool can_play_video);
 
-  // Loads the splash screen page into the splash screen WebContents. With
-  // `native_video`, the page shows the splash screen video played natively
-  // through a video hole, instead of playing it.
-  void LoadSplashScreenURL(bool native_video);
+  // What the splash screen page shows.
+  enum class SplashScreenPage {
+    // The image, or the video with ForceVideoSplashScreen or
+    // NativeVideoSplashScreen.
+    kDefault,
+    // A video hole, through which the splash screen video played natively
+    // shows.
+    kNativeVideoHole,
+    // The image.
+    kImage,
+  };
+  // Loads the splash screen page into the splash screen WebContents.
+  void LoadSplashScreenURL(SplashScreenPage page);
 
   // Reads the splash screen video that the WebApp cached, if any, to play it
   // natively.
@@ -339,9 +348,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void OnNativeSplashVideoFirstFrame();
   void OnNativeSplashVideoEnded();
   void OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error);
-  // Stops the splash screen video played natively, e.g., when the app is
-  // concealed. The switch to the main WebContents still happens once it has
-  // loaded.
+  // Stops the splash screen video played natively when the app is concealed:
+  // the image shows instead until the splash screen ends, as the surface of the
+  // video may not survive. The switch to the main WebContents still happens
+  // once it has loaded.
   void StopNativeSplashVideo();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
@@ -365,6 +375,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Whether the page of the splash screen has loaded.
   bool is_splash_screen_loaded_ = false;
 
+  // Whether the splash screen page shows the video played natively through a
+  // video hole.
+  bool shows_native_splash_video_hole_ = false;
   // Reads the splash screen video that the WebApp cached, before the native
   // video splash screen plays it.
   std::unique_ptr<SplashCacheReader> splash_cache_reader_;
