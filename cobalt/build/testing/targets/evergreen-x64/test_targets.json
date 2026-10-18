@@ -5,7 +5,6 @@
       "base:base_unittests_loader": "b/418842688 - Compilation failure",
       "net:net_unittests_loader": "b/418842688 - Compilation failure",
       "third_party/blink/renderer/platform:blink_platform_unittests_loader": "b/418842688 - Compilation failure",
-      "third_party/blink/renderer/controller:blink_unittests_loader": "b/418842688 - Compilation failure",
       "third_party/perfetto:perfetto_unittests_loader": "b/418842688 - Compilation failure",
       "third_party/blink/renderer/platform/heap:blink_heap_perftests_loader": "b/418842688 - Execution failure, crashes horribly",
       "skia:skia_unittests_loader": "b/453909269 - Fails remotely",
@@ -133,6 +132,12 @@
   {
     "target": "starboard/nplb:nplb_loader",
     "executable": "out/evergreen-x64_devel/nplb_loader.py",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "third_party/blink/renderer/controller:blink_unittests_loader",
+    "executable": "out/evergreen-x64_devel/blink_unittests_loader.py",
     "runs_on": "host",
     "test_type": "gtest"
   },
