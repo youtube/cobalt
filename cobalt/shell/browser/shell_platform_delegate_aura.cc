@@ -70,10 +70,19 @@ void ShellPlatformDelegate::CreatePlatformWindowInternal(
     Shell* shell,
     const gfx::Size& initial_size) {
   if (!platform_->aura) {
-    platform_->aura =
-        std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
+    // Use initial_size when provided, falling back to default_window_size.
+    platform_->aura = std::make_unique<ShellPlatformDataAura>(
+        !initial_size.IsEmpty() ? initial_size
+                                : platform_->default_window_size);
   }
+#if BUILDFLAG(IS_STARBOARD)
+  // Resize the Aura window to the actual native Starboard window bounds
+  // queried via SbWindowGetSize() rather than overwriting it with initial_size.
+  platform_->aura->ResizeWindow(
+      platform_->aura->host()->GetBoundsInPixels().size());
+#else
   platform_->aura->ResizeWindow(initial_size);
+#endif
 
   ShellData& shell_data = shell_data_map_.at(shell);
   shell_data.window = platform_->aura->host()->window();

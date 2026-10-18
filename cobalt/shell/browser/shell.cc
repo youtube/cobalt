@@ -204,8 +204,15 @@ const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
   return nullptr;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+// Default fallback shell dimensions on Starboard prior to querying the
+// actual native window size via SbWindowGetSize().
+constexpr int kDefaultTestWindowWidthDip = 1920;
+constexpr int kDefaultTestWindowHeightDip = 1080;
+#else
 constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
+#endif
 
 // Returns the URL to load as the splash screen: the SplashScreenConfig "url"
 // feature param if it's set to a valid URL (non-gold builds only), or the
