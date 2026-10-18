@@ -1007,8 +1007,8 @@ void Shell::StopNativeSplashVideo() {
   // Without its video, the page's video hole would show the cleared video
   // surface once the app is revealed. The main WebContents shows instead, even
   // if it hasn't loaded yet, as without a splash screen.
-  // TODO(b/574620132): Decide what shows once the app is revealed, e.g., the
-  // image splash screen until the main WebContents has loaded.
+  // TODO(cobalt, b/574620132): Decide what shows once the app is revealed,
+  // e.g., the image splash screen until the main WebContents has loaded.
   SwitchToMainWebContents();
 }
 
