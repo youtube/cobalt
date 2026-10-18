@@ -14,6 +14,7 @@
 
 package dev.cobalt.util;
 
+import dev.cobalt.features.StarboardFeatures;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -455,7 +456,8 @@ public class JavaSwitches {
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
-      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
+      extraCommandLineArgs.add(
+          "--enable-features=" + StarboardFeatures.AREA_BASED_VIDEO_BUFFER_BUDGET);
     }
 
     if (javaSwitches.containsKey(
