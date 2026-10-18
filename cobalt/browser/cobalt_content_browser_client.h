@@ -159,6 +159,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // total cache directory budget.
   static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
 
+  // Populates `network_context_params->initial_ssl_config` with Cobalt's
+  // disabled TLS cipher suites.
+  static void ConfigureSSLConfig(
+      network::mojom::NetworkContextParams* network_context_params);
+
   // Populates `network_context_params->cobalt_extra_request_headers` from
   // `CobaltHeaderValueProvider` when `kCobaltSkipTrustedHeaderClient` is
   // enabled.
