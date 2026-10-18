@@ -27,6 +27,10 @@
 #include "media/filters/manifest_demuxer.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/url_player_media_resource.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 namespace {
@@ -343,10 +347,13 @@ PipelineStatus DemuxerManager::CreateDemuxer(
     // TODO(crbug.com/40128583): Should everything else after this block
     // run in the demuxer override case?
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-    demuxer_override_->SetEncryptedMediaInitDataCB(
-        base::BindPostTaskToCurrentDefault(
-            base::BindRepeating(&DemuxerManager::OnEncryptedMediaInitData,
-                                weak_factory_.GetWeakPtr())));
+    if (UrlPlayerMediaResource* url_player_resource =
+            demuxer_override_->AsUrlPlayerMediaResource()) {
+      url_player_resource->SetEncryptedMediaInitDataCB(
+          base::BindPostTaskToCurrentDefault(
+              base::BindRepeating(&DemuxerManager::OnEncryptedMediaInitData,
+                                  weak_factory_.GetWeakPtr())));
+    }
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     SetDemuxer(std::move(demuxer_override_));
   } else if (!load_media_source) {
