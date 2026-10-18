@@ -183,20 +183,22 @@ The No Platform Left Behind (NPLB) test suite verifies Starboard implementation 
    `out/evergreen-arm-softfp-aosp_devel/nplb_loader_apk/nplb_loader-debug.apk` and the
    `out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader` wrapper that drives it.
 
-2. Run NPLB on the target device. The wrapper installs the APK, pushes the
+### Option A: Using the Test Runner Wrapper (Build Host Connected to Device)
+
+1. Run NPLB on the target device. The wrapper installs the APK, pushes the
    runtime dependencies and collects the results:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader
    ```
 
-3. Pass standard Google Test filtering arguments:
+2. Pass standard Google Test filtering arguments:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest-filter='*Memory*'
    ```
 
-4. Any other argument is forwarded to NPLB:
+3. Any other argument is forwarded to NPLB:
 
    ```bash
    out/evergreen-arm-softfp-aosp_devel/bin/run_nplb_loader --gtest_shuffle
@@ -209,6 +211,29 @@ needs its own `<suite>_loader` target:
 autoninja -C out/evergreen-arm-softfp-aosp_devel zlib_unittests_loader
 out/evergreen-arm-softfp-aosp_devel/bin/run_zlib_unittests_loader
 ```
+
+### Option B: Standalone APK Execution via ADB (Separate Build Server and Test Host)
+
+When compiling on a remote Linux build server and testing on a separate local machine connected to the AOSP device via ADB, copy the compiled APK to your local test host and launch it directly using `adb`:
+
+1. Install the NPLB test APK on the target device:
+
+   ```bash
+   adb install -r out/evergreen-arm-softfp-aosp_devel/nplb_loader_apk/nplb_loader-debug.apk
+   ```
+
+2. Launch NPLB on device passing the target compressed library argument via `--esa commandLineArgs`:
+
+   ```bash
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
+
+3. Pass standard Google Test filtering arguments:
+
+   ```bash
+   # Run NPLB with a specific test filter (e.g. Memory tests)
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content,--gtest_filter=*Memory*' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
 
 ## Debugging
 
