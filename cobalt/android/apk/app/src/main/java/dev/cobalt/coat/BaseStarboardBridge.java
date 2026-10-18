@@ -56,7 +56,6 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.base.CommandLine;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -233,19 +232,14 @@ public class BaseStarboardBridge {
     void setYoutubeCertificationScope(String certScope);
   }
 
-  private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
+  private boolean mActivityLifecycleCoordinationEnabled;
 
-  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-  public static void setActivityLifecycleCoordinationEnabledForTesting(Boolean enabled) {
-    sActivityLifecycleCoordinationEnabledForTesting = enabled;
+  public void setActivityLifecycleCoordinationEnabled(boolean enabled) {
+    mActivityLifecycleCoordinationEnabled = enabled;
   }
 
-  public static boolean isActivityLifecycleCoordinationEnabled() {
-    if (sActivityLifecycleCoordinationEnabledForTesting != null) {
-      return sActivityLifecycleCoordinationEnabledForTesting;
-    }
-    return CommandLine.isInitialized()
-        && CommandLine.getInstance().hasSwitch("enable-activity-lifecycle-coordination");
+  public boolean isActivityLifecycleCoordinationEnabled() {
+    return mActivityLifecycleCoordinationEnabled;
   }
 
   public boolean hasStartedActivities() {
