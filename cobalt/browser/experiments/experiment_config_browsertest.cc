@@ -30,7 +30,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
-#include "cobalt/android/jni_headers/JavaSwitches_jni.h"
+#include "cobalt/android/jni_headers/JavaSwitchesTestHelper_jni.h"
 #endif
 
 namespace cobalt {
@@ -140,19 +140,19 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
   JNIEnv* env = base::android::AttachCurrentThread();
 
   // 1. When no files exist, Java should return true (safe default).
-  EXPECT_TRUE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_TRUE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 2. Write low crash streak in native -> Java should return true.
   std::string low_streak_json =
       base::StringPrintf("{\"%s\": 1}", kVariationsCrashStreak);
   ASSERT_TRUE(base::WriteFile(metrics_file, low_streak_json));
-  EXPECT_TRUE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_TRUE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 3. Write crash streak >= default threshold (4) -> Java returns false.
   std::string high_streak_json =
       base::StringPrintf("{\"%s\": 4}", kVariationsCrashStreak);
   ASSERT_TRUE(base::WriteFile(metrics_file, high_streak_json));
-  EXPECT_FALSE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_FALSE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 4. Write custom threshold 2 in Experiment Config -> streak of 2 returns
   // false.
@@ -163,7 +163,7 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
   std::string custom_streak_json =
       base::StringPrintf("{\"%s\": 2}", kVariationsCrashStreak);
   ASSERT_TRUE(base::WriteFile(metrics_file, custom_streak_json));
-  EXPECT_FALSE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_FALSE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 5. Variations beacon with clean exit: streak 3 < threshold 4 -> returns
   // true.
@@ -173,7 +173,7 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
       base::StringPrintf("{\"%s\": 3, \"%s\": true}", kVariationsCrashStreak,
                          kStabilityExitedCleanly);
   ASSERT_TRUE(base::WriteFile(beacon_file, beacon_clean_json));
-  EXPECT_TRUE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_TRUE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 6. Variations beacon with dirty exit: streak 3 + 1 pending = 4 >= threshold
   // 4 -> returns false.
@@ -181,13 +181,13 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
       base::StringPrintf("{\"%s\": 3, \"%s\": false}", kVariationsCrashStreak,
                          kStabilityExitedCleanly);
   ASSERT_TRUE(base::WriteFile(beacon_file, beacon_dirty_json));
-  EXPECT_FALSE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_FALSE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 
   // 7. Clean up created files.
   base::DeleteFile(metrics_file);
   base::DeleteFile(exp_file);
   base::DeleteFile(beacon_file);
-  EXPECT_TRUE(Java_JavaSwitches_shouldApplyExperimentConfigs(env));
+  EXPECT_TRUE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 }
 #endif
 
