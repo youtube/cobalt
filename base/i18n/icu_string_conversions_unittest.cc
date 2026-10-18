@@ -22,9 +22,18 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
+
+// b/561702947: Disabled for unused functionality from ICU.
+// Cobalt has zero callers of base::CodepageToUTF16(), base::UTF16ToCodepage(),
+// or base::ConvertToUtf8AndNormalize(), and strips legacy non-UTF-8 character
+// converter tables (.cnv, such as Big5, EUC-JP, GB18030, Shift_JIS, and
+// Windows-125x) from icudtl.dat because Cobalt and YouTube TV exclusively use
+// UTF-8/ASCII.
+#if !BUILDFLAG(IS_COBALT)
 
 namespace {
 
@@ -240,5 +249,7 @@ TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
     EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
+
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace base
