@@ -136,6 +136,7 @@ class TestDeployRdk(unittest.TestCase):
         self.assertIn("YouTube", full_remote_cmd)
         self.assertIn("bash -l -c", full_remote_cmd)
         self.assertIn("/data/out_cobalt", full_remote_cmd)
+        self.assertIn("THUNDER_ACCESS", full_remote_cmd)
 
     def test_plugin_mode_deeplink_launch(self):
         """Verifies plugin mode activates YouTube and executes YouTube.deeplink JSON-RPC call."""
