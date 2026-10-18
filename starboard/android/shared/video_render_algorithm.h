@@ -44,7 +44,8 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
     VideoFrameReleaseTimeHelper();
     ~VideoFrameReleaseTimeHelper();
     jlong AdjustReleaseTime(jlong frame_presentation_time_us,
-                            jlong unadjusted_release_time_ns);
+                            jlong unadjusted_release_time_ns,
+                            double playback_rate);
 
    private:
     jobject j_video_frame_release_time_helper_ = nullptr;
