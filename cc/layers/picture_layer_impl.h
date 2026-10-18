@@ -94,6 +94,11 @@ class CC_EXPORT PictureLayerImpl
       const gfx::Rect& rect) const override;
   ScrollOffsetMap GetRasterInducingScrollOffsets() const override;
   const GlobalStateThatImpactsTilePriority& global_tile_state() const override;
+#if BUILDFLAG(IS_COBALT)
+  bool IsSingleTileVisibleInterestAreaEnabled() const override;
+  bool IsSingleTileVisibleOnlyEnabled() const override;
+  gfx::Rect GetInitialVisibleLayerRect() const override;
+#endif
 
   // ImageAnimationController::AnimationDriver overrides.
   bool ShouldAnimate(PaintImage::Id paint_image_id) const override;
