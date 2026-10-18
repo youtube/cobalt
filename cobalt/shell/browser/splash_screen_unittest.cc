@@ -113,6 +113,22 @@ class SplashScreenTest : public ShellTestBase {
     shell->awaiting_splash_video_first_frame_ = true;
   }
 
+  // As with NativeVideoSplashScreen, until the video plays natively.
+  void ShowNativeSplashVideoHole(Shell* shell) {
+    shell->LoadSplashScreenURL(Shell::SplashScreenPage::kNativeVideoHole);
+    shell->awaiting_splash_video_first_frame_ = true;
+  }
+
+  void CallOnNativeSplashVideoError(Shell* shell,
+                                    NativeSplashVideoPlayer::Error error) {
+    shell->OnNativeSplashVideoError(error);
+  }
+
+  // As when the app is concealed.
+  void CallStopNativeSplashVideo(Shell* shell) {
+    shell->StopNativeSplashVideo();
+  }
+
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
 
   bool IsMainFrameLoaded(Shell* shell) { return shell->is_main_frame_loaded_; }
@@ -722,6 +738,111 @@ TEST_F(SplashScreenTest, NativeVideoFirstFrameWaitIsBounded) {
   // Without a first frame, the timeout starts 2 s after the page loaded.
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   task_environment()->FastForwardBy(base::Milliseconds(4900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoErrorBeforeFirstFrameFallsBackToHtmlVideo) {
+  // As with NativeVideoSplashScreen, which shows a video too.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?native_video=true"));
+
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kPlaybackError);
+  EXPECT_EQ(GetPendingSplashScreenURL(shell), GURL(switches::kSplashScreenURL));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoErrorAfterFirstFrameKeepsTheVideo) {
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoFirstFrame(shell);
+  CallOnNativeSplashVideoError(
+      shell, NativeSplashVideoPlayer::Error::kPlaybackErrorAfterFirstFrame);
+
+  // The page isn't reloaded, which would restart the video.
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?native_video=true"));
+
+  // The splash screen still ends 1.5 s after the first frame.
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, ConcealShowsTheImageInsteadOfTheNativeVideo) {
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallStopNativeSplashVideo(shell);
+
+  // The video hole would show the cleared video surface once revealed.
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
+
+  // Without its video, the splash screen ends 1.5 s after the conceal.
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, ConcealKeepsTheHtmlVideoWaitingForItsFirstFrame) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  CallStopNativeSplashVideo(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallOnSplashScreenVideoStarted(shell);
+
+  // The splash screen still starts with the HTML video's first frame.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);

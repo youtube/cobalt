@@ -296,9 +296,20 @@ TEST(SplashVideoWebMIndexerTest, RejectsFirstFrameThatIsNotAKeyFrame) {
 TEST(SplashVideoWebMIndexerTest, RejectsTimestampsThatDontIncrease) {
   const Bytes webm = WebM(Concat(
       {Info(), Tracks(),
-       Cluster(0, Concat({SimpleBlock(33, true, {kKeyFrameByte}),
+       Cluster(0, Concat({SimpleBlock(0, true, {kKeyFrameByte}),
+                          SimpleBlock(33, false, {kInterFrameByte}),
                           SimpleBlock(33, false, {kInterFrameByte})}))}));
   EXPECT_FALSE(IndexSplashVideoWebM(webm));
+}
+
+TEST(SplashVideoWebMIndexerTest, RejectsVideosThatDontStartAt0) {
+  // The first frame at 33ms, from the block or from the Cluster.
+  for (const Bytes& cluster :
+       {Cluster(0, SimpleBlock(33, true, {kKeyFrameByte})),
+        Cluster(33, SimpleBlock(0, true, {kKeyFrameByte}))}) {
+    EXPECT_FALSE(
+        IndexSplashVideoWebM(WebM(Concat({Info(), Tracks(), cluster}))));
+  }
 }
 
 TEST(SplashVideoWebMIndexerTest, RejectsVideosLongerThanTheLimit) {
@@ -313,6 +324,26 @@ TEST(SplashVideoWebMIndexerTest, RejectsFramesWithoutAVp9FrameMarker) {
   const Bytes webm = WebM(Concat(
       {Info(), Tracks(), Cluster(0, SimpleBlock(0, true, {0x00, 0x82}))}));
   EXPECT_FALSE(IndexSplashVideoWebM(webm));
+}
+
+TEST(SplashVideoWebMIndexerTest, RejectsVp9ProfilesOtherThan0) {
+  // Profiles 1, 2 and 3, from the profile's low and high bits, after the frame
+  // marker: the player is configured for 8-bit 4:2:0.
+  for (uint8_t profile_bits : {0x20, 0x10, 0x30}) {
+    SCOPED_TRACE(static_cast<int>(profile_bits));
+    const uint8_t key_frame_byte =
+        static_cast<uint8_t>(kKeyFrameByte | profile_bits);
+    EXPECT_FALSE(IndexSplashVideoWebM(
+        WebM(Concat({Info(), Tracks(),
+                     Cluster(0, SimpleBlock(0, true, {key_frame_byte}))}))));
+    EXPECT_FALSE(IndexSplashVideoWebM(WebM(Concat(
+        {Info(), Tracks(),
+         Cluster(0, Concat({SimpleBlock(0, true, {kKeyFrameByte}),
+                            SimpleBlock(
+                                33, false,
+                                {static_cast<uint8_t>(kInterFrameByte |
+                                                      profile_bits)})}))}))));
+  }
 }
 
 TEST(SplashVideoWebMIndexerTest, RejectsBlocksBeforeTheClusterTimecode) {
