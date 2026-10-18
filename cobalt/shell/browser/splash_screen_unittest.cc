@@ -800,27 +800,19 @@ TEST_F(SplashScreenTest, NativeVideoErrorAfterFirstFrameKeepsTheVideo) {
   shell->Close();
 }
 
-TEST_F(SplashScreenTest, ConcealShowsTheImageInsteadOfTheNativeVideo) {
+TEST_F(SplashScreenTest, ConcealSwitchesFromTheNativeVideoToTheMainFrame) {
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
   ShowNativeSplashVideoHole(shell);
-  CallStopNativeSplashVideo(shell);
 
-  // The video hole would show the cleared video surface once revealed.
-  EXPECT_EQ(
-      GetPendingSplashScreenURL(shell),
-      GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
-
-  // Without its video, the splash screen ends 1.5 s after the conceal.
-  CallLoadProgressChanged(shell, 1.0);
-  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
-  task_environment()->FastForwardBy(base::Milliseconds(1400));
-  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
-
+  // The video hole would show the cleared video surface once revealed, so the
+  // main frame shows instead, even if it hasn't loaded yet.
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment()->FastForwardBy(base::Milliseconds(200));
+  CallStopNativeSplashVideo(shell);
+  EXPECT_FALSE(IsMainFrameLoaded(shell));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(GetSplashScreenWebContents(shell), nullptr);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));

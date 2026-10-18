@@ -479,7 +479,7 @@ Always run the pretty print utility on this file after editing:
     last frame stays. Also records when the video that the WebApp cached isn't
     valid, the platform doesn't play it, or it fails before its first frame,
     and the built-in video plays instead, and when the app is concealed, which
-    stops the video and shows the image splash screen instead.
+    stops the video and switches to the main WebContents.
   </summary>
 </histogram>
 

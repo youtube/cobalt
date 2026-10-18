@@ -798,7 +798,7 @@ void Shell::LoadSplashScreenURL(SplashScreenPage page) {
   if (shows_native_splash_video_hole_) {
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "native_video", "true");
-  } else if (page == SplashScreenPage::kImage || !is_video_splash_screen_) {
+  } else if (!is_video_splash_screen_) {
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "force_image", "true");
   } else {
@@ -1004,15 +1004,12 @@ void Shell::StopNativeSplashVideo() {
   splash_cache_reader_.reset();
   native_splash_video_player_.reset();
   awaiting_splash_video_first_frame_ = false;
-  if (has_switched_to_main_frame_ || !splash_screen_web_contents_ ||
-      splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
-    return;
-  }
   // Without its video, the page's video hole would show the cleared video
-  // surface once the app is revealed, until the switch to the main
-  // WebContents.
-  LoadSplashScreenURL(SplashScreenPage::kImage);
-  StartSplashScreenTimer();
+  // surface once the app is revealed. The main WebContents shows instead, even
+  // if it hasn't loaded yet, as without a splash screen.
+  // TODO - b/574620132: Decide what shows once the app is revealed, e.g., the
+  // image splash screen until the main WebContents has loaded.
+  SwitchToMainWebContents();
 }
 
 void Shell::LoadURL(const GURL& url) {
