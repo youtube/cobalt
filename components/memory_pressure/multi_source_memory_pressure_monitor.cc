@@ -11,7 +11,14 @@
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/memory_pressure/system_memory_pressure_evaluator.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/trace_event/memory_pressure_level_proto.h"  // no-presubmit-check
@@ -33,12 +40,23 @@ MultiSourceMemoryPressureMonitor::~MultiSourceMemoryPressureMonitor() {
   // MemoryPressureVoteAggregator::Delegate, and
   // delegate_->OnMemoryPressureLevelChanged() gets indirectly called during
   // ~SystemMemoryPressureEvaluator().
+#if BUILDFLAG(IS_COBALT)
+  system_evaluators_.clear();
+#else
   system_evaluator_.reset();
+#endif
 }
 
 void MultiSourceMemoryPressureMonitor::MaybeStartPlatformVoter() {
+#if BUILDFLAG(IS_COBALT)
+  if (auto evaluator =
+          SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this)) {
+    system_evaluators_.push_back(std::move(evaluator));
+  }
+#else
   system_evaluator_ =
       SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this);
+#endif
 }
 
 base::MemoryPressureListener::MemoryPressureLevel
@@ -52,6 +70,18 @@ MultiSourceMemoryPressureMonitor::CreateVoter() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return aggregator_.CreateVoter();
 }
+
+#if BUILDFLAG(IS_COBALT)
+base::TimeDelta MultiSourceMemoryPressureMonitor::GetCooldownPeriod() const {
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMemoryPressureCooldown)) {
+    int cooldown_sec =
+        base::features::kCobaltMemoryPressureCooldownSeconds.Get();
+    return base::Seconds(std::max(1, cooldown_sec));
+  }
+  return base::Seconds(60);
+}
+#endif
 
 void MultiSourceMemoryPressureMonitor::OnMemoryPressureLevelChanged(
     base::MemoryPressureListener::MemoryPressureLevel level) {
@@ -74,20 +104,52 @@ void MultiSourceMemoryPressureMonitor::OnMemoryPressureLevelChanged(
 
 void MultiSourceMemoryPressureMonitor::OnNotifyListenersRequested() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_COBALT)
+  if (current_pressure_level_ ==
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+    return;
+  }
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeDelta cooldown_period = GetCooldownPeriod();
+  bool is_in_cooldown = !last_dispatch_time_.is_null() &&
+                        (now - last_dispatch_time_) < cooldown_period;
+
+  // If memory pressure escalates to a higher severity than the last dispatched
+  // level, bypass the cooldown window immediately.
+  bool is_escalation = current_pressure_level_ > last_dispatched_level_;
+
+  if (is_in_cooldown && !is_escalation) {
+    return;
+  }
+
+  last_dispatch_time_ = now;
+  last_dispatched_level_ = current_pressure_level_;
+#endif
   dispatch_callback_.Run(current_pressure_level_);
 }
 
 void MultiSourceMemoryPressureMonitor::SetSystemEvaluator(
     std::unique_ptr<SystemMemoryPressureEvaluator> evaluator) {
+#if BUILDFLAG(IS_COBALT)
+  // This supports dual/multiple evaluators on Cobalt.
+  DCHECK(evaluator);
+  system_evaluators_.push_back(std::move(evaluator));
+#else
   DCHECK(!system_evaluator_);
   system_evaluator_ = std::move(evaluator);
+#endif
 }
 
 void MultiSourceMemoryPressureMonitor::SetDispatchCallbackForTesting(
     const DispatchCallback& callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Must be called before `Start()`.
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(system_evaluators_.empty());
+#else
   DCHECK(!system_evaluator_);
+#endif
   dispatch_callback_ = callback;
 }
 

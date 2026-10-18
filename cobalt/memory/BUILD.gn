@@ -18,18 +18,33 @@ source_set("memory") {
     "cobalt_memory_attribution_manager.h",
   ]
 
+  if (is_android) {
+    sources += [
+      "android_os_signal_evaluator.cc",
+      "android_os_signal_evaluator.h",
+    ]
+  }
+
+  public_deps = [
+    "//components/memory_pressure",
+  ]
+
   deps = [
     "//base",
     "//cobalt/browser:features",
   ]
 
-  if (is_starboard) {
+  # CobaltSystemMemoryPressureEvaluator is only supported on Starboard (3P
+  # Linux/RDK/Evergreen) and Android TV builds.
+  if (is_starboard || is_android) {
     sources += [
       "cobalt_system_memory_pressure_evaluator.cc",
       "cobalt_system_memory_pressure_evaluator.h",
     ]
+  }
+
+  if (is_starboard) {
     deps += [
-      "//components/memory_pressure",
       "//starboard:starboard_headers_only",
     ]
   }
@@ -37,20 +52,26 @@ source_set("memory") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
+  sources = [
+    "//components/memory_pressure/memory_pressure_voter_unittest.cc",
+    "//components/memory_pressure/multi_source_memory_pressure_monitor_unittest.cc",
+    "cobalt_memory_attribution_manager_unittest.cc",
+  ]
+
+  if (is_android) {
+    sources += [ "android_os_signal_evaluator_unittest.cc" ]
+  }
+
+  if (is_starboard || is_android) {
+    sources += [ "cobalt_system_memory_pressure_evaluator_unittest.cc" ]
+  }
 
   deps = [
     ":memory",
     "//base/test:test_support",
     "//cobalt/browser:features",
+    "//components/memory_pressure",
+    "//testing/gmock",
     "//testing/gtest",
   ]
-
-  if (is_starboard) {
-    sources += [ "cobalt_system_memory_pressure_evaluator_unittest.cc" ]
-    deps += [
-      "//components/memory_pressure",
-      "//starboard:starboard_headers_only",
-    ]
-  }
 }
