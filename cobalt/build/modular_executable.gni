@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/compiled_action.gni")
+import("//build/config/clang/clang.gni")
 import("//starboard/build/platform_path.gni")
 import("//starboard/content/fonts/variables.gni")
 import("//starboard/content/ssl/certs.gni")
@@ -207,17 +208,43 @@ template("evergreen_final_target") {
       deps = [ ":${original_target_name}" ]
     }
 
+    if (_is_aosp) {
+      action("strip_${original_target_name}_lib") {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        script = "//build/gn_run_binary.py"
+        inputs = [
+          "$clang_base_path/bin/llvm-strip",
+          "$root_out_dir/${lib_name}.so",
+        ]
+        outputs = [ "$root_out_dir/${lib_name}.stripped.so" ]
+        args = [
+          rebase_path("$clang_base_path/bin/llvm-strip", root_build_dir),
+          "--strip-unneeded",
+          "-o",
+          rebase_path(outputs[0], root_build_dir),
+          rebase_path("$root_out_dir/${lib_name}.so", root_build_dir),
+        ]
+        deps = [ ":${original_target_name}" ]
+      }
+    }
+
     compiled_action("copy_${original_target_name}_lib") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
       tool = "//starboard/tools/lz4_compress"
-      inputs = [ "$root_out_dir/${lib_name}.so" ]
+      if (_is_aosp) {
+        inputs = [ "$root_out_dir/${lib_name}.stripped.so" ]
+        deps = [ ":strip_${original_target_name}_lib" ]
+      } else {
+        inputs = [ "$root_out_dir/${lib_name}.so" ]
+        deps = [ ":${original_target_name}" ]
+      }
       outputs =
           [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.lz4" ]
       args =
           rebase_path(inputs, root_out_dir) + rebase_path(outputs, root_out_dir)
-      deps = [ ":${original_target_name}" ]
-      data_deps = deps  # Needed for the .runtime_deps file.
+      data_deps =
+          [ ":${original_target_name}" ]  # Needed for the .runtime_deps file.
     }
 
     compiled_action("copy_${original_target_name}_zstd_lib") {

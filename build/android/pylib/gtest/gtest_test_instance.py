@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-
-
 import html.parser
 import json
 import logging
@@ -28,6 +26,7 @@ BROWSER_TEST_SUITES = [
     'android_browsertests',
     'android_sync_integration_tests',
     'cobalt_browsertests',
+    'cobalt_browsertests_loader',
     'components_browsertests',
     'content_browsertests',
     'weblayer_browsertests',
@@ -46,7 +45,6 @@ RUN_IN_SUB_THREAD_TEST_SUITES = [
     'mojo_unittests',
     'net_unittests'
 ]
-
 
 # Used for filtering large data deps at a finer grain than what's allowed in
 # isolate files since pushing deps to devices is expensive.
@@ -70,18 +68,17 @@ _DEPS_EXCLUSION_LIST = [
     'webkit/data/ico_decoder',
 ]
 
-
 _EXTRA_NATIVE_TEST_ACTIVITY = (
     'org.chromium.native_test.NativeTestInstrumentationTestRunner.'
-        'NativeTestActivity')
+    'NativeTestActivity')
 _EXTRA_RUN_IN_SUB_THREAD = (
     'org.chromium.native_test.NativeTest.RunInSubThread')
 EXTRA_SHARD_NANO_TIMEOUT = (
     'org.chromium.native_test.NativeTestInstrumentationTestRunner.'
-        'ShardNanoTimeout')
+    'ShardNanoTimeout')
 _EXTRA_SHARD_SIZE_LIMIT = (
     'org.chromium.native_test.NativeTestInstrumentationTestRunner.'
-        'ShardSizeLimit')
+    'ShardSizeLimit')
 
 # TODO(jbudorick): Remove these once we're no longer parsing stdout to generate
 # results.
@@ -102,7 +99,7 @@ _RE_TEST_STATUS = re.compile(
     r'(?: \((\d+) ms\))?$')
 # Crash detection constants.
 _RE_TEST_ERROR = re.compile(r'FAILURES!!! Tests run: \d+,'
-                                    r' Failures: \d+, Errors: 1')
+                            r' Failures: \d+, Errors: 1')
 _RE_TEST_CURRENTLY_RUNNING = re.compile(
     r'\[.*ERROR:.*?\] Currently running: (.*)')
 _RE_TEST_DCHECK_FATAL = re.compile(r'\[.*:FATAL:.*\] (.*)')
@@ -120,6 +117,7 @@ _RE_ANY_TESTS_FAILED = re.compile(r'\[ +FAILED +\].*listed below')
 
 # Detect stack line in stdout.
 _STACK_LINE_RE = re.compile(r'\s*#\d+')
+
 
 def ParseGTestListTests(raw_list):
   """Parses a raw test list as provided by --gtest_list_tests.
@@ -180,8 +178,7 @@ def ParseGTestOutput(output, symbolizer, device_abi):
       stack_string = ''
     else:
       stack_string = '\n'.join(
-          symbolizer.ExtractAndResolveNativeStackTraces(
-              stack, device_abi))
+          symbolizer.ExtractAndResolveNativeStackTraces(stack, device_abi))
     return '%s\n%s' % (log_string, stack_string)
 
   def handle_possibly_unknown_test():
@@ -244,9 +241,12 @@ def ParseGTestOutput(output, symbolizer, device_abi):
       # Don't bother symbolizing output if the test passed.
       if result_type == base_test_result.ResultType.PASS:
         stack = []
-      results.append(base_test_result.BaseTestResult(
-          TestNameWithoutDisabledPrefix(test_name), result_type, duration,
-          log=symbolize_stack_and_merge_with_log()))
+      results.append(
+          base_test_result.BaseTestResult(
+              TestNameWithoutDisabledPrefix(test_name),
+              result_type,
+              duration,
+              log=symbolize_stack_and_merge_with_log()))
       test_name = None
 
   else:
@@ -276,11 +276,12 @@ def ParseGTestXML(xml_content):
         result_type = base_test_result.ResultType.FAIL
         log.append(html_parser.unescape(failure.attrib['message']))
 
-      results.append(base_test_result.BaseTestResult(
-          '%s.%s' % (suite_name, TestNameWithoutDisabledPrefix(case_name)),
-          result_type,
-          int(float(testcase.attrib['time']) * 1000),
-          log=('\n'.join(log) if log else '')))
+      results.append(
+          base_test_result.BaseTestResult(
+              '%s.%s' % (suite_name, TestNameWithoutDisabledPrefix(case_name)),
+              result_type,
+              int(float(testcase.attrib['time']) * 1000),
+              log=('\n'.join(log) if log else '')))
 
   return results
 
@@ -330,6 +331,7 @@ def TestNameWithoutDisabledPrefix(test_name):
     test_name = dp.sub('', test_name)
   return test_name
 
+
 class GtestTestInstance(test_instance.TestInstance):
 
   def __init__(self, args, data_deps_delegate, error_func):
@@ -377,9 +379,8 @@ class GtestTestInstance(test_instance.TestInstance):
         and 0 < args.test_launcher_batch_limit < MAX_SHARDS):
       self._test_launcher_batch_limit = args.test_launcher_batch_limit
 
-    apk_path = os.path.join(
-        constants.GetOutDirectory(), '%s_apk' % self._suite,
-        '%s-debug%s.apk' % (self._suite, incremental_part))
+    apk_path = os.path.join(constants.GetOutDirectory(), '%s_apk' % self._suite,
+                            '%s-debug%s.apk' % (self._suite, incremental_part))
     self._test_apk_incremental_install_json = (
         args.test_apk_incremental_install_json)
     if not os.path.exists(apk_path):
@@ -590,8 +591,7 @@ class GtestTestInstance(test_instance.TestInstance):
   #override
   def SetUp(self):
     """Map data dependencies via isolate."""
-    self._data_deps.extend(
-        self._data_deps_delegate(self._runtime_deps_path))
+    self._data_deps.extend(self._data_deps_delegate(self._runtime_deps_path))
 
   def GetDataDependencies(self):
     """Returns the test suite's data dependencies.
@@ -613,7 +613,8 @@ class GtestTestInstance(test_instance.TestInstance):
       A filtered list of tests to run.
     """
     gtest_filter_strings = [
-        self._GenerateDisabledFilterString(disabled_prefixes)]
+        self._GenerateDisabledFilterString(disabled_prefixes)
+    ]
     if self._gtest_filters:
       gtest_filter_strings.extend(self._gtest_filters)
 
@@ -627,7 +628,7 @@ class GtestTestInstance(test_instance.TestInstance):
             filtered_test_list, gtest_filter_string)
 
       if self._run_disabled and self._gtest_filters:
-        out_filtered_test_list = list(set(test_list)-set(filtered_test_list))
+        out_filtered_test_list = list(set(test_list) - set(filtered_test_list))
         for test in out_filtered_test_list:
           test_name_no_disabled = TestNameWithoutDisabledPrefix(test)
           if test_name_no_disabled == test:
@@ -654,14 +655,16 @@ class GtestTestInstance(test_instance.TestInstance):
     disabled_filter_items += ['%s*' % dp for dp in disabled_prefixes]
     disabled_filter_items += ['*.%s*' % dp for dp in disabled_prefixes]
 
-    disabled_tests_file_path = os.path.join(
-        host_paths.DIR_SOURCE_ROOT, 'build', 'android', 'pylib', 'gtest',
-        'filter', '%s_disabled' % self._suite)
+    disabled_tests_file_path = os.path.join(host_paths.DIR_SOURCE_ROOT, 'build',
+                                            'android', 'pylib', 'gtest',
+                                            'filter',
+                                            '%s_disabled' % self._suite)
     if disabled_tests_file_path and os.path.exists(disabled_tests_file_path):
       with open(disabled_tests_file_path) as disabled_tests_file:
         disabled_filter_items += [
             '%s' % l for l in (line.strip() for line in disabled_tests_file)
-            if l and not l.startswith('#')]
+            if l and not l.startswith('#')
+        ]
 
     return '*-%s' % ':'.join(disabled_filter_items)
 

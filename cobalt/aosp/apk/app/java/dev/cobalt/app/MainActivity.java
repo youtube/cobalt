@@ -265,6 +265,7 @@ public class MainActivity extends BaseCobaltActivity {
   @Override
   protected BaseStarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
     Holder<Activity> activityHolder = new Holder<>();
+    activityHolder.set(this);
     Holder<Service> serviceHolder = new Holder<>();
     BaseStarboardBridge bridge =
         new StarboardBridge(
