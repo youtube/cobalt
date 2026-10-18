@@ -84,6 +84,7 @@ class CDPClient:
     self._next_id = 1
     self._pending_commands: Dict[int, asyncio.Future] = {}
     self._event_queues: Dict[str, asyncio.Queue] = {}
+    self._disconnect_err: Optional[Exception] = None
     self._read_task = asyncio.create_task(self._listen_loop())
 
   async def _listen_loop(self):
@@ -104,13 +105,22 @@ class CDPClient:
           method = msg["method"]
           if method in self._event_queues:
             await self._event_queues[method].put(msg)
-    except (asyncio.CancelledError, websockets.ConnectionClosed):
+      self._disconnect_err = RuntimeError(
+          "WebSocket connection closed by remote host")
+    except websockets.ConnectionClosed as e:
+      self._disconnect_err = RuntimeError(f"WebSocket connection closed: {e}")
+    except asyncio.CancelledError:
       pass
     finally:
-      # Cancel any remaining pending futures on disconnect
+      # Fail or cancel any remaining pending futures on disconnect
       for fut in self._pending_commands.values():
         if not fut.done():
-          fut.cancel()
+          if self._disconnect_err is not None:
+            err = RuntimeError(str(self._disconnect_err))
+            err.__cause__ = self._disconnect_err
+            fut.set_exception(err)
+          else:
+            fut.cancel()
       self._pending_commands.clear()
 
   async def send_command(
@@ -120,6 +130,12 @@ class CDPClient:
       timeout: float = 60.0,
   ) -> Dict[str, Any]:
     """Sends a CDP command and awaits its result."""
+    if self._disconnect_err is not None:
+      raise RuntimeError(
+          "WebSocket connection is closed") from self._disconnect_err
+    if self._read_task.done():
+      raise RuntimeError(f"Cannot send {method}: WebSocket listener is closed")
+
     cmd_id = self._next_id
     self._next_id += 1
     future = asyncio.get_running_loop().create_future()
@@ -129,13 +145,17 @@ class CDPClient:
     if params is not None:
       msg["params"] = params
 
-    await self.ws.send(json.dumps(msg))
     try:
+      await self.ws.send(json.dumps(msg))
       resp = await asyncio.wait_for(future, timeout=timeout)
+    except websockets.ConnectionClosed as e:
+      raise RuntimeError(
+          f"WebSocket connection closed during {method}: {e}") from e
     except asyncio.TimeoutError as e:
-      self._pending_commands.pop(cmd_id, None)
       raise TimeoutError(
           f"Timed out waiting for response to CDP command: {method}") from e
+    finally:
+      self._pending_commands.pop(cmd_id, None)
 
     if "error" in resp:
       err = resp["error"]
@@ -334,7 +354,7 @@ async def capture_meminfra_trace(
   }
 
   async with websockets.connect(
-      ws_url, max_size=None, ping_interval=None) as ws:
+      ws_url, max_size=None, ping_interval=2.0, ping_timeout=60.0) as ws:
     client = CDPClient(ws)
     tracing_complete_queue = client.listen_for_event("Tracing.tracingComplete")
 
