@@ -27,13 +27,6 @@ extern "C" {
 
 // --- Types -----------------------------------------------------------------
 
-// Additional SbPlayerError enums for URL-based player. Can be cast into
-// SbPlayerError safely.
-enum SbUrlPlayerError {
-  kSbUrlPlayerErrorNetwork = kSbPlayerErrorMax,
-  kSbUrlPlayerErrorSrcNotSupported,
-};
-
 // Extra player info for URL-based player.
 typedef struct SbUrlPlayerExtraInfo {
   // The position of the buffer head, as precisely as possible, in microseconds.
