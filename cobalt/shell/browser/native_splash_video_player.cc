@@ -29,6 +29,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -37,10 +38,12 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/splash_video_webm_indexer.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "media/base/video_util.h"
+#include "media/starboard/sbplayer_interface.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/extension/experimental/experimental_features.h"
@@ -56,7 +59,6 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 #include "base/threading/platform_thread.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/time/time.h"
 #include "starboard/android/shared/video_window.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
@@ -128,6 +130,113 @@ SbDecodeTargetGraphicsContextProvider* GetDecodeTargetProvider() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Makes the SbPlayer calls, or forwards them to the SbPlayerInterface that a
+// test set. Unlike media::DefaultSbPlayerInterface, it doesn't track the calls
+// in the metrics of the media pipeline's players.
+class SbPlayerCalls {
+ public:
+  SbPlayerCalls()
+      : testing_interface_(media::GetSbPlayerInterfaceForTesting()) {}
+
+  SbPlayerCalls(const SbPlayerCalls&) = delete;
+  SbPlayerCalls& operator=(const SbPlayerCalls&) = delete;
+
+  SbPlayerOutputMode GetPreferredOutputMode(
+      const SbPlayerCreationParam* creation_param) {
+    return testing_interface_
+               ? testing_interface_->GetPreferredOutputMode(creation_param)
+               : SbPlayerGetPreferredOutputMode(creation_param);
+  }
+
+  SbPlayer Create(const SbPlayerCreationParam* creation_param,
+                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                  SbPlayerDecoderStatusFunc decoder_status_func,
+                  SbPlayerStatusFunc player_status_func,
+                  SbPlayerErrorFunc player_error_func,
+                  void* context,
+                  SbDecodeTargetGraphicsContextProvider* provider) {
+    if (testing_interface_) {
+      return testing_interface_->Create(kSbWindowInvalid, creation_param,
+                                        sample_deallocate_func,
+                                        decoder_status_func, player_status_func,
+                                        player_error_func, context, provider);
+    }
+    return SbPlayerCreate(kSbWindowInvalid, creation_param,
+                          sample_deallocate_func, decoder_status_func,
+                          player_status_func, player_error_func, context,
+                          provider);
+  }
+
+  void Destroy(SbPlayer player) {
+    if (testing_interface_) {
+      testing_interface_->Destroy(player);
+    } else {
+      SbPlayerDestroy(player);
+    }
+  }
+
+  void Seek(SbPlayer player, base::TimeDelta seek_to_timestamp, int ticket) {
+    if (testing_interface_) {
+      testing_interface_->Seek(player, seek_to_timestamp, ticket);
+    } else {
+      SbPlayerSeek(player, seek_to_timestamp.InMicroseconds(), ticket);
+    }
+  }
+
+  void WriteSamples(SbPlayer player,
+                    SbMediaType sample_type,
+                    const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos) {
+    if (testing_interface_) {
+      testing_interface_->WriteSamples(player, sample_type, sample_infos,
+                                       number_of_sample_infos);
+    } else {
+      SbPlayerWriteSamples(player, sample_type, sample_infos,
+                           number_of_sample_infos);
+    }
+  }
+
+  int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
+                                        SbMediaType sample_type) {
+    return testing_interface_
+               ? testing_interface_->GetMaximumNumberOfSamplesPerWrite(
+                     player, sample_type)
+               : SbPlayerGetMaximumNumberOfSamplesPerWrite(player, sample_type);
+  }
+
+  void WriteEndOfStream(SbPlayer player, SbMediaType stream_type) {
+    if (testing_interface_) {
+      testing_interface_->WriteEndOfStream(player, stream_type);
+    } else {
+      SbPlayerWriteEndOfStream(player, stream_type);
+    }
+  }
+
+  void SetBounds(SbPlayer player,
+                 int z_index,
+                 int x,
+                 int y,
+                 int width,
+                 int height) {
+    if (testing_interface_) {
+      testing_interface_->SetBounds(player, z_index, x, y, width, height);
+    } else {
+      SbPlayerSetBounds(player, z_index, x, y, width, height);
+    }
+  }
+
+  void SetPlaybackRate(SbPlayer player, double playback_rate) {
+    if (testing_interface_) {
+      testing_interface_->SetPlaybackRate(player, playback_rate);
+    } else {
+      SbPlayerSetPlaybackRate(player, playback_rate);
+    }
+  }
+
+ private:
+  const raw_ptr<media::SbPlayerInterface> testing_interface_;
+};
+
 }  // namespace
 
 struct NativeSplashVideoPlayer::Video {
@@ -175,7 +284,7 @@ class NativeSplashVideoPlayer::Core {
     // Callbacks still in flight while the SbPlayer is destroyed are dropped.
     weak_factory_.InvalidateWeakPtrs();
     if (SbPlayerIsValid(player_)) {
-      SbPlayerDestroy(player_);
+      sbplayer_.Destroy(player_);
     }
   }
 
@@ -209,7 +318,7 @@ class NativeSplashVideoPlayer::Core {
     creation_param.video_stream_info = video_stream_info_;
     creation_param.output_mode = kSbPlayerOutputModePunchOut;
 
-    if (SbPlayerGetPreferredOutputMode(&creation_param) !=
+    if (sbplayer_.GetPreferredOutputMode(&creation_param) !=
         kSbPlayerOutputModePunchOut) {
       LOG(WARNING) << "NativeSplash: Punch-out isn't supported.";
       ReportError(Error::kUnsupported);
@@ -220,24 +329,24 @@ class NativeSplashVideoPlayer::Core {
     WaitForVideoSurface();
 #endif  // BUILDFLAG(IS_ANDROID)
 
-    player_ = SbPlayerCreate(kSbWindowInvalid, &creation_param,
-                             &Core::DeallocateSampleCB, &Core::DecoderStatusCB,
-                             &Core::PlayerStatusCB, &Core::PlayerErrorCB, this,
-                             GetDecodeTargetProvider());
+    player_ =
+        sbplayer_.Create(&creation_param, &Core::DeallocateSampleCB,
+                         &Core::DecoderStatusCB, &Core::PlayerStatusCB,
+                         &Core::PlayerErrorCB, this, GetDecodeTargetProvider());
     if (!SbPlayerIsValid(player_)) {
       LOG(ERROR) << "NativeSplash: SbPlayerCreate() failed.";
       ReportError(Error::kCreateFailed);
       return;
     }
 
-    max_samples_per_write_ = std::max(
-        1,
-        SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo));
+    max_samples_per_write_ =
+        std::max(1, sbplayer_.GetMaximumNumberOfSamplesPerWrite(
+                        player_, kSbMediaTypeVideo));
     ApplyBounds();
-    SbPlayerSetPlaybackRate(player_, 1.0);
+    sbplayer_.SetPlaybackRate(player_, 1.0);
     // The player needs a seek to start prerolling. The video starts at 0, as
     // IndexSplashVideoWebM() requires.
-    SbPlayerSeek(player_, /*seek_to_timestamp=*/0, ++ticket_);
+    sbplayer_.Seek(player_, /*seek_to_timestamp=*/base::TimeDelta(), ++ticket_);
   }
 
   // Picks the next of `videos_` that the platform plays, like splash.html.
@@ -293,7 +402,7 @@ class NativeSplashVideoPlayer::Core {
   // Plays the built-in video instead of the one that the WebApp cached, which
   // failed before its first frame: splash.html would only play it again.
   void PlayNextVideo() {
-    SbPlayerDestroy(player_);
+    sbplayer_.Destroy(player_);
     player_ = kSbPlayerInvalid;
     // Ignores the callbacks of the destroyed player still in flight.
     ++ticket_;
@@ -333,9 +442,9 @@ class NativeSplashVideoPlayer::Core {
     }
     VLOG(1) << "NativeSplash: Showing the splash screen video in "
             << video_bounds.ToString() << ".";
-    SbPlayerSetBounds(player_, /*z_index=*/0, video_bounds.x(),
-                      video_bounds.y(), video_bounds.width(),
-                      video_bounds.height());
+    sbplayer_.SetBounds(player_, /*z_index=*/0, video_bounds.x(),
+                        video_bounds.y(), video_bounds.width(),
+                        video_bounds.height());
   }
 
   // The frames are read in place from `webm_`, which outlives the player, as
@@ -408,7 +517,7 @@ class NativeSplashVideoPlayer::Core {
       return;
     }
     if (next_frame_ == index_.frames.size()) {
-      SbPlayerWriteEndOfStream(player_, kSbMediaTypeVideo);
+      sbplayer_.WriteEndOfStream(player_, kSbMediaTypeVideo);
       end_of_stream_written_ = true;
       return;
     }
@@ -430,8 +539,8 @@ class NativeSplashVideoPlayer::Core {
       sample.drm_info = nullptr;
     }
     next_frame_ += count;
-    SbPlayerWriteSamples(player_, kSbMediaTypeVideo, samples.data(),
-                         static_cast<int>(samples.size()));
+    sbplayer_.WriteSamples(player_, kSbMediaTypeVideo, samples.data(),
+                           static_cast<int>(samples.size()));
   }
 
   void OnPlayerState(SbPlayerState state, int ticket) {
@@ -504,6 +613,8 @@ class NativeSplashVideoPlayer::Core {
 
   // Points to static strings, as every sample refers to it.
   SbMediaVideoStreamInfo video_stream_info_ = {};
+  // Makes every SbPlayer call.
+  SbPlayerCalls sbplayer_;
   SbPlayer player_ = kSbPlayerInvalid;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   int max_samples_per_write_ = 1;
