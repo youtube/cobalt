@@ -103,8 +103,6 @@ def main():
       try:
         dind.run_docker_build(args.platform, target_image,
                               args.src_root + '/docker-compose.yaml')
-        dind.tag_image(target_image, floating_image)
-        dind.push_image(floating_image)
         docker_build_duration = time.time() - build_start_time
         logging.info('Docker build took %.2f seconds', docker_build_duration)
       except subprocess.CalledProcessError:
@@ -115,6 +113,9 @@ def main():
             'Docker Build failed. Uploading Failure Image.')
         dind.pull_image(failure_image)
         dind.tag_image(failure_image, target_image)
+      else:
+        dind.tag_image(target_image, floating_image)
+        dind.push_image(floating_image)
       # Upload the newly built (or re-tagged) image to the registry to become
       # available to Kokoro jobs that are waiting on the image.
       dind.push_image(target_image)
