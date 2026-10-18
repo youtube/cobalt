@@ -460,8 +460,12 @@ class NativeSplashVideoPlayer::Core {
                      SbPlayerError error,
                      const std::string& message) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    if (player != reinterpret_cast<uintptr_t>(player_)) {
-      // From a player destroyed since.
+    // From a player destroyed since, or from one that failed to be created,
+    // which CreatePlayer() reports as kCreateFailed: e.g., Android's
+    // SbPlayerCreate() reports its error, with kSbPlayerInvalid, before it
+    // returns.
+    if (!SbPlayerIsValid(player_) ||
+        player != reinterpret_cast<uintptr_t>(player_)) {
       return;
     }
     LOG(ERROR) << "NativeSplash: SbPlayer error " << error << ": " << message;
