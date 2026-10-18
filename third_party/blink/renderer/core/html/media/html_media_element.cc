@@ -2673,6 +2673,16 @@ void HTMLMediaElement::Seek(double time) {
   // 10 - Queue a task to fire a simple event named seeking at the element.
   ScheduleNamedEvent(event_type_names::kSeeking);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Report pending audio track changes before the seek that completes a
+  // multi-SourceBuffer switch, rather than waiting for the timer task.
+  if (audio_tracks_timer_.IsActive() &&
+      media::IsMultiSourceBufferSwitchingEnabled()) {
+    audio_tracks_timer_.Stop();
+    AudioTracksTimerFired(&audio_tracks_timer_);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // 11 - Set the current playback position to the given new playback position.
   web_media_player_->Seek(time);
   web_media_player_->OnTimeUpdate();
@@ -3458,6 +3468,23 @@ void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
   DVLOG(3) << "selectedVideoTrackChanged(" << *this << ") selectedTrackId="
            << (track->selected() ? String(track->id()) : "none");
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TrackSelected() deselects the previous track without notifying the
+  // MediaSource. Notify it so the previous SourceBuffer leaves
+  // activeSourceBuffers.
+  VideoTrack* deselected_track = nullptr;
+  if (track->selected() && media_source_attachment_ &&
+      media::IsMultiSourceBufferSwitchingEnabled()) {
+    for (unsigned i = 0; i < videoTracks().length(); ++i) {
+      VideoTrack* other_track = videoTracks().AnonymousIndexedGetter(i);
+      if (other_track != track && other_track->selected()) {
+        deselected_track = other_track;
+        break;
+      }
+    }
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   if (track->selected())
     videoTracks().TrackSelected(track->id());
 
@@ -3465,6 +3492,13 @@ void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
 
   if (media_source_attachment_)
     media_source_attachment_->OnTrackChanged(media_source_tracer_, track);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (deselected_track) {
+    media_source_attachment_->OnTrackChanged(media_source_tracer_,
+                                             deselected_track);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (track->selected()) {
     web_media_player_->SelectedVideoTrackChanged(track->id());

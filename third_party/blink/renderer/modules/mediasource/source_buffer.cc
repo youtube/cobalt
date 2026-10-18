@@ -224,6 +224,37 @@ bool GetAppendFirstSegmentSynchronouslySetting(
   }
   return false;
 }
+
+// Returns true if a SourceBuffer of |source| other than |source_buffer| has an
+// enabled audio track.
+bool IsAudioTrackEnabledInOtherSourceBuffer(MediaSource* source,
+                                            const SourceBuffer* source_buffer) {
+  SourceBufferList* source_buffers = source->sourceBuffers();
+  for (unsigned i = 0; i < source_buffers->length(); ++i) {
+    SourceBuffer* other_source_buffer = source_buffers->item(i);
+    if (other_source_buffer != source_buffer &&
+        other_source_buffer->audioTracks().HasEnabledTrack()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Returns true if a SourceBuffer of |source| other than |source_buffer| has a
+// selected video track.
+bool IsVideoTrackSelectedInOtherSourceBuffer(
+    MediaSource* source,
+    const SourceBuffer* source_buffer) {
+  SourceBufferList* source_buffers = source->sourceBuffers();
+  for (unsigned i = 0; i < source_buffers->length(); ++i) {
+    SourceBuffer* other_source_buffer = source_buffers->item(i);
+    if (other_source_buffer != source_buffer &&
+        other_source_buffer->videoTracks().selectedIndex() != -1) {
+      return true;
+    }
+  }
+  return false;
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
@@ -1751,6 +1782,21 @@ bool SourceBuffer::InitializationSegmentReceived(
     //     decode error parameter set to true and abort these steps.
     // This is done in Chromium code, see MediaSourceState::OnNewConfigs.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // Leave tracks of a queued SourceBuffer disabled until the page selects
+    // them so they do not replace the playing tracks.
+    // NOTE: This deviates from the MSE specification, which enables or selects
+    // the first track of each type in every SourceBuffer.
+    const bool multi_source_buffer_switching =
+        media::IsMultiSourceBufferSwitchingEnabled();
+    const bool may_enable_audio_track =
+        !multi_source_buffer_switching ||
+        !IsAudioTrackEnabledInOtherSourceBuffer(source_, this);
+    const bool may_select_video_track =
+        !multi_source_buffer_switching ||
+        !IsVideoTrackSelectedInOtherSourceBuffer(source_, this);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
     // 5.2 For each audio track in the initialization segment, run following
     //     steps:
     for (const MediaTrackInfo& track_info : new_audio_tracks) {
@@ -1792,7 +1838,11 @@ bool SourceBuffer::InitializationSegmentReceived(
           /*exclusive=*/false);
       SourceBufferTrackBaseSupplement::SetSourceBuffer(*audio_track, this);
       // 5.2.8.7 If audioTracks.length equals 0, then run the following steps:
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (audioTracks().length() == 0 && may_enable_audio_track) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       if (audioTracks().length() == 0) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         // 5.2.8.7.1 Set the enabled property on new audio track to true.
         audio_track->setEnabled(true);
         // 5.2.8.7.2 Set active track flag to true.
@@ -1853,7 +1903,11 @@ bool SourceBuffer::InitializationSegmentReceived(
           track_info.id, kind, std::move(label), std::move(language), false);
       SourceBufferTrackBaseSupplement::SetSourceBuffer(*video_track, this);
       // 5.3.8.7 If videoTracks.length equals 0, then run the following steps:
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (videoTracks().length() == 0 && may_select_video_track) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       if (videoTracks().length() == 0) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         // 5.3.8.7.1 Set the selected property on new audio track to true.
         video_track->setSelected(true);
         // 5.3.8.7.2 Set active track flag to true.

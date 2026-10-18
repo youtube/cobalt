@@ -4,8 +4,10 @@
 
 // https://html.spec.whatwg.org/C/#videotracklist
 
+// Cobalt: CobaltAudioVideoTracks is on whenever AudioVideoTracks is, and is
+// also enabled by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`.
 [
-    RuntimeEnabled=AudioVideoTracks,
+    RuntimeEnabled=CobaltAudioVideoTracks,
     Exposed=Window
 ] interface VideoTrackList : EventTarget {
   readonly attribute unsigned long length;
