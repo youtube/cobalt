@@ -1,0 +1,8 @@
+# AOSP nplb exclusions.
+-*MaximumPlayerConfigurationExplorer*
+-*MultiplePlayer*
+-*SbMediaSetAudioWriteDuration*
+-*SbPlayer*
+-*VerticalVideoTest*
+-SbDrmSessionTest.InvalidSessionUpdateRequestParams
+-SbMediaCanPlayMimeAndKeySystem.MinimumSupport

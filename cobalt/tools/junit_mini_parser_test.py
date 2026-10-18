@@ -202,6 +202,36 @@ class TestMain(unittest.TestCase):
     expected_output = {'failing_tests': {}}
     self.assertEqual(json.loads(mock_stdout.getvalue()), expected_output)
 
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_filter_format_with_failures(self, mock_stdout: io.StringIO,
+                                            mock_find: MagicMock) -> None:
+    mock_find.return_value = {
+        'results_0.xml': [{
+            'name': 'Test.fail2',
+            'message': 'msg'
+        }],
+        'results_1.xml': [{
+            'name': 'Test.fail1',
+            'message': 'msg'
+        }, {
+            'name': 'Test.fail2',
+            'message': 'duplicate msg'
+        }],
+    }
+    exit_code = main(['--format=filter', 'results_0.xml', 'results_1.xml'])
+    self.assertEqual(exit_code, 1)
+    self.assertEqual(mock_stdout.getvalue(), 'Test.fail1\nTest.fail2\n')
+
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_filter_format_no_failures(self, mock_stdout: io.StringIO,
+                                          mock_find: MagicMock) -> None:
+    mock_find.return_value = {}
+    exit_code = main(['--format', 'filter', 'results.xml'])
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(mock_stdout.getvalue().strip(), '-*')
+
 
 if __name__ == '__main__':
   unittest.main()
