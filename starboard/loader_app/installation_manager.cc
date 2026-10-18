@@ -18,10 +18,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/check_op.h"
@@ -64,6 +66,11 @@ class InstallationManager {
   bool IsValidIndex(int i);
   void ValidatePriorities();
   int FindCurrentInstallationIndex();
+  // If an existing store on disk was created with a different number of slots
+  // (e.g., upgrading from a 3-slot Cobalt <= 25 configuration to a 2-slot
+  // Cobalt >= 26 configuration), migrate the kept slots and normalize their
+  // priorities so InstallationManager does not fail initialization or rollback.
+  bool MigrateInstallationStore();
   void CreateInstallationStore();
   std::string DumpInstallationSlots();
   void LogLastSystemError(const char* msg);
@@ -130,6 +137,22 @@ int InstallationManager::Initialize() {
     }
     initialized_ = SaveInstallationStore();
   } else {
+    // If the on-disk InstallationStore has a different slot count than
+    // |max_num_installations_|, migrate the store in-place and persist it
+    // before resolving |current_installation_|.
+    if (installation_store_.installations_size() != max_num_installations_) {
+      if (!MigrateInstallationStore()) {
+        CreateInstallationStore();
+      }
+      if (!CreateInstallationDirs()) {
+        SB_LOG(ERROR) << "Initialize: Unable to create installations dirs";
+        return IM_ERROR;
+      }
+      if (!SaveInstallationStore()) {
+        SB_LOG(ERROR) << "Initialize: Unable to save migrated store";
+        return IM_ERROR;
+      }
+    }
     current_installation_ = FindCurrentInstallationIndex();
     if (!IsValidIndex(current_installation_)) {
       SB_LOG(ERROR) << "Initialize: Unable to find current installation"
@@ -179,6 +202,62 @@ int InstallationManager::Reset() {
     return IM_ERROR;
   }
   return IM_SUCCESS;
+}
+
+bool InstallationManager::MigrateInstallationStore() {
+  int old_size = installation_store_.installations_size();
+  SB_LOG(WARNING) << "MigrateInstallationStore: store installation count ("
+                  << old_size << ") does not match max_num_installations ("
+                  << max_num_installations_ << ").";
+  if (old_size <= 0) {
+    return false;
+  }
+
+  int kept_count = std::min(old_size, max_num_installations_);
+  // Collect (old_priority, slot_index) for slots in [0, kept_count) and sort
+  // them so we preserve their relative priority ordering in [0, kept_count).
+  std::vector<std::pair<int, int>> priority_and_index;
+  priority_and_index.reserve(kept_count);
+  for (int i = 0; i < kept_count; i++) {
+    priority_and_index.push_back(
+        {installation_store_.installations(i).priority(), i});
+  }
+  std::sort(priority_and_index.begin(), priority_and_index.end());
+
+  // Copy existing slot metadata for slots < old_size, and initialize any newly
+  // added slots (when scaling up slot count) with default values.
+  cobalt::loader::InstallationStore new_store;
+  for (int i = 0; i < max_num_installations_; i++) {
+    new_store.add_installations();
+    if (i < old_size) {
+      *new_store.mutable_installations(i) =
+          installation_store_.installations(i);
+    } else {
+      new_store.mutable_installations(i)->set_is_successful(false);
+      new_store.mutable_installations(i)->set_num_tries_left(IM_MAX_NUM_TRIES);
+      new_store.mutable_installations(i)->set_priority(highest_priority_ + i);
+    }
+  }
+
+  // Reassign contiguous priorities [highest_priority_, highest_priority_ +
+  // kept_count - 1] according to the sorted order of the kept slots.
+  for (int new_priority = 0; new_priority < kept_count; new_priority++) {
+    int slot_index = priority_and_index[new_priority].second;
+    new_store.mutable_installations(slot_index)
+        ->set_priority(highest_priority_ + new_priority);
+  }
+
+  // Preserve a pending roll-forward target only if it refers to a valid slot
+  // index in the new configuration.
+  int roll_forward = installation_store_.roll_forward_to_installation();
+  if (IsValidIndex(roll_forward)) {
+    new_store.set_roll_forward_to_installation(roll_forward);
+  } else {
+    new_store.set_roll_forward_to_installation(-1);
+  }
+
+  installation_store_ = new_store;
+  return true;
 }
 
 void InstallationManager::CreateInstallationStore() {

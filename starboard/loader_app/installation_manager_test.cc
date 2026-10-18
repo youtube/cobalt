@@ -223,6 +223,120 @@ TEST_P(InstallationManagerTest, InitializeMultiple) {
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
 }
 
+TEST_F(InstallationManagerTest, InitializeWithMismatchedMaxNumInstallations) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  // Simulate a 3-slot InstallationStore on disk where slot 2 is active
+  // (priority 0) and a roll-forward to slot 2 was requested, followed by an
+  // upgrade to a 2-slot configuration.
+  ASSERT_EQ(IM_SUCCESS, ImInitialize(3, kAppKey));
+  ASSERT_EQ(IM_SUCCESS, ImRollForward(2));
+  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(2));
+  ASSERT_EQ(2, ImGetCurrentInstallationIndex());
+  ASSERT_EQ(IM_SUCCESS, ImRequestRollForwardToInstallation(2));
+  ImUninitialize();
+
+  // Re-initializing with 2 slots should migrate the store cleanly (preserving
+  // the relative priority of slots 0 and 1, so slot 0 becomes priority 0 and
+  // slot 1 becomes priority 1) and clear the invalid roll-forward target.
+  ASSERT_EQ(IM_SUCCESS, ImInitialize(2, kAppKey));
+  ASSERT_EQ(2, ImGetMaxNumberInstallations());
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(1));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(2));
+  ASSERT_EQ(IM_SUCCESS, ImRollForwardIfNeeded());
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ImUninitialize();
+
+  // Verify the migrated 2-slot state was persisted to disk.
+  cobalt::loader::InstallationStore installation_store;
+  ReadStorageState(&installation_store);
+  ASSERT_EQ(2, installation_store.installations_size());
+  ASSERT_EQ(-1, installation_store.roll_forward_to_installation());
+  ASSERT_EQ(0, installation_store.installations(0).priority());
+  ASSERT_EQ(1, installation_store.installations(1).priority());
+}
+
+TEST_F(InstallationManagerTest,
+       InitializeWithMismatchedMaxNumInstallationsSlot2ActiveSlot1Second) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  // Simulate a 3-slot InstallationStore on disk where slot 2 is active
+  // (priority 0), slot 1 has priority 1 (successful), and slot 0 has priority 2
+  // (successful), followed by an upgrade to a 2-slot configuration.
+  cobalt::loader::InstallationStore installation_store;
+  int priorities[3] = {2, 1, 0};
+  bool successful[3] = {true, true, true};
+  for (int i = 0; i < 3; i++) {
+    installation_store.add_installations();
+    installation_store.mutable_installations(i)->set_priority(priorities[i]);
+    installation_store.mutable_installations(i)->set_is_successful(
+        successful[i]);
+    installation_store.mutable_installations(i)->set_num_tries_left(
+        IM_MAX_NUM_TRIES);
+  }
+  installation_store.set_roll_forward_to_installation(-1);
+  SaveStorageState(installation_store);
+
+  // Migrating from 3 slots to 2 slots preserves the relative priority of
+  // slots 0 and 1, promoting slot 1 to priority 0 and slot 0 to priority 1.
+  ASSERT_EQ(IM_SUCCESS, ImInitialize(2, kAppKey));
+  ASSERT_EQ(2, ImGetMaxNumberInstallations());
+  ASSERT_EQ(1, ImGetCurrentInstallationIndex());
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(1));
+  ASSERT_EQ(0, ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ImUninitialize();
+
+  ReadStorageState(&installation_store);
+  ASSERT_EQ(2, installation_store.installations_size());
+  ASSERT_EQ(0, installation_store.installations(0).priority());
+  ASSERT_EQ(1, installation_store.installations(1).priority());
+}
+
+TEST_F(InstallationManagerTest,
+       InitializeWithMismatchedMaxNumInstallationsSlot1Active) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  // Simulate a 3-slot InstallationStore on disk where slot 1 is active
+  // (priority 0), slot 2 has priority 1, and slot 0 has priority 2, followed by
+  // an upgrade to a 2-slot configuration and a revert to the system image.
+  cobalt::loader::InstallationStore installation_store;
+  int priorities[3] = {2, 0, 1};
+  bool successful[3] = {true, false, true};
+  for (int i = 0; i < 3; i++) {
+    installation_store.add_installations();
+    installation_store.mutable_installations(i)->set_priority(priorities[i]);
+    installation_store.mutable_installations(i)->set_is_successful(
+        successful[i]);
+    installation_store.mutable_installations(i)->set_num_tries_left(
+        IM_MAX_NUM_TRIES);
+  }
+  installation_store.set_roll_forward_to_installation(-1);
+  SaveStorageState(installation_store);
+
+  // Migrating from 3 slots to 2 slots preserves the relative priority of
+  // slots 0 and 1 (so slot 1 stays at priority 0 and slot 0 shifts from
+  // priority 2 to priority 1), allowing RevertToSuccessfulInstallation to
+  // cleanly fall back to slot 0.
+  ASSERT_EQ(IM_SUCCESS, ImInitialize(2, kAppKey));
+  ASSERT_EQ(2, ImGetMaxNumberInstallations());
+  ASSERT_EQ(1, ImGetCurrentInstallationIndex());
+  ASSERT_EQ(0, ImRevertToSuccessfulInstallation(SlotSelectionStatus::kUnknown));
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ImUninitialize();
+
+  ReadStorageState(&installation_store);
+  ASSERT_EQ(2, installation_store.installations_size());
+  ASSERT_EQ(0, installation_store.installations(0).priority());
+  ASSERT_EQ(1, installation_store.installations(1).priority());
+}
+
 TEST_P(InstallationManagerTest, Reset) {
   if (!storage_path_implemented_) {
     return;
