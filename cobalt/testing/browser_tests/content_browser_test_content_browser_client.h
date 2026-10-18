@@ -45,6 +45,8 @@ class ContentBrowserTestContentBrowserClient
   std::unique_ptr<BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
 
+  void CreateFeatureListAndFieldTrials() override;
+
   void OnWebContentsCreated(content::WebContents* web_contents) override;
 
  private:

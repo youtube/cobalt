@@ -18,10 +18,14 @@
 #include <optional>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/unique_receiver_set.h"
+#include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace content {
@@ -87,7 +91,9 @@ class H5vccSchemeURLLoaderFactory final
   uint64_t splash_content_size_limit_;
   static std::optional<std::string> global_splash_domain_test_;
   static std::optional<int> global_splash_content_size_test_;
-  BrowserContext* browser_context_;
+  raw_ptr<BrowserContext> browser_context_;
+  mojo::ReceiverSet<network::mojom::URLLoaderFactory> receivers_;
+  mojo::UniqueReceiverSet<network::mojom::URLLoader> loaders_;
 };
 
 }  // namespace content

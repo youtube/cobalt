@@ -190,10 +190,6 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-  // On Android and iOS, we defer to the system message loop when the stack
-  // unwinds. So here we only create (and leak) a BrowserMainRunner. The
-  // shutdown of BrowserMainRunner doesn't happen in Chrome Android/iOS and
-  // doesn't work properly on Android/iOS at all.
   std::unique_ptr<BrowserMainRunner> main_runner = BrowserMainRunner::Create();
   // In browser tests, the |main_function_params| contains a |ui_task| which
   // will execute the testing. The task will be executed synchronously inside
@@ -202,7 +198,7 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
       main_runner->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
-  std::ignore = main_runner.release();
+  main_runner->Shutdown();
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks
   // to the |ui_task| for browser tests.
