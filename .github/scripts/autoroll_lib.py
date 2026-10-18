@@ -30,13 +30,79 @@ def get_out(cmd):
   return res.stdout
 
 
-def get_start_sha(branch, autoroll_file):
-  """Returns an autoroll start SHA or None if CONFLICTED."""
-  start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
+def rev_parse(ref):
+  return get_out(['git', 'rev-parse', ref]).strip()
 
-  if start.startswith('CONFLICTED:'):
-    return None
-  return start
+
+def current_branch():
+  return get_out(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
+
+
+def show_commit(ref, fmt):
+  """Returns the given --format field of a single commit."""
+  return get_out(['git', 'log', '-1', f'--format={fmt}', ref]).strip()
+
+
+def get_subjects(rev_range):
+  """Returns the commit subjects in rev_range, oldest first."""
+  return get_out(['git', 'log', '--reverse', '--format=%s',
+                  rev_range]).splitlines()
+
+
+# Subjects the autoroller itself writes. Anything else on an autoroll branch
+# means a human has taken over (e.g. pushed a RESOLVED commit).
+_BOT_SUBJECT = re.compile(r'^(CONFLICTED )?Cherry pick (PR #\d+|commit \w+): ')
+
+
+def is_bot_branch(target, ref):
+  """Returns True if every commit in target..ref was written by the roller."""
+  return all(_BOT_SUBJECT.match(s) for s in get_subjects(f'{target}..{ref}'))
+
+
+def is_bot_conflict_branch(target, ref):
+  """Returns True if target..ref is exactly one roller CONFLICTED commit."""
+  subjects = get_subjects(f'{target}..{ref}')
+  return len(subjects) == 1 and subjects[0].startswith(
+      'CONFLICTED Cherry pick ')
+
+
+def patch_id(sha):
+  """Returns the stable patch id of a commit's own change.
+
+  Unlike comparing trees, this is unaffected by unrelated changes to the
+  commit's base, so a rebuilt CONFLICTED commit on a moved target only looks
+  different when the conflict itself changed.
+  """
+  diff = get_out(['git', 'diff', f'{sha}~', sha])
+  res = subprocess.run(['git', 'patch-id', '--stable'],
+                       input=diff,
+                       capture_output=True,
+                       text=True,
+                       check=True)
+  return res.stdout.split()[0] if res.stdout else ''
+
+
+def list_branches(prefix):
+  """Returns a dict of local branch name -> SHA for branches with prefix."""
+  output = get_out([
+      'git', 'for-each-ref', '--format=%(refname:short) %(objectname)',
+      f'refs/heads/{prefix}*'
+  ])
+  branches = {}
+  for line in output.splitlines():
+    name, sha = line.split()
+    branches[name] = sha
+  return branches
+
+
+def read_cursor(branch, autoroll_file):
+  """Returns the raw content of the autoroll cursor file on branch."""
+  return get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
+
+
+def get_start_sha(branch, autoroll_file):
+  """Returns the autoroll cursor SHA, ignoring a stray CONFLICTED: marker."""
+  return read_cursor(branch, autoroll_file).removeprefix('CONFLICTED:')
 
 
 def get_commits(branch, start):
@@ -86,6 +152,7 @@ def load_pr_labels_from_file(json_path):
   """
   with open(json_path, 'r', encoding='utf-8') as f:
     prs_data = json.load(f)
+  _PR_LABELS_CACHE.clear()
   for pr in prs_data:
     pr_num = pr.get('number')
     if pr_num is not None:
