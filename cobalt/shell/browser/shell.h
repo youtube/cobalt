@@ -325,8 +325,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     // A video hole, through which the splash screen video played natively
     // shows.
     kNativeVideoHole,
-    // The image.
-    kImage,
   };
   // Loads the splash screen page into the splash screen WebContents.
   void LoadSplashScreenURL(SplashScreenPage page);
@@ -348,10 +346,9 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void OnNativeSplashVideoFirstFrame();
   void OnNativeSplashVideoEnded();
   void OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error);
-  // Stops the splash screen video played natively when the app is concealed:
-  // the image shows instead until the splash screen ends, as the surface of the
-  // video may not survive. The switch to the main WebContents still happens
-  // once it has loaded.
+  // Stops the splash screen video played natively when the app is concealed,
+  // and switches to the main WebContents, even if it hasn't loaded yet: the
+  // surface of the video may not survive.
   void StopNativeSplashVideo();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
