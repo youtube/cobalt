@@ -167,6 +167,7 @@ public class BaseStarboardBridge {
     mAdvertisingId = null;
     mIsAmatiDevice = false;
     mNativeApp = 0;
+    sInstance = this;
   }
 
   public BaseStarboardBridge(
