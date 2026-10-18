@@ -83,6 +83,25 @@ _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
 _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
+# Symbols the Cobalt module must not import, even though exported_symbols.cc
+# still lists them. PartitionAlloc defines the C allocation functions inside the
+# module, so importing them instead would split the heap between PartitionAlloc
+# and the platform allocator: memory obtained from one would be released to the
+# other. The loader keeps exporting them for modules built before that was the
+# case, which is why they cannot simply be dropped from exported_symbols.cc.
+_DENIED_SYMBOLS = frozenset({
+    'aligned_alloc',
+    'calloc',
+    'free',
+    'malloc',
+    'malloc_usable_size',
+    'memalign',
+    'posix_memalign',
+    'pvalloc',
+    'realloc',
+    'valloc',
+})
+
 
 def DiffWithManifest(leaked_symbols, manifest_path):
   manifest_symbols = LoadManifest(manifest_path)
@@ -267,8 +286,17 @@ def FindLeakLocations(leaked_symbols, config_path, only_grep, use_ripgrep):
     # we just assume those are matches.
     leaking_files[_UNKNOWN_LIBRARIES][symbol] = set()
     for obj_file in obj_files_to_check:
-      if os.path.splitext(obj_file)[1] == '.rlib' or symbol in ProcessNmOutput(
-          RunCommand(['nm', '-u', '-C', obj_file])):
+      if os.path.splitext(obj_file)[1] == '.rlib':
+        leaking_files[_UNKNOWN_LIBRARIES][symbol].add(
+            '//' + os.path.relpath(obj_file, paths.REPOSITORY_ROOT))
+        continue
+
+      # grep matches any file containing the symbol name, including text files
+      # such as ninja depfiles, which nm cannot parse. Treat those as misses
+      # rather than letting nm's failure abort the report.
+      nm_output = RunCommand(['nm', '-u', '-C', obj_file],
+                             valid_exit_codes=[0, 1])
+      if symbol in ProcessNmOutput(nm_output):
         leaking_files[_UNKNOWN_LIBRARIES][symbol].add(
             '//' + os.path.relpath(obj_file, paths.REPOSITORY_ROOT))
 
@@ -507,7 +535,16 @@ def main():
   # Starboard functions and extern configuration variables filtered out.
   allowed_symbols = LoadExportedSymbols()
 
+  # The denied symbols only apply to the Cobalt module, which is the one that
+  # bundles PartitionAlloc. Other modules, such as nplb, do not, and so
+  # legitimately use the allocator the loader exports.
+  denied_symbols = _DENIED_SYMBOLS if args.target == _DEFAULT_TARGET \
+      else frozenset()
+
   def IsAllowedSymbol(symbol):
+    if symbol in denied_symbols:
+      return False
+
     if symbol in allowed_symbols:
       return True
 

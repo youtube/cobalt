@@ -33,10 +33,20 @@
 #include "partition_alloc/shim/allocator_shim_override_cpp_symbols.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-// Don't include anything, all includes are already set up in MUSL libc
-#else
-#include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
+// glibc declares the C allocation functions with __THROW, so upstream the
+// definitions below are decorated to match. musl declares them without any
+// exception specification, so the decoration has to be dropped here or the
+// definitions conflict with the declarations in musl's <malloc.h> and
+// <stdlib.h>.
+//
+// This cannot be handled in allocator_shim_internals.h: libc++ declares the
+// nothrow operator new/delete overloads with _NOEXCEPT, so
+// allocator_shim_override_cpp_symbols.h (included above) needs __THROW to keep
+// expanding to noexcept.
+#undef __THROW
+#define __THROW
 #endif
+#include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
 
 // Some glibc versions (until commit 6c444ad6e953dbdf9c7be065308a0a777)
 // incorrectly call __libc_memalign() to allocate memory (see elf/dl-tls.c in
