@@ -48,12 +48,26 @@ public class JavaSwitches {
   /**
    * Opts out of --enable-low-end-device-mode.
    *
-   * <p>Defined in Java to meet a timing requirement: the switch is consumed in C++, but
-   * base::SysInfo::IsLowEndDevice() reads it in JNI_LibraryLoader_LibraryLoaded(), before the
-   * native initialization hook runs. It is therefore applied on the Java CommandLine before
-   * libcobalt.so loads (see addPreNativeSwitches()).
+   * <p>Defined in Java to meet a timing requirement: the switch is read before the native
+   * initialization hook runs, by Java SysUtils.isLowEndDevice(), which caches the result, and by
+   * base::SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded(). It is therefore applied
+   * on the Java CommandLine before libcobalt.so loads (see addSwitchesReadBeforeNativeInit()).
    */
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
+
+  /**
+   * Forces a 720p UI (--force-device-scale-factor=1.5) when the device has 1 GB of RAM or less and
+   * a display of at least 1080p. See b/558324832.
+   *
+   * <p>Defined in Java to meet a timing requirement: --force-device-scale-factor is read in Java
+   * (PhysicalDisplayAndroid, e.g. via DeviceUtils.updateDeviceSpecificUserAgentSwitch()) before
+   * libcobalt.so loads, and the value is cached for the process. It is therefore applied on the
+   * Java CommandLine before libcobalt.so loads (see addSwitchesReadBeforeNativeInit()).
+   */
+  public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
+
+  @VisibleForTesting static final String DEFAULT_DEVICE_SCALE_FACTOR = "1";
+  @VisibleForTesting static final String FORCE_720P_UI_DEVICE_SCALE_FACTOR = "1.5";
 
   /**
    * Disables the StartupGuard watchdog.
@@ -209,7 +223,7 @@ public class JavaSwitches {
     if (!shouldApplyExperimentConfigs || javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
-    addPreNativeSwitches(args, javaSwitches);
+    addSwitchesReadBeforeNativeInit(args, javaSwitches);
     sNativeKeyValues = toNativeKeyValues(javaSwitches);
   }
 
@@ -221,13 +235,26 @@ public class JavaSwitches {
     return keyValues;
   }
 
-  private static void addPreNativeSwitches(List<String> args, Map<String, String> javaSwitches) {
-    // Must be set before libcobalt.so loads: base::SysInfo::IsLowEndDevice() is called in
-    // JNI_LibraryLoader_LibraryLoaded() before the C++ initialization hook runs.
+  private static void addSwitchesReadBeforeNativeInit(
+      List<String> args, Map<String, String> javaSwitches) {
+    // Read by Java SysUtils.isLowEndDevice(), which caches the result, and by
+    // SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded() (orderfile optimization).
     // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices.
     if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
       args.add("--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
     }
+
+    // Read and cached by PhysicalDisplayAndroid, via
+    // DeviceUtils.updateDeviceSpecificUserAgentSwitch().
+    boolean force720pUi =
+        javaSwitches.containsKey(FORCE_720P_UI_ON_1GB_DEVICES)
+            && DeviceUtil.is1GbDevice()
+            && DeviceUtil.isDisplayAtLeast1080p();
+    args.add(
+        "--"
+            + DisplaySwitches.FORCE_DEVICE_SCALE_FACTOR
+            + "="
+            + (force720pUi ? FORCE_720P_UI_DEVICE_SCALE_FACTOR : DEFAULT_DEVICE_SCALE_FACTOR));
   }
 
   /**

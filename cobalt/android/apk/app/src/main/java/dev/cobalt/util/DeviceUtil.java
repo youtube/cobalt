@@ -19,8 +19,6 @@ import android.util.DisplayMetrics;
 import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.SysUtils;
-import org.jni_zero.CalledByNative;
-import org.jni_zero.JNINamespace;
 
 /**
  * Utility methods for querying device hardware capabilities and constraints.
@@ -33,7 +31,6 @@ import org.jni_zero.JNINamespace;
  *
  * <p>This class is thread-safe and its static methods can be called from any thread.
  */
-@JNINamespace("cobalt")
 public final class DeviceUtil {
   private DeviceUtil() {} // Prevent instantiation.
 
@@ -72,7 +69,6 @@ public final class DeviceUtil {
    * --enable-low-end-device-mode by default, which causes isLowEndDevice() to return true for all
    * devices. We query SysUtils.amountOfPhysicalMemoryKB() directly instead.
    */
-  @CalledByNative
   public static boolean is1GbDevice() {
     if (sIs1GbDeviceForTesting != null) {
       return sIs1GbDeviceForTesting;
@@ -82,7 +78,6 @@ public final class DeviceUtil {
   }
 
   /** Returns true if the display resolution is at least 1080p. */
-  @CalledByNative
   public static boolean isDisplayAtLeast1080p() {
     if (sIsDisplayAtLeast1080pForTesting != null) {
       return sIsDisplayAtLeast1080pForTesting;

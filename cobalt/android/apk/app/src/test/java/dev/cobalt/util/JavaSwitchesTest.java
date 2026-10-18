@@ -47,6 +47,7 @@ public class JavaSwitchesTest {
   @After
   public void tearDown() {
     JavaSwitches.setOverrideForTesting(null);
+    DeviceUtil.resetForTesting();
     clearConfigFiles();
   }
 
@@ -205,6 +206,8 @@ public class JavaSwitchesTest {
   }
 
   private static final String LOW_END = "--enable-low-end-device-mode";
+  private static final String DEFAULT_SCALE = "--force-device-scale-factor=1";
+  private static final String UI_720P_SCALE = "--force-device-scale-factor=1.5";
 
   private static List<String> apply(Map<String, String> switches, boolean shouldApply) {
     List<String> args = new ArrayList<>();
@@ -214,13 +217,13 @@ public class JavaSwitchesTest {
 
   @Test
   public void testApply_NullSwitches() {
-    assertThat(apply(null, true)).containsExactly(LOW_END);
+    assertThat(apply(null, true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
     assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
   public void testApply_EmptySwitches() {
-    assertThat(apply(new HashMap<>(), true)).containsExactly(LOW_END);
+    assertThat(apply(new HashMap<>(), true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
     assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
@@ -231,7 +234,7 @@ public class JavaSwitchesTest {
     switches.put(AndroidTvFlags.ENABLE_QUIC, "");
 
     // Switches expanded in C++ are handed over via takeNativeKeyValues(), not the command line.
-    assertThat(apply(switches, true)).containsExactly(LOW_END);
+    assertThat(apply(switches, true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
   }
 
   @Test
@@ -241,9 +244,9 @@ public class JavaSwitchesTest {
 
     List<String> args = apply(switches, true);
 
-    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // No low-end switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
     // physical memory threshold. Devices at or below it stay low-end.
-    assertThat(args).isEmpty();
+    assertThat(args).containsExactly(DEFAULT_SCALE);
   }
 
   @Test
@@ -252,7 +255,7 @@ public class JavaSwitchesTest {
     switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
 
     // Safe mode / no experiment config must not silently flip low-end mode off.
-    assertThat(apply(switches, false)).containsExactly(LOW_END);
+    assertThat(apply(switches, false)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
   }
 
   @Test
@@ -260,7 +263,9 @@ public class JavaSwitchesTest {
     List<String> args = new ArrayList<>();
     args.add("--enable-features=MetadataFeature");
     JavaSwitches.apply(new HashMap<>(), true, args);
-    assertThat(args).containsExactly("--enable-features=MetadataFeature", LOW_END).inOrder();
+    assertThat(args)
+        .containsExactly("--enable-features=MetadataFeature", LOW_END, DEFAULT_SCALE)
+        .inOrder();
   }
 
   @Test
@@ -334,16 +339,38 @@ public class JavaSwitchesTest {
         .inOrder();
   }
 
-  @Test
-  public void testToNativeKeyValues_Force720pUiOn1GbDevices_PassedThroughUnfiltered() {
-    // Device eligibility is evaluated in C++ (ExpandAndroidTvFlags()), so Java hands the key to
-    // native regardless of the device.
+  private static List<String> applyForce720pUi(
+      boolean hasKey, boolean is1GbDevice, boolean isDisplayAtLeast1080p, boolean shouldApply) {
+    DeviceUtil.setIs1GbDeviceForTesting(is1GbDevice);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(isDisplayAtLeast1080p);
     Map<String, String> switches = new HashMap<>();
-    switches.put(AndroidTvFlags.FORCE720P_UI_ON1_GB_DEVICES, "");
+    if (hasKey) {
+      switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "");
+    }
+    return apply(switches, shouldApply);
+  }
 
-    assertThat(JavaSwitches.toNativeKeyValues(switches))
-        .asList()
-        .containsExactly("Force720pUiOn1GbDevices", "")
+  @Test
+  public void testApply_Force720pUi_EligibleDevice() {
+    assertThat(applyForce720pUi(true, true, true, true))
+        .containsExactly(LOW_END, UI_720P_SCALE)
         .inOrder();
+  }
+
+  @Test
+  public void testApply_Force720pUi_IneligibleDevices() {
+    assertThat(applyForce720pUi(true, true, false, true)).contains(DEFAULT_SCALE); // 720p display.
+    assertThat(applyForce720pUi(true, false, true, true)).contains(DEFAULT_SCALE); // > 1 GB RAM.
+    assertThat(applyForce720pUi(true, false, false, true)).contains(DEFAULT_SCALE); // Neither.
+  }
+
+  @Test
+  public void testApply_Force720pUi_NotInExperiment() {
+    assertThat(applyForce720pUi(false, true, true, true)).contains(DEFAULT_SCALE);
+  }
+
+  @Test
+  public void testApply_Force720pUi_SafeModeUsesDefault() {
+    assertThat(applyForce720pUi(true, true, true, false)).contains(DEFAULT_SCALE);
   }
 }

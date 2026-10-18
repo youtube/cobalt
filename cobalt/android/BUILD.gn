@@ -55,6 +55,11 @@ java_cpp_strings("cobalt_switches_java") {
   template = "apk/app/src/main/java/dev/cobalt/util/CobaltSwitches.java.tmpl"
 }
 
+java_cpp_strings("cobalt_display_switches_java") {
+  sources = [ "//ui/display/display_switches.cc" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/DisplaySwitches.java.tmpl"
+}
+
 java_cpp_enum("cobalt_crash_streak_thresholds_java") {
   sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
 }
@@ -82,7 +87,6 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
-    "apk/app/src/main/java/dev/cobalt/util/DeviceUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
@@ -125,6 +129,7 @@ source_set("androidtv_flags") {
     "androidtv_flag_map.cc",
     "androidtv_flag_map.h",
     "androidtv_flags.h",
+    "v8_switches.h",
   ]
   deps = [
     "//base",
@@ -135,7 +140,6 @@ source_set("androidtv_flags") {
     "//gpu/command_buffer/service",
     "//services/network/public/cpp:flags_and_switches",
     "//third_party/blink/public/common",
-    "//ui/display",
   ]
 }
 
@@ -186,6 +190,7 @@ android_library("cobalt_main_java") {
     ":cobalt_androidtv_flags_java",
     ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
+    ":cobalt_display_switches_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
     ":cobalt_switches_java",

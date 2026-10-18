@@ -30,6 +30,7 @@
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/android/androidtv_flags.h"
+#include "cobalt/android/v8_switches.h"
 #include "cobalt/browser/switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
@@ -37,7 +38,6 @@
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
-#include "ui/display/display_switches.h"
 
 namespace cobalt {
 namespace {
@@ -55,8 +55,6 @@ constexpr char kDefaultMaxOldSpaceSizeMb[] = "512";
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
 constexpr char kDefaultForceGpuMemAvailableMb[] = "64";
 #endif
-constexpr char kDefaultDeviceScaleFactor[] = "1";
-constexpr char k720pUiDeviceScaleFactor[] = "1.5";
 
 std::string KeepDigits(std::string_view value) {
   std::string digits;
@@ -103,6 +101,8 @@ void MergeListSwitch(base::CommandLine* cmd_line,
 
 }  // namespace
 
+namespace flags = androidtv_flags;
+
 AndroidTvFlagMap::AndroidTvFlagMap() = default;
 AndroidTvFlagMap::AndroidTvFlagMap(
     base::flat_map<std::string, std::string> values)
@@ -144,8 +144,7 @@ std::optional<std::string> AndroidTvFlagMap::GetNumeric(
   return digits;
 }
 
-void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
-                          const AndroidTvDeviceInfo& device,
+void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
                           base::CommandLine* cmd_line) {
   CHECK(cmd_line);
 
@@ -153,41 +152,64 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
   std::vector<std::string> disable_features;
   std::vector<std::string> js_flags;
 
-  if (!flags.Has(androidtv_flags::kEnableQuic)) {
+  auto append_switch_if_set = [&](std::string_view key,
+                                  std::string_view switch_name) {
+    if (flag_map.Has(key)) {
+      AppendSwitchIfAbsent(cmd_line, switch_name);
+    }
+  };
+  auto append_numeric_switch = [&](std::string_view key,
+                                   std::string_view switch_name) {
+    if (const auto val = flag_map.GetNumeric(key)) {
+      AppendSwitchIfAbsent(cmd_line, switch_name, *val);
+    }
+  };
+  auto enable_feature_if_set = [&](std::string_view key,
+                                   std::string_view feature_name) {
+    if (flag_map.Has(key)) {
+      enable_features.emplace_back(feature_name);
+    }
+  };
+  auto add_numeric_param = [&](std::vector<std::string>& params,
+                               std::string_view key,
+                               std::string_view param_name) {
+    if (const auto val = flag_map.GetNumeric(key)) {
+      params.push_back(base::StrCat({param_name, "/", *val}));
+    }
+  };
+
+  if (!flag_map.Has(flags::kEnableQuic)) {
     AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
   }
 
-  // Note: DisableLowEndDeviceMode is handled in Java (JavaSwitches.java),
-  // because --enable-low-end-device-mode is read before this hook runs.
-
-  if (flags.Has(androidtv_flags::kUseMinorMsForMinorGc)) {
-    js_flags.push_back("--minor-ms");
-    js_flags.push_back(
-        "--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
+  if (flag_map.Has(flags::kUseMinorMsForMinorGc)) {
+    js_flags.push_back(v8_switches::kMinorMs);
+    js_flags.push_back(base::StrCat(
+        {v8_switches::kMinorMsMinNewSpaceCapacityForConcurrentMarkingMb, "0"}));
   }
 
-  if (const auto old_time =
-          flags.GetNumeric(androidtv_flags::kV8SetBytecodeOldTime)) {
-    js_flags.push_back("--flush-bytecode");
-    js_flags.push_back(base::StrCat({"--bytecode-old-time=", *old_time}));
+  if (const auto old_time = flag_map.GetNumeric(flags::kV8SetBytecodeOldTime)) {
+    js_flags.push_back(v8_switches::kFlushBytecode);
+    js_flags.push_back(
+        base::StrCat({v8_switches::kBytecodeOldTime, *old_time}));
   }
 
   js_flags.push_back(
-      base::StrCat({"--initial-old-space-size=",
-                    flags.GetNumeric(androidtv_flags::kV8InitialOldSpaceSize)
+      base::StrCat({v8_switches::kInitialOldSpaceSize,
+                    flag_map.GetNumeric(flags::kV8InitialOldSpaceSize)
                         .value_or(kDefaultInitialOldSpaceSizeMb)}));
 
-  if (flags.Has(androidtv_flags::kV8DisableSparkplug)) {
-    js_flags.push_back("--no-sparkplug");
+  if (flag_map.Has(flags::kV8DisableSparkplug)) {
+    js_flags.push_back(v8_switches::kNoSparkplug);
   }
 
   js_flags.push_back(
-      base::StrCat({"--max-old-space-size=",
-                    flags.GetNumeric(androidtv_flags::kV8MaxOldSpaceSize)
+      base::StrCat({v8_switches::kMaxOldSpaceSize,
+                    flag_map.GetNumeric(flags::kV8MaxOldSpaceSize)
                         .value_or(kDefaultMaxOldSpaceSizeMb)}));
 
   if (const auto gpu_mem =
-          flags.GetNumeric(androidtv_flags::kForceGpuMemAvailableMb)) {
+          flag_map.GetNumeric(flags::kForceGpuMemAvailableMb)) {
     AppendSwitchIfAbsent(cmd_line, ::switches::kForceGpuMemAvailableMb,
                          *gpu_mem);
   } else {
@@ -197,46 +219,25 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
 #endif
   }
 
-  if (flags.Has(androidtv_flags::kDisableGpuMemoryBufferCompositorResources)) {
-    AppendSwitchIfAbsent(
-        cmd_line, ::switches::kDisableGpuMemoryBufferCompositorResources);
-  }
-
-  if (const auto limit =
-          flags.GetNumeric(androidtv_flags::kGpuImageCacheLimitItems)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kCCImageCacheLimitItems, *limit);
-  }
-
-  if (const auto limit_mb =
-          flags.GetNumeric(androidtv_flags::kLimitImageDecodeCacheSizeMb)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kCCImageCacheLimitMbs,
-                         *limit_mb);
-  }
-
-  if (const auto budget = flags.GetNumeric(
-          androidtv_flags::kDecodedImageWorkingSetBudgetBytes)) {
-    AppendSwitchIfAbsent(
-        cmd_line, ::switches::kDecodedImageWorkingSetBudgetBytes, *budget);
-  }
-
-  if (flags.Has(androidtv_flags::kEnableScalingClippedImages)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kEnableClippedImageScaling);
-  }
+  append_switch_if_set(flags::kDisableGpuMemoryBufferCompositorResources,
+                       ::switches::kDisableGpuMemoryBufferCompositorResources);
+  append_numeric_switch(flags::kGpuImageCacheLimitItems,
+                        ::switches::kCCImageCacheLimitItems);
+  append_numeric_switch(flags::kLimitImageDecodeCacheSizeMb,
+                        ::switches::kCCImageCacheLimitMbs);
+  append_numeric_switch(flags::kDecodedImageWorkingSetBudgetBytes,
+                        ::switches::kDecodedImageWorkingSetBudgetBytes);
+  append_switch_if_set(flags::kEnableScalingClippedImages,
+                       ::switches::kEnableClippedImageScaling);
 
   std::vector<std::string> mojo_pipe_params;
-  if (const auto size = flags.GetNumeric(
-          androidtv_flags::kCobaltDynamicMojoPipeSubresourceSize)) {
-    mojo_pipe_params.push_back(base::StrCat(
-        {network::features::kCobaltDynamicMojoPipeSizingSubresourceSize.name,
-         "/", *size}));
-  }
-  if (const auto size =
-          flags.GetNumeric(androidtv_flags::kCobaltDynamicMojoPipeMediaSize)) {
-    mojo_pipe_params.push_back(base::StrCat(
-        {network::features::kCobaltDynamicMojoPipeSizingMediaSize.name, "/",
-         *size}));
-  }
-  if (flags.Has(androidtv_flags::kEnableCobaltDynamicMojoPipeSizing) ||
+  add_numeric_param(
+      mojo_pipe_params, flags::kCobaltDynamicMojoPipeSubresourceSize,
+      network::features::kCobaltDynamicMojoPipeSizingSubresourceSize.name);
+  add_numeric_param(
+      mojo_pipe_params, flags::kCobaltDynamicMojoPipeMediaSize,
+      network::features::kCobaltDynamicMojoPipeSizingMediaSize.name);
+  if (flag_map.Has(flags::kEnableCobaltDynamicMojoPipeSizing) ||
       !mojo_pipe_params.empty()) {
     std::string feature = network::features::kCobaltDynamicMojoPipeSizing.name;
     if (!mojo_pipe_params.empty()) {
@@ -245,73 +246,49 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
     enable_features.push_back(std::move(feature));
   }
 
-  if (flags.Has(
-          androidtv_flags::kEnableCobaltContentLengthAwareMojoPipeSizing)) {
-    enable_features.push_back(
-        network::features::kCobaltContentLengthAwareMojoPipeSizing.name);
-  }
+  enable_feature_if_set(
+      flags::kEnableCobaltContentLengthAwareMojoPipeSizing,
+      network::features::kCobaltContentLengthAwareMojoPipeSizing.name);
 
   std::vector<std::string> interest_area_params;
-  if (const auto size =
-          flags.GetNumeric(androidtv_flags::kInterestAreaSizeInPixels)) {
-    interest_area_params.push_back(
-        base::StrCat({::features::kInterestAreaSizeInPixels.name, "/", *size}));
-  }
-  if (const auto delay =
-          flags.GetNumeric(androidtv_flags::kReclaimDelayInSeconds)) {
-    interest_area_params.push_back(
-        base::StrCat({::features::kReclaimDelayInSeconds.name, "/", *delay}));
-  }
+  add_numeric_param(interest_area_params, flags::kInterestAreaSizeInPixels,
+                    ::features::kInterestAreaSizeInPixels.name);
+  add_numeric_param(interest_area_params, flags::kReclaimDelayInSeconds,
+                    ::features::kReclaimDelayInSeconds.name);
   if (!interest_area_params.empty()) {
     enable_features.push_back(
         base::StrCat({::features::kSmallerInterestArea.name, ":",
                       base::JoinString(interest_area_params, "/")}));
   }
 
-  if (flags.Has(androidtv_flags::kAvoidCcReuseResource)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kAvoidCCReuseResource);
-  }
+  append_switch_if_set(flags::kAvoidCcReuseResource,
+                       ::switches::kAvoidCCReuseResource);
+  enable_feature_if_set(
+      flags::kCobaltBypassResourceLoadScheduler,
+      blink::features::kCobaltBypassResourceLoadScheduler.name);
+  enable_feature_if_set(flags::kCobaltBypassHtmlPreloadScanner,
+                        blink::features::kCobaltBypassHTMLPreloadScanner.name);
+  enable_feature_if_set(flags::kEnableCobaltMmapFontCache,
+                        kCobaltMmapFontCacheFeature);
+  enable_feature_if_set(flags::kAreaBasedVideoBufferBudget,
+                        kAreaBasedVideoBufferBudgetFeature);
+  append_switch_if_set(
+      flags::kAllowCriticalMemoryPressureHandlingInForeground,
+      switches::kAllowCriticalMemoryPressureHandlingInForeground);
+  enable_feature_if_set(
+      flags::kEvictMemoryCacheOnCriticalMemoryPressure,
+      blink::features::kEvictMemoryCacheOnCriticalMemoryPressure.name);
 
-  if (flags.Has(androidtv_flags::kCobaltBypassResourceLoadScheduler)) {
-    enable_features.push_back(
-        blink::features::kCobaltBypassResourceLoadScheduler.name);
-  }
-
-  if (flags.Has(androidtv_flags::kCobaltBypassHtmlPreloadScanner)) {
-    enable_features.push_back(
-        blink::features::kCobaltBypassHTMLPreloadScanner.name);
-  }
-
-  if (flags.Has(androidtv_flags::kEnableCobaltMmapFontCache)) {
-    enable_features.push_back(kCobaltMmapFontCacheFeature);
-  }
-
-  if (flags.Has(androidtv_flags::kAreaBasedVideoBufferBudget)) {
-    enable_features.push_back(kAreaBasedVideoBufferBudgetFeature);
-  }
-
-  if (flags.Has(
-          androidtv_flags::kAllowCriticalMemoryPressureHandlingInForeground)) {
-    AppendSwitchIfAbsent(
-        cmd_line, switches::kAllowCriticalMemoryPressureHandlingInForeground);
-  }
-
-  if (flags.Has(androidtv_flags::kEvictMemoryCacheOnCriticalMemoryPressure)) {
-    enable_features.push_back(
-        blink::features::kEvictMemoryCacheOnCriticalMemoryPressure.name);
-  }
-
-  if (flags.Has(androidtv_flags::kDisableLessAggressiveParkableString)) {
+  if (flag_map.Has(flags::kDisableLessAggressiveParkableString)) {
     disable_features.push_back(
         blink::features::kLessAggressiveParkableString.name);
   }
 
-  if (flags.Has(androidtv_flags::kEnableModerateMemoryPressure)) {
-    enable_features.push_back(
-        base::features::kCobaltEnableModerateMemoryPressure.name);
-  }
+  enable_feature_if_set(
+      flags::kEnableModerateMemoryPressure,
+      base::features::kCobaltEnableModerateMemoryPressure.name);
   if (const auto cooldown =
-          flags.GetNumeric(androidtv_flags::kMemoryPressureCooldownInSeconds)) {
+          flag_map.GetNumeric(flags::kMemoryPressureCooldownInSeconds)) {
     enable_features.push_back(
         base::StrCat({base::features::kCobaltMemoryPressureCooldown.name, ":",
                       base::features::kCobaltMemoryPressureCooldownSeconds.name,
@@ -320,22 +297,10 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
 
   // Exposed as a command-line switch so C++ code and non-Activity Java
   // components (such as NetworkStatus) can query it.
-  if (flags.Has(androidtv_flags::kUseStarboardLifecycle)) {
-    AppendSwitchIfAbsent(cmd_line, switches::kUseStarboardLifecycle);
-  }
-
-  if (flags.Has(androidtv_flags::kEnableActivityLifecycleCoordination)) {
-    AppendSwitchIfAbsent(cmd_line,
-                         switches::kEnableActivityLifecycleCoordination);
-  }
-
-  // 720p UI only applies to 1 GB devices with a 1080p+ display.
-  const bool force_720p_ui =
-      flags.Has(androidtv_flags::kForce720pUiOn1GbDevices) &&
-      device.is_1gb_device && device.is_display_at_least_1080p;
-  AppendSwitchIfAbsent(
-      cmd_line, ::switches::kForceDeviceScaleFactor,
-      force_720p_ui ? k720pUiDeviceScaleFactor : kDefaultDeviceScaleFactor);
+  append_switch_if_set(flags::kUseStarboardLifecycle,
+                       switches::kUseStarboardLifecycle);
+  append_switch_if_set(flags::kEnableActivityLifecycleCoordination,
+                       switches::kEnableActivityLifecycleCoordination);
 
   // base::FeatureList is first-wins, so experiment features go after existing
   // (metadata/user) entries and before defaults.

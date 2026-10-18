@@ -23,7 +23,6 @@
 #include "base/feature_list.h"
 #include "base/memory/cobalt_memory_context.h"
 #include "cobalt/android/androidtv_flag_map.h"
-#include "cobalt/android/jni_headers/DeviceUtil_jni.h"
 #include "cobalt/android/jni_headers/JavaSwitches_jni.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -42,18 +41,6 @@ cobalt::AndroidTvFlagMap TakeAndroidTvFlags() {
   return cobalt::AndroidTvFlagMap::FromKeyValues(key_values);
 }
 
-// Queries the device properties that gate device-specific experiments. These
-// come from Java (DeviceUtil) because the display size needs Android APIs and
-// is not available natively this early in startup.
-cobalt::AndroidTvDeviceInfo GetAndroidTvDeviceInfo() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  cobalt::AndroidTvDeviceInfo device;
-  device.is_1gb_device = cobalt::Java_DeviceUtil_is1GbDevice(env);
-  device.is_display_at_least_1080p =
-      cobalt::Java_DeviceUtil_isDisplayAtLeast1080p(env);
-  return device;
-}
-
 // Applies Cobalt's command-line defaults right after LibraryLoader switches the
 // CommandLine to native. LibraryLoader runs this hook once per process.
 // Cobalt on Android runs in a single (browser) process (--single-process is a
@@ -66,8 +53,7 @@ bool NativeInit(base::android::LibraryProcessType type) {
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   // Expand Android TV experiment keys first so they take precedence over
   // defaults.
-  cobalt::ExpandAndroidTvFlags(TakeAndroidTvFlags(), GetAndroidTvDeviceInfo(),
-                               cmd_line);
+  cobalt::ExpandAndroidTvFlags(TakeAndroidTvFlags(), cmd_line);
   cobalt::CommandLinePreprocessor::ApplyDefaults(cmd_line);
   return true;
 }

@@ -50,16 +50,9 @@ AndroidTvFlagMap MapFrom(std::string_view spec) {
   return AndroidTvFlagMap::FromKeyValues(key_values);
 }
 
-// A 1 GB device with a 1080p+ display, eligible for Force720pUiOn1GbDevices.
-constexpr AndroidTvDeviceInfo k720pUiEligibleDevice = {
-    /*is_1gb_device=*/true,
-    /*is_display_at_least_1080p=*/true,
-};
-
-base::CommandLine ExpandWith(std::string_view spec,
-                             const AndroidTvDeviceInfo& device) {
+base::CommandLine ExpandWith(std::string_view spec) {
   base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
-  ExpandAndroidTvFlags(MapFrom(spec), device, &cmd_line);
+  ExpandAndroidTvFlags(MapFrom(spec), &cmd_line);
   return cmd_line;
 }
 
@@ -85,7 +78,7 @@ TEST(AndroidTvFlagMapTest, GetNumeric) {
 }
 
 TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
-  const base::CommandLine cmd_line = ExpandWith("", AndroidTvDeviceInfo());
+  const base::CommandLine cmd_line = ExpandWith("");
 
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
   // Low-end device mode is emitted from Java, since it is read before the
@@ -93,8 +86,9 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableLowEndDeviceMode));
   EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
-  EXPECT_EQ("1",
-            cmd_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor));
+  // The device scale factor is emitted from Java, since it is read before the
+  // native initialization hook runs.
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceDeviceScaleFactor));
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
   EXPECT_EQ("64",
             cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
@@ -107,8 +101,7 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
 }
 
 TEST(AndroidTvFlagMapTest, EnableQuic) {
-  const base::CommandLine cmd_line =
-      ExpandWith("EnableQUIC", AndroidTvDeviceInfo());
+  const base::CommandLine cmd_line = ExpandWith("EnableQUIC");
 
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
 }
@@ -132,7 +125,6 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "EnableModerateMemoryPressure,"
       "EnableScalingClippedImages,"
       "EvictMemoryCacheOnCriticalMemoryPressure,"
-      "Force720pUiOn1GbDevices,"
       "ForceGpuMemAvailableMb=256,"
       "GpuImageCacheLimitItems=500,"
       "InterestAreaSizeInPixels=400,"
@@ -144,8 +136,7 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "V8DisableSparkplug,"
       "V8InitialOldSpaceSize=128,"
       "V8MaxOldSpaceSize=1024,"
-      "V8SetBytecodeOldTime=10",
-      k720pUiEligibleDevice);
+      "V8SetBytecodeOldTime=10");
 
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
   EXPECT_TRUE(cmd_line.HasSwitch(
@@ -165,8 +156,6 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   EXPECT_TRUE(cmd_line.HasSwitch(switches::kUseStarboardLifecycle));
   EXPECT_TRUE(
       cmd_line.HasSwitch(switches::kEnableActivityLifecycleCoordination));
-  EXPECT_EQ("1.5",
-            cmd_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor));
 
   EXPECT_EQ(
       "CobaltDynamicMojoPipeSizing:subresource_size/1024/media_size/2048,"
@@ -193,46 +182,16 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
 }
 
-TEST(AndroidTvFlagMapTest, Force720pUiOn1GbDevices) {
-  struct TestCase {
-    bool has_key;
-    bool is_1gb_device;
-    bool is_display_at_least_1080p;
-    const char* expected_scale_factor;
-  };
-  constexpr TestCase kTestCases[] = {
-      {true, true, true, "1.5"},  // Eligible device.
-      {true, true, false, "1"},   // 720p display.
-      {true, false, true, "1"},   // More than 1 GB of RAM.
-      {true, false, false, "1"},  // Neither.
-      {false, true, true, "1"},   // Not in the experiment.
-  };
-  for (const TestCase& test_case : kTestCases) {
-    SCOPED_TRACE(testing::Message()
-                 << "has_key=" << test_case.has_key << " is_1gb_device="
-                 << test_case.is_1gb_device << " is_display_at_least_1080p="
-                 << test_case.is_display_at_least_1080p);
-    const base::CommandLine cmd_line =
-        ExpandWith(test_case.has_key ? "Force720pUiOn1GbDevices" : "",
-                   AndroidTvDeviceInfo{test_case.is_1gb_device,
-                                       test_case.is_display_at_least_1080p});
-    EXPECT_EQ(
-        test_case.expected_scale_factor,
-        cmd_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor));
-  }
-}
-
 TEST(AndroidTvFlagMapTest, MojoPipeSizingWithoutParams) {
   const base::CommandLine cmd_line =
-      ExpandWith("EnableCobaltDynamicMojoPipeSizing", AndroidTvDeviceInfo());
+      ExpandWith("EnableCobaltDynamicMojoPipeSizing");
   EXPECT_EQ("CobaltDynamicMojoPipeSizing",
             cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
 }
 
 TEST(AndroidTvFlagMapTest, NonNumericValuesFallBackToDefaults) {
   const base::CommandLine cmd_line =
-      ExpandWith("V8InitialOldSpaceSize=abc,GpuImageCacheLimitItems",
-                 AndroidTvDeviceInfo());
+      ExpandWith("V8InitialOldSpaceSize=abc,GpuImageCacheLimitItems");
   EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kCCImageCacheLimitItems));
@@ -242,7 +201,6 @@ TEST(AndroidTvFlagMapTest, UserProvidedSwitchesTakePrecedence) {
   const char* const input_argv[] = {
       "PROGRAM",
       "--force-gpu-mem-available-mb=128",
-      "--force-device-scale-factor=2",
       "--enable-features=UserFeature",
       "--disable-features=UserDisabledFeature",
       "--js-flags=--max-old-space-size=2048",
@@ -250,15 +208,12 @@ TEST(AndroidTvFlagMapTest, UserProvidedSwitchesTakePrecedence) {
   base::CommandLine cmd_line(static_cast<int>(std::size(input_argv)),
                              input_argv);
   ExpandAndroidTvFlags(
-      MapFrom("ForceGpuMemAvailableMb=256,Force720pUiOn1GbDevices,"
-              "EnableCobaltMmapFontCache,DisableLessAggressiveParkableString,"
-              "V8MaxOldSpaceSize=1024"),
-      k720pUiEligibleDevice, &cmd_line);
+      MapFrom("ForceGpuMemAvailableMb=256,EnableCobaltMmapFontCache,"
+              "DisableLessAggressiveParkableString,V8MaxOldSpaceSize=1024"),
+      &cmd_line);
 
   EXPECT_EQ("128",
             cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
-  EXPECT_EQ("2",
-            cmd_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor));
   EXPECT_EQ("UserFeature,CobaltMmapFontCache",
             cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ("UserDisabledFeature,LessAggressiveParkableString",

@@ -62,18 +62,8 @@ class AndroidTvFlagMap {
   base::flat_map<std::string, std::string> values_;
 };
 
-// Device properties that gate device-specific experiments. They are queried
-// from Java (DeviceUtil) by the caller, since some of them need Android APIs.
-struct AndroidTvDeviceInfo {
-  // Whether the device has 1 GB of RAM or less.
-  bool is_1gb_device = false;
-  // Whether the larger display dimension is at least 1080p.
-  bool is_display_at_least_1080p = false;
-};
-
-// Expands the Android TV experiment keys in `flags` into the Chromium/Cobalt
-// switches and features they control. `device` gates device-specific
-// experiments (e.g. Force720pUiOn1GbDevices). When `flags` is empty (no
+// Expands the Android TV experiment keys in `flag_map` into the Chromium/Cobalt
+// switches and features they control. When `flag_map` is empty (no
 // experiments, or crash-streak safe mode), only the experiment-controlled
 // defaults are applied.
 //
@@ -85,8 +75,7 @@ struct AndroidTvDeviceInfo {
 // - V8 flags are placed before existing --js-flags entries (V8 is last-wins).
 //
 // Must run before CommandLinePreprocessor::ApplyDefaults().
-void ExpandAndroidTvFlags(const AndroidTvFlagMap& flags,
-                          const AndroidTvDeviceInfo& device,
+void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
                           base::CommandLine* cmd_line);
 
 }  // namespace cobalt
