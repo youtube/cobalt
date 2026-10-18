@@ -498,10 +498,6 @@ public class JavaSwitches {
       extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
     }
 
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
-      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
-    }
-
     if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
         && DeviceUtil.is1GbDevice()
         && DeviceUtil.isDisplayAtLeast1080p()) {
