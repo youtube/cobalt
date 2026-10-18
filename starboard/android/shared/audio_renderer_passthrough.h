@@ -17,8 +17,10 @@
 
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <vector>
 
@@ -58,23 +60,29 @@ class AudioRendererPassthrough : public AudioRenderer,
       std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio)>;
 
+  // When |tunnel_mode_audio_session_id| is set, the AudioTrack is created in
+  // tunnel mode with it.  It must be the same audio session id used to create
+  // the tunneled video decoder.
   static NonNullResult<std::unique_ptr<AudioRendererPassthrough>> Create(
       JobQueue* job_queue,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system,
-      bool enable_flush_during_seek);
+      bool enable_flush_during_seek,
+      std::optional<int> tunnel_mode_audio_session_id);
 
   static std::unique_ptr<AudioRendererPassthrough> CreateForTesting(
       JobQueue* job_queue,
       const AudioStreamInfo& audio_stream_info,
       std::unique_ptr<AudioDecoder> decoder,
-      AudioTrackFactory audio_track_factory);
+      AudioTrackFactory audio_track_factory,
+      std::optional<int> tunnel_mode_audio_session_id = std::nullopt);
 
   AudioRendererPassthrough(PassKey<AudioRendererPassthrough>,
                            JobQueue* job_queue,
                            const AudioStreamInfo& audio_stream_info,
                            std::unique_ptr<AudioDecoder> decoder,
-                           AudioTrackFactory audio_track_factory);
+                           AudioTrackFactory audio_track_factory,
+                           std::optional<int> tunnel_mode_audio_session_id);
   ~AudioRendererPassthrough() override;
 
   static int ParseAc3SyncframeAudioSampleCountForTesting(
@@ -102,7 +110,11 @@ class AudioRendererPassthrough : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
-  int64_t GetAudioWriteHead() override { return 0; }
+  // Only playback rate 1.0 is supported (see SetPlaybackRate()), so timestamps
+  // are never adjusted, and video inputs never need to wait for audio writes.
+  int64_t GetAudioWriteHead() override {
+    return std::numeric_limits<int64_t>::max();
+  }
   int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
     return timestamp;
   }
@@ -123,8 +135,11 @@ class AudioRendererPassthrough : public AudioRenderer,
   void OnDecoderConsumed();
   void OnDecoderOutput();
 
-  // The following two variables are set in the ctor.
+  // The following three variables are set in the ctor.
   const AudioStreamInfo audio_stream_info_;
+  // Set when the playback is in tunnel mode.  It's shared with the tunneled
+  // video decoder to enable HW A/V sync.
+  const std::optional<int> tunnel_mode_audio_session_id_;
   // The AudioDecoder is used as a decryptor when the stream is encrypted.
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
