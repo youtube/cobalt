@@ -33,8 +33,8 @@ runs:
         # Set Docker Build Vars
         set -x
 
-        # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
-        if [[ "${IS_PR}" == "true" ]]; then
+        # Set floating to either the PR number (for PRs) or the branch name (for post-submit/merge queue).
+        if [[ "${IS_PR}" == "true" && -n "${PR_NUMBER}" ]]; then
           FLOATING_TAG="${PR_NUMBER}"
         else
           FLOATING_TAG="${GITHUB_REF_NAME}"

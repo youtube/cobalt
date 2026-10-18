@@ -12,6 +12,7 @@ on:
       - main
       - experimental/*
       - feature/*
+  merge_group:
   workflow_dispatch:
     inputs:
       nightly:
