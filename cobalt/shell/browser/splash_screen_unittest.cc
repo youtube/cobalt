@@ -819,6 +819,56 @@ TEST_F(SplashScreenTest, ConcealSwitchesFromTheNativeVideoToTheMainFrame) {
   shell->Close();
 }
 
+TEST_F(SplashScreenTest, MainFrameLoadAfterTheConcealSwitchKeepsItShown) {
+  // The video splash screen hides the main frame until the switch.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoFirstFrame(shell);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallStopNativeSplashVideo(shell);
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  // The main frame loads after the switch, e.g., once the app is revealed: it
+  // stays shown.
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Seconds(3));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest,
+       SplashTimerAfterTheConcealSwitchKeepsTheMainFrameShown) {
+  // The video splash screen hides the main frame until the switch.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  // The page loads, and waits for the video's first frame within a limit.
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallStopNativeSplashVideo(shell);
+
+  // The limit passes after the switch: the main frame stays shown.
+  task_environment()->FastForwardBy(base::Seconds(3));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
 TEST_F(SplashScreenTest, ConcealKeepsTheHtmlVideoWaitingForItsFirstFrame) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(

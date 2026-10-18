@@ -1531,6 +1531,11 @@ Shell::GetPlatformOnScreenKeyboard() {
 #endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 void Shell::ScheduleSwitchToMainWebContents() {
+  if (has_switched_to_main_frame_) {
+    // E.g., the main WebContents loads after the native video splash screen
+    // switched to it on conceal: hiding it now would keep it hidden.
+    return;
+  }
   if (splash_screen_start_time_.is_null()) {
     // Its page hasn't loaded yet, or its video hasn't started playing.
     LOG(INFO) << "NativeSplash: The splash screen hasn't started, waiting.";
