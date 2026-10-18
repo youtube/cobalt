@@ -23,54 +23,104 @@ runs:
     - name: Clone Repo
       env:
         REPO_URL: ${{ inputs.repository }}
-        REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
         FETCH_DEPTH: ${{ inputs.fetch_depth }}
       shell: bash
       run: |
         set -ex
 
-        depth_arg=()
-        if [ "${FETCH_DEPTH}" -ne 0 ]; then
-          depth_arg+=(--depth "${FETCH_DEPTH}")
-        fi
-
         if [ ! -d "${DEST_PATH}/.git" ]; then
-          for attempt in 1 2 3; do
-            if git clone \
-              --filter=blob:none \
-              "${depth_arg[@]}" \
-              "${REPO_URL}" \
-              "${DEST_PATH}"; then
-              break
-            fi
-            if [[ -n "${DEST_PATH}" && "${DEST_PATH}" != "." && "${DEST_PATH}" != "/" ]]; then
+          retry() {
+            for delay in 0 5 15 30; do
+              sleep "${delay}"
               rm -rf "${DEST_PATH}"
-            else
-              rm -rf "${DEST_PATH}/.git"
-            fi
-            if [ "${attempt}" -eq 3 ]; then
-              exit 1
-            fi
-            sleep $((attempt * 2))
-          done
+              "$@" && return
+            done
+            return 1
+          }
+
+          depth_arg=()
+          if [ "${FETCH_DEPTH}" -ne 0 ]; then
+            depth_arg+=(--depth "${FETCH_DEPTH}")
+          fi
+
+          retry git clone \
+            --filter=blob:none \
+            "${depth_arg[@]}" \
+            "${REPO_URL}" \
+            "${DEST_PATH}"
         else
           echo "Repository already exists at ${DEST_PATH}. Skipping clone."
         fi
 
         git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
 
-        if [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]] && git -C "${DEST_PATH}" cat-file -e "${REF}^{commit}" 2>/dev/null; then
-          echo "Commit ${REF} already exists in ${DEST_PATH}. Skipping fetch."
-        else
-          for attempt in 1 2 3; do
-            if git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${REF}"; then
-              break
-            fi
-            if [ "${attempt}" -eq 3 ]; then
-              exit 1
-            fi
-            sleep $((attempt * 2))
+    - name: Set Committer Info
+      env:
+        DEST_PATH: ${{ inputs.path }}
+        REF: ${{ inputs.ref }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+      shell: bash
+      run: |
+        set -ex
+
+        if [ -n "${GITHUB_BASE_REF}" ] && [[ "${DEST_PATH}" != *"depot_tools"* ]]; then
+        retry() {
+          for delay in 0 5 15 30; do
+            sleep "${delay}"
+            "$@" && return
           done
+          return 1
+        }
+
+        fetch_args=()
+        if [ -f "${DEST_PATH}/.git/shallow" ]; then
+          fetch_args+=(--unshallow)
         fi
-        git -C "${DEST_PATH}" checkout "${REF}"
+        retry git -C "${DEST_PATH}" fetch "${fetch_args[@]}" origin "${REF}"
+        {
+          read -r commit_date
+          read -r author_name
+          read -r author_email
+        } < <(git -C "${DEST_PATH}" log -1 --format="%cI%n%an%n%ae" "${REF}")
+
+        echo "GIT_COMMITTER_NAME=${author_name}" >> "${GITHUB_ENV}"
+        echo "GIT_COMMITTER_EMAIL=${author_email}" >> "${GITHUB_ENV}"
+        echo "GIT_COMMITTER_DATE=${commit_date}" >> "${GITHUB_ENV}"
+        echo "GIT_AUTHOR_NAME=${author_name}" >> "${GITHUB_ENV}"
+        echo "GIT_AUTHOR_EMAIL=${author_email}" >> "${GITHUB_ENV}"
+        echo "GIT_AUTHOR_DATE=${commit_date}" >> "${GITHUB_ENV}"
+        fi
+
+    - name: Checkout Ref
+      env:
+        REF: ${{ inputs.ref }}
+        DEST_PATH: ${{ inputs.path }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+      shell: bash
+      run: |
+        set -ex
+
+        if [ -n "${GITHUB_BASE_REF}" ] && [[ "${DEST_PATH}" != *"depot_tools"* ]]; then
+        retry() {
+          for delay in 0 5 15 30; do
+            sleep "${delay}"
+            "$@" && return
+          done
+          return 1
+        }
+
+        fetch_args=()
+        if [ -f "${DEST_PATH}/.git/shallow" ]; then
+          fetch_args+=(--unshallow)
+        fi
+        retry git -C "${DEST_PATH}" fetch "${fetch_args[@]}" origin "${GITHUB_BASE_REF}"
+        rm -f "${DEST_PATH}/.git/index.lock"
+        git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
+        git -C "${DEST_PATH}" merge --squash "${REF}"
+        git -C "${DEST_PATH}" commit --quiet --allow-empty \
+          --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
+        else
+          rm -f "${DEST_PATH}/.git/index.lock"
+          git -C "${DEST_PATH}" checkout "${REF}"
+        fi
