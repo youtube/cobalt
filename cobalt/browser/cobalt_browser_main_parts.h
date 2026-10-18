@@ -36,11 +36,23 @@ namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
+namespace base {
+class FilePath;
+}  // namespace base
+
 namespace cobalt {
 
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
+
+// Cleans up legacy on-disk files and directories for Chromium storage
+// subsystems that are disabled or kept in-memory on Cobalt ("SCT Auditing
+// Pending Reports", "Trust Tokens", "Shared Dictionary", "Session Storage",
+// "VideoDecodeStats", "shared_proto_db", "SharedStorage") under
+// |user_data_dir|. Fast-paths with PathExists() so subsequent launches perform
+// zero disk writes.
+void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.

@@ -18,10 +18,15 @@
 #include <string>
 #include <variant>
 
+#include "base/features.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "content/public/browser/overlay_window.h"
@@ -90,6 +95,94 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       AllowCompressionDictionaryTransportIsDisabled) {
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_TRUE(client.AllowCompressionDictionaryTransport(/*context=*/nullptr));
+
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltStorageCleanup);
+  EXPECT_FALSE(client.AllowCompressionDictionaryTransport(/*context=*/nullptr));
+}
+
+TEST_F(CobaltContentBrowserClientTest, DeleteUnusedChromiumStoragePaths) {
+  // Safe no-op on empty or non-existent directories.
+  DeleteUnusedChromiumStoragePaths(base::FilePath());
+
+  base::ScopedTempDir temp_user_data_dir;
+  ASSERT_TRUE(temp_user_data_dir.CreateUniqueTempDir());
+  const base::FilePath& user_data = temp_user_data_dir.GetPath();
+  DeleteUnusedChromiumStoragePaths(user_data.AppendASCII("non_existent"));
+
+  // Populate legacy unused files and directories alongside active persistent
+  // storage files and directories.
+  for (const char* file_name : {
+           "SCT Auditing Pending Reports",
+           "Trust Tokens",
+           "Trust Tokens-journal",
+           "Trust Tokens-shm",
+           "Trust Tokens-wal",
+           "SharedStorage",
+           "SharedStorage-journal",
+           "SharedStorage-shm",
+           "SharedStorage-wal",
+       }) {
+    ASSERT_TRUE(base::WriteFile(user_data.AppendASCII(file_name), "legacy"));
+  }
+  for (const char* dir_name : {
+           "Shared Dictionary",
+           "Session Storage",
+           "VideoDecodeStats",
+           "shared_proto_db",
+       }) {
+    base::FilePath dir_path = user_data.AppendASCII(dir_name);
+    ASSERT_TRUE(base::CreateDirectory(dir_path));
+    ASSERT_TRUE(base::WriteFile(dir_path.AppendASCII("LOCK"), "legacy"));
+  }
+
+  ASSERT_TRUE(base::WriteFile(user_data.AppendASCII("Cookies"), "active"));
+  ASSERT_TRUE(
+      base::WriteFile(user_data.AppendASCII("TransportSecurity"), "active"));
+  ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII("Local Storage")));
+  ASSERT_TRUE(base::WriteFile(
+      user_data.AppendASCII("Local Storage").AppendASCII("CURRENT"), "active"));
+  ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII("WebStorage")));
+
+  DeleteUnusedChromiumStoragePaths(user_data);
+
+  for (const char* unused_name : {
+           "SCT Auditing Pending Reports",
+           "Trust Tokens",
+           "Trust Tokens-journal",
+           "Trust Tokens-shm",
+           "Trust Tokens-wal",
+           "SharedStorage",
+           "SharedStorage-journal",
+           "SharedStorage-shm",
+           "SharedStorage-wal",
+           "Shared Dictionary",
+           "Session Storage",
+           "VideoDecodeStats",
+           "shared_proto_db",
+       }) {
+    EXPECT_FALSE(base::PathExists(user_data.AppendASCII(unused_name)))
+        << "Expected unused path to be deleted: " << unused_name;
+  }
+
+  // Active persistent files and directories must remain untouched.
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("TransportSecurity")));
+  EXPECT_TRUE(base::PathExists(
+      user_data.AppendASCII("Local Storage").AppendASCII("CURRENT")));
+  EXPECT_TRUE(base::DirectoryExists(user_data.AppendASCII("WebStorage")));
+
+  // Subsequent runs when unused paths are already absent must be a safe no-op.
+  DeleteUnusedChromiumStoragePaths(user_data);
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
 }
 
 class CobaltContentBrowserClientHeaderTest

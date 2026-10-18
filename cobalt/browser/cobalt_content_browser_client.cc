@@ -21,6 +21,7 @@
 #include "base/command_line.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -454,8 +455,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kNetworkPersistentStateFilename);
     network_context_params->file_paths->cookie_database_name =
         base::FilePath(kCookieFilename);
-    network_context_params->file_paths->trust_token_database_name =
-        base::FilePath(kTrustTokenFilename);
 
     // Always try to restore old session cookies.
     network_context_params->restore_old_session_cookies = true;
@@ -463,8 +462,14 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
     network_context_params->file_paths->transport_security_persister_file_name =
         base::FilePath(kTransportSecurityPersisterFilename);
-    network_context_params->file_paths->sct_auditing_pending_reports_file_name =
-        base::FilePath(kSCTAuditingPendingReportsFileName);
+
+    if (!base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+      network_context_params->file_paths->trust_token_database_name =
+          base::FilePath(kTrustTokenFilename);
+      network_context_params->file_paths
+          ->sct_auditing_pending_reports_file_name =
+          base::FilePath(kSCTAuditingPendingReportsFileName);
+    }
 
     network_context_params->http_cache_max_size = base::checked_cast<int>(
         ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
@@ -505,6 +510,15 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->require_network_anonymization_key = true;
 
   PopulateCobaltExtraRequestHeaders(network_context_params);
+}
+
+bool CobaltContentBrowserClient::AllowCompressionDictionaryTransport(
+    content::BrowserContext* context) {
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    return false;
+  }
+  return content::ShellContentBrowserClient::
+      AllowCompressionDictionaryTransport(context);
 }
 
 // static
