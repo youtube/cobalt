@@ -1,0 +1,4 @@
+include_rules = [
+  "+starboard",
+  "+v8/include",
+]

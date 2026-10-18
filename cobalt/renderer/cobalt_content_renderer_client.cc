@@ -20,13 +20,17 @@
 #include <variant>
 
 #include "base/functional/callback_helpers.h"
+#include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
+#include "cobalt/starboard_wasm/player/player_settings.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
@@ -40,6 +44,7 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
+#include "mojo/public/cpp/bindings/shared_remote.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -81,6 +86,57 @@ ExperimentalFeatures ParseH5vccSettings(mojom::SettingsPtr settings) {
   }
   return ExperimentalFeatures(std::move(h5vcc_settings));
 }
+
+}  // namespace
+
+// Gives players created through the Starboard Wasm imports the settings that
+// GetStarboardRendererFactoryTraits() gives StarboardRenderer. Used from
+// player threads.
+class CobaltContentRendererClient::WasmPlayerSettingsSource
+    : public base::RefCountedThreadSafe<WasmPlayerSettingsSource> {
+ public:
+  explicit WasmPlayerSettingsSource(
+      mojo::PendingRemote<mojom::H5vccSettings> settings)
+      : settings_(std::move(settings),
+                  base::ThreadPool::CreateSequencedTaskRunner({})) {}
+
+  void SetViewportSize(const gfx::Size& size) {
+    base::AutoLock lock(lock_);
+    viewport_size_ = size;
+  }
+
+  starboard_wasm::PlayerSettings Get() {
+    starboard_wasm::PlayerSettings out;
+    mojom::SettingsPtr settings;
+    if (settings_->GetSettings(&settings) && settings) {
+      const ExperimentalFeatures features =
+          ParseH5vccSettings(std::move(settings));
+      // Like SbPlayerBridge, which passes only integer features to Starboard.
+      for (const auto& [key, value] : features.settings()) {
+        if (const int64_t* int_value = std::get_if<int64_t>(&value)) {
+          out.experimental_features.emplace(key, *int_value);
+        }
+      }
+      out.max_samples_per_write =
+          features.Get(::media::kMediaMaxSamplesPerWrite).value_or(0);
+    }
+    base::AutoLock lock(lock_);
+    out.viewport_width = viewport_size_.width();
+    out.viewport_height = viewport_size_.height();
+    return out;
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<WasmPlayerSettingsSource>;
+  ~WasmPlayerSettingsSource() = default;
+
+  // [Sync] calls on a SharedRemote may come from any thread.
+  const mojo::SharedRemote<mojom::H5vccSettings> settings_;
+  base::Lock lock_;
+  gfx::Size viewport_size_ GUARDED_BY(lock_);
+};
+
+namespace {
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -214,6 +270,9 @@ void CobaltContentRendererClient::RenderFrameCreated(
   if (render_frame->GetWebView()) {
     viewport_size_ =
         gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());
+    if (wasm_player_settings_) {
+      wasm_player_settings_->SetViewportSize(viewport_size_);
+    }
   } else {
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
@@ -263,6 +322,14 @@ void CobaltContentRendererClient::RenderThreadStarted() {
 #if BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
   RegisterPlatformInitDataTypes();
 #endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
+
+  mojo::PendingRemote<mojom::H5vccSettings> settings;
+  content::RenderThread::Get()->BindHostReceiver(
+      settings.InitWithNewPipeAndPassReceiver());
+  wasm_player_settings_ =
+      base::MakeRefCounted<WasmPlayerSettingsSource>(std::move(settings));
+  starboard_wasm::SetPlayerSettingsProvider(base::BindRepeating(
+      &WasmPlayerSettingsSource::Get, wasm_player_settings_));
 }
 
 void CobaltContentRendererClient::
