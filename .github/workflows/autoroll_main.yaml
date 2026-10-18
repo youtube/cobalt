@@ -20,6 +20,13 @@ jobs:
       GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
       GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
+      # Target branch -> bug attached to every autoroll PR for that branch.
+      # The lint workflow's Bug ID Check requires a "Bug: <id>" line in the
+      # PR title or description.
+      TARGET_BUGS: |
+        {
+          "27.lts": "538269087"
+        }
     permissions:
       contents: read
     defaults:
@@ -142,20 +149,31 @@ jobs:
 
           git push --force-with-lease origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
 
-          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
+          BUG=$(jq -r --arg branch "${TARGET_BRANCH}" '.[$branch] // empty' <<< "${TARGET_BUGS}")
 
+          PR_TITLE="Autoroll from ${SOURCE_BRANCH} to ${TARGET_BRANCH}"
           PR_BODY_FILE=$(mktemp)
-          {
-            echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
-            echo ""
-            echo "Original pull requests:"
-            echo "${PR_LINKS}"
-          } > "${PR_BODY_FILE}"
+          PR_COMMENT_FILE=""
 
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
+            # A CONFLICTED branch holds exactly one cherry-pick commit. Mirror
+            # its subject and body in the PR so a squash merge reproduces the
+            # commit message, including the "Refer to original PR" and
+            # "(cherry picked from commit ...)" lines the autoroller uses to
+            # detect already-rolled commits in the target branch history.
             PR_TITLE="$(git log -1 --pretty=%s)"
             {
+              # Command substitution strips the trailing newline(s) from %b.
+              printf '%s\n' "$(git log -1 --pretty=%b)"
               echo ""
+              # Drop the leading "- #<pr>" identifier; keep the CONFLICTED files block.
+              echo "${PR_LINKS#*$'\n\n'}"
+            } > "${PR_BODY_FILE}"
+
+            # Keep resolution instructions out of the PR body (and thus out of
+            # the squash commit message) by posting them as a comment instead.
+            PR_COMMENT_FILE=$(mktemp)
+            {
               echo "⚠️ This PR has conflicts that must be resolved manually (don't forget to update the \`${AUTOROLL_FILE}\` file). Use the following commands to checkout the branch locally and resolve the conflicts in a separate commit:"
               echo ""
               echo '```bash'
@@ -170,9 +188,15 @@ jobs:
               echo ""
               echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
               echo '```'
-            } >> "${PR_BODY_FILE}"
+              echo ""
+              echo "When squash merging, keep the PR title and description as the commit message so the roll is recorded in the target branch history."
+            } > "${PR_COMMENT_FILE}"
           else
             {
+              echo "Automated cherry-pick roll to ${TARGET_BRANCH}."
+              echo ""
+              echo "Original pull requests:"
+              echo "${PR_LINKS}"
               echo ""
               echo "To merge these changes, run the autoroll script:"
               echo ""
@@ -181,6 +205,13 @@ jobs:
               echo "  --source-branch ${SOURCE_BRANCH} \\"
               echo "  --target-branch ${TARGET_BRANCH}"
               echo '```'
+            } > "${PR_BODY_FILE}"
+          fi
+
+          if [[ -n "${BUG}" ]]; then
+            {
+              echo ""
+              echo "Bug: ${BUG}"
             } >> "${PR_BODY_FILE}"
           fi
 
@@ -191,4 +222,8 @@ jobs:
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" -f title="${PR_TITLE}" -f body="$(cat "${PR_BODY_FILE}")" --jq .html_url
           else
             gh pr create --base "${TARGET_BRANCH}" --head "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --title "${PR_TITLE}" --body-file "${PR_BODY_FILE}" --reviewer linxinan-yt,oxve,briantting
+          fi
+
+          if [[ -n "${PR_COMMENT_FILE}" ]]; then
+            gh pr comment "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --body-file "${PR_COMMENT_FILE}"
           fi
