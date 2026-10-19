@@ -733,7 +733,7 @@ void Shell::DidStopLoading() {
   MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
-    VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
+    LOG(INFO) << "NativeSplash: Main frame WebContents DidStopLoading.";
     is_main_frame_loaded_ = true;
 
     if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
@@ -775,7 +775,7 @@ void Shell::RegisterInjectedJavaScript() {
 void Shell::LoadSplashScreenWebContents() {
   if (splash_screen_web_contents_) {
     // Display splash screen.
-    VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
+    LOG(INFO) << "NativeSplash: Loading splash screen WebContents.";
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
     MarkStartupEvent(SplashScreenMetrics::Event::kSplashStart);
     GetPlatform()->LoadSplashScreenContents(this);
@@ -793,7 +793,7 @@ void Shell::LoadSplashScreenWebContents() {
 
     if (is_main_frame_loaded_) {
       // Main frame loaded before splash screen started.
-      VLOG(1) << "NativeSplash: Main frame loaded before splash start.";
+      LOG(INFO) << "NativeSplash: Main frame loaded before splash start.";
       ScheduleSwitchToMainWebContents();
     }
   }
@@ -894,7 +894,7 @@ bool Shell::MaybeStartNativeSplashVideo(std::string cached_webm) {
     RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kNotStarted);
     return false;
   }
-  VLOG(1) << "NativeSplash: Playing the splash screen video natively.";
+  LOG(INFO) << "NativeSplash: Playing the splash screen video natively.";
   RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kStarted);
   native_splash_video_start_time_ = base::TimeTicks::Now();
   awaiting_splash_video_first_frame_ = true;
@@ -928,7 +928,8 @@ void Shell::OnSplashScreenResized() {
 }
 
 void Shell::OnNativeSplashVideoFirstFrame() {
-  VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
+  LOG(INFO)
+      << "NativeSplash: The splash screen video presents its first frame.";
   RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kFirstFrame);
   base::UmaHistogramMediumTimes(
       "Cobalt.SplashScreen.NativeVideo.TimeToFirstFrame",
@@ -945,7 +946,7 @@ void Shell::OnNativeSplashVideoFirstFrame() {
 }
 
 void Shell::OnNativeSplashVideoEnded() {
-  VLOG(1) << "NativeSplash: The splash screen video ended.";
+  LOG(INFO) << "NativeSplash: The splash screen video ended.";
   RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kEnded);
   MarkStartupEvent(SplashScreenMetrics::Event::kSplashVideoEnded);
   // Like splash.html when its video ends: the splash screen closes now or, with
@@ -1547,7 +1548,7 @@ void Shell::LoadProgressChanged(double progress) {
     }
 
     if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
-      VLOG(1) << "NativeSplash: Main frame WebContents is loaded.";
+      LOG(INFO) << "NativeSplash: Main frame WebContents is loaded.";
       SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger::kMainLoaded);
     } else {
       ScheduleSwitchToMainWebContents();
@@ -1586,11 +1587,11 @@ void Shell::ScheduleSwitchToMainWebContents() {
     remaining_delay = base::TimeDelta();
   }
 
-  VLOG(1) << "NativeSplash: Main frame WebContents is loaded, splash "
-             "screen elapsed: "
-          << splash_screen_elapsed.InMilliseconds()
-          << "ms, remaining delay: " << remaining_delay.InMilliseconds()
-          << "ms.";
+  LOG(INFO) << "NativeSplash: Main frame WebContents is loaded, splash "
+               "screen elapsed: "
+            << splash_screen_elapsed.InMilliseconds()
+            << "ms, remaining delay: " << remaining_delay.InMilliseconds()
+            << "ms.";
   if (web_contents_) {
     if (is_video_splash_screen_) {
       // Send hidden event to WebApp if it's video-based splash screen.
@@ -1623,7 +1624,7 @@ void Shell::SwitchToMainWebContents(
   // instead of a lock due to it is on a single thread.
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
-    VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (splash_screen_metrics_) {
       splash_screen_metrics_->OnSwitchedToMain(trigger);
@@ -1684,7 +1685,7 @@ void Shell::OnSplashScreenVideoStarted() {
   if (!awaiting_splash_video_first_frame_ || native_splash_video_player_) {
     return;
   }
-  VLOG(1) << "NativeSplash: The splash screen video starts playing.";
+  LOG(INFO) << "NativeSplash: The splash screen video starts playing.";
   awaiting_splash_video_first_frame_ = false;
   StartSplashScreenTimer();
 }
@@ -1704,7 +1705,7 @@ void Shell::OnSplashScreenVideoSupportChecked(bool can_play_video) {
 }
 
 void Shell::ClosingSplashScreenWebContents() {
-  VLOG(1) << "NativeSplash: Closing splash screen WebContents.";
+  LOG(INFO) << "NativeSplash: Closing splash screen WebContents.";
   splash_state_ = STATE_SPLASH_SCREEN_ENDED;
   MarkStartupEvent(SplashScreenMetrics::Event::kSplashClosed);
   if (is_main_frame_loaded_) {
