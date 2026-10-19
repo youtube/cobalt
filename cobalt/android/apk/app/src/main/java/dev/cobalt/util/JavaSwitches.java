@@ -88,9 +88,10 @@ public class JavaSwitches {
   /**
    * Enables Starboard lifecycle migration.
    *
-   * <p>Consumed in both layers: C++ expands it into USE_STARBOARD_LIFECYCLE_SWITCH, and Java
-   * (CobaltActivity) also reads the key directly. The key itself is defined in
-   * cobalt/android/androidtv_flags.h and aliased here for Java callers.
+   * <p>Consumed in C++, which expands it into USE_STARBOARD_LIFECYCLE_SWITCH. Java code must query
+   * USE_STARBOARD_LIFECYCLE_SWITCH on the CommandLine instead of reading this key, so that it
+   * agrees with native (e.g. the key is ignored in crash-streak safe mode). The key itself is
+   * defined in cobalt/android/androidtv_flags.h and aliased here for Java callers.
    */
   public static final String USE_STARBOARD_LIFECYCLE = AndroidTvFlags.USE_STARBOARD_LIFECYCLE;
 

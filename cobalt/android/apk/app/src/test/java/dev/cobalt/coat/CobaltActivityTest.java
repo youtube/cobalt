@@ -524,6 +524,41 @@ public class CobaltActivityTest {
         "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
   }
 
+  // --- useStarboardLifeCycle() ---
+
+  private static Map<String, String> createStarboardLifecycleSwitches() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.USE_STARBOARD_LIFECYCLE, "1");
+    return switches;
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_SwitchOnCommandLine_ReturnsTrue() {
+    CommandLine.resetForTesting(true);
+    CommandLine.getInstance().appendSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertTrue(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_KeyWithoutSwitch_ReturnsFalse() {
+    // Crash-streak safe mode: the Java switch key is still set, but no experiment switches are
+    // applied, so the command-line switch is absent and native uses the default lifecycle.
+    CommandLine.resetForTesting(true);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_CommandLineNotInitialized_ReturnsFalse() {
+    CommandLine.resetForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
+  }
+
   // --- checkAndRetryOnNetworkOnline(), b/572816285 ---
 
   /**
