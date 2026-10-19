@@ -215,6 +215,10 @@ static_library("cobalt_shell_lib") {
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
   ]
+
+  # TODO(cobalt, b/574620132): Move the splash screen files, e.g.,
+  # browser/native_splash_video_player.* and browser/splash_screen_*, into
+  # browser/splash_screen/.
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
