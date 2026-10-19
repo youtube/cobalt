@@ -665,6 +665,10 @@ void CobaltContentBrowserClient::AddPendingWindowReceiver(
   }
 }
 
+uint64_t CobaltContentBrowserClient::GetSbWindowHandle() const {
+  return cached_sb_window_;
+}
+
 void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
   // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows. This
   // assumes only single PlatformWindowStarboard() in Cobalt.

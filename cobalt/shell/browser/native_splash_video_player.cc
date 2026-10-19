@@ -181,7 +181,8 @@ class SbPlayerCalls {
                : SbPlayerGetPreferredOutputMode(creation_param);
   }
 
-  SbPlayer Create(const SbPlayerCreationParam* creation_param,
+  SbPlayer Create(SbWindow window,
+                  const SbPlayerCreationParam* creation_param,
                   SbPlayerDeallocateSampleFunc sample_deallocate_func,
                   SbPlayerDecoderStatusFunc decoder_status_func,
                   SbPlayerStatusFunc player_status_func,
@@ -189,15 +190,13 @@ class SbPlayerCalls {
                   void* context,
                   SbDecodeTargetGraphicsContextProvider* provider) {
     if (testing_interface_) {
-      return testing_interface_->Create(kSbWindowInvalid, creation_param,
-                                        sample_deallocate_func,
-                                        decoder_status_func, player_status_func,
-                                        player_error_func, context, provider);
+      return testing_interface_->Create(
+          window, creation_param, sample_deallocate_func, decoder_status_func,
+          player_status_func, player_error_func, context, provider);
     }
-    return SbPlayerCreate(kSbWindowInvalid, creation_param,
-                          sample_deallocate_func, decoder_status_func,
-                          player_status_func, player_error_func, context,
-                          provider);
+    return SbPlayerCreate(window, creation_param, sample_deallocate_func,
+                          decoder_status_func, player_status_func,
+                          player_error_func, context, provider);
   }
 
   void Destroy(SbPlayer player) {
@@ -291,6 +290,7 @@ struct NativeSplashVideoPlayer::Video {
 class NativeSplashVideoPlayer::Core {
  public:
   Core(std::vector<Video> videos,
+       uint64_t sb_window_handle,
        const gfx::Rect& bounds,
        Callbacks callbacks,
        scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped,
@@ -299,6 +299,7 @@ class NativeSplashVideoPlayer::Core {
         stopped_(std::move(stopped)),
         on_destroyed_(std::move(on_destroyed)),
         videos_(std::move(videos)),
+        window_(reinterpret_cast<SbWindow>(sb_window_handle)),
         bounds_(bounds),
         callbacks_(std::move(callbacks)) {
     weak_this_ = weak_factory_.GetWeakPtr();
@@ -378,7 +379,7 @@ class NativeSplashVideoPlayer::Core {
     }
 
     player_ =
-        sbplayer_.Create(&creation_param, &Core::DeallocateSampleCB,
+        sbplayer_.Create(window_, &creation_param, &Core::DeallocateSampleCB,
                          &Core::DecoderStatusCB, &Core::PlayerStatusCB,
                          &Core::PlayerErrorCB, this, GetDecodeTargetProvider());
     if (!SbPlayerIsValid(player_)) {
@@ -664,6 +665,9 @@ class NativeSplashVideoPlayer::Core {
   base::span<const uint8_t> webm_;
   bool cached_ = false;
   SplashVideoIndex index_;
+  // The app's window, which the SbPlayers of some platforms need to show the
+  // video; kSbWindowInvalid if there's none.
+  const SbWindow window_;
   gfx::Rect bounds_;
   Callbacks callbacks_;
 
@@ -702,6 +706,7 @@ NativeSplashVideoPlayer::Callbacks::~Callbacks() = default;
 std::unique_ptr<NativeSplashVideoPlayer>
 NativeSplashVideoPlayer::CreateForSplashScreen(const std::string& topic,
                                                std::string cached_webm,
+                                               uint64_t sb_window_handle,
                                                const gfx::Rect& bounds,
                                                Callbacks callbacks) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -727,7 +732,7 @@ NativeSplashVideoPlayer::CreateForSplashScreen(const std::string& topic,
     video.index = std::move(*index);
     video.required_mime = required_mime;
   }
-  return CreateForVideos(std::move(videos),
+  return CreateForVideos(std::move(videos), sb_window_handle,
                          bounds.IsEmpty() ? GetFullScreenBounds() : bounds,
                          std::move(callbacks));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -739,6 +744,7 @@ NativeSplashVideoPlayer::CreateForSplashScreen(const std::string& topic,
 // static
 std::unique_ptr<NativeSplashVideoPlayer>
 NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
+                                         uint64_t sb_window_handle,
                                          const gfx::Rect& bounds,
                                          Callbacks callbacks) {
   auto player =
@@ -768,7 +774,8 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
       base::ThreadPool::CreateSingleThreadTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
           base::SingleThreadTaskRunnerThreadMode::DEDICATED),
-      std::move(videos), bounds, std::move(core_callbacks), player->stopped_,
+      std::move(videos), sb_window_handle, bounds, std::move(core_callbacks),
+      player->stopped_,
       base::BindPostTaskToCurrentDefault(base::BindOnce(&OnCoreDestroyed)));
   player->core_.AsyncCall(&Core::Start);
   return player;

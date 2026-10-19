@@ -19,6 +19,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -34,6 +35,7 @@
 #include "media/starboard/mock_sbplayer_interface.h"
 #include "media/starboard/sbplayer_interface.h"
 #include "starboard/player.h"
+#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
@@ -47,6 +49,12 @@ using ::testing::SaveArg;
 using Error = NativeSplashVideoPlayer::Error;
 
 constexpr gfx::Rect kBounds(0, 0, 1920, 1080);
+// The app's SbWindow, as a handle.
+constexpr uint64_t kSbWindowHandle = 0x5b;
+
+SbWindow AppWindow() {
+  return reinterpret_cast<SbWindow>(kSbWindowHandle);
+}
 
 // An SbPlayer that the mock created, and the callbacks that Starboard would
 // call it back with.
@@ -114,7 +122,8 @@ class NativeSplashVideoPlayerTest : public testing::Test {
   // `callbacks_`, until its SbPlayer is created.
   void CreatePlayer(std::string cached_webm) {
     player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
-        /*topic=*/"", std::move(cached_webm), kBounds, std::move(callbacks_));
+        /*topic=*/"", std::move(cached_webm), kSbWindowHandle, kBounds,
+        std::move(callbacks_));
     ASSERT_TRUE(player_);
     task_environment_.RunUntilIdle();
   }
@@ -127,6 +136,17 @@ class NativeSplashVideoPlayerTest : public testing::Test {
   // Of the last seek, i.e., of the current player.
   int ticket_ = 0;
 };
+
+// The SbPlayer shows the video in the app's window, which the SbPlayers of
+// some platforms need.
+TEST_F(NativeSplashVideoPlayerTest, SbPlayerShowsTheVideoInTheAppWindow) {
+  CreatedPlayer created;
+  EXPECT_CALL(sbplayer_, Create(AppWindow(), _, _, _, _, _, _, _))
+      .WillOnce(CreatesPlayer(&created));
+
+  ASSERT_NO_FATAL_FAILURE(CreatePlayer(/*cached_webm=*/""));
+  EXPECT_NE(created.player, kSbPlayerInvalid);
+}
 
 // SbPlayerCreate() may report its error before it returns, e.g., Android's
 // when the video surface isn't available: it's reported once, as
@@ -228,7 +248,8 @@ TEST_F(NativeSplashVideoPlayerTest, NoPlayerIsCreatedOnceDestroyed) {
   EXPECT_CALL(sbplayer_, Create(_, _, _, _, _, _, _, _)).Times(0);
 
   player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
-      /*topic=*/"", /*cached_webm=*/"", kBounds, std::move(callbacks_));
+      /*topic=*/"", /*cached_webm=*/"", kSbWindowHandle, kBounds,
+      std::move(callbacks_));
   ASSERT_TRUE(player_);
   {
     base::ScopedAllowBaseSyncPrimitivesForTesting allow_wait;

@@ -166,7 +166,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void AddPendingWindowReceiver(
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
           receiver);
-  uint64_t GetSbWindowHandle() const { return cached_sb_window_; }
+  uint64_t GetSbWindowHandle() const override;
 
   // Computes the maximum HTTP cache size in bytes based on the platform's
   // total cache directory budget.

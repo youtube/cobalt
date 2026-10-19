@@ -15,6 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_NATIVE_SPLASH_VIDEO_PLAYER_H_
 #define COBALT_SHELL_BROWSER_NATIVE_SPLASH_VIDEO_PLAYER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -79,11 +80,15 @@ class NativeSplashVideoPlayer {
   // so it's only checked on the player's thread. The video is shown in
   // `bounds`, in pixels of the window, centered and fit inside, keeping its
   // aspect ratio, like a <video> with the default object-fit; `bounds` defaults
-  // to the whole screen if empty. Returns nullptr if the built-in video isn't
-  // valid. If the platform doesn't play VP9, reports Error::kUnsupported.
+  // to the whole screen if empty. `sb_window_handle` is the app's SbWindow,
+  // which the SbPlayers of some platforms need to show the video, or 0 if there
+  // is none, as for the SbPlayers of the media pipeline. Returns nullptr if the
+  // built-in video isn't valid. If the platform doesn't play VP9, reports
+  // Error::kUnsupported.
   static std::unique_ptr<NativeSplashVideoPlayer> CreateForSplashScreen(
       const std::string& topic,
       std::string cached_webm,
+      uint64_t sb_window_handle,
       const gfx::Rect& bounds,
       Callbacks callbacks);
 
@@ -114,6 +119,7 @@ class NativeSplashVideoPlayer {
   // querying its media capabilities on the player's thread.
   static std::unique_ptr<NativeSplashVideoPlayer> CreateForVideos(
       std::vector<Video> videos,
+      uint64_t sb_window_handle,
       const gfx::Rect& bounds,
       Callbacks callbacks);
 

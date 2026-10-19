@@ -285,6 +285,13 @@ void RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome outcome) {
                                 outcome);
 }
 
+// The app's SbWindow, which the SbPlayers of some platforms need to show their
+// video, as a handle: 0 if there is none.
+uint64_t GetSbWindowHandle() {
+  ShellContentBrowserClient* browser_client = ShellContentBrowserClient::Get();
+  return browser_client ? browser_client->GetSbWindowHandle() : 0;
+}
+
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
@@ -879,8 +886,8 @@ bool Shell::MaybeStartNativeSplashVideo(std::string cached_webm) {
       base::BindOnce(&RecordNativeSplashVideoOutcome,
                      NativeSplashVideoOutcome::kCachedVideoPlaybackError);
   native_splash_video_player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
-      splash_topic_, std::move(cached_webm), GetNativeSplashVideoBounds(),
-      std::move(callbacks));
+      splash_topic_, std::move(cached_webm), GetSbWindowHandle(),
+      GetNativeSplashVideoBounds(), std::move(callbacks));
   if (!native_splash_video_player_) {
     LOG(WARNING) << "NativeSplash: Can't play the splash screen video "
                     "natively.";
