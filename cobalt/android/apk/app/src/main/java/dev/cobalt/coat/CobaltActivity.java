@@ -189,7 +189,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
     }
     appendMetaDataArgs(args, getActivityMetaData());
-    args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+    JavaSwitches.apply(getJavaSwitches(), args);
     appendIntentArgs(args);
     return args;
   }
