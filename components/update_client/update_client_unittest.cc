@@ -7480,7 +7480,15 @@ TEST_F(UpdateClientTest, Install_StopCancelsActiveDownload) {
    private:
     ~MockCrxDownloader() override = default;
 
+#if BUILDFLAG(IS_STARBOARD)
+    void DoCancelDownload() override {}
+#endif
+#if defined(IN_MEMORY_UPDATES)
+    base::OnceClosure DoStartDownload(const GURL& url,
+                                      std::string* dst) override {
+#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
+#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -7494,9 +7502,20 @@ TEST_F(UpdateClientTest, Install_StopCancelsActiveDownload) {
 
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
+#if defined(IN_MEMORY_UPDATES)
+        EXPECT_TRUE(base::ReadFileToString(
+            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
+#endif
 
         result.error = 0;
+#if defined(IN_MEMORY_UPDATES)
+        result.installation_dir = path.DirName();
+#else
         result.response = path;
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+        result.installation_index = 0;
+#endif
       } else {
         ADD_FAILURE();
       }

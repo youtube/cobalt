@@ -172,7 +172,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const ExceptionContext& exception_context = exception_state.GetContext();
 
-  if (name.StartsWith("DecoderBuffer.")) {
+  if (name.starts_with("DecoderBuffer.")) {
     return ProcessSettingAs<int>(
         script_state, exception_context, name, *value,
         [name](int value) -> Result {

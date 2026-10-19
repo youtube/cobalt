@@ -9,8 +9,6 @@
 
 #include "base/byte_count.h"
 #include "build/build_config.h"
-<<<<<<< HEAD
-=======
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
@@ -18,14 +16,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "cc/base/switches.h"
 #endif
-
-#include "base/check.h"
-#include "base/notreached.h"
-#include "cc/paint/paint_flags.h"
-#include "third_party/skia/include/core/SkBitmap.h"
-#include "third_party/skia/include/core/SkImageInfo.h"
-#include "third_party/skia/include/core/SkPixmap.h"
->>>>>>> parent of 466c23ef4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "base/system/sys_info.h"
