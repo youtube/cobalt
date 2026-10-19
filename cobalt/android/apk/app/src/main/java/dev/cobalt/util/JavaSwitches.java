@@ -36,11 +36,6 @@ import org.json.JSONObject;
 public class JavaSwitches {
   private static final String TAG = "JavaSwitches";
 
-  // TODO(b/532158865): Remove once AOSP MainActivity stops using it (go/copr/13468).
-  // Android TV no longer reads this; its --disable-quic default is applied in C++
-  // (cobalt/android/androidtv_flag_map.cc).
-  public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
-
   // Android TV experiment keys live in the layer that consumes them. Keys consumed in C++ are
   // defined in cobalt/android/androidtv_flags.h and expanded in C++
   // (cobalt/android/androidtv_flag_map.cc). Only the keys below are handled in Java, for one of
