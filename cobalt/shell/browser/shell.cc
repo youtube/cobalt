@@ -926,6 +926,9 @@ void Shell::OnNativeSplashVideoFirstFrame() {
   base::UmaHistogramMediumTimes(
       "Cobalt.SplashScreen.NativeVideo.TimeToFirstFrame",
       base::TimeTicks::Now() - native_splash_video_start_time_);
+  // The page's video hole doesn't play, so the video marks its own start, which
+  // records the launch as a video one.
+  MarkStartupEvent(SplashScreenMetrics::Event::kSplashVideoStarted);
   // The splash screen page's first paint normally hid it already.
   MaybeHideSystemSplashScreen();
   // The splash screen shows from the first frame of the video, which comes
@@ -937,6 +940,7 @@ void Shell::OnNativeSplashVideoFirstFrame() {
 void Shell::OnNativeSplashVideoEnded() {
   VLOG(1) << "NativeSplash: The splash screen video ended.";
   RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kEnded);
+  MarkStartupEvent(SplashScreenMetrics::Event::kSplashVideoEnded);
   // Like splash.html when its video ends: the splash screen closes now or, with
   // SplashScreenConfig, once the timeout has passed since its first frame. The
   // last frame stays on screen until the switch to the main WebContents.
@@ -1002,11 +1006,18 @@ void Shell::SwitchFromNativeSplashVideo() {
   splash_cache_reader_.reset();
   native_splash_video_player_.reset();
   awaiting_splash_video_first_frame_ = false;
+  // The startup timings of a launch that loses its splash screen early aren't
+  // comparable to the others'. Cobalt.SplashScreen.NativeVideo.Outcome records
+  // why.
+  if (splash_screen_metrics_) {
+    splash_screen_metrics_->Invalidate();
+  }
   // The main WebContents shows instead, even if it hasn't loaded yet, as
   // without a splash screen.
   // TODO(cobalt, b/574620132): Decide what shows instead, e.g., the image
   // splash screen until the main WebContents has loaded.
-  SwitchToMainWebContents();
+  // The trigger isn't recorded, as the startup timings aren't.
+  SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger::kSplashClosed);
 }
 
 void Shell::LoadURL(const GURL& url) {

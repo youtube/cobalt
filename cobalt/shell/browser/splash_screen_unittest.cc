@@ -1230,6 +1230,48 @@ TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
   shell->Close();
 }
 
+TEST_F(SplashScreenTest, StartupMetricsForNativeVideoSplashScreen) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  // The page's video hole doesn't play: the video played natively reports its
+  // own first frame and end.
+  CallOnNativeSplashVideoFirstFrame(shell);  // t=200
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallLoadProgressChanged(shell, 1.0);  // t=700
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  // The splash screen closes when the video ends, before the 1500ms minimum
+  // duration elapses.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallOnNativeSplashVideoEnded(shell);  // t=1200
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.LoadedToContentShown.Video",
+      base::Milliseconds(200), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.ContentShownToSwitch.Video",
+      base::Milliseconds(1000), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.SplashContentEnded.Video",
+      base::Milliseconds(1200), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Video", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Video",
+      SplashScreenMetrics::SwitchTrigger::kSplashClosed, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.SplashScreen.SwitchTrigger.Image",
+                                    0);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
 TEST_F(SplashScreenTest, StartupMetricsWithoutSplashScreen) {
   base::HistogramTester histogram_tester;
   WebContents::CreateParams create_params(browser_context());
@@ -1277,6 +1319,35 @@ TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterConceal) {
 
   EXPECT_TRUE(
       histogram_tester.GetTotalCountsForPrefix("Cobalt.SplashScreen.").empty());
+  EXPECT_TRUE(
+      histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
+          .empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterNativeVideoError) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  // The launch loses its splash screen early, so its timings aren't comparable
+  // to the others'.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kPlaybackError);
+  CallLoadProgressChanged(shell, 1.0);
+  shell->OnMainReady();
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  // Only the outcome of the video is recorded.
+  EXPECT_THAT(histogram_tester.GetTotalCountsForPrefix("Cobalt.SplashScreen."),
+              testing::ElementsAre(
+                  testing::Pair("Cobalt.SplashScreen.NativeVideo.Outcome", 1)));
   EXPECT_TRUE(
       histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
           .empty());
