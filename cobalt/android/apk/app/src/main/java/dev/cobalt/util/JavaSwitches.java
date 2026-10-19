@@ -14,6 +14,7 @@
 
 package dev.cobalt.util;
 
+import androidx.annotation.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,7 +24,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+<<<<<<< HEAD
 import java.util.StringJoiner;
+=======
+import org.chromium.base.BaseSwitches;
+>>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
@@ -36,143 +41,78 @@ import org.json.JSONObject;
 public class JavaSwitches {
   private static final String TAG = "JavaSwitches";
 
-  /** Default command line constants launched from A/B experiments. */
+  // TODO(b/532158865): Remove once AOSP MainActivity stops using it (go/copr/13468).
+  // Android TV no longer reads this; its --disable-quic default is applied in C++
+  // (cobalt/android/androidtv_flag_map.cc).
   public static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
 
-  public static final String DEFAULT_INITIAL_OLD_SPACE_SIZE = "64";
-  public static final String DEFAULT_MAX_OLD_SPACE_SIZE = "512";
-  public static final String DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB = "64";
-  public static final String DEFAULT_FORCE_DEVICE_SCALE_FACTOR = "1";
-
-  public static final String ENABLE_QUIC = "EnableQUIC";
-
-  /**
-   * Java switch key set via Intent or Android metadata bundle to enable Starboard lifecycle
-   * migration.
-   */
-  public static final String USE_STARBOARD_LIFECYCLE = "UseStarboardLifeCycle";
+  // Android TV experiment keys live in the layer that consumes them. Keys consumed in C++ are
+  // defined in cobalt/android/androidtv_flags.h and expanded in C++
+  // (cobalt/android/androidtv_flag_map.cc). Only the keys below are handled in Java, for one of
+  // these reasons:
+  // - Consumed only in Java.
+  // - Consumed in C++, but must be applied in Java because C++ reads it before the native
+  //   initialization hook (ExpandAndroidTvFlags()) runs.
+  // When an experiment concludes, its default belongs in the same layer as its key.
 
   /**
-   * Command-line switch name passed to CommandLine when USE_STARBOARD_LIFECYCLE is set. Allows C++
-   * code and non-Activity Java classes (e.g. NetworkStatus) to query CommandLine.
+   * Opts out of --enable-low-end-device-mode.
+   *
+   * <p>Defined in Java to meet a timing requirement: the switch is read before the native
+   * initialization hook runs, by Java SysUtils.isLowEndDevice(), which caches the result, and by
+   * base::SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded(). It is therefore applied
+   * on the Java CommandLine before libcobalt.so loads (see addSwitchesReadBeforeNativeInit()).
    */
-  public static final String USE_STARBOARD_LIFECYCLE_SWITCH = "use-starboard-lifecycle";
-
-  public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
-  public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
-
-  /** Kimono key to opt a device out of low-end device mode. */
   public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
 
-  public static final String ENABLE_LOW_END_DEVICE_MODE_SWITCH = "--enable-low-end-device-mode";
-
-  public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
-
-  /** flag to tune compositor offscreen interest area size in pixels. */
-  public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
-
-  /** flag to tune delay in seconds before reclaiming prepaint tiles when idle. */
-  public static final String RECLAIM_DELAY_IN_SECONDS = "ReclaimDelayInSeconds";
-
-  /** flag to disable GPU memory buffer compositor resources. */
-  public static final String DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES =
-      "DisableGpuMemoryBufferCompositorResources";
-
-  /** flag to limit GPU image cache items */
-  public static final String GPU_IMAGE_CACHE_LIMIT_ITEMS = "GpuImageCacheLimitItems";
-
-  /** flag to limit GPU image cache bytes, resuing LimitImageDecodeCacheSizeMb */
-  public static final String LIMIT_IMAGE_DECODE_CACHE_SIZE_MB = "LimitImageDecodeCacheSizeMb";
-
-  /** flag to limit GPU image cache working set budget bytes */
-  public static final String DECODED_IMAGE_WORKING_SET_BUDGET_BYTES =
-      "DecodedImageWorkingSetBudgetBytes";
-
-  /** flag to allow scaling clipped images in GpuImageDecodeCache */
-  public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
-
-  /** flag to enable dynamic mojo pipe sizing. */
-  public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
-      "EnableCobaltDynamicMojoPipeSizing";
-
-  /** flag to tune cobalt dynamic mojo pipe sizing subresource size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE =
-      "CobaltDynamicMojoPipeSubresourceSize";
-
-  /** flag to tune cobalt dynamic mojo pipe sizing media size in bytes. */
-  public static final String COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE = "CobaltDynamicMojoPipeMediaSize";
-
-  /** flag to shrink mojo data pipes to the response Content-Length when it is known. */
-  public static final String ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING =
-      "EnableCobaltContentLengthAwareMojoPipeSizing";
-
-  /** Avoid reuse resource. */
-  public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
-
-  /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
-  public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
-      "CobaltBypassResourceLoadScheduler";
-
-  /** flag to bypass Blink HTMLPreloadScanner and HTMLResourcePreloader. */
-  public static final String COBALT_BYPASS_HTML_PRELOAD_SCANNER = "CobaltBypassHTMLPreloadScanner";
-
-  /** flag to enable mmap-backed WOFF2 font decompression disk cache. */
-  public static final String ENABLE_COBALT_MMAP_FONT_CACHE = "EnableCobaltMmapFontCache";
-
-  /** flag to aggressively flush v8 bytecode after a configurable old time. */
-  public static final String V8_SET_BYTECODE_OLD_TIME = "V8SetBytecodeOldTime";
-
-  public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
-  public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
-
-  /** flag to force GPU memory available in MB. */
-  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
-
-  /** flag to enable area based buffer budget experiment. */
-  public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
-
-  /** flag to allow critical memory pressure handling in foreground for V8. */
-  public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
-      "AllowCriticalMemoryPressureHandlingInForeground";
-
-  /** flag to evict blink memory cache on critical memory pressure. */
-  public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
-      "EvictMemoryCacheOnCriticalMemoryPressure";
-
   /**
-   * Flag to disable LessAggressiveParkableString feature to unpause foreground compression and use
-   * a 2-second aging interval.
+   * Forces a 720p UI (--force-device-scale-factor=1.5) when the device has 1 GB of RAM or less and
+   * a display of at least 1080p. See b/558324832.
+   *
+   * <p>Defined in Java to meet a timing requirement: --force-device-scale-factor is read in Java
+   * (PhysicalDisplayAndroid, e.g. via DeviceUtils.updateDeviceSpecificUserAgentSwitch()) before
+   * libcobalt.so loads, and the value is cached for the process. It is therefore applied on the
+   * Java CommandLine before libcobalt.so loads (see addSwitchesReadBeforeNativeInit()).
    */
-  public static final String DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING =
-      "DisableLessAggressiveParkableString";
-
-  /** Flag to disable v8 baseline compiler sparkplug. */
-  public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
-
-  /** flag to enable moderate memory pressure handling on Android. */
-  public static final String ENABLE_MODERATE_MEMORY_PRESSURE = "EnableModerateMemoryPressure";
-
-  /** flag to configure memory pressure throttling cooldown in seconds. */
-  public static final String MEMORY_PRESSURE_COOLDOWN_IN_SECONDS =
-      "MemoryPressureCooldownInSeconds";
-
-  /**
-   * Flag to enable activity lifecycle coordination and safe surface teardown across overlapping
-   * activities.
-   */
-  public static final String ENABLE_ACTIVITY_LIFECYCLE_COORDINATION =
-      "EnableActivityLifecycleCoordination";
-
-  /** Flag to force 720p UI for 1GB RAM devices on 1080p+ displays for A/B testing. */
   public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
 
+  @VisibleForTesting static final String DEFAULT_DEVICE_SCALE_FACTOR = "1";
+  @VisibleForTesting static final String FORCE_720P_UI_DEVICE_SCALE_FACTOR = "1.5";
+
+  /**
+   * Disables the StartupGuard watchdog.
+   *
+   * <p>Defined in Java because it is consumed only in Java (CobaltActivity.setupStartupGuard()).
+   */
+  public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
+
+  /**
+   * StartupGuard watchdog timeout in seconds.
+   *
+   * <p>Defined in Java because it is consumed only in Java (CobaltActivity.setupStartupGuard()).
+   */
+  public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
+
+  /**
+   * Enables Starboard lifecycle migration.
+   *
+   * <p>Consumed in both layers: C++ expands it into USE_STARBOARD_LIFECYCLE_SWITCH, and Java
+   * (CobaltActivity) also reads the key directly. The key itself is defined in
+   * cobalt/android/androidtv_flags.h and aliased here for Java callers.
+   */
+  public static final String USE_STARBOARD_LIFECYCLE = AndroidTvFlags.USE_STARBOARD_LIFECYCLE;
+
+  /** Command-line switch set by C++ when USE_STARBOARD_LIFECYCLE is enabled. */
+  public static final String USE_STARBOARD_LIFECYCLE_SWITCH =
+      CobaltSwitches.USE_STARBOARD_LIFECYCLE;
+
   private static Boolean sOverrideForTesting;
+  private static String[] sNativeKeyValues;
 
   public static void setOverrideForTesting(Boolean override) {
     sOverrideForTesting = override;
   }
 
-  @CalledByNative
   public static boolean shouldApplyExperimentConfigs() {
     if (sOverrideForTesting != null) {
       return sOverrideForTesting;
@@ -278,6 +218,7 @@ public class JavaSwitches {
     }
   }
 
+<<<<<<< HEAD
   public static List<String> getDefaultCommandLineArgs() {
     List<String> defaultArgs = new ArrayList<>();
     defaultArgs.add(DEFAULT_DISABLE_QUIC);
@@ -292,21 +233,24 @@ public class JavaSwitches {
             + DEFAULT_MAX_OLD_SPACE_SIZE);
     defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
     return defaultArgs;
+=======
+  /**
+   * Applies pre-native switches to {@code args} and stashes the sanitized map for C++ expansion
+   * ({@code cobalt/android/androidtv_flag_map.cc}). In crash-streak safe mode, no switches are
+   * applied.
+   */
+  public static void apply(Map<String, String> javaSwitches, List<String> args) {
+    apply(javaSwitches, shouldApplyExperimentConfigs(), args);
+>>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
   }
 
-  public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
-    return getExtraCommandLineArgs(javaSwitches, shouldApplyExperimentConfigs());
-  }
-
-  public static List<String> getExtraCommandLineArgs(
-      Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs) {
-    if (!shouldApplyExperimentConfigs) {
-      return getDefaultCommandLineArgs();
-    }
-
-    if (javaSwitches == null) {
+  @VisibleForTesting
+  static void apply(
+      Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs, List<String> args) {
+    if (!shouldApplyExperimentConfigs || javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
+<<<<<<< HEAD
 
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -511,17 +455,66 @@ public class JavaSwitches {
     }
 
     return extraCommandLineArgs;
+=======
+    addSwitchesReadBeforeNativeInit(args, javaSwitches);
+    sNativeKeyValues = toNativeKeyValues(javaSwitches);
+>>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
   }
 
-  private static String getSanitizedNumericValue(Map<String, String> javaSwitches, String key) {
-    if (javaSwitches == null) {
-      return null;
+  /** Returns and clears the sanitized [key0, value0, ...] array for C++ initialization. */
+  @CalledByNative
+  static String[] takeNativeKeyValues() {
+    String[] keyValues = sNativeKeyValues == null ? new String[0] : sNativeKeyValues;
+    sNativeKeyValues = null;
+    return keyValues;
+  }
+
+  private static void addSwitchesReadBeforeNativeInit(
+      List<String> args, Map<String, String> javaSwitches) {
+    // Read by Java SysUtils.isLowEndDevice(), which caches the result, and by
+    // SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded() (orderfile optimization).
+    // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices.
+    if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
+      args.add("--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
     }
-    String val = javaSwitches.get(key);
-    if (val == null) {
-      return null;
+
+    // Read and cached by PhysicalDisplayAndroid, via
+    // DeviceUtils.updateDeviceSpecificUserAgentSwitch().
+    boolean force720pUi =
+        javaSwitches.containsKey(FORCE_720P_UI_ON_1GB_DEVICES)
+            && DeviceUtil.is1GbDevice()
+            && DeviceUtil.isDisplayAtLeast1080p();
+    args.add(
+        "--"
+            + DisplaySwitches.FORCE_DEVICE_SCALE_FACTOR
+            + "="
+            + (force720pUi ? FORCE_720P_UI_DEVICE_SCALE_FACTOR : DEFAULT_DEVICE_SCALE_FACTOR));
+  }
+
+  /**
+   * Converts the Java switches into a flat {@code [key0, value0, ...]} array sorted by key. Values
+   * are reduced to their digits, since every value-carrying switch is numeric; a value without
+   * digits becomes an empty string.
+   */
+  @VisibleForTesting
+  static String[] toNativeKeyValues(Map<String, String> javaSwitches) {
+    if (javaSwitches == null || javaSwitches.isEmpty()) {
+      return new String[0];
     }
-    String digits = val.replaceAll("[^0-9]", "");
-    return digits.isEmpty() ? null : digits;
+    List<String> keys = new ArrayList<>();
+    for (String key : javaSwitches.keySet()) {
+      if (key != null && !key.isEmpty()) {
+        keys.add(key);
+      }
+    }
+    Collections.sort(keys);
+
+    List<String> keyValues = new ArrayList<>();
+    for (String key : keys) {
+      String value = javaSwitches.get(key);
+      keyValues.add(key);
+      keyValues.add(value == null ? "" : value.replaceAll("[^0-9]", ""));
+    }
+    return keyValues.toArray(new String[0]);
   }
 }
