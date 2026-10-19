@@ -4617,15 +4617,6 @@ void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
 
-<<<<<<< HEAD
-  // It might be nice to lazily initialize only the controls we need when they
-  // are actually visible, but cursory tests don't show any memory improvements.
-  if (!media_controls_) {
-    ShadowRoot& shadow_root = EnsureUserAgentShadowRoot();
-    UseCounterMuteScope scope(*this);
-    media_controls_ =
-        CoreInitializer::GetInstance().CreateMediaControls(*this, shadow_root);
-=======
 #if BUILDFLAG(IS_COBALT)
   // Cobalt does not show native controls or the cast overlay button, so skip
   // creating MediaControlsImpl, its shadow DOM, and its media event listeners
@@ -4637,8 +4628,13 @@ void HTMLMediaElement::UpdateControlsVisibility() {
   }
 #endif  // BUILDFLAG(IS_COBALT)
 
-  bool native_controls = ShouldShowControls();
->>>>>>> 1da0d58c63 (blink/media: Add CobaltSkipHiddenMediaControlsWork to skip hidden MediaControlsImpl (#13390))
+  // It might be nice to lazily initialize only the controls we need when they
+  // are actually visible, but cursory tests don't show any memory improvements.
+  if (!media_controls_) {
+    ShadowRoot& shadow_root = EnsureUserAgentShadowRoot();
+    UseCounterMuteScope scope(*this);
+    media_controls_ =
+        CoreInitializer::GetInstance().CreateMediaControls(*this, shadow_root);
 
     // The media controls should be inserted after the text track container,
     // so that they are rendered in front of captions and subtitles. This check
