@@ -15,6 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -206,6 +207,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
                                         const url::Origin& app_origin) override;
 
   virtual void CreateFeatureListAndFieldTrials();
+  // Returns the app's SbWindow, which the SbPlayers of some platforms need to
+  // show their video, as a handle: 0 if there is none.
+  virtual uint64_t GetSbWindowHandle() const;
   ShellBrowserContext* browser_context();
   ShellBrowserContext* off_the_record_browser_context();
   ShellBrowserMainParts* shell_browser_main_parts();

@@ -672,6 +672,10 @@ bool ShellContentBrowserClient::HasErrorPage(int http_status_code) {
 
 void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {}
 
+uint64_t ShellContentBrowserClient::GetSbWindowHandle() const {
+  return 0;
+}
+
 void ShellContentBrowserClient::SetUpFieldTrials() {}
 
 std::optional<network::ParsedPermissionsPolicy>
