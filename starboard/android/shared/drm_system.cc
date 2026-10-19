@@ -114,8 +114,7 @@ MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_CHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSession(
-      ticket_, MakeSpan(init_data_.data(), init_data_.size()), mime_);
+  return media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(
