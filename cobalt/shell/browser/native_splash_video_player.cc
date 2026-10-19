@@ -111,7 +111,9 @@ constexpr base::TimeDelta kVideoSurfacePollInterval = base::Milliseconds(2);
 // MediaCodecVideoDecoder's punch-out teardown requires a non-null decode-target
 // provider and invokes ClearNativeWindow() through it. ClearNativeWindow()
 // manages its own temporary EGL context, so running it inline on the calling
-// Starboard thread is safe.
+// Starboard thread is safe. It doesn't initialize EGL_DEFAULT_DISPLAY, though:
+// it relies on the GPU thread of this single process to have initialized it,
+// and not to have terminated it yet, as the GPU cleanup on conceal does.
 void RunInline(SbDecodeTargetGraphicsContextProvider*,
                SbDecodeTargetGlesContextRunnerTarget target,
                void* target_context) {
@@ -257,8 +259,12 @@ struct NativeSplashVideoPlayer::Video {
 // callbacks are posted to the dedicated thread.
 class NativeSplashVideoPlayer::Core {
  public:
-  Core(std::vector<Video> videos, const gfx::Rect& bounds, Callbacks callbacks)
+  Core(std::vector<Video> videos,
+       const gfx::Rect& bounds,
+       Callbacks callbacks,
+       scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped)
       : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+        stopped_(std::move(stopped)),
         videos_(std::move(videos)),
         bounds_(bounds),
         callbacks_(std::move(callbacks)) {
@@ -290,6 +296,9 @@ class NativeSplashVideoPlayer::Core {
 
   void Start() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (stopped_->data.IsSet()) {
+      return;
+    }
     if (!ChooseVideo()) {
       LOG(WARNING) << "NativeSplash: VP9 isn't supported.";
       ReportError(Error::kUnsupported);
@@ -328,6 +337,11 @@ class NativeSplashVideoPlayer::Core {
 #if BUILDFLAG(IS_ANDROID)
     WaitForVideoSurface();
 #endif  // BUILDFLAG(IS_ANDROID)
+    // The NativeSplashVideoPlayer is gone, e.g., the app was concealed while
+    // the player started.
+    if (stopped_->data.IsSet()) {
+      return;
+    }
 
     player_ =
         sbplayer_.Create(&creation_param, &Core::DeallocateSampleCB,
@@ -502,7 +516,7 @@ class NativeSplashVideoPlayer::Core {
     const base::TimeTicks deadline =
         base::TimeTicks::Now() + kVideoSurfaceTimeout;
     while (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable() &&
-           base::TimeTicks::Now() < deadline) {
+           !stopped_->data.IsSet() && base::TimeTicks::Now() < deadline) {
       base::PlatformThread::Sleep(kVideoSurfacePollInterval);
     }
   }
@@ -599,6 +613,8 @@ class NativeSplashVideoPlayer::Core {
 
   // The thread that owns `this` and makes every SbPlayer call.
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  // Set once the NativeSplashVideoPlayer is destroyed.
+  const scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped_;
   // The candidates, in order: ChooseVideo() picks the next one that the
   // platform plays, as `webm_` and `index_`.
   std::vector<Video> videos_;
@@ -706,11 +722,13 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
       base::BindPostTaskToCurrentDefault(base::BindOnce(
           &NativeSplashVideoPlayer::OnCachedVideoFailed, weak_player));
 
+  player->stopped_ =
+      base::MakeRefCounted<base::RefCountedData<base::AtomicFlag>>();
   player->core_ = base::SequenceBound<Core>(
       base::ThreadPool::CreateSingleThreadTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
           base::SingleThreadTaskRunnerThreadMode::DEDICATED),
-      std::move(videos), bounds, std::move(core_callbacks));
+      std::move(videos), bounds, std::move(core_callbacks), player->stopped_);
   player->core_.AsyncCall(&Core::Start);
   return player;
 }
@@ -719,7 +737,11 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
 NativeSplashVideoPlayer::NativeSplashVideoPlayer(Callbacks callbacks)
     : callbacks_(std::move(callbacks)) {}
 
-NativeSplashVideoPlayer::~NativeSplashVideoPlayer() = default;
+NativeSplashVideoPlayer::~NativeSplashVideoPlayer() {
+  if (stopped_) {
+    stopped_->data.Set();
+  }
+}
 
 void NativeSplashVideoPlayer::SetBounds(const gfx::Rect& bounds) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

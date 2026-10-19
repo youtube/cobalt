@@ -20,7 +20,9 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/atomic_flag.h"
 #include "base/threading/sequence_bound.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -88,7 +90,9 @@ class NativeSplashVideoPlayer {
   NativeSplashVideoPlayer(const NativeSplashVideoPlayer&) = delete;
   NativeSplashVideoPlayer& operator=(const NativeSplashVideoPlayer&) = delete;
 
-  // Destroys the SbPlayer on its thread, without blocking.
+  // Destroys the SbPlayer on its thread, without blocking. If the player's
+  // thread is still starting the player, e.g., when the app is concealed as
+  // the splash screen starts, it doesn't create an SbPlayer anymore.
   ~NativeSplashVideoPlayer();
 
   // Shows the video in `bounds` instead, as in CreateForSplashScreen(), e.g.,
@@ -117,6 +121,8 @@ class NativeSplashVideoPlayer {
   void OnCachedVideoFailed();
 
   Callbacks callbacks_;
+  // Set once `this` is destroyed, for `core_` to stop starting the player.
+  scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped_;
   base::SequenceBound<Core> core_;
   base::WeakPtrFactory<NativeSplashVideoPlayer> weak_factory_{this};
 };

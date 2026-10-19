@@ -25,8 +25,10 @@
 
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/threading/thread_restrictions.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "media/starboard/mock_sbplayer_interface.h"
 #include "media/starboard/sbplayer_interface.h"
@@ -208,6 +210,32 @@ TEST_F(NativeSplashVideoPlayerTest, BuiltInVideoErrorIsAPlaybackError) {
   created.ReportError();
   task_environment_.RunUntilIdle();
   EXPECT_EQ(error, Error::kPlaybackError);
+}
+
+// The player is destroyed while its thread starts it, e.g., when the app is
+// concealed as the splash screen starts: no SbPlayer is created afterwards.
+TEST_F(NativeSplashVideoPlayerTest, NoPlayerIsCreatedOnceDestroyed) {
+  base::WaitableEvent starting;
+  base::WaitableEvent destroyed;
+  EXPECT_CALL(sbplayer_, GetPreferredOutputMode(_))
+      .WillOnce([&](const SbPlayerCreationParam*) {
+        starting.Signal();
+        base::ScopedAllowBaseSyncPrimitivesForTesting allow_wait;
+        destroyed.Wait();
+        return kSbPlayerOutputModePunchOut;
+      });
+  EXPECT_CALL(sbplayer_, Create(_, _, _, _, _, _, _, _)).Times(0);
+
+  player_ = NativeSplashVideoPlayer::CreateForSplashScreen(
+      /*topic=*/"", /*cached_webm=*/"", kBounds, std::move(callbacks_));
+  ASSERT_TRUE(player_);
+  {
+    base::ScopedAllowBaseSyncPrimitivesForTesting allow_wait;
+    starting.Wait();
+  }
+  player_.reset();
+  destroyed.Signal();
+  task_environment_.RunUntilIdle();
 }
 
 }  // namespace
