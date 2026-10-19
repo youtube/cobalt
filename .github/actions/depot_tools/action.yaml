@@ -115,10 +115,8 @@ runs:
         PLATFORM: ${{ matrix.platform }}
       run: |
         if ! grep -q "target_cpu" .gclient; then
-          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
-            echo "target_cpu=['x64', 'arm64']" >> .gclient
-          elif [[ "${PLATFORM}" == *"evergreen-arm"* ]]; then
-            echo "target_cpu=['x64', 'arm']" >> .gclient
+          if [[ "${PLATFORM}" != *"tvos"* ]]; then
+            echo "target_cpu=['x64', 'arm', 'arm64']" >> .gclient
           fi
         fi
         gclient validate
@@ -134,7 +132,11 @@ runs:
         set -euo pipefail
         deps_match=false
         src_match=true
-        LOWER_DIR="/runner-cache/golden-workspace/gclient/${PLATFORM}"
+        PROFILE="linux"
+        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+          PROFILE="android"
+        fi
+        LOWER_DIR="/runner-cache/golden-workspace/gclient/${PROFILE}"
 
         if [ -f src/build/config/gclient_args.gni ] && cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
@@ -187,7 +189,12 @@ runs:
       # no usable snapshot existed), and only from one config per platform: the
       # snapshot is taken before the build, so its content is config-independent.
       id: publish-snapshot
-      if: inputs.run_sync == 'true' && (steps.check-deps.outputs.deps_match != 'true' || steps.check-deps.outputs.src_match != 'true') && matrix.config == 'devel' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      if: |
+        inputs.run_sync == 'true' &&
+        (steps.check-deps.outputs.deps_match != 'true' || steps.check-deps.outputs.src_match != 'true') &&
+        matrix.config == 'devel' &&
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) &&
+        (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
       shell: bash
       working-directory: cobalt
       env:
@@ -196,6 +203,22 @@ runs:
         SRC_MATCH: ${{ steps.check-deps.outputs.src_match }}
       run: |
         set -euo pipefail
+        PROFILE="linux"
+        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+          PROFILE="android"
+        fi
+
+        # Primary publishers: linux-x64x11 for linux profile and src; android-arm64 for android profile.
+        # Fall back to any devel builder if primary builders are not present in workflow.
+        if [ "${PROFILE}" = "linux" ] && [ "${PLATFORM}" != "linux-x64x11" ] && [ "${PLATFORM}" != "evergreen-x64" ]; then
+          echo "Skipping golden snapshot publishing for secondary Linux platform ${PLATFORM}."
+          exit 0
+        fi
+        if [ "${PROFILE}" = "android" ] && [ "${PLATFORM}" != "android-arm64" ] && [ "${PLATFORM}" != "evergreen-arm64-aosp" ]; then
+          echo "Skipping golden snapshot publishing for secondary Android platform ${PLATFORM}."
+          exit 0
+        fi
+
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
         ARCHIVE="/runner-cache/golden-${PLATFORM}.$$.tar.zst"
         trap 'rm -f "${ARCHIVE}"' EXIT
@@ -207,7 +230,7 @@ runs:
           echo "$1 $2" >> "${RUNNER_TEMP}/golden/${PLATFORM}"
         }
 
-        if [ "${SRC_MATCH}" != "true" ]; then
+        if [ "${PLATFORM}" = "linux-x64x11" ] && [ "${SRC_MATCH}" != "true" ]; then
           SRC_DIGEST=$({
             find src/.git -print0
             git -C src -c core.quotepath=false ls-files -z | sed -z 's|^|src/|'
@@ -225,7 +248,7 @@ runs:
             git -C src -c core.quotepath=false ls-files --others --directory --no-empty-directory -z | sed -z 's|^|src/|'
           } | tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
             --null -T - -cf - | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
-          upload_part "gclient/${PLATFORM}" "${GCLIENT_DIGEST}"
+          upload_part "gclient/${PROFILE}" "${GCLIENT_DIGEST}"
         fi
         echo "published=true" >> "${GITHUB_OUTPUT}"
 

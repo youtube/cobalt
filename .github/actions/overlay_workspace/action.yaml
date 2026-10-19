@@ -51,8 +51,12 @@ runs:
         src_hit=false
         gclient_hit=false
         cache_hit=false
+        PROFILE="linux"
+        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+          PROFILE="android"
+        fi
         SRC_DIR="/runner-cache/golden-workspace/src"
-        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PLATFORM}"
+        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PROFILE}"
         if [ -d "${SRC_DIR}/src/.git" ] && cmp -s DEPS "${SRC_DIR}/src/DEPS"; then
           src_hit=true
         fi
@@ -72,10 +76,11 @@ runs:
           --arg run_id "${GITHUB_RUN_ID}" \
           --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
           --arg platform "${PLATFORM}" \
+          --arg profile "${PROFILE}" \
           --argjson cache_hit "${cache_hit}" \
           --argjson src_cache_hit "${src_hit}" \
           --argjson gclient_cache_hit "${gclient_hit}" \
-          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, platform: $platform, cache_hit: $cache_hit, src_cache_hit: $src_cache_hit, gclient_cache_hit: $gclient_cache_hit}')
+          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, platform: $platform, profile: $profile, cache_hit: $cache_hit, src_cache_hit: $src_cache_hit, gclient_cache_hit: $gclient_cache_hit}')
         gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json
 
     - name: Hydrate Snapshot from GCS
@@ -90,14 +95,18 @@ runs:
           exit 0
         fi
 
+        PROFILE="linux"
+        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+          PROFILE="android"
+        fi
+
         git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        STAGING_DIR="/runner-cache/staging.$$"
-        trap 'rm -rf "${STAGING_DIR}"' EXIT
         mkdir -p /runner-cache/golden-workspace/gclient
 
         hydrate_part() {
           local key="$1"
+          local staging_dir="/runner-cache/staging.${key//\//-}.$$"
           local lower_dir="/runner-cache/golden-workspace/${key}"
           local ref="refs/remotes/origin/golden-workspace/${key}"
           local expected=""
@@ -128,25 +137,29 @@ runs:
           fi
 
           echo "Downloading, extracting, and verifying golden workspace (${key}) (${expected:0:12})..."
-          rm -rf "${STAGING_DIR}" && mkdir -p "${STAGING_DIR}"
+          rm -rf "${staging_dir}" && mkdir -p "${staging_dir}"
           {
             gcloud storage cat "gs://${BUCKET}/${key}/${expected}.tar.zst" \
               | tee /dev/fd/3 \
-              | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}" >&2
+              | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${staging_dir}" >&2
           } 3>&1 | sha256sum -c <(echo "${expected}  -")
 
-          if [ -d "${STAGING_DIR}/src/.git" ]; then
-            git -C "${STAGING_DIR}/src" update-index --refresh -q
+          if [ -d "${staging_dir}/src/.git" ]; then
+            git -C "${staging_dir}/src" update-index --refresh -q
           fi
 
-          echo "${expected}" > "${STAGING_DIR}/.digest"
+          echo "${expected}" > "${staging_dir}/.digest"
           rm -rf "${lower_dir}"
-          mv "${STAGING_DIR}" "${lower_dir}"
+          mv "${staging_dir}" "${lower_dir}"
           echo "Extracted and verified golden workspace (${key}) to ${lower_dir}"
         }
 
-        hydrate_part "src"
-        hydrate_part "gclient/${PLATFORM}"
+        hydrate_part "src" &
+        pid_src=$!
+        hydrate_part "gclient/${PROFILE}" &
+        pid_gclient=$!
+        wait "${pid_src}"
+        wait "${pid_gclient}"
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
@@ -156,9 +169,13 @@ runs:
         SSD_CACHE_HIT: ${{ steps.detect-cache.outputs.cache_hit }}
       run: |
         set -euo pipefail
+        PROFILE="linux"
+        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+          PROFILE="android"
+        fi
         lower_dirs=()
         SRC_DIR="/runner-cache/golden-workspace/src"
-        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PLATFORM}"
+        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PROFILE}"
         if [ -d "${GCLIENT_DIR}" ]; then
           if cmp -s DEPS "${GCLIENT_DIR}/src/DEPS"; then
             lower_dirs+=("${GCLIENT_DIR}")
