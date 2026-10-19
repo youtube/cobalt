@@ -77,12 +77,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   static CobaltContentBrowserClient* Get();
 
-#if BUILDFLAG(IS_ANDROID)
+  // ShellContentBrowserClient overrides.
   base::FilePath GetShaderDiskCacheDirectory() override;
   base::FilePath GetGrShaderDiskCacheDirectory() override;
-#endif
-
-  // ShellContentBrowserClient overrides.
+  base::FilePath GetGraphiteDawnDiskCacheDirectory() override;
   std::unique_ptr<content::VideoOverlayWindow>
   CreateWindowForVideoPictureInPicture(
       content::VideoPictureInPictureWindowController* controller) override;

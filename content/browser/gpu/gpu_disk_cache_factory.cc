@@ -5,10 +5,15 @@
 #include "content/browser/gpu/gpu_disk_cache_factory.h"
 
 #include "base/command_line.h"
+#include "build/build_config.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/ipc/host/gpu_disk_cache.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/path_service.h"
+#endif
 
 namespace content {
 
@@ -54,5 +59,16 @@ void InitGpuDiskCacheFactorySingleton() {
 gpu::GpuDiskCacheFactory* GetGpuDiskCacheFactorySingleton() {
   return factory_instance;
 }
+
+#if BUILDFLAG(IS_COBALT)
+base::FilePath GetCobaltGpuDiskCachePath(gpu::GpuDiskCacheType type) {
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+      !cache_dir.empty()) {
+    return cache_dir.Append(gpu::GetGpuDiskCacheSubdir(type));
+  }
+  return base::FilePath();
+}
+#endif
 
 }  // namespace content

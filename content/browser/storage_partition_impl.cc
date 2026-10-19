@@ -3249,11 +3249,22 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
       base::RepeatingClosure barrier = base::BarrierClosure(
           gpu::kGpuDiskCacheTypes.size(),
           CreateTaskCompletionClosure(TracingDataType::kGpuCache));
+#if BUILDFLAG(IS_COBALT)
+      // Cobalt: GPU disk caches live in DIR_CACHE, not persistent storage
+      // (b/573641124). All partitions share one handle per type, so ClearData
+      // on any partition clears the global cache in DIR_CACHE.
+      for (gpu::GpuDiskCacheType type : gpu::kGpuDiskCacheTypes) {
+        gpu_cache_factory->ClearByPath(
+            GetCobaltGpuDiskCachePath(type), begin, end,
+            base::BindOnce(&ClearedGpuCache, barrier));
+      }
+#else
       for (gpu::GpuDiskCacheType type : gpu::kGpuDiskCacheTypes) {
         gpu_cache_factory->ClearByPath(
             path.Append(gpu::GetGpuDiskCacheSubdir(type)), begin, end,
             base::BindOnce(&ClearedGpuCache, barrier));
       }
+#endif
     }
   }
 
