@@ -40,10 +40,24 @@ from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-p
 # Configuration
 COBALT_DEBUG_PORT = 9222
 CDP_HOST = '127.0.0.1'
-TARGET_URL = 'https://www.youtube.com/tv#/watch?v=AB-4pS2Og1g'
+TARGET_URL = 'https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ'
 DEFAULT_COBALT_PACKAGE_NAME = 'dev.cobalt.coat'
 DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
-DEFAULT_POLL_INTERVAL_S = 30.0
+DEFAULT_POLL_INTERVAL_S = 35.0
+DEFAULT_WARMUP_DURATION_S = 35.0
+DEFAULT_MEMORY_METRICS_FEATURE = (
+    'CobaltMetricsInterval:memory-metrics-interval/10')
+ANDROID_NAV_START_DELAY_S = 12.0
+ANDROID_NAV_END_TIME_S = 32.0
+ANDROID_NAV_STEP_INTERVAL_S = 4.0
+ANDROID_NAV_KEYCODES = (
+    'KEYCODE_DPAD_DOWN',
+    'KEYCODE_DPAD_RIGHT',
+    'KEYCODE_DPAD_LEFT',
+    'KEYCODE_DPAD_RIGHT',
+    'KEYCODE_DPAD_LEFT',
+    'KEYCODE_DPAD_UP',
+)
 MAX_WEBSOCKET_RETRIES = 10
 WEBSOCKET_RETRY_DELAY_S = 2
 
@@ -83,12 +97,53 @@ def stop_package(package_name: str, quiet: bool) -> bool:
   return True
 
 
-def launch_cobalt(package_name: str, activity_name: str, url: str, quiet: bool):
+def _normalize_extra_args(extra_args: str) -> list:
+  """Normalizes comma-separated extra commandLineArgs for Android launch."""
+  normalized = []
+  if extra_args:
+    for raw_token in extra_args.split(','):
+      cleaned = raw_token.strip()
+      if not cleaned:
+        continue
+      if not cleaned.startswith('--') and '=' not in cleaned and normalized:
+        normalized[-1] = f'{normalized[-1]};{cleaned}'
+      else:
+        if not cleaned.startswith('--'):
+          cleaned = f'--{cleaned}'
+        normalized.append(cleaned)
+
+  enable_idx = next(
+      (i for i, arg in enumerate(normalized)
+       if arg.startswith('--enable-features=')),
+      None,
+  )
+  if enable_idx is None:
+    normalized.append(f'--enable-features={DEFAULT_MEMORY_METRICS_FEATURE}')
+  elif 'CobaltMetricsInterval' not in normalized[enable_idx]:
+    normalized[enable_idx] = (
+        f'{normalized[enable_idx]};{DEFAULT_MEMORY_METRICS_FEATURE}')
+  return normalized
+
+
+def launch_cobalt(package_name: str,
+                  activity_name: str,
+                  url: str,
+                  quiet: bool,
+                  extra_args: str = ''):
   """Launches the Cobalt application with a specified URL.
        Returns True on success and False upon failure."""
-  command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--remote-allow-origins=*,'
-                 f'--url=\"{url}\"\'')
+  cmd_args = ['--remote-allow-origins=*']
+  cmd_args.extend(_normalize_extra_args(extra_args))
+  if package_name == DEFAULT_COBALT_PACKAGE_NAME:
+    cmd_args.append(f'--url={url}')
+    joined_args = ','.join(cmd_args)
+    command_str = (f'adb shell "am start -n {package_name}/{activity_name} '
+                   f'--esa commandLineArgs \'{joined_args}\'"')
+  else:
+    joined_args = ','.join(cmd_args)
+    command_str = (f'adb shell "am start -a android.intent.action.VIEW '
+                   f'-d \'{url}\' --esa commandLineArgs \'{joined_args}\' '
+                   f'-p {package_name}"')
   stdout, stderr = run_adb_command(command_str, shell=True)
   if stderr:
     _print_q(f'Error launching Cobalt: {stderr}', quiet)
@@ -115,13 +170,19 @@ def get_websocket_url(platform: str, port: int, quiet: bool):
         response.raise_for_status()
         targets = response.json()
 
-        for target in targets:
-          if target.get('type') == 'page' and target.get(
-              'webSocketDebuggerUrl'):
-            _print_q(
-                'Found existing tab: ' + target['title'] + ' - ' +
-                target['webSocketDebuggerUrl'], quiet)
-            return target['webSocketDebuggerUrl']
+        page_targets = [
+            t for t in targets
+            if t.get('type') == 'page' and t.get('webSocketDebuggerUrl')
+        ]
+        non_splash = [
+            t for t in page_targets if 'splash.html' not in t.get('url', '') and
+            'splash.html' not in t.get('title', '')
+        ]
+        for target in (non_splash or page_targets):
+          _print_q(
+              'Found existing tab: ' + target.get('title', '') + ' - ' +
+              target['webSocketDebuggerUrl'], quiet)
+          return target['webSocketDebuggerUrl']
 
         _print_q(
             'No suitable existing page found, trying to create a new tab...',
@@ -232,11 +293,44 @@ def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
   _print_q('\n' + '-' * 50 + '\n', quiet)
 
 
-def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
-                      url: str, quiet: bool):
+def _trigger_storage_flush_and_exit_via_cdp(ws, message_id: int,
+                                            quiet: bool) -> int:
+  """Dirties probe storage entries and calls h5vcc.system.exit() via CDP."""
+  expression = (
+      'try { '
+      'document.cookie = "cobalt_uma_probe=" + Date.now() + "; path=/"; '
+      'localStorage.setItem("cobalt_uma_probe", String(Date.now())); '
+      'localStorage.removeItem("cobalt_uma_probe"); '
+      'if (window.h5vcc && window.h5vcc.system && '
+      'typeof window.h5vcc.system.exit === "function") { '
+      'window.h5vcc.system.exit(); '
+      '} '
+      '} catch (e) {}')
+  command = {
+      'id': message_id,
+      'method': 'Runtime.evaluate',
+      'params': {
+          'expression': expression
+      }
+  }
+  ws.send(json.dumps(command))
+  ws.recv()
+  _print_q('Triggered probe storage write and h5vcc.system.exit() via CDP.',
+           quiet)
+  time.sleep(2)
+  return message_id + 1
+
+
+def _interact_via_cdp(websocket_url: str,
+                      histograms: list,
+                      output_file,
+                      url: str,
+                      quiet: bool,
+                      *,
+                      trigger_exit_flush: bool = False):
   ws = None
   try:
-    ws = websocket.create_connection(websocket_url)
+    ws = websocket.create_connection(websocket_url, timeout=10)
     _print_q(f'Connected to WebSocket: {websocket_url}', quiet)
 
     message_id = 1
@@ -269,6 +363,10 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
     else:
       _print_q(f'Could not retrieve metrics: {response}', quiet)
 
+    if trigger_exit_flush:
+      message_id = _trigger_storage_flush_and_exit_via_cdp(
+          ws, message_id, quiet)
+
     _print_cobalt_histogram_names(ws, message_id, histograms, output_file,
                                   quiet)
   except Exception as e:  # pylint: disable=broad-exception-caught
@@ -279,11 +377,57 @@ def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
       _print_q('WebSocket connection closed.', quiet)
 
 
+def _wait_with_android_navigation(duration_s: float,
+                                  quiet: bool,
+                                  stop_event=None):
+  """Waits duration_s on Android while sending periodic DPAD navigation keys."""
+  if not isinstance(duration_s,
+                    (int, float)) or (duration_s <= ANDROID_NAV_START_DELAY_S):
+    time.sleep(duration_s)
+    return
+
+  time.sleep(ANDROID_NAV_START_DELAY_S)
+  elapsed = ANDROID_NAV_START_DELAY_S
+  key_idx = 0
+  while elapsed < duration_s:
+    if stop_event is not None and stop_event.is_set():
+      return
+    if elapsed <= ANDROID_NAV_END_TIME_S:
+      keycode = ANDROID_NAV_KEYCODES[key_idx % len(ANDROID_NAV_KEYCODES)]
+      key_idx += 1
+      _print_q(f'Sending Android navigation key {keycode} at t={elapsed:.0f}s',
+               quiet)
+      run_adb_command(['adb', 'shell', 'input', 'keyevent', keycode])
+      step_s = min(ANDROID_NAV_STEP_INTERVAL_S, duration_s - elapsed)
+    else:
+      step_s = duration_s - elapsed
+    if step_s > 0:
+      time.sleep(step_s)
+    elapsed += step_s
+
+
 def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
   """Runs the data polling loop in a dedicated thread."""
   _print_q('Starting data polling thread', args.quiet)
   iteration = 0
+  manage_cobalt = getattr(args, 'no_manage_cobalt', True) is False
+  max_polls = getattr(args, 'max_polls', 0)
+  has_max_polls = isinstance(max_polls, int) and max_polls > 0
   while not stop_event.is_set():
+    if iteration > 0 or manage_cobalt:
+      if args.platform == 'android' and manage_cobalt:
+        _wait_with_android_navigation(args.poll_interval_s, args.quiet,
+                                      stop_event)
+      else:
+        time.sleep(args.poll_interval_s)
+      if stop_event.is_set():
+        break
+      refreshed_url = get_websocket_url(
+          platform=args.platform,
+          port=getattr(args, 'port', COBALT_DEBUG_PORT),
+          quiet=args.quiet)
+      if refreshed_url:
+        websocket_url = refreshed_url
     iteration += 1
     current_time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     header_prefix = f'[{current_time_str}][Poll Iter: {iteration}]'
@@ -295,13 +439,100 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
       app_is_running = is_cobalt_running_linux()
 
     if app_is_running:
-      _interact_via_cdp(websocket_url, histograms, output_file, args.url,
-                        args.quiet)
+      trigger_exit_flush = args.platform == 'android' and manage_cobalt
+      _interact_via_cdp(
+          websocket_url,
+          histograms,
+          output_file,
+          args.url,
+          args.quiet,
+          trigger_exit_flush=trigger_exit_flush)
     elif iteration % 5 == 0:
       _print_q(f'{header_prefix} App not running.', args.quiet)
 
-    time.sleep(args.poll_interval_s)
+    if has_max_polls and iteration >= max_polls:
+      stop_event.set()
+      break
   _print_q('Data polling thread stopped.', args.quiet)
+
+
+COMPETING_DEVTOOLS_PACKAGES = (
+    'dev.cobalt.coat',
+    'com.google.android.youtube.tv',
+    'org.chromium.content_shell_apk',
+)
+
+
+def _start_and_wait_for_cobalt_android(args) -> bool:
+  """Starts Cobalt on Android and waits up to 10 seconds for the process."""
+  for competing_pkg in COMPETING_DEVTOOLS_PACKAGES:
+    if competing_pkg != args.package_name and is_package_running_android(
+        competing_pkg):
+      stop_package(competing_pkg, args.quiet)
+  launch_cobalt(
+      package_name=args.package_name,
+      activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
+      url=args.url,
+      quiet=args.quiet,
+      extra_args=getattr(args, 'extra_args', ''))
+  _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
+  for _ in range(10):  # Poll for 10 seconds
+    if is_package_running_android(args.package_name):
+      _print_q(f'{args.package_name} has started.', args.quiet)
+      return True
+    time.sleep(1)
+  _print_q(
+      f'Error: Failed to start {args.package_name} within 10 seconds. '
+      '\nExiting...\n', args.quiet)
+  return False
+
+
+def clear_stability_metrics_pma(package_name: str, quiet: bool):
+  """Removes stale BrowserStabilityMetrics .pma files before a measured run."""
+  _print_q(
+      f'Clearing stale BrowserStabilityMetrics .pma files for '
+      f'\'{package_name}\'...', quiet)
+  run_adb_command([
+      'adb', 'shell', 'run-as', package_name, 'rm', '-rf',
+      'app_content_shell/BrowserStabilityMetrics'
+  ])
+
+
+def _run_warmup_cycles(args, histograms: list):
+  """Executes warmup/migration launch cycles on Android before measurement."""
+  warmup_runs = getattr(args, 'warmup_runs', 0)
+  if not isinstance(warmup_runs, int) or warmup_runs <= 0:
+    return
+  warmup_duration_s = getattr(args, 'warmup_duration_s',
+                              DEFAULT_WARMUP_DURATION_S)
+  warmup_output_path = getattr(args, 'warmup_output_file', None)
+  if warmup_output_path:
+    with open(warmup_output_path, 'w', encoding='utf-8'):
+      pass
+
+  for run_idx in range(1, warmup_runs + 1):
+    _print_q(
+        f'\n=== Warmup Run {run_idx}/{warmup_runs} '
+        f'(duration={warmup_duration_s}s) ===', args.quiet)
+    if is_package_running_android(args.package_name):
+      stop_package(args.package_name, args.quiet)
+    clear_stability_metrics_pma(args.package_name, args.quiet)
+    if not _start_and_wait_for_cobalt_android(args):
+      sys.exit(1)
+    _wait_with_android_navigation(warmup_duration_s, args.quiet)
+    if warmup_output_path:
+      ws_url = get_websocket_url(
+          platform=args.platform, port=args.port, quiet=args.quiet)
+      if ws_url:
+        with open(warmup_output_path, 'a', encoding='utf-8') as warmup_file:
+          _interact_via_cdp(
+              ws_url,
+              histograms,
+              warmup_file,
+              args.url,
+              args.quiet,
+              trigger_exit_flush=True)
+    stop_package(args.package_name, args.quiet)
 
 
 def _run_main(args, output_file):
@@ -318,27 +549,12 @@ def _run_main(args, output_file):
   stop_event = threading.Event()
 
   if args.platform == 'android' and not args.no_manage_cobalt:
-    if not is_package_running_android(args.package_name):
-      launch_cobalt(
-          package_name=args.package_name,
-          activity_name=DEFAULT_COBALT_ACTIVITY_NAME,
-          url=args.url,
-          quiet=args.quiet)
-      _print_q(f'Waiting for {args.package_name} to start...', args.quiet)
-      started = False
-      for _ in range(5):  # Poll for 5 seconds
-        if is_package_running_android(args.package_name):
-          started = True
-          _print_q(f'{args.package_name} has started.', args.quiet)
-          break
-        time.sleep(1)
-
-      if not started:
-        _print_q(
-            f'Error: Failed to start {args.package_name}/'
-            f'{DEFAULT_COBALT_ACTIVITY_NAME} within 5 seconds. \nExiting...\n',
-            args.quiet)
-        sys.exit(1)
+    _run_warmup_cycles(args, histograms)
+    if is_package_running_android(args.package_name):
+      stop_package(args.package_name, args.quiet)
+    clear_stability_metrics_pma(args.package_name, args.quiet)
+    if not _start_and_wait_for_cobalt_android(args):
+      sys.exit(1)
   time.sleep(1)
 
   websocket_url = get_websocket_url(
@@ -390,6 +606,13 @@ def main():
       default=DEFAULT_COBALT_PACKAGE_NAME,
       help='The package name of the Cobalt application.')
   parser.add_argument(
+      '-s',
+      '--device-id',
+      '--serial',
+      dest='device_id',
+      default=None,
+      help='ADB device serial or host:port (sets ANDROID_SERIAL).')
+  parser.add_argument(
       '--platform',
       choices=['android', 'linux'],
       default='android',
@@ -399,6 +622,32 @@ def main():
       type=float,
       default=DEFAULT_POLL_INTERVAL_S,
       help='The polling frequency in seconds.')
+  parser.add_argument(
+      '--max-polls',
+      type=int,
+      default=0,
+      help='Maximum number of poll iterations before exiting (0 = unlimited).')
+  parser.add_argument(
+      '--extra-args',
+      default='',
+      help='Optional comma-separated Chromium command-line flags appended to '
+      'commandLineArgs on Android launch.')
+  parser.add_argument(
+      '--warmup-runs',
+      type=int,
+      default=0,
+      help='Number of warmup/migration launch cycles to run on Android before '
+      'the measured run (default: 0).')
+  parser.add_argument(
+      '--warmup-duration-s',
+      type=float,
+      default=DEFAULT_WARMUP_DURATION_S,
+      help='Duration in seconds for each warmup run before stopping the '
+      'package (default: 35.0, past the +30s storage cleanup task).')
+  parser.add_argument(
+      '--warmup-output-file',
+      help='Optional file path to record a CDP histogram snapshot at the end '
+      'of each warmup run.')
   parser.add_argument(
       '--port',
       type=int,
@@ -417,12 +666,15 @@ def main():
       help='If set, suppresses all non-essential print output.')
   args = parser.parse_args()
 
+  if args.device_id:
+    os.environ['ANDROID_SERIAL'] = args.device_id
+
   # On Linux, managing the Cobalt process is not supported by this script.
   if args.platform == 'linux':
     args.no_manage_cobalt = True
 
   if args.output_file:
-    with open(args.output_file, 'a', encoding='utf-8') as f:
+    with open(args.output_file, 'w', encoding='utf-8') as f:
       _run_main(args, f)
   else:
     _run_main(args, None)

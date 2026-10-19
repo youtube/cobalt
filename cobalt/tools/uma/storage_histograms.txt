@@ -10,9 +10,15 @@
 # the end as comments, so they are not queried.
 
 # --- 1. Latency on critical paths: startup, commits, lifecycle flushes ---
+# End-to-end Cobalt app startup milestones and primary navigation commit latency.
+Cobalt.Startup.Time.NavigationDispatchToCommit
+Cobalt.Startup.MilestoneReached
+Cobalt.Startup.MilestoneDuration.
 # UI/IO main-thread congestion (verifies background storage tasks do not jank).
 Browser.MainThreadsCongestion
 Browser.MainThreadsCongestion.Initial
+Browser.MainThreadsCongestion.RunningOnly
+Browser.MainThreadsCongestion.RunningOnly.Initial
 # Cookie database open and load at startup, and how long requests waited on it.
 Cobalt.Storage.Cookie.LoadDuration
 Cookie.TimeBlockedOnLoad

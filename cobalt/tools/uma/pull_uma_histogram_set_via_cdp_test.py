@@ -54,13 +54,12 @@ class AndroidHistogramTest(BaseHistogramTest):
         pull_uma_histogram_set_via_cdp.is_package_running_android(
             'test.package'))
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_android(self, mock_requests, mock_device_utils):
+  def test_get_websocket_url_android(self, mock_requests, mock_run_adb):
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
+    mock_run_adb.return_value = ('', None)
     mock_response = self._create_mock_response([{
         'type': 'page',
         'title': 'Mock Title',
@@ -71,34 +70,51 @@ class AndroidHistogramTest(BaseHistogramTest):
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='android', port=9222, quiet=True), 'ws://test_url')
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
-  def test_get_websocket_url_android_no_devices(self, mock_device_utils):
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = []
-    self.assertIsNone(
-        pull_uma_histogram_set_via_cdp.get_websocket_url(
-            platform='android', port=9222, quiet=True))
-
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_android_connection_error(self, mock_requests,
-                                                      mock_device_utils):
+  def test_get_websocket_url_android_prefers_non_splash(self, mock_requests,
+                                                        mock_run_adb):
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
+    mock_run_adb.return_value = ('', None)
+    mock_response = self._create_mock_response([
+        {
+            'type': 'page',
+            'title': 'h5vcc-embedded://splash.html/?force_image=true',
+            'url': 'h5vcc-embedded://splash.html/?force_image=true',
+            'webSocketDebuggerUrl': 'ws://splash_url'
+        },
+        {
+            'type': 'page',
+            'title': 'YouTube on TV',
+            'url': 'https://www.youtube.com/tv',
+            'webSocketDebuggerUrl': 'ws://yt_url'
+        },
+    ])
+    mock_requests.get.return_value = mock_response
+    self.assertEqual(
+        pull_uma_histogram_set_via_cdp.get_websocket_url(
+            platform='android', port=9222, quiet=True), 'ws://yt_url')
+
+  @patch('pull_uma_histogram_set_via_cdp.time.sleep')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
+  @patch('pull_uma_histogram_set_via_cdp.requests')
+  def test_get_websocket_url_android_connection_error(self, mock_requests,
+                                                      mock_run_adb, mock_sleep):  # pylint: disable=unused-argument
+    mock_requests.exceptions.ConnectionError = (
+        real_requests.exceptions.ConnectionError)
+    mock_run_adb.return_value = ('', None)
     mock_requests.get.side_effect = real_requests.exceptions.ConnectionError
     self.assertIsNone(
         pull_uma_histogram_set_via_cdp.get_websocket_url(
             platform='android', port=9222, quiet=True))
 
-  @patch('pull_uma_histogram_set_via_cdp.device_utils')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
   @patch('pull_uma_histogram_set_via_cdp.requests')
-  def test_get_websocket_url_android_new_tab(self, mock_requests,
-                                             mock_device_utils):
+  def test_get_websocket_url_android_new_tab(self, mock_requests, mock_run_adb):
     mock_requests.exceptions.ConnectionError = (
         real_requests.exceptions.ConnectionError)
-    mock_device = MagicMock()
-    mock_device_utils.DeviceUtils.HealthyDevices.return_value = [mock_device]
+    mock_run_adb.return_value = ('', None)
 
     # No existing page, then a new tab is created
     mock_get_responses = [
@@ -122,11 +138,46 @@ class AndroidHistogramTest(BaseHistogramTest):
         pull_uma_histogram_set_via_cdp.stop_package('test.package', quiet=True))
 
   @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
-  def test_launch_cobalt(self, mock_run_adb_command):
+  def test_launch_cobalt_coat_and_kimono(self, mock_run_adb_command):
     mock_run_adb_command.return_value = ('', '')
     self.assertTrue(
         pull_uma_histogram_set_via_cdp.launch_cobalt(
-            'test.package', 'test.activity', 'http://test.url', quiet=True))
+            'dev.cobalt.coat',
+            'dev.cobalt.app.MainActivity',
+            'http://test.url',
+            quiet=True,
+            extra_args='--enable-features=CobaltStorageCleanup,DIPS'))
+    coat_cmd = mock_run_adb_command.call_args[0][0]
+    self.assertIn('-n dev.cobalt.coat/dev.cobalt.app.MainActivity', coat_cmd)
+    self.assertIn(
+        '--enable-features=CobaltStorageCleanup;DIPS;'
+        'CobaltMetricsInterval:memory-metrics-interval/10', coat_cmd)
+
+    kimono_args = (
+        '--enable-features=CobaltStorageCleanup,--disable-features=DIPS')
+    self.assertTrue(
+        pull_uma_histogram_set_via_cdp.launch_cobalt(
+            'com.google.android.youtube.tv',
+            'dev.cobalt.app.MainActivity',
+            'http://test.url',
+            quiet=True,
+            extra_args=kimono_args))
+    kimono_cmd = mock_run_adb_command.call_args[0][0]
+    self.assertIn('-a android.intent.action.VIEW', kimono_cmd)
+    self.assertIn('-p com.google.android.youtube.tv', kimono_cmd)
+    self.assertIn(
+        '--enable-features=CobaltStorageCleanup;'
+        'CobaltMetricsInterval:memory-metrics-interval/10,'
+        '--disable-features=DIPS', kimono_cmd)
+
+  @patch('pull_uma_histogram_set_via_cdp.time.sleep')
+  @patch('pull_uma_histogram_set_via_cdp.run_adb_command')
+  def test_wait_with_android_navigation(self, mock_run_adb, mock_sleep):
+    mock_run_adb.return_value = ('', '')
+    pull_uma_histogram_set_via_cdp._wait_with_android_navigation(  # pylint: disable=protected-access
+        35.0, quiet=True)
+    self.assertEqual(mock_run_adb.call_count, 6)
+    self.assertEqual(mock_sleep.call_count, 7)
 
 
 class LinuxHistogramTest(BaseHistogramTest):
@@ -224,6 +275,25 @@ class CoreLogicTest(BaseHistogramTest):
 
     self.assertEqual(mock_ws_connection.send.call_count, 3)
     self.assertEqual(mock_ws_connection.recv.call_count, 3)
+    mock_ws_connection.close.assert_called_once()
+
+  @patch('pull_uma_histogram_set_via_cdp.json.loads')
+  @patch('pull_uma_histogram_set_via_cdp.time')
+  def test_interact_via_cdp_with_exit_flush(self, mock_time, mock_json_loads):
+    mock_ws_connection = MagicMock()
+    self.mock_websocket.create_connection.return_value = mock_ws_connection
+    mock_json_loads.side_effect = [{'id': 1}, {'id': 2}, {'id': 4}]
+
+    pull_uma_histogram_set_via_cdp._interact_via_cdp(  # pylint: disable=protected-access
+        'ws://test_url', ['hist1'],
+        None,
+        'http://test.url',
+        True,
+        trigger_exit_flush=True)
+
+    self.assertEqual(mock_ws_connection.send.call_count, 4)
+    self.assertEqual(mock_ws_connection.recv.call_count, 4)
+    mock_time.sleep.assert_called_with(2)
     mock_ws_connection.close.assert_called_once()
 
   @patch('pull_uma_histogram_set_via_cdp.is_package_running_android')
