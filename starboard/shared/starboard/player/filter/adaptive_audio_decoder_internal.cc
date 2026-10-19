@@ -99,7 +99,14 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK_NE(input_buffers.front()->audio_stream_info().codec,
                kSbMediaAudioCodecNone);
 
-  const bool first_input_since_reset = !first_input_written_;
+  if (audio_decoder_ && !first_input_written_ &&
+      IsAudioSampleInfoSubstantiallyDifferent(
+          input_audio_stream_info_,
+          input_buffers.front()->audio_stream_info())) {
+    // Like WriteEndOfStream(), don't wait on EOS from a decoder with no input
+    // since Reset(); there is nothing to drain, so swap it now.
+    TeardownAudioDecoder();
+  }
   first_input_written_ = true;
   if (!audio_decoder_) {
     InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
@@ -111,17 +118,6 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
   if (IsAudioSampleInfoSubstantiallyDifferent(
           input_audio_stream_info_,
           input_buffers.front()->audio_stream_info())) {
-    if (first_input_since_reset) {
-      // Nothing has been written since Reset(), so there is no output to
-      // drain. Swap the decoder immediately instead of waiting for an EOS.
-      TeardownAudioDecoder();
-      first_input_written_ = true;
-      InitializeAudioDecoder(input_buffers.front()->audio_stream_info());
-      if (audio_decoder_) {
-        audio_decoder_->Decode(input_buffers, consumed_cb);
-      }
-      return;
-    }
     flushing_ = true;
     pending_input_buffers_ = input_buffers;
     pending_consumed_cb_ = consumed_cb;
