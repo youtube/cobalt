@@ -32,7 +32,11 @@ import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -105,7 +109,8 @@ public class MainActivity extends BaseCobaltActivity {
     if (coldStart) {
       // Cold start - Instantiate the singleton BaseStarboardBridge.
       BaseStarboardBridge starboardBridge =
-          createStarboardBridge(getArgsWithDeepLink(getArgs(), startDeepLink), startDeepLink);
+          createStarboardBridge(
+              getArgsWithDeepLink(getArgsWithDefaults(getArgs()), startDeepLink), startDeepLink);
       ((BaseStarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else if (savedInstanceState == null) {
       // Warm start - Pass the deep link to the running Starboard app.
@@ -175,6 +180,16 @@ public class MainActivity extends BaseCobaltActivity {
 
     mVideoSurfaceView = new VideoSurfaceView(this);
     setContentView(mVideoSurfaceView);
+  }
+
+  /** Returns {@code args} with the default switches that CobaltActivity also adds in front. */
+  private static String[] getArgsWithDefaults(String[] args) {
+    List<String> argsWithDefaults = new ArrayList<>();
+    argsWithDefaults.add(JavaSwitches.DEFAULT_DISABLE_QUIC);
+    if (args != null) {
+      Collections.addAll(argsWithDefaults, args);
+    }
+    return argsWithDefaults.toArray(new String[0]);
   }
 
   /**
