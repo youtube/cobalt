@@ -109,7 +109,17 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+#if BUILDFLAG(IS_STARBOARD)
+  // Keep the shader disk cache only for concealed launch=preload starts.
+  const bool is_preload_launch =
+      !is_visible_ &&
+      cl->GetCommandLineString().find("launch=preload") != std::string::npos;
+  if (!is_preload_launch) {
+    cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
+  }
+#else
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
+#endif  // BUILDFLAG(IS_STARBOARD)
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
