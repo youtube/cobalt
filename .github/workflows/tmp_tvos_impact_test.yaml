@@ -100,9 +100,11 @@ jobs:
         working-directory: cobalt/src
         env:
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
-          # Changes that gn analyze can't see. (auto_label_kokoro.yaml is left
-          # out here, so this test PR reaches gn analyze.)
-          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|\.github/workflows/tvos\.yaml$)
+          # Changes that gn analyze can't see, e.g. the platform's
+          # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE.
+          # (auto_label_kokoro.yaml is left out here, so this test PR reaches
+          # gn analyze.)
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/tvos\.yaml$)
           HEADERS: \.(h|hh|hpp|inc|inl|def)$
         run: |
           files="${RUNNER_TEMP}/changed_files.txt"
