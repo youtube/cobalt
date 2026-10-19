@@ -45,6 +45,9 @@ config("platform_configuration") {
     # Executables built for the device, like the Crashpad handler, are exec'd
     # directly, so the dynamic linker doesn't find the libc++_shared.so
     # packaged in the APK. Link libc++ into them statically.
+    #
+    # This is used together with the in-tree libunwind that
+    # //build/config:common_deps adds for the native toolchain.
     ldflags = [ "-static-libstdc++" ]
   }
 }
