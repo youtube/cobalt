@@ -66,8 +66,9 @@ class MEDIA_EXPORT MediaFoundationRenderer
     kFailedToInitDCompTextureWrapper = 14,
     kFailedToSetPlaybackRate = 15,
     kFailedToGetMediaEngineEx = 16,
+    kFailedToSetOutputRect = 17,
     // Add new values here and update `kMaxValue`. Never reuse existing values.
-    kMaxValue = kFailedToGetMediaEngineEx,
+    kMaxValue = kFailedToSetOutputRect,
   };
 
   // An enum for recording MediaFoundationRenderer playback detected rendered
@@ -119,6 +120,8 @@ class MEDIA_EXPORT MediaFoundationRenderer
                      SetOutputRectCB callback) override;
 
   void SetGpuProcessAdapterLuid(LUID gpu_process_adapter_luid);
+
+  MediaEngineNotifyImpl* GetMediaEngineNotifyForTesting() const;
 
  private:
   enum class StopSendingStatisticsReason {
@@ -244,6 +247,7 @@ class MEDIA_EXPORT MediaFoundationRenderer
 
   bool has_reported_playing_ = false;
   bool has_reported_significant_playback_ = false;
+  bool had_error_ = false;
 
   // Value saved from last call to SetLatencyHint(). Latency hint can only be
   // used to determine real-time mode on MediaEngine creation.

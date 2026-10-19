@@ -256,8 +256,8 @@ WebInputEventResult GestureManager::HandleGestureTap(
     // should actually suppress RecomputeMouseHoverState until the user moves
     // the mouse or navigates away.
     mouse_event_manager_->SetElementUnderMouseAndDispatchMouseEvent(
-        current_hit_test.InnerElement(), event_type_names::kMousemove,
-        fake_mouse_move);
+        current_hit_test.InnerPossiblyPseudoElement(),
+        event_type_names::kMousemove, fake_mouse_move);
   }
 
   // Do a new hit-test in case the mousemove event changed the DOM.
@@ -283,7 +283,7 @@ WebInputEventResult GestureManager::HandleGestureTap(
   gfx::Point tapped_position =
       gfx::ToFlooredPoint(gesture_event.PositionInRootFrame());
   Node* tapped_node = current_hit_test.InnerNode();
-  Element* tapped_element = current_hit_test.InnerElement();
+  Element* tapped_element = current_hit_test.InnerPossiblyPseudoElement();
   LocalFrame::NotifyUserActivation(
       tapped_node ? tapped_node->GetDocument().GetFrame() : nullptr,
       mojom::blink::UserActivationNotificationType::kInteraction);
@@ -303,13 +303,19 @@ WebInputEventResult GestureManager::HandleGestureTap(
   WebInputEventResult mouse_down_event_result =
       WebInputEventResult::kHandledSuppressed;
   suppress_selection_on_repeated_tap_down_ = true;
-  if (!suppress_mouse_events_from_gestures_) {
-    mouse_event_manager_->SetClickCount(gesture_event.TapCount());
 
+  // Always update the click count so that the click event dispatched below
+  // (which is NOT suppressed) carries the correct detail/click-count.
+  // Without this, cancelling pointerdown would prevent dblclick from firing
+  // because the click event's detail would not be 2.
+  // See crbug.com/427367148.
+  mouse_event_manager_->SetClickCount(gesture_event.TapCount());
+
+  if (!suppress_mouse_events_from_gestures_) {
     mouse_down_event_result =
         mouse_event_manager_->SetElementUnderMouseAndDispatchMouseEvent(
-            current_hit_test.InnerElement(), event_type_names::kMousedown,
-            fake_mouse_down);
+            current_hit_test.InnerPossiblyPseudoElement(),
+            event_type_names::kMousedown, fake_mouse_down);
     selection_controller_->InitializeSelectionState();
     if (mouse_down_event_result == WebInputEventResult::kNotHandled) {
       mouse_down_event_result = mouse_event_manager_->HandleMouseFocus(
@@ -353,13 +359,16 @@ WebInputEventResult GestureManager::HandleGestureTap(
       suppress_mouse_events_from_gestures_
           ? WebInputEventResult::kHandledSuppressed
           : mouse_event_manager_->SetElementUnderMouseAndDispatchMouseEvent(
-                current_hit_test.InnerElement(), event_type_names::kMouseup,
-                fake_mouse_up);
+                current_hit_test.InnerPossiblyPseudoElement(),
+                event_type_names::kMouseup, fake_mouse_up);
 
   WebInputEventResult click_event_result = WebInputEventResult::kNotHandled;
   if (tapped_element) {
     if (current_hit_test.InnerNode()) {
-      Node* click_target_node = current_hit_test.InnerNode()->CommonAncestor(
+      Node* inner_up_node = current_hit_test.InnerPossiblyPseudoNode()
+                                ? current_hit_test.InnerPossiblyPseudoNode()
+                                : current_hit_test.InnerNode();
+      Node* click_target_node = inner_up_node->CommonAncestor(
           *tapped_element, event_handling_util::ParentForClickEvent);
       auto* click_target_element = DynamicTo<Element>(click_target_node);
       PointerId pointer_id = GetPointerIdFromWebGestureEvent(gesture_event);

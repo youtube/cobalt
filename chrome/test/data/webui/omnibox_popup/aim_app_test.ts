@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ComposeboxContextAddedMethod} from '//resources/cr_components/search/constants.js';
 import {BrowserProxy, PageCallbackRouter, PageHandlerRemote} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import type {PageRemote} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -22,8 +21,6 @@ class TestAimBrowserProxy {
     this.page = this.callbackRouter.$.bindNewPipeAndPassRemote();
   }
 }
-
-const FAKE_TOKEN_STRING = '00000000000000001234567890ABCDEF';
 
 suite('AimAppTest', function() {
   let testProxy: TestAimBrowserProxy;
@@ -162,37 +159,20 @@ suite('AimAppTest', function() {
     assertTrue(glowAnimationPlayed);
   });
 
-  test('LogsMetricOnAddSearchContextWithAttachments', function() {
+  test('ShowsContextMenuOnContextualEntryPointClick', async function() {
     const app = document.createElement('omnibox-aim-app');
     document.body.appendChild(app);
 
-    assertEquals(
-        0,
-        metrics.count(
-            'ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox'));
+    const point = {x: 10, y: 20};
+    app.$.composebox.dispatchEvent(
+        new CustomEvent('context-menu-entrypoint-click', {
+          detail: point,
+          bubbles: true,
+          composed: true,
+        }));
 
-    // Set context with attachments.
-    app.$.composebox.addSearchContext({
-      input: 'test input',
-      attachments: [{
-        fileAttachment: {
-          uuid: FAKE_TOKEN_STRING,
-          name: 'test.pdf',
-          mimeType: 'application/pdf',
-          imageDataUrl: null,
-        },
-      }],
-      toolMode: 0,
-    });
-
-    assertEquals(
-        1,
-        metrics.count(
-            'ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox'));
-    assertEquals(
-        1,
-        metrics.count(
-            'ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox',
-            ComposeboxContextAddedMethod.CONTEXT_MENU));
+    const result = await testProxy.handler.whenCalled('showContextMenu');
+    assertEquals(point.x, result.x);
+    assertEquals(point.y, result.y);
   });
 });

@@ -89,10 +89,16 @@ BASE_DECLARE_FEATURE(kSeparateLocalAndAccountSearchEngines);
 
 // Feature flag to replace all sync-related UI with sign-in ones.
 BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);
+
 // Enables syncing extensions only if the user newly signs in to Chrome, not if
 // they were already signed in by the time `kReplaceSyncPromosWithSignInPromos`
 // was enabled.
 BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForExtensions);
+
+// Enables syncing bookmarks and reading list only if the user newly signs in to
+// Chrome, not if they were already signed in by the time
+// `kReplaceSyncPromosWithSignInPromos` was enabled.
+BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForBookmarks);
 
 // If enabled, allowlisted priority preferences will be synced even if the
 // preferences user toggle is off. Note that this flag is only meaningful if
@@ -214,14 +220,19 @@ BASE_DECLARE_FEATURE(kSyncRecordDeviceStatisticsMetrics);
 // exact number is somewhat arbitrary, chosen to ensure that refresh tokens are
 // loaded, the local cache GUID is up to date, and to avoid interfering with
 // general (sync or browser) startup.
-inline constexpr base::FeatureParam<base::TimeDelta>
-    kSyncRecordDeviceStatisticsMetricsDelay{
-        &kSyncRecordDeviceStatisticsMetrics,
-        "SyncRecordDeviceStatisticsMetricsDelay", base::Seconds(30)};
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kSyncRecordDeviceStatisticsMetricsDelay);
+// Controls how often device statistics are collected and recorded in metrics,
+// as the minimum number of days between recordings.
+BASE_DECLARE_FEATURE_PARAM(int, kSyncRecordDeviceStatisticsMetricsPeriodDays);
 
 // If enabled, DeviceInfoSyncBridge uses WallClockTimer for pulse updates,
 // which is more resilient to device suspension.
 BASE_DECLARE_FEATURE(kSyncDeviceInfoUseWallClockTimer);
+
+// If enabled, validate the access token before sending the request to the
+// server.
+BASE_DECLARE_FEATURE(kSyncValidateAccessToken);
 
 }  // namespace syncer
 

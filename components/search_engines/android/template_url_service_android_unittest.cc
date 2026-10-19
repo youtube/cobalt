@@ -158,6 +158,36 @@ TEST_F(TemplateUrlServiceAndroidUnitTest, EditSearchEngine) {
   EXPECT_FALSE(template_url_service().GetTemplateURLForKeyword(keyword));
 }
 
+TEST_F(TemplateUrlServiceAndroidUnitTest, AddSearchEngine) {
+  const std::u16string keyword = u"chromium";
+  const std::u16string short_name = u"Add Test";
+  const std::string search_url = "http://chromium.org/search/add";
+
+  EXPECT_TRUE(template_url_service_android().AddSearchEngine(
+      env(), short_name, keyword, search_url));
+
+  TemplateURL* t_url = template_url_service().GetTemplateURLForKeyword(keyword);
+  ASSERT_TRUE(t_url);
+  EXPECT_EQ(t_url->short_name(), short_name);
+  EXPECT_EQ(t_url->url(), search_url);
+  EXPECT_FALSE(t_url->safe_for_autoreplace());
+}
+
+TEST_F(TemplateUrlServiceAndroidUnitTest, AddSearchEngineFailed_KeywordExists) {
+  const std::u16string keyword = u"chromium";
+  TemplateURLData data;
+  data.SetShortName(u"Existing");
+  data.SetKeyword(keyword);
+  data.SetURL("http://chromium.org/search/existing");
+  template_url_service().Add(std::make_unique<TemplateURL>(data));
+
+  const std::u16string short_name = u"Existing2";
+  const std::string search_url = "http://chromium.org/search/add";
+
+  EXPECT_FALSE(template_url_service_android().AddSearchEngine(
+      env(), short_name, keyword, search_url));
+}
+
 TEST_F(TemplateUrlServiceAndroidUnitTest,
        EditSearchEngineFailed_PrepopulatedEngine) {
   const std::u16string keyword = u"chromium";
@@ -347,4 +377,26 @@ TEST_F(TemplateUrlServiceAndroidUnitTest, FilterTemplateUrlsByCategory) {
     EXPECT_EQ(result.size(), 1u);
     EXPECT_EQ(result[0], t_extension);
   }
+}
+
+TEST_F(TemplateUrlServiceAndroidUnitTest, ActivateAndDeactivateSearchEngine) {
+  const std::u16string keyword = u"chromium";
+  TemplateURLData data;
+  data.SetShortName(u"Activate Test");
+  data.SetKeyword(keyword);
+  data.SetURL("http://chromium.org/search/activate");
+  template_url_service().Add(std::make_unique<TemplateURL>(data));
+  EXPECT_EQ(
+      template_url_service().GetTemplateURLForKeyword(keyword)->is_active(),
+      TemplateURLData::ActiveStatus::kUnspecified);
+
+  template_url_service_android().ActivateSearchEngine(env(), keyword);
+  EXPECT_EQ(
+      template_url_service().GetTemplateURLForKeyword(keyword)->is_active(),
+      TemplateURLData::ActiveStatus::kTrue);
+
+  template_url_service_android().DeactivateSearchEngine(env(), keyword);
+  EXPECT_EQ(
+      template_url_service().GetTemplateURLForKeyword(keyword)->is_active(),
+      TemplateURLData::ActiveStatus::kFalse);
 }

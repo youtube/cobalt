@@ -2413,10 +2413,12 @@ void PaintLayerScrollableArea::UpdateAllStickyConstraints() {
   for (const auto& fragment : GetLayoutBox()->PhysicalFragments()) {
     for (const auto& item : fragment.StickyDescendants()) {
       if (auto* sticky_descendant = item.GetIfConsumed()) {
-        auto* constraints =
-            sticky_descendant->ComputeStickyPositionConstraints();
-        constraints->ComputeStickyOffset(ScrollPosition());
-        sticky_descendant->SetStickyConstraints(constraints);
+        StickyConstraintsData data =
+            sticky_descendant->ComputeStickyPositionConstraints(
+                *Layer(), item.ConsumedAxes());
+        sticky_descendant->SetStickyConstraints(data);
+        sticky_descendant->StickyConstraints().ComputeStickyOffset(
+            ScrollPosition(), item.ConsumedAxes());
       }
     }
   }
@@ -2451,8 +2453,8 @@ void PaintLayerScrollableArea::InvalidatePaintForStickyDescendants() {
       if (auto* sticky_descendant = item.GetIfConsumed()) {
         sticky_descendant->SetNeedsPaintPropertyUpdate();
         DCHECK(sticky_descendant->StickyConstraints());
-        sticky_descendant->StickyConstraints()->ComputeStickyOffset(
-            ScrollPosition());
+        sticky_descendant->StickyConstraints().ComputeStickyOffset(
+            ScrollPosition(), item.ConsumedAxes());
       }
     }
   }
@@ -2821,10 +2823,23 @@ bool PaintLayerScrollableArea::VisualViewportSuppliesScrollbars() const {
   if (!frame || !frame->GetSettings())
     return false;
 
-  // On desktop, we always use the layout viewport's scrollbars.
-  if (!frame->GetSettings()->GetViewportEnabled() ||
-      ScrollbarTheme::DesktopAndroidScrollbarsEnabled()) {
-    return false;
+  // If we are forcing mobile-style scrollbars (can be set by emulation of
+  // overlay scrollbars or mobile emulation), the VisualViewport must supply
+  // them regardless of other settings.
+  if (!frame->GetSettings()->GetForceAndroidOverlayScrollbar()) {
+    // The VisualViewport is distinct from the LayoutViewport only when the
+    // mobile-style viewport logic is enabled. On desktop, the LayoutViewport
+    // handles all scrollbars.
+    if (!frame->GetSettings()->GetViewportEnabled()) {
+      return false;
+    }
+
+    // Even if the mobile viewport is enabled, on "desktop Android" (e.g.
+    // large screen optimizations), we prefer the LayoutViewport to handle
+    // scrollbars for a desktop-like experience.
+    if (ScrollbarTheme::DesktopAndroidScrollbarsEnabled()) {
+      return false;
+    }
   }
 
   const TopDocumentRootScrollerController& controller =

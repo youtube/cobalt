@@ -100,10 +100,7 @@ class MockVoiceMediaReceiveChannelInterface
               SetInterface,
               (webrtc::MediaChannelNetworkInterface * iface),
               (override));
-  MOCK_METHOD(void,
-              OnPacketReceived,
-              (const RtpPacketReceived& packet),
-              (override));
+  MOCK_METHOD(void, OnPacketReceived, (RtpPacketReceived packet), (override));
   MOCK_METHOD(std::optional<uint32_t>,
               GetUnsignaledSsrc,
               (),

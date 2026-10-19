@@ -16,6 +16,7 @@
 #include "src/init/heap-symbols.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/interpreter.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/arguments.h"
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell-inl.h"
@@ -502,6 +503,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
                          protected_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
+    ALLOCATE_PARTIAL_MAP(WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE,
+                         kVariableSizeSentinel, weak_homomorphic_fixed_array);
     ALLOCATE_PARTIAL_MAP(TRUSTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          trusted_weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(PROTECTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
@@ -589,6 +592,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.trusted_fixed_array_map());
   FinalizePartialMap(roots.protected_fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
+  FinalizePartialMap(roots.weak_homomorphic_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
   FinalizePartialMap(roots.trusted_weak_fixed_array_map());
   FinalizePartialMap(roots.protected_weak_fixed_array_map());
@@ -788,6 +792,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             WasmSuspenderObject::kSize, wasm_suspender_object)
     IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
             WasmContinuationObject::kSize, wasm_continuation_object)
+    IF_WASM(ALLOCATE_MAP, WASM_STACK_OBJECT_TYPE, WasmStackObject::kSize,
+            wasm_stack_object)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
@@ -876,7 +882,9 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     DirectHandle<DescriptorArray> descriptors =
         factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
     Descriptor length_descriptor = Descriptor::DataField(
-        factory->length_string(), JSSharedArray::kLengthFieldIndex,
+        factory->length_string(),
+        shared_array_map->GetInObjectPropertyOffset(
+            JSSharedArray::kLengthFieldIndex),
         ALL_ATTRIBUTES_MASK, PropertyConstness::kConst, Representation::Smi(),
         MaybeObjectDirectHandle(FieldType::Any(isolate())), true);
     descriptors->Set(InternalIndex(0), &length_descriptor);
@@ -929,9 +937,10 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // Hash seed for strings
 
   Factory* factory = isolate()->factory();
-  set_hash_seed(
-      *factory->NewByteArray(kInt64Size * 4, AllocationType::kReadOnly));
-  InitializeHashSeed();
+  set_hash_seed(*factory->NewByteArray(HashSeed::kTotalSize,
+                                       AllocationType::kReadOnly,
+                                       AllocationAlignment::kDoubleAligned));
+  HashSeed::InitializeRoots(isolate());
 
   // Important strings and symbols
   for (const ConstantStringInit& entry : kImportantConstantStringTable) {
@@ -1397,13 +1406,21 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info =
-      isolate()->factory()->NewInterceptorInfo(AllocationType::kReadOnly);
-  set_noop_interceptor_info(*info);
+
   // Make sure read only heap layout does not depend on the size of
   // ExternalPointer fields.
-  StaticRootsEnsureAllocatedSize(info,
-                                 3 * kTaggedSize + 7 * kSystemPointerSize);
+  constexpr int kMaxPossibleInterceptorInfoSize =
+      3 * kTaggedSize + 8 * kSystemPointerSize;
+
+  auto info = isolate()->factory()->NewInterceptorInfo(
+      InterceptorKind::kNamed, AllocationType::kReadOnly);
+  set_noop_named_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
+
+  info = isolate()->factory()->NewInterceptorInfo(InterceptorKind::kIndexed,
+                                                  AllocationType::kReadOnly);
+  set_noop_indexed_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
 }
 
 void Heap::CreateInitialMutableObjects() {

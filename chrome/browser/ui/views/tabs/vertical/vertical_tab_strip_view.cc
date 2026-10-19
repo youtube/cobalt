@@ -344,8 +344,9 @@ void VerticalTabStripView::SetScrollViewProperties(
       views::ScrollView::ScrollBarMode::kDisabled);
   scroll_view->SetOverflowGradientMask(
       views::ScrollView::GradientDirection::kVertical);
-  scroll_view->SetVerticalScrollBar(
-      std::make_unique<VerticalTabStripScrollBar>());
+  CHECK(collection_node_);
+  scroll_view->SetVerticalScrollBar(std::make_unique<VerticalTabStripScrollBar>(
+      collection_node_->GetController()->GetStateController()));
   callback_subscriptions_.emplace_back(scroll_view->AddContentsScrolledCallback(
       base::BindRepeating(&VerticalTabStripView::HideHoverCardOnScroll,
                           base::Unretained(this))));
@@ -362,6 +363,12 @@ void VerticalTabStripView::DidPresentFramePostActivation(
 
   // Guard against views being removed from the tree between frames.
   if (!activated_view || !Contains(activated_view)) {
+    return;
+  }
+
+  // Dragging a view out of the visible bounds will trigger a scroll naturally.
+  if (collection_node_ &&
+      collection_node_->GetController()->GetDragHandler().IsDragging()) {
     return;
   }
 

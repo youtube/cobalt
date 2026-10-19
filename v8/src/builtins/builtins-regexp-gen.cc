@@ -150,8 +150,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndexBeforeSmiCheck(
     TNode<JSRegExp> regexp) {
   // Load the in-object field.
-  static const int field_offset =
-      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+  static const int field_offset = JSRegExp::kLastIndexOffset;
   return LoadObjectField(regexp, field_offset);
 }
 
@@ -165,8 +164,7 @@ TNode<JSAny> RegExpBuiltinsAssembler::SlowLoadLastIndex(TNode<Context> context,
 void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
                                                  TNode<Smi> value) {
   // Store the in-object field.
-  static const int field_offset =
-      JSRegExp::kHeaderSize + JSRegExp::kLastIndexFieldIndex * kTaggedSize;
+  static const int field_offset = JSRegExp::kLastIndexOffset;
   StoreObjectField(regexp, field_offset, value);
 }
 
@@ -1287,7 +1285,7 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
   }
 }
 
-// ES#sec-regexpinitialize
+// https://tc39.es/ecma262/#sec-regexpinitialize
 // Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
 TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
     const TNode<Context> context, const TNode<JSRegExp> regexp,
@@ -1308,7 +1306,7 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
                      pattern, flags);
 }
 
-// ES#sec-regexp-pattern-flags
+// https://tc39.es/ecma262/#sec-regexp-pattern-flags
 // RegExp ( pattern, flags )
 TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
   auto pattern = Parameter<JSAny>(Descriptor::kPattern);
@@ -1433,7 +1431,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
   Return(result);
 }
 
-// ES#sec-regexp.prototype.compile
+// https://tc39.es/ecma262/#sec-regexp.prototype.compile
 // RegExp.prototype.compile ( pattern, flags )
 TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
   auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -1567,7 +1565,7 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
   return var_result.value();
 }
 
-// ES#sec-createregexpstringiterator
+// https://tc39.es/ecma262/#sec-createregexpstringiterator
 // CreateRegExpStringIterator ( R, S, global, fullUnicode )
 TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
     TNode<NativeContext> native_context, TNode<JSAny> regexp,

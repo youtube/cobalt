@@ -303,7 +303,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   // Sets the DTLS state, signaling if necessary.
   void set_dtls_state(DtlsTransportState state);
 
-  void CompleteDtlsInStun();
+  void CompleteDtlsInStun(bool success);
   void SetPiggybackDtlsDataCallback(
       absl::AnyInvocable<void(PacketTransportInternal* transport,
                               const ReceivedIpPacket& packet)> callback);

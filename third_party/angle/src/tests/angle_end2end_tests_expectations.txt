@@ -1276,6 +1276,7 @@
 480069042 PIXEL10 VULKAN : TransformFeedbackTestES32.PrimitivesGeneratedVsRasterizerDiscard/* = SKIP
 480069042 PIXEL10 VULKAN : TransformFeedbackTestES32.PrimitivesGeneratedVsRasterizerDiscardAndFramebufferChange/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanExternalImageTest.TextureFormatCompatChromiumWithFlagsFd/* = SKIP
+480069042 PIXEL10 VULKAN : VulkanImageTest.PixelTestDrawQuad/ES3_Vulkan_EnableParallelCompileAndLink_VaryingsRequireMatchingPrecisionInSpirv = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest.RenderToTextureDepthStencilTextureShouldNotLoad/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.MultisampleDepthStencilResolveSeparately/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.RenderToTextureDepthStencilRenderbufferShouldNotLoad/* = SKIP
@@ -1319,6 +1320,11 @@
 474583528 IOS METAL : PixelLocalStorageTest.Texture2DArrayMultipleLayers/ES3_Metal_EmulatePixelLocalStorage* = SKIP
 40096838 IOS METAL : PixelLocalStorageTest.TextureCubeFaces/* = SKIP
 474583528 IOS METAL : PixelLocalStorageTest.TextureCubeMultipleFaces/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+
+40096838 IOS METAL : PixelLocalStorageTest.Coherency_always_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+40096838 IOS METAL : PixelLocalStorageTest.R32_always_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+40096838 IOS METAL : PixelLocalStorageTest.RGBA8_always_noncoherent/ES3_Metal_EmulatePixelLocalStorage* = SKIP
+
 40096874 IOS METAL : PixelLocalStorageTest.TextureLevelsAndLayers/* = SKIP
 40096874 IOS METAL : PointSpritesTest.PointSizeAboveMaxIsClamped/* = SKIP
 40096874 IOS METAL : RobustBufferAccessWebGL2ValidationStateChangeTest.BindZeroSizeBufferThenDeleteBufferBug/* = SKIP
@@ -2234,6 +2240,15 @@
 // Can't use a uniform struct outside of uniform address space.
 376553328 WGPU : SimpleUniformTestES3.UseUniformStructOutsideOfUniformAddressSpace/* = SKIP
 42267012 WGPU : ClearTest.ChangeFramebufferAttachmentFromRGBAtoRGB* = SKIP
+42267012 WGPU : ClearTestES3.TextureArrayRGB8/* = SKIP
+42267012 WGPU : ClearTestES3.ClearAndReadPixels3DTexture/* = SKIP
+42267012 WGPU : ClearTestES3.DrawAfterClearWithGaps/* = SKIP
+42267012 WGPU : ClearTestES3.*WithBlit*/* = SKIP
+// Some tests use too many attachments
+483423899 WGPU : ClearTestES3.ClearStencilAfterDraw/* = SKIP
+483423899 WGPU : ClearTestES3.ClearMaxAttachments*/* = SKIP
+// Shader compilation failure
+42267012 WGPU : ClearTestES3.MidRenderPassClearWithGaps/* = SKIP
 42266974 WGPU : Texture2DTest.Tex* = SKIP
 42266974 WGPU : Texture2DTest.Upload* = SKIP
 42266974 WGPU : Texture2DTest.*Superseding* = SKIP
@@ -2519,6 +2534,7 @@
 
 362486580 LINUX NVIDIA VULKAN : ClearTextureEXTTestES31Renderable.Clear/*__GL_RGB5_A1_GL_RGBA_GL_UNSIGNED_INT_2_10_10_10_REV_* = SKIP
 362486580 LINUX NVIDIA VULKAN : EGLSurfaceTest.ResizeBeforeMakeCurrent*/* = SKIP
+362486580 LINUX NVIDIA VULKAN : EGLSurfaceTest.ResizeLargeWindow/* = SKIP
 362486580 LINUX NVIDIA VULKAN : EXTBlendFuncExtendedDrawTestES31.UseProgramPipeline/* = SKIP
 362486580 LINUX NVIDIA VULKAN : EXTBlendFuncExtendedDrawTestES31.UseTwoProgramStages/* = SKIP
 362486580 LINUX NVIDIA VULKAN : FramebufferTestWithFormatFallback.R4G4B4A4_OutOfRangeStagedUpdateReformated/* = SKIP
@@ -2668,6 +2684,8 @@
 // When the IR prunes cases that do not match the constant switch expression, and there is only the `default` case left,
 // the d3d compiler miscompiles the shader it seems.
 349994211 IR D3D11 : GLSLTest_ES3.SwitchWithConstantExpr/* = SKIP
+/// IR's use of `while` and `if (!condition) break` instead of `for(..)` makes the HLSL generator think the loops are discontinuous, and as a result it drops the derivative built-ins!
+349994211 IR D3D11 : GLSLTest_ES3.DerivativeInLoopWithUniformBranch/* = SKIP
 // The workaround in b/274859104 is not applied because the IR does not generate non-constant initializers
 274859104 IR PIXEL6 VULKAN : ShaderAlgorithmTest.rgb_to_hsl_vertex_shader/* = SKIP
 // Turning short-circuit && to if/else leads to incorrect evaluation on the Pixel 4 compiler

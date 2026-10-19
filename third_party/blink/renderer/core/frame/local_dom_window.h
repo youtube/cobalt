@@ -66,6 +66,7 @@ namespace blink {
 class BarProp;
 class CSSStyleDeclaration;
 class CustomElementRegistry;
+class ScrollResult;
 class Document;
 class DocumentInit;
 class DOMSelection;
@@ -348,15 +349,15 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   // FIXME: ScrollBehaviorSmooth is currently unsupported in VisualViewport.
   // crbug.com/434497
-  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollBy(ScriptState* script_state,
                                        double x,
                                        double y) const;
-  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollBy(ScriptState* script_state,
                                        const ScrollToOptions*) const;
-  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollTo(ScriptState* script_state,
                                        double x,
                                        double y) const;
-  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollTo(ScriptState* script_state,
                                        const ScrollToOptions*) const;
 
   void scrollByForTesting(double x, double y) const;
@@ -455,7 +456,6 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void EnqueueNonPersistedPageshowEvent();
   void EnqueueHashchangeEvent(const String& old_url, const String& new_url);
   void DispatchPopstateEvent(scoped_refptr<SerializedScriptValue>,
-                             scheduler::TaskAttributionInfo* task_state,
                              bool has_ua_visual_transition);
   void DispatchWindowLoadEvent();
   void DocumentWasClosed();

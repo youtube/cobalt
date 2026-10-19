@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// FromJniType / ToJniType conversions that are not #included from jni_zero.h
+// (and are thus optional).
 #ifndef JNI_ZERO_DEFAULT_CONVERSIONS_H_
 #define JNI_ZERO_DEFAULT_CONVERSIONS_H_
 
@@ -16,7 +18,8 @@
 namespace jni_zero {
 
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-// Allow conversions using std::optional by wrapping non-optional conversions.
+// Conversion from a Java object to a std::optional.
+// A null Java reference results in std::nullopt.
 template <internal::IsOptional T>
 inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& j_object) {
   if (!j_object) {
@@ -25,6 +28,8 @@ inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& j_object) {
   return FromJniType<typename T::value_type>(env, j_object);
 }
 
+// Conversion from a std::optional to a Java object.
+// std::nullopt results in a null Java reference.
 template <internal::IsOptional T>
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& opt_value) {
   if (!opt_value) {
@@ -229,7 +234,8 @@ inline ScopedJavaLocalRef<jobject> ToJniList(JNIEnv* env,
   return ArrayToList(env, arr);
 }
 
-// Convert Map -> stl map type using FromJniType() on each key & value.
+// Convert a Java Map to a C++ map-like container.
+// Calls FromJniType for each key and value.
 template <internal::IsMap ContainerType>
 inline ContainerType FromJniType(JNIEnv* env,
                                  const JavaRef<jobject>& j_object) {
@@ -250,15 +256,14 @@ inline ContainerType FromJniType(JNIEnv* env,
     jobject j_key = env->GetObjectArrayElement(j_array.obj(), i);
     jobject j_value = env->GetObjectArrayElement(j_array.obj(), i + 1);
     // Do not call FromJni for jobject->jobject.
-    if constexpr (internal::IsJavaRef<KeyType> &&
-                  internal::IsJavaRef<ValueType>) {
+    if constexpr (IsJavaRef<KeyType> && IsJavaRef<ValueType>) {
       ret.emplace(std::piecewise_construct, std::forward_as_tuple(env, j_key),
                   std::forward_as_tuple(env, j_value));
-    } else if constexpr (internal::IsJavaRef<KeyType>) {
+    } else if constexpr (IsJavaRef<KeyType>) {
       auto value = ScopedJavaLocalRef<jobject>::Adopt(env, j_value);
       ret.emplace(std::piecewise_construct, std::forward_as_tuple(env, j_key),
                   FromJniType<ValueType>(env, value));
-    } else if constexpr (internal::IsJavaRef<ValueType>) {
+    } else if constexpr (IsJavaRef<ValueType>) {
       auto key = ScopedJavaLocalRef<jobject>::Adopt(env, j_key);
       ret.emplace(std::piecewise_construct, FromJniType<KeyType>(env, key),
                   std::forward_as_tuple(env, j_value));
@@ -272,7 +277,8 @@ inline ContainerType FromJniType(JNIEnv* env,
   return ret;
 }
 
-// Convert stl map -> Map type using ToJniType() on each key & value.
+// Convert a C++ map-like container to a Java Map.
+// Calls ToJniType for each key and value.
 template <internal::IsMap ContainerType>
 inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
                                              const ContainerType& map) {
@@ -289,7 +295,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
   jsize i = 0;
   for (auto const& [key, value] : map) {
     // Do not call ToJni for jobject->jobject.
-    if constexpr (internal::IsJavaRef<KeyType>) {
+    if constexpr (IsJavaRef<KeyType>) {
       env->SetObjectArrayElement(j_array, i, key.obj());
     } else {
       ScopedJavaLocalRef<jobject> j_key = ToJniType(env, key);
@@ -297,7 +303,7 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
     }
     ++i;
 
-    if constexpr (internal::IsJavaRef<ValueType>) {
+    if constexpr (IsJavaRef<ValueType>) {
       env->SetObjectArrayElement(j_array, i, value.obj());
     } else {
       ScopedJavaLocalRef<jobject> j_value = ToJniType(env, value);
@@ -309,6 +315,8 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env,
   return ArrayToMap(env, array);
 }
 #endif
+
+// Specializations for primitive types to handle their Java boxed equivalents.
 
 template <>
 inline bool FromJniType<bool>(JNIEnv* env, const JavaRef<jobject>& val) {

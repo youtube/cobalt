@@ -587,6 +587,9 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7384121030444253939">ระบบไม่รองรับส่วนขยายนี้แล้ว Chromium แนะนำให้คุณนำออกแทน</translation>
 <translation id="7413153308467572558">ดำเนินการต่อจากที่ค้างไว้: Chromium จะคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="7427879960656355200">นำเข้ารหัสผ่านไปยัง Chromium</translation>
+<translation id="744815265653811511">1. คลิก <ph name="BUTTON_LABEL" /> ด้านล่าง
+2. คลิก <ph name="BUTTON_2" /> ในการตั้งค่า Windows
+3. คลิก <ph name="BUTTON_3" /> ในการแจ้งเตือนของ Windows เพื่อปักหมุด Chromium ไว้ที่แถบงานเพื่อให้เข้าถึงได้รวดเร็ว</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">คัดลอกข้อความแล้ว</translation>
 <translation id="7451052299415159299">Chromium ต้องการสิทธิ์เข้าถึงกล้องถ่ายรูปของคุณสำหรับเว็บไซต์นี้</translation>
@@ -602,6 +605,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="761356813943268536">Chromium ใช้กล้องและไมโครโฟนของคุณอยู่</translation>
 <translation id="7617377681829253106">Chromium ดีขึ้นกว่าเดิม</translation>
 <translation id="7622753900276619808">ตอนนี้คุณมีฟีเจอร์เพิ่มเติมใน Chromium</translation>
+<translation id="7624307931717240213">เราใช้ข้อมูลเพื่อปรับปรุงบริการนี้ ดูนโยบายความเป็นส่วนตัวและข้อกำหนดในการให้บริการ</translation>
 <translation id="7649070708921625228">ความช่วยเหลือ</translation>
 <translation id="7656340475565475526">ให้ Chromium ท่องเว็บแทนคุณ</translation>
 <translation id="7658239707568436148">ยกเลิก</translation>

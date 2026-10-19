@@ -113,6 +113,12 @@ class CONTENT_EXPORT DatabaseConnection {
   // (i.e., excluding free pages) multiplied by the page size.
   uint64_t GetSize() const;
 
+  // Called when the BucketContext is not currently serving requests. Relatively
+  // low-cost maintenance such as WAL checkpointing and memory trimming are
+  // performed here but NOT vacuuming since the "idle time" is shared by all
+  // open `DatabaseConnection` instances.
+  void PerformIdleMaintenance();
+
   std::unique_ptr<BackingStoreDatabaseImpl> CreateDatabaseWrapper();
 
   // Exposed to `BackingStoreDatabaseImpl`.
@@ -276,15 +282,20 @@ class CONTENT_EXPORT DatabaseConnection {
   // Changes the size at which blobs are chunked.
   static void OverrideMaxBlobSizeForTesting(base::ByteSize size);
 
+  // Overrides the VFS used for databases.
+  static void OverrideVfsNameForTesting(const char* vfs_name);
+
  private:
   friend class BackingStoreSqliteTest;
   FRIEND_TEST_ALL_PREFIXES(DatabaseConnectionTest, TooNew);
 
   static void CloseDatabase(
       std::unique_ptr<sql::Database> db,
+      const base::FilePath& db_path,
       const base::FilePath& legacy_blob_directory,
       bool should_delete,
       bool should_attempt_recovery,
+      bool should_vacuum,
       std::optional<std::set<int64_t>> known_legacy_blob_ids);
 
   DatabaseConnection(base::FilePath path, BackingStoreImpl& backing_store);
@@ -365,7 +376,7 @@ class CONTENT_EXPORT DatabaseConnection {
     kAddActiveBlobReferenceFailed = 4,
     kRemoveActiveBlobReferenceFailed = 5,
     kPragmaPageCountFailed = 6,
-    kPragmaPageSizeFailed = 7,
+    kPragmaPageSizeFailed = 7,  // Not logged currently.
 
     // Events associated with various callers of `Fatal()`.
     kMissingMetadataTable = 8,

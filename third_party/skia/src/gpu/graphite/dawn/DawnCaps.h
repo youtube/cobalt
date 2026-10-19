@@ -34,21 +34,6 @@ public:
     }
     bool supportsPartialLoadResolve() const { return fSupportsPartialLoadResolve; }
 
-    bool isSampleCountSupported(TextureFormat, SampleCount requestedSampleCount) const override;
-    TextureFormat getDepthStencilFormat(SkEnumBitMask<DepthStencilFlags>) const override;
-
-    TextureInfo getDefaultAttachmentTextureInfo(AttachmentDesc,
-                                                Protected,
-                                                Discardable) const override;
-    TextureInfo getDefaultSampledTextureInfo(SkColorType,
-                                             Mipmapped,
-                                             Protected,
-                                             Renderable) const override;
-    TextureInfo getTextureInfoForSampledCopy(const TextureInfo&, Mipmapped) const override;
-    TextureInfo getDefaultCompressedTextureInfo(SkTextureCompressionType,
-                                                Mipmapped,
-                                                Protected) const override;
-    TextureInfo getDefaultStorageTextureInfo(SkColorType) const override;
     SkISize getDepthAttachmentDimensions(const TextureInfo&,
                                          const SkISize colorAttachmentDimensions) const override;
 
@@ -61,9 +46,6 @@ public:
     UniqueKey makeComputePipelineKey(const ComputePipelineDesc&) const override;
     ImmutableSamplerInfo getImmutableSamplerInfo(const TextureInfo&) const override;
     std::string toString(const ImmutableSamplerInfo&) const override;
-
-    bool isRenderable(const TextureInfo&) const override;
-    bool isStorage(const TextureInfo&) const override;
 
     bool loadOpAffectsMSAAPipelines() const override {
         return fSupportedResolveTextureLoadOp.has_value();
@@ -87,9 +69,17 @@ public:
 
 private:
     SkSpan<const ColorTypeInfo> getColorTypeInfos(const TextureInfo&) const override;
-    bool onIsTexturable(const TextureInfo&) const override;
-    bool isCopyableDst(const TextureInfo&) const override;
-    bool isCopyableSrc(const TextureInfo&) const override;
+    TextureFormat getFormatForColorType(SkColorType) const override;
+    TextureInfo onGetDefaultTextureInfo(SkEnumBitMask<TextureUsage> usage,
+                                        TextureFormat,
+                                        SampleCount,
+                                        Mipmapped,
+                                        Protected,
+                                        Discardable) const override;
+    std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> getTextureSupport(
+            TextureFormat format, Tiling) const override;
+    std::pair<SkEnumBitMask<TextureUsage>, Tiling> getTextureUsage(
+            const TextureInfo&) const override;
 
     void initCaps(const DawnBackendContext&, const ContextOptions&);
     void initShaderCaps(const wgpu::Device&);
@@ -126,7 +116,7 @@ private:
         int fColorTypeInfoCount = 0;
     };
     // Size here must be at least the size of kFormats in DawnCaps.cpp.
-    static constexpr size_t kFormatCount = 17;
+    static constexpr size_t kFormatCount = 18;
     std::array<FormatInfo, kFormatCount> fFormatTable;
 
     static size_t GetFormatIndex(wgpu::TextureFormat format);

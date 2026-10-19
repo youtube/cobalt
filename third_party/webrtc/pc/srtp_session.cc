@@ -18,21 +18,18 @@
 #include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
-#include "pc/external_hmac.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/text2pcap.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
 #include "third_party/libsrtp/include/srtp.h"
-#include "third_party/libsrtp/include/srtp_priv.h"
 
 #ifndef SRTP_SRCTP_INDEX_LEN
 #define SRTP_SRCTP_INDEX_LEN 4
@@ -117,12 +114,6 @@ bool LibSrtpInitializer::IncrementLibsrtpUsageCountAndMaybeInit(
     err = srtp_install_event_handler(event_handler);
     if (err != srtp_err_status_ok) {
       RTC_LOG(LS_ERROR) << "Failed to install SRTP event handler, err=" << err;
-      return false;
-    }
-
-    err = external_crypto_init();
-    if (err != srtp_err_status_ok) {
-      RTC_LOG(LS_ERROR) << "Failed to initialize fake auth, err=" << err;
       return false;
     }
   }
@@ -323,49 +314,8 @@ bool SrtpSession::UnprotectRtcp(CopyOnWriteBuffer& buffer) {
   return true;
 }
 
-bool SrtpSession::GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len) {
-  RTC_DCHECK(thread_checker_.IsCurrent());
-  RTC_DCHECK(IsExternalAuthActive());
-  if (!IsExternalAuthActive()) {
-    return false;
-  }
-
-  ExternalHmacContext* external_hmac = nullptr;
-  // stream_template will be the reference context for other streams.
-  // Let's use it for getting the keys.
-  srtp_stream_ctx_t* srtp_context = session_->stream_template;
-  if (srtp_context && srtp_context->session_keys &&
-      srtp_context->session_keys->rtp_auth) {
-    external_hmac = reinterpret_cast<ExternalHmacContext*>(
-        srtp_context->session_keys->rtp_auth->state);
-  }
-
-  if (!external_hmac) {
-    RTC_LOG(LS_ERROR) << "Failed to get auth keys from libsrtp!.";
-    return false;
-  }
-
-  *key = external_hmac->key;
-  *key_len = external_hmac->key_length;
-  *tag_len = rtp_auth_tag_len_;
-  return true;
-}
-
 int SrtpSession::GetSrtpOverhead() const {
   return rtp_auth_tag_len_;
-}
-
-void SrtpSession::EnableExternalAuth() {
-  RTC_DCHECK(!session_);
-  external_auth_enabled_ = true;
-}
-
-bool SrtpSession::IsExternalAuthEnabled() const {
-  return external_auth_enabled_;
-}
-
-bool SrtpSession::IsExternalAuthActive() const {
-  return external_auth_active_;
 }
 
 bool SrtpSession::RemoveSsrcFromSession(uint32_t ssrc) {
@@ -423,16 +373,6 @@ bool SrtpSession::DoSetKey(int type,
   // TODO(astor) parse window size from WSH session-param
   policy.window_size = 1024;
   policy.allow_repeat_tx = 1;
-  // If external authentication option is enabled, supply custom auth module
-  // id EXTERNAL_HMAC_SHA1 in the policy structure.
-  // We want to set this option only for rtp packets.
-  // By default policy structure is initialized to HMAC_SHA1.
-  // Enable external HMAC authentication only for outgoing streams and only
-  // for cipher suites that support it (i.e. only non-GCM cipher suites).
-  if (type == ssrc_any_outbound && IsExternalAuthEnabled() &&
-      !IsGcmCryptoSuite(crypto_suite)) {
-    policy.rtp.auth_type = EXTERNAL_HMAC_SHA1;
-  }
   if (!extension_ids.empty()) {
     policy.enc_xtn_hdr = const_cast<int*>(&extension_ids[0]);
     policy.enc_xtn_hdr_count = static_cast<int>(extension_ids.size());
@@ -457,7 +397,6 @@ bool SrtpSession::DoSetKey(int type,
 
   rtp_auth_tag_len_ = policy.rtp.auth_tag_len;
   rtcp_auth_tag_len_ = policy.rtcp.auth_tag_len;
-  external_auth_active_ = (policy.rtp.auth_type == EXTERNAL_HMAC_SHA1);
   return true;
 }
 

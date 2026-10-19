@@ -8,24 +8,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <map>
 #include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 #include "base/base_export.h"
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
-#include "base/threading/platform_thread.h"
-#include "base/time/time_override.h"
-#include "base/trace_event/builtin_categories.h"
+#include "base/process/process_handle.h"
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "base/trace_event/trace_config.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "build/build_config.h"
-#include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
+#include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"  // IWYU pragma: keep
+#include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 
 namespace perfetto {
 namespace trace_processor {
@@ -59,14 +55,6 @@ class BASE_EXPORT TraceLog {
 
   // Disables tracing for all categories.
   void SetDisabled();
-
-  void SetArgumentFilterPredicate(
-      const ArgumentFilterPredicate& argument_filter_predicate);
-  ArgumentFilterPredicate GetArgumentFilterPredicate() const;
-
-  void SetMetadataFilterPredicate(
-      const MetadataFilterPredicate& metadata_filter_predicate);
-  MetadataFilterPredicate GetMetadataFilterPredicate() const;
 
   // Flush all collected events to the given output callback. The callback will
   // be called one or more times either synchronously or asynchronously from
@@ -116,10 +104,6 @@ class BASE_EXPORT TraceLog {
   mutable Lock lock_;
 
   ProcessId process_id_;
-
-  // Set when asynchronous Flush is in progress.
-  ArgumentFilterPredicate argument_filter_predicate_;
-  MetadataFilterPredicate metadata_filter_predicate_;
 
   std::unique_ptr<perfetto::TracingSession> tracing_session_;
   perfetto::TraceConfig perfetto_config_;

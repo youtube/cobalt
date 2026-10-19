@@ -109,6 +109,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -372,9 +373,6 @@ bool HTMLCanvasElement::PrepareTransferableResource(
     return false;
   }
 
-  // TODO(crbug.com/480074852): swap in paint records for element image
-  // placeholders.
-
   CanvasResource::ReleaseCallback release_callback;
   if (!frame->PrepareTransferableResource(out_resource, &release_callback,
                                           /*needs_verified_synctoken=*/false) ||
@@ -516,6 +514,12 @@ void HTMLCanvasElement::setLayoutSubtree(bool value) {
 
 bool HTMLCanvasElement::layoutSubtree() const {
   return FastHasAttribute(html_names::kLayoutsubtreeAttr);
+}
+
+void HTMLCanvasElement::requestPaint() {
+  if (LocalFrameView* view = GetDocument().View()) {
+    view->RequestCanvasOnpaint(*this);
+  }
 }
 
 void HTMLCanvasElement::SetSize(gfx::Size new_size) {
@@ -761,9 +765,6 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
   // checks whether the `desynchronized` attribute is set on the context, but
   // only WebGL and Canvas2D have specific flows for low latency (for other
   // context types, setting the attribute is a no-op).
-  //
-  // TODO(crbug.com/480074852): don't paint if there are any element image
-  // placeholders in the command buffer.
   if (LowLatencyEnabled() && (IsWebGL() || IsRenderingContext2D()) &&
       frame_dispatcher_ && !dirty_rect_.IsEmpty()) {
     if (scoped_refptr<CanvasResource> canvas_resource =
@@ -1680,6 +1681,16 @@ void HTMLCanvasElement::DiscardResources() {
   ResetLayer();
   UpdateMemoryUsage();
   dirty_rect_ = gfx::Rect();
+}
+
+std::optional<CanvasChildPaintRecord>
+HTMLCanvasElement::GetCanvasChildPaintRecord(DOMNodeId child_id) const {
+  if (auto* view = GetDocument().View()) {
+    if (auto* pac = view->GetPaintArtifactCompositor()) {
+      return pac->GetCanvasChildPaintRecord(child_id);
+    }
+  }
+  return std::nullopt;
 }
 
 void HTMLCanvasElement::UpdateSuspendOffscreenCanvasAnimation() {

@@ -35,14 +35,22 @@ chromium-metrics-reviews@google.com.
 
 <variants name="AimEligibilityRequestSource">
   <variant name="" summary="Aggregated across all request sources"/>
-  <variant name=".CoBrowseAimUrlDetection"
-      summary="Requests triggered by the co-browse AIM URL detection logic"/>
+  <variant name=".AimUrlNavigation"
+      summary="Requests triggered by AIM URL navigation"/>
   <variant name=".CookieChange" summary="Requests triggered by cookie changes"/>
   <variant name=".NetworkChange"
       summary="Requests triggered by network changes (expected at most once
                after startup)"/>
+  <variant name=".OAuthFallbackCookieChange"
+      summary="Requests triggered by cookie changes during OAuth fallback"/>
   <variant name=".PrimaryAccountChange"
       summary="Requests triggered by primary account changes"/>
+  <variant name=".RefreshTokenError"
+      summary="Requests triggered by refresh token errors"/>
+  <variant name=".RefreshTokenRemoved"
+      summary="Requests triggered by refresh token removals"/>
+  <variant name=".RefreshTokenUpdated"
+      summary="Requests triggered by refresh token updates"/>
   <variant name=".Startup" summary="Requests triggered on browser startup"/>
   <variant name=".User"
       summary="Requests triggered manually from the debug page"/>
@@ -861,62 +869,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
     opened.
   </summary>
   <token key="PopupType" variants="PopupType"/>
-</histogram>
-
-<histogram name="Omnibox.AnswerAction.UsageByType.{AnswerType}"
-    enum="BooleanUsage" expires_after="2025-05-30">
-  <owner>pnoland@google.com</owner>
-  <owner>chrome-mobile-search@google.com</owner>
-  <summary>
-    For action associated with type &quot;{AnswerType}&quot;, captures whether
-    the user interacted with this action to complete the interaction with the
-    omnibox.
-
-    The histogram is captured only if the action &quot;{AnswerType}&quot; was
-    presented to the user when the interaction with the omnibox completed. The
-    sum of &quot;Used&quot; and &quot;Not Used&quot; indicates the sum of all
-    impressions of a given action.
-
-    Answer Actions are the Omnibox Action chips attached to an answer
-    suggestion.
-  </summary>
-  <token key="AnswerType">
-    <variant name="Currency"/>
-    <variant name="Dictionary"/>
-    <variant name="Finance"/>
-    <variant name="Invalid"/>
-    <variant name="KnowledgeGraph"/>
-    <variant name="Local"/>
-    <variant name="LocalTime"/>
-    <variant name="PlayInstall"/>
-    <variant name="Sports"/>
-    <variant name="Sunrise"/>
-    <variant name="Translation"/>
-    <variant name="Weather"/>
-    <variant name="WhenIs"/>
-  </token>
-</histogram>
-
-<histogram name="Omnibox.AnswerAction.{ShownOrUsed}"
-    enum="SuggestionAnswerType" expires_after="2025-05-30">
-  <owner>pnoland@google.com</owner>
-  <owner>chrome-mobile-search@google.com</owner>
-  <summary>
-    Counts how often Omnibox Answer Actions are {ShownOrUsed} and records the
-    type (SuggestionAnswer::AnswerType) of every {ShownOrUsed} action.
-
-    Recorded once at the end of the interaction with the Omnibox Suggestions for
-    every Action presented to the user. Not recorded for Suggestions that are
-    annotated with Answers Actions where the Answer row was not shown to the
-    user.
-
-    Answer Actions are the Omnibox Action chips attached to an answer
-    suggestion.
-  </summary>
-  <token key="ShownOrUsed">
-    <variant name="Shown" summary="shown"/>
-    <variant name="Used" summary="used"/>
-  </token>
 </histogram>
 
 <histogram name="Omnibox.AnswerParseSuccess" enum="BooleanSuccess"
@@ -3409,6 +3361,17 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Recorded at
     SearchPrefetchService::RecordPotentialDuplicateSearchTermsAheadofNavigationalPrefetch
     when the same search terms are prefetch by navigational prefetch predictor.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.SearchPrefetch.KeepAliveRequestFinalStage"
+    enum="FetchKeepAliveRequestStage" expires_after="2026-06-22">
+  <owner>lingqi@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records the final stage of a keep-alive request for search prefetch
+    activated pages. Recorded when the SearchPrefetchKeepAliveRequestTracker is
+    destroyed.
   </summary>
 </histogram>
 

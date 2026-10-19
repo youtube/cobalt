@@ -45,6 +45,8 @@ source_set("configs") {
 
   deps = [
     ":webui",
+    "//chrome/browser/actor/ui:actor_overlay",
+    "//chrome/browser/glic",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/ui",
     "//chrome/browser/ui/webui/about",
@@ -71,16 +73,17 @@ source_set("configs") {
   if (!is_android) {
     deps += [
       "//chrome/browser/actor/ui",
-      "//chrome/browser/actor/ui:actor_overlay",
+      "//chrome/browser/actor/ui:actor_overlay_web_view",
       "//chrome/browser/contextual_tasks:ui",
+      "//chrome/browser/glic/selection",
       "//chrome/browser/ui/webui/access_code_cast",
       "//chrome/browser/ui/webui/app_service_internals",
       "//chrome/browser/ui/webui/autofill_ml_internals",
       "//chrome/browser/ui/webui/color_pipeline_internals",
       "//chrome/browser/ui/webui/infobar_internals",
-      "//chrome/browser/ui/webui/legion_internals",
       "//chrome/browser/ui/webui/new_tab_footer",
       "//chrome/browser/ui/webui/privacy_sandbox:mojo_bindings",
+      "//chrome/browser/ui/webui/private_ai_internals",
       "//chrome/browser/ui/webui/webui_toolbar",
       "//chrome/browser/ui/webui_browser",
     ]
@@ -133,10 +136,6 @@ source_set("configs") {
 
   if (enable_dice_support) {
     deps += [ "//chrome/browser/ui/webui/signin/signout_confirmation" ]
-  }
-
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
   }
 
   if (enable_session_service) {

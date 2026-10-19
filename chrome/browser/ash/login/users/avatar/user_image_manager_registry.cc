@@ -6,12 +6,14 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_loader_delegate.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_loader_delegate_impl.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_impl.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_type.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace ash {
 namespace {
@@ -24,15 +26,20 @@ UserImageManagerRegistry* UserImageManagerRegistry::Get() {
 }
 
 UserImageManagerRegistry::UserImageManagerRegistry(
+    PrefService* local_state,
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     user_manager::UserManager* user_manager)
-    : UserImageManagerRegistry(
-          user_manager,
-          std::make_unique<UserImageLoaderDelegateImpl>()) {}
+    : UserImageManagerRegistry(local_state,
+                               user_manager,
+                               std::make_unique<UserImageLoaderDelegateImpl>(
+                                   std::move(shared_url_loader_factory))) {}
 
 UserImageManagerRegistry::UserImageManagerRegistry(
+    PrefService* local_state,
     user_manager::UserManager* user_manager,
     std::unique_ptr<UserImageLoaderDelegate> user_image_loader_delegate)
-    : user_image_loader_delegate_(std::move(user_image_loader_delegate)),
+    : local_state_(CHECK_DEREF(local_state)),
+      user_image_loader_delegate_(std::move(user_image_loader_delegate)),
       user_manager_(user_manager) {
   CHECK(!g_instance);
   g_instance = this;
@@ -48,9 +55,10 @@ UserImageManagerImpl* UserImageManagerRegistry::GetManager(
     const AccountId& account_id) {
   auto it = map_.find(account_id);
   if (it == map_.end()) {
-    it = map_.emplace(account_id, std::make_unique<UserImageManagerImpl>(
-                                      account_id, user_manager_.get(),
-                                      user_image_loader_delegate_.get()))
+    it = map_.emplace(account_id,
+                      std::make_unique<UserImageManagerImpl>(
+                          &local_state_.get(), account_id, user_manager_.get(),
+                          user_image_loader_delegate_.get()))
              .first;
   }
   return it->second.get();

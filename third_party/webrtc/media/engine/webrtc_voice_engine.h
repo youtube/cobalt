@@ -344,6 +344,9 @@ class WebRtcVoiceReceiveChannel final
   const AudioOptions& options() const { return options_; }
 
   void SetInterface(MediaChannelNetworkInterface* iface) override {
+    RTC_DCHECK_RUN_ON(&network_thread_checker_);
+    iface ? network_thread_safety_->SetAlive()
+          : network_thread_safety_->SetNotAlive();
     MediaChannelUtil::SetInterface(iface);
   }
   bool SetReceiverParameters(const AudioReceiverParameters& params) override;
@@ -374,7 +377,7 @@ class WebRtcVoiceReceiveChannel final
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
   std::optional<int> GetBaseMinimumPlayoutDelayMs(uint32_t ssrc) const override;
 
-  void OnPacketReceived(const RtpPacketReceived& packet) override;
+  void OnPacketReceived(RtpPacketReceived packet) override;
   bool GetStats(VoiceMediaReceiveInfo* info,
                 bool get_and_clear_legacy_stats) override;
 
@@ -418,6 +421,7 @@ class WebRtcVoiceReceiveChannel final
   const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
+  scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};
 
   WebRtcVoiceEngine* const engine_ = nullptr;
@@ -461,7 +465,8 @@ class WebRtcVoiceReceiveChannel final
   std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_
       RTC_GUARDED_BY(worker_thread_);
   std::vector<RtpExtension> recv_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
-  RtpHeaderExtensionMap recv_rtp_extension_map_ RTC_GUARDED_BY(worker_thread_);
+  RtpHeaderExtensionMap recv_rtp_extension_map_
+      RTC_GUARDED_BY(network_thread_checker_);
 
   std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_
       RTC_GUARDED_BY(worker_thread_);

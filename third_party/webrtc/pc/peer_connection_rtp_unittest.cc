@@ -53,10 +53,12 @@
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/wait_until.h"
 
 // This file contains tests for RTP Media API-related behavior of
@@ -136,6 +138,7 @@ class PeerConnectionRtpBaseTest : public ::testing::Test {
 
  protected:
   const SdpSemantics sdp_semantics_;
+  test::RunLoop run_loop_;
   scoped_refptr<PeerConnectionFactoryInterface> pc_factory_;
 
  private:
@@ -151,8 +154,6 @@ class PeerConnectionRtpBaseTest : public ::testing::Test {
     return std::make_unique<PeerConnectionWrapper>(
         pc_factory_, result.MoveValue(), std::move(observer));
   }
-
-  AutoThread main_thread_;
 };
 
 class PeerConnectionRtpTest
@@ -162,11 +163,13 @@ class PeerConnectionRtpTest
   PeerConnectionRtpTest() : PeerConnectionRtpBaseTest(GetParam()) {}
 };
 
+RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
 class PeerConnectionRtpTestPlanB : public PeerConnectionRtpBaseTest {
  protected:
   PeerConnectionRtpTestPlanB()
       : PeerConnectionRtpBaseTest(SdpSemantics::kPlanB_DEPRECATED) {}
 };
+RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
 class PeerConnectionRtpTestUnifiedPlan : public PeerConnectionRtpBaseTest {
  protected:
@@ -269,7 +272,9 @@ TEST_P(PeerConnectionRtpTest, RemoveTrackWithStreamFiresOnRemoveTrack) {
   ASSERT_EQ(callee->observer()->add_track_events_.size(), 1u);
   EXPECT_EQ(callee->observer()->GetAddTrackReceivers(),
             callee->observer()->remove_track_events_);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   EXPECT_EQ(0u, callee->observer()->remote_streams()->count());
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 TEST_P(PeerConnectionRtpTest, RemoveTrackWithSharedStreamFiresOnRemoveTrack) {
@@ -292,7 +297,9 @@ TEST_P(PeerConnectionRtpTest, RemoveTrackWithSharedStreamFiresOnRemoveTrack) {
       std::vector<scoped_refptr<RtpReceiverInterface>>{
           callee->observer()->add_track_events_[0].receiver},
       callee->observer()->remove_track_events_);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   ASSERT_EQ(1u, callee->observer()->remote_streams()->count());
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   ASSERT_TRUE(
       caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal()));
 
@@ -302,11 +309,14 @@ TEST_P(PeerConnectionRtpTest, RemoveTrackWithSharedStreamFiresOnRemoveTrack) {
   ASSERT_EQ(callee->observer()->add_track_events_.size(), 2u);
   EXPECT_EQ(callee->observer()->GetAddTrackReceivers(),
             callee->observer()->remove_track_events_);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   EXPECT_EQ(0u, callee->observer()->remote_streams()->count());
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 // Tests the edge case that if a stream ID changes for a given track that both
 // OnRemoveTrack and OnAddTrack is fired.
+RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
 TEST_F(PeerConnectionRtpTestPlanB,
        RemoteStreamIdChangesFiresOnRemoveAndOnAddTrack) {
   auto caller = CreatePeerConnection();
@@ -333,6 +343,7 @@ TEST_F(PeerConnectionRtpTestPlanB,
   EXPECT_EQ(callee->observer()->remove_track_events_[0]->streams()[0]->id(),
             kStreamId1);
 }
+RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
 // Tests that setting a remote description with sending transceivers will fire
 // the OnTrack callback for each transceiver and setting a remote description
@@ -705,6 +716,7 @@ TEST_P(PeerConnectionRtpTest, VideoGetParametersHasHeaderExtensions) {
 // calls and examine the state of the peer connection inside the callbacks to
 // ensure that the second call does not occur prematurely, contaminating the
 // state of the peer connection of the first callback.
+RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
 TEST_F(PeerConnectionRtpTestPlanB,
        StatesCorrelateWithSetRemoteDescriptionCall) {
   auto caller = CreatePeerConnection();
@@ -759,6 +771,7 @@ TEST_F(PeerConnectionRtpTestPlanB,
       WaitUntil([&] { return srd2_callback_called; }, ::testing::IsTrue()),
       IsRtcOk());
 }
+RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
 // Tests that a remote track is created with the signaled MSIDs when they are
 // communicated with a=msid and no SSRCs are signaled at all (i.e., no a=ssrc
@@ -883,6 +896,7 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan,
 // remote audio senders, FindSenderInfo didn't find them as unique, because
 // it looked up by StreamParam.id, which none had. This meant only one
 // AudioRtpReceiver was created, as opposed to one for each remote sender.
+RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
 TEST_F(PeerConnectionRtpTestPlanB,
        MultipleRemoteSendersWithoutStreamParamIdAddsMultipleReceivers) {
   auto caller = CreatePeerConnection();
@@ -910,6 +924,7 @@ TEST_F(PeerConnectionRtpTestPlanB,
   ASSERT_EQ(receivers[1]->streams().size(), 1u);
   EXPECT_EQ(kStreamId2, receivers[1]->streams()[0]->id());
 }
+RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
 // Tests for the legacy SetRemoteDescription() function signature.
 
@@ -938,7 +953,7 @@ TEST_P(PeerConnectionRtpTest,
       caller->CreateOfferAndSetAsLocal();
   callee->pc()->SetRemoteDescription(observer.get(), offer.release());
   callee = nullptr;
-  Thread::Current()->ProcessMessages(0);
+  run_loop_.Flush();
   EXPECT_FALSE(observer->called());
 }
 
@@ -1982,9 +1997,11 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan,
   EXPECT_EQ("stream5", callee_streams[2]->id());
 }
 
+RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
 INSTANTIATE_TEST_SUITE_P(PeerConnectionRtpTest,
                          PeerConnectionRtpTest,
                          Values(SdpSemantics::kPlanB_DEPRECATED,
                                 SdpSemantics::kUnifiedPlan));
+RTC_ALLOW_PLAN_B_DEPRECATION_END()
 
 }  // namespace webrtc

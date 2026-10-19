@@ -12,6 +12,7 @@ import android.content.res.Resources;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -47,6 +48,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     private View[] mTargets;
     private final Rect mCachedTargetBounds = new Rect();
     private final GlifStrokeDrawable mGlifBorderDrawable;
+    private final Handler mHandler;
 
     // Variables needed for animating the location bar and toolbar buttons hiding/showing.
     private final int mToolbarButtonsWidth;
@@ -65,6 +67,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     private WindowAndroid mWindowAndroid;
     private @FuseboxState int mFuseboxState;
     private boolean mHasSuggestions;
+    private int mScreenWidthDp;
 
     /** Constructor used to inflate from XML. */
     public LocationBarTablet(Context context, AttributeSet attrs) {
@@ -85,6 +88,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
                                         R.drawable
                                                 .modern_toolbar_tablet_text_box_background_focused_popup));
         mGlifBorderDrawable = new GlifStrokeDrawable(context);
+        mHandler = new Handler();
     }
 
     @Override
@@ -119,6 +123,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         setOnLongClickListener(this);
 
         mTargets = new View[] {mUrlBar, mDeleteButton};
+        mScreenWidthDp = getResources().getConfiguration().screenWidthDp;
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -175,6 +180,17 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
 
         if (mAnimatingWidthChange) {
             setWidthChangeAnimationFraction(mWidthChangeFraction);
+        }
+
+        int screenWidthDp = getResources().getConfiguration().screenWidthDp;
+        boolean widthChangedSinceLastLayout = screenWidthDp != mScreenWidthDp;
+        if (widthChangedSinceLastLayout) {
+            // Our fusebox-specific margins become wrong when the window width changes, since they
+            // depend on the window width. When we detect that the window width changes, recalculate
+            // margins for the current state + new width using a post(), whose delay allows the full
+            // layout pass to finish.
+            mScreenWidthDp = screenWidthDp;
+            mHandler.post(() -> onFuseboxStateChanged(mFuseboxState));
         }
     }
 
@@ -380,7 +396,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     }
 
     @Override
-    public void onSpecializedFuseboxModeActivatedC(boolean isSpecializedRequestType) {
+    public void onSpecializedFuseboxModeActivated(boolean isSpecializedRequestType) {
         if (isSpecializedRequestType) {
             mFocusedPopupDrawable.setDrawableByLayerId(R.id.glif_border_layer, mGlifBorderDrawable);
             mGlifBorderDrawable.start();
@@ -459,23 +475,29 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         Resources resources = getResources();
         int screenWidthDp = resources.getConfiguration().screenWidthDp;
         int windowWidthPx = DisplayUtil.dpToPx(mWindowAndroid.getDisplay(), screenWidthDp);
-        int measuredWidth = getMeasuredWidth();
+        int measuredWidthWithoutExpansion =
+                getMeasuredWidth()
+                        + Math.min(0, layoutParams.leftMargin)
+                        + Math.min(0, layoutParams.rightMargin);
         int minTabletWidthPx = resources.getDimensionPixelSize(R.dimen.fusebox_min_tablet_width);
         boolean isPhoneWidthScreen = screenWidthDp < DeviceFormFactor.MINIMUM_TABLET_WIDTH_DP;
         int targetWidthPx =
                 isPhoneWidthScreen
                         ? windowWidthPx
-                        : Math.max(minTabletWidthPx, measuredWidth + 2 * minHorizontalExpansionPx);
+                        : Math.max(
+                                minTabletWidthPx,
+                                measuredWidthWithoutExpansion + 2 * minHorizontalExpansionPx);
 
         ViewUtils.getRelativeLayoutPosition(getRootView(), this, mPositionArray);
-        int currentLeft = mPositionArray[0];
+        int currentLeft = mPositionArray[0] - layoutParams.leftMargin;
         // Our view is relatively centered already; make it exactly centered when expanded.
-        boolean isViewApproximatelyCentered = windowWidthPx - 2 * currentLeft <= minTabletWidthPx;
+        boolean isViewApproximatelyCentered =
+                windowWidthPx - 2 * currentLeft <= minTabletWidthPx || isPhoneWidthScreen;
         if (isViewApproximatelyCentered) {
             int targetLeft = (windowWidthPx - targetWidthPx) / 2;
             int targetRight = targetLeft + targetWidthPx;
 
-            int currentRight = currentLeft + measuredWidth;
+            int currentRight = currentLeft + measuredWidthWithoutExpansion;
             int shiftLeft = targetLeft - currentLeft;
             int shiftRight = targetRight - currentRight;
 
@@ -484,7 +506,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         } else {
             // Our view is relatively off-center. Leave it that way, expanding symmetrically from
             // our current position.
-            int expansionPx = (targetWidthPx - measuredWidth) / 2;
+            int expansionPx = (targetWidthPx - measuredWidthWithoutExpansion) / 2;
             layoutParams.leftMargin = -expansionPx;
             layoutParams.rightMargin = -expansionPx;
         }
@@ -506,6 +528,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
             layoutParams.bottomMargin = -inset;
             outerRect.setCornerRadius(cornerRadius);
             mFocusedPopupDrawable.setLayerInsetRelative(1, inset, inset, inset, inset);
+            setPadding(getPaddingLeft(), getPaddingTop(), getPaddingRight(), inset);
         } else {
             // Remove the extra padding and un-round the corners of the outer rect since we're now
             // bleeding into the suggestions dropdown.
@@ -515,6 +538,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
                         cornerRadius, cornerRadius, cornerRadius, cornerRadius, 0, 0, 0, 0
                     });
             mFocusedPopupDrawable.setLayerInsetRelative(1, inset, inset, inset, 0);
+            setPadding(getPaddingLeft(), getPaddingTop(), getPaddingRight(), 0);
         }
         setLayoutParams(layoutParams);
     }

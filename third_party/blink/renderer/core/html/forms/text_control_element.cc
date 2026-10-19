@@ -982,9 +982,10 @@ void TextControlElement::AdjustPlaceholderBreakElement() {
   auto* last_child_text_node = DynamicTo<Text>(last_child);
   if (!last_child_text_node)
     return;
-  if (last_child_text_node->data().EndsWith('\n') ||
-      last_child_text_node->data().EndsWith('\r'))
+  if (last_child_text_node->data().ends_with('\n') ||
+      last_child_text_node->data().ends_with('\r')) {
     inner_editor->AppendChild(CreatePlaceholderBreakElement());
+  }
 }
 
 void TextControlElement::SetInnerEditorValue(const String& value) {
@@ -1220,11 +1221,12 @@ String TextControlElement::DirectionForFormData() const {
       continue;
     }
 
-    if (EqualIgnoringASCIICase(dir_attribute_value, "rtl") ||
-        EqualIgnoringASCIICase(dir_attribute_value, "ltr"))
+    if (EqualIgnoringAsciiCase(dir_attribute_value, "rtl") ||
+        EqualIgnoringAsciiCase(dir_attribute_value, "ltr")) {
       return dir_attribute_value;
+    }
 
-    if (EqualIgnoringASCIICase(dir_attribute_value, "auto")) {
+    if (EqualIgnoringAsciiCase(dir_attribute_value, "auto")) {
       return element->CachedDirectionality() == TextDirection::kRtl ? "rtl"
                                                                     : "ltr";
     }
@@ -1329,7 +1331,7 @@ void TextControlElement::UnregisterOpaqueRange(OpaqueRange* range) {
   }
 }
 
-OpaqueRange* TextControlElement::getValueRange(
+OpaqueRange* TextControlElement::createValueRange(
     unsigned start_offset,
     unsigned end_offset,
     ExceptionState& exception_state) {

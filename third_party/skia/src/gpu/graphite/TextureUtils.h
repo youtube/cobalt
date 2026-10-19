@@ -34,6 +34,7 @@ class Caps;
 class Context;
 class DrawContext;
 class Image;
+class Image_Base;
 class Recorder;
 class TextureProxyView;
 
@@ -77,14 +78,14 @@ sk_sp<Image> CopyAsDraw(Recorder*,
                         SkBackingFit,
                         std::string_view label);
 
-sk_sp<SkImage> RescaleImage(Recorder*,
-                            const SkImage* srcImage,
-                            SkIRect srcIRect,
-                            const SkImageInfo& dstInfo,
-                            SkImage::RescaleGamma rescaleGamma,
-                            SkImage::RescaleMode rescaleMode);
+sk_sp<Image> RescaleImage(Recorder*,
+                          const Image_Base* srcImage,
+                          SkIRect srcIRect,
+                          const SkImageInfo& dstInfo,
+                          SkImage::RescaleGamma rescaleGamma,
+                          SkImage::RescaleMode rescaleMode);
 
-bool GenerateMipmaps(Recorder*, DrawContext*, sk_sp<TextureProxy>, const SkColorInfo&);
+bool GenerateMipmaps(Recorder*, DrawContext*, sk_sp<TextureProxy>);
 
 // Returns the underlying TextureProxyView if it's a non-YUVA Graphite-backed image.
 TextureProxyView AsView(const SkImage*);

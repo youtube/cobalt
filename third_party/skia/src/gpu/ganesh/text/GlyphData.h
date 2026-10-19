@@ -12,7 +12,7 @@
 #include "include/core/SkSpan.h"
 #include "src/core/SkColorData.h"
 #include "src/core/SkGlyph.h"
-#include "src/gpu/AtlasTypes.h"
+#include "src/gpu/ganesh/GrAtlasTypes.h"
 #include "src/gpu/ganesh/text/TextStrike.h"
 
 #include <cstdint>
@@ -59,7 +59,7 @@ struct GlyphEntry {
     explicit GlyphEntry(SkPackedGlyphID id, MaskFormat format) : fGlyphEntryKey(id, format) {}
 
     const GlyphEntryKey fGlyphEntryKey;
-    AtlasLocator fAtlasLocator;
+    GrAtlasLocator fAtlasLocator;
 };
 
 /** Adapts GlyphEntry* to conform to GlyphVectors GlyphType requirements. */
@@ -123,8 +123,8 @@ private:
     GlyphData(int glyphCount);
 
     sk_sp<TextStrike> fTextStrike{nullptr};
-    uint64_t fAtlasGeneration{AtlasGenerationCounter::kInvalidGeneration};
-    BulkUsePlotUpdater fBulkUseUpdater;
+    uint64_t fAtlasGeneration{GrAtlasGenerationCounter::kInvalidGeneration};
+    GrBulkUsePlotUpdater fBulkUseUpdater;
 };
 
 }  // namespace skgpu::ganesh

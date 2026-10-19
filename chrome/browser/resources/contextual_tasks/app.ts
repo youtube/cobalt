@@ -37,6 +37,7 @@ import {getNonOccludedClipPath} from './utils/clip_path.js';
 declare global {
   interface HTMLElementEventMap {
     'loadstart': chrome.webviewTag.LoadStartEvent;
+    'loadcommit': chrome.webviewTag.LoadCommitEvent;
     'newwindow': chrome.webviewTag.NewWindowEvent;
     'permissionrequest': chrome.webviewTag.PermissionRequestEvent;
   }
@@ -66,12 +67,10 @@ export interface ContextualTasksAppElement {
     // <if expr="not is_android">
     composebox: ContextualTasksComposeboxElement,
     // </if>
-    // <if expr="is_android">
-    composebox: HTMLElement,
-    // </if>
     composeboxHeaderWrapper: HTMLElement,
     composeboxHeader: HTMLElement,
     flexCenterContainer: HTMLElement,
+    nameShimmer: HTMLElement,
   };
 }
 
@@ -177,9 +176,14 @@ export class ContextualTasksAppElement extends CrLitElement {
       },
       isAiPage_: {type: Boolean, reflect: true},
       isLensOverlayShowing_: {type: Boolean},
+      maybeShowOverlayHintText_: {type: Boolean},
       isGhostLoaderVisible_: {type: Boolean, reflect: true},
       isErrorDialogVisible_: {type: Boolean},
       enableNativeZeroStateSuggestions_: {
+        type: Boolean,
+        reflect: true,
+      },
+      enableBasicMode_: {
         type: Boolean,
         reflect: true,
       },
@@ -209,10 +213,15 @@ export class ContextualTasksAppElement extends CrLitElement {
   protected accessor friendlyZeroStateTitleAfterName_: string =
       loadTimeData.getString('friendlyZeroStateTitleAfterName');
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
+  // Whether basic mode is enabled. If disabled, isInBasicMode_,
+  // isNavigatingFromAiPage_, and pendingBasicMode_ will not be updated.
+  protected accessor enableBasicMode_: boolean =
+      loadTimeData.getBoolean('enableBasicMode');
   protected accessor enableBasicModeZOrder_: boolean =
       loadTimeData.getBoolean('enableBasicModeZOrder');
   protected accessor isAiPage_: boolean = true;
   protected accessor isLensOverlayShowing_: boolean = false;
+  protected accessor maybeShowOverlayHintText_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
   protected accessor isShownInTab_: boolean = true;
   protected accessor darkMode_: boolean = loadTimeData.getBoolean('darkMode');
@@ -299,6 +308,9 @@ export class ContextualTasksAppElement extends CrLitElement {
       // TODO(crbug.com/474359572): Rename this to be more descriptive of what
       // it actually does.
       callbackRouter.hideInput.addListener(() => {
+        if (!this.enableBasicMode_) {
+          return;
+        }
         // OnBeforeRequest will trigger before the navigation, so this is needed
         // to prevent the input from being hidden when navigating to a new
         // page. However, while this guard prevents flickering, it also
@@ -313,6 +325,9 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.isInBasicMode_ = true;
       }),
       callbackRouter.restoreInput.addListener(() => {
+        if (!this.enableBasicMode_) {
+          return;
+        }
         // OnBeforeRequest will trigger before the navigation, so this is needed
         // to prevent the input from being restored when navigating to a new
         // page. However, while this guard prevents flickering, it also
@@ -355,16 +370,19 @@ export class ContextualTasksAppElement extends CrLitElement {
           this.forcedComposeboxBounds_ = null;
           // </if>
         }
+
       }),
       callbackRouter.onLensOverlayStateChanged.addListener(
-          (isOverlayShowing: boolean) => {
+          (isOverlayShowing: boolean, maybeShowOverlayHintText: boolean) => {
             this.isLensOverlayShowing_ = isOverlayShowing;
+            this.maybeShowOverlayHintText_ = maybeShowOverlayHintText;
           }),
       callbackRouter.showErrorPage.addListener(() => {
         this.isErrorPageVisible_ = true;
       }),
       callbackRouter.hideErrorPage.addListener(() => {
         this.isErrorPageVisible_ = false;
+        this.maybeLoadPendingUrl_();
       }),
       callbackRouter.showOauthErrorDialog.addListener(() => {
         this.isErrorDialogVisible_ = true;
@@ -416,6 +434,8 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.$.threadFrame.addEventListener(
         'loadstart', this.onThreadFrameLoadStart.bind(this));
     this.$.threadFrame.addEventListener(
+        'loadcommit', this.onThreadFrameLoadCommit.bind(this));
+    this.$.threadFrame.addEventListener(
         'contentload', this.onThreadFrameContentLoad.bind(this));
     this.$.threadFrame.addEventListener(
         'loadabort', this.onThreadFrameLoadAbort.bind(this));
@@ -445,7 +465,7 @@ export class ContextualTasksAppElement extends CrLitElement {
 
     const threadUrlAsUrl = new URL(threadUrl);
     // If the thread URL has parameters to open history, set basic mode.
-    if (this.hasThreadHistoryParams(threadUrlAsUrl) &&
+    if (this.enableBasicMode_ && this.hasThreadHistoryParams(threadUrlAsUrl) &&
         this.forceBasicModeIfOpeningThreadHistory_) {
       this.isInBasicMode_ = true;
     }
@@ -458,6 +478,13 @@ export class ContextualTasksAppElement extends CrLitElement {
       const url = new URL(window.location.href);
       url.searchParams.delete('open_history');
       window.history.replaceState({}, '', url.href);
+    }
+
+    if (taskUuid) {
+      const {isPendingErrorPage} =
+          await this.browserProxy_.handler.isPendingErrorPage(
+              {value: taskUuid});
+      this.isErrorPageVisible_ = isPendingErrorPage;
     }
 
     // Check if the initial render should be zero state.
@@ -519,6 +546,31 @@ export class ContextualTasksAppElement extends CrLitElement {
     }
   }
 
+  private async playZeroStateAnimations_() {
+    await this.updateComplete;
+
+    const restartAnimations = (element: HTMLElement) => {
+      element.getAnimations().forEach(animation => {
+        animation.cancel();
+        animation.play();
+      });
+    };
+
+    // <if expr="not is_android">
+    restartAnimations(this.$.composebox);
+    // </if>
+    restartAnimations(this.$.composeboxHeaderWrapper);
+
+    if (this.$.nameShimmer) {
+      restartAnimations(this.$.nameShimmer);
+    }
+
+    // Restart the composebox glow animation.
+    // <if expr="not is_android">
+    this.$.composebox.startExpandAnimation();
+    // </if>
+  }
+
   // <if expr="not is_android">
   private setStyleVariable(variable: string, value: string) {
     this.$.composebox.style.setProperty(variable, `${value}px`);
@@ -541,6 +593,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.isFrameLoading = true;
     const wasAiPage = this.isAiPage_;
     const {isAiPage} = await this.browserProxy_.handler.isAiPage(ev.url);
+    const {isZeroState} = await this.browserProxy_.handler.isZeroState(ev.url);
 
     // If the frame is no longer loading after waiting for isAiPage,
     // then exit early to prevent racind.
@@ -551,19 +604,41 @@ export class ContextualTasksAppElement extends CrLitElement {
       return;
     }
 
+    if (isAiPage && isZeroState) {
+      this.isZeroState_ = true;
+      this.playZeroStateAnimations_();
+    }
+
     if (!isAiPage) {
       // If this is not an AI page, show the ghost loader.
       this.setIsGhostLoaderVisible(true);
-    } else if (wasAiPage) {
+    } else if (this.enableBasicMode_ && wasAiPage) {
       // Since this is a navigation from one AI page to another,
       // enter basic mode to avoid flickering between navigations.
       this.isNavigatingFromAiPage_ = true;
+      // In the case where this basic mode is currently set to false,
+      // set the pending basic mode to false right away to avoid flickering when
+      // loading the first AIM page (like from a contextual query that directly
+      // opens the side panel). Without this call, the first loaded AIM page
+      // will load with basic mode enabled and will wait for the AIM page to
+      // load and then complete the handshake in order to re-disable basic mode.
+      if (!this.isInBasicMode_) {
+        this.pendingBasicMode_ = false;
+      }
       this.isInBasicMode_ = true;
     }
 
     if (this.onLoadStartFinishedCallbackForTesting_) {
       this.onLoadStartFinishedCallbackForTesting_();
     }
+  }
+
+  private onThreadFrameLoadCommit(ev: chrome.webviewTag.LoadCommitEvent) {
+    // If is from inner iframe and not from main webview URL:
+    if (!ev.isTopLevel) {
+      return;
+    }
+    this.updateBasicModeAfterNavigation();
   }
 
   private onThreadFrameContentLoad() {
@@ -649,7 +724,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     const style: string[] = [
       `--composebox-margin-bottom: 0;`,  // Need to remove margin on the child
                                          // container.
-      `position: fixed;`,
+      `position: relative;`,
       `bottom: ${window.innerHeight - relativeRect.bottom}px;`,
       `left: ${relativeRect.left}px;`,
       `width: ${relativeRect.width}px;`,
@@ -744,7 +819,8 @@ export class ContextualTasksAppElement extends CrLitElement {
   private maybeLoadPendingUrl_() {
     // If all the data needed to make the initial request is available, load
     // the pending URL.
-    if (this.pendingUrl_ && this.commonSearchParams_) {
+    if (this.pendingUrl_ && this.commonSearchParams_ &&
+        !this.isErrorPageVisible_) {
       this.$.threadFrame.src = this.pendingUrl_;
       this.pendingUrl_ = '';
     }
@@ -847,7 +923,7 @@ export class ContextualTasksAppElement extends CrLitElement {
   }
 
   private updateBasicModeAfterNavigation() {
-    if (!this.isNavigatingFromAiPage_) {
+    if (!this.enableBasicMode_ || !this.isNavigatingFromAiPage_) {
       return;
     }
     // If basic mode was changed while loading the
@@ -906,6 +982,10 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   onThreadFrameLoadAbortForTesting() {
     this.onThreadFrameLoadAbort();
+  }
+
+  setIsZeroStateForTesting(isZeroState: boolean) {
+    this.isZeroState_ = isZeroState;
   }
 }
 

@@ -73,47 +73,67 @@ mojom("mojo_bindings") {
   webui_module_path = "/"
 }
 
-if (!skip_android_unmigrated_actor_files) {
-  source_set("actor_overlay") {
+if (!is_android) {
+  source_set("actor_overlay_web_view") {
     sources = [
-      "actor_overlay_handler.cc",
-      "actor_overlay_handler.h",
-      "actor_overlay_ui.cc",
-      "actor_overlay_ui.h",
       "actor_overlay_web_view.cc",
       "actor_overlay_web_view.h",
     ]
     deps = [
-      ":mojo_bindings",
-      ":ui",
+      ":actor_overlay",
       "//base",
-      "//chrome/browser/actor/resources:grit_grit",
       "//chrome/browser/profiles",
-      "//chrome/browser/resources/actor_overlay:resources",
-      "//chrome/browser/themes",
       "//chrome/browser/ui/browser_window",
-      "//chrome/browser/ui/color:color_headers",
-      "//chrome/browser/ui/tabs:tabs_public",
       "//chrome/browser/ui/webui",
       "//chrome/browser/ui/webui:webui_util",
-      "//chrome/common",
+      "//chrome/common:chrome_features",
       "//components/tabs:public",
       "//content/public/browser",
-      "//mojo/public/cpp/bindings",
-      "//skia",
-      "//ui/base",
-      "//ui/color",
-      "//ui/native_theme",
       "//ui/views",
       "//ui/views/controls/webview",
-      "//ui/webui",
     ]
   }
+}
 
+source_set("actor_overlay") {
+  sources = [
+    "actor_overlay_handler.cc",
+    "actor_overlay_handler.h",
+    "actor_overlay_ui.cc",
+    "actor_overlay_ui.h",
+  ]
+  deps = [
+    ":mojo_bindings",
+    ":ui",
+    "//base",
+    "//chrome/browser/actor/resources:grit_grit",
+    "//chrome/browser/profiles",
+    "//chrome/browser/resources/actor_overlay:resources",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/webui",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/common",
+    "//components/tabs:public",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//skia",
+    "//ui/color",
+    "//ui/native_theme",
+    "//ui/webui",
+  ]
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/themes" ]
+  }
+}
+
+if (!skip_android_unmigrated_actor_files) {
   source_set("window_controller_impl") {
     sources = [ "actor_ui_window_controller.cc" ]
     deps = [
       ":actor_overlay",
+      ":actor_overlay_web_view",
       ":metrics",
       ":ui",
       "//chrome/browser/actor",
@@ -190,6 +210,7 @@ if (!skip_android_unmigrated_actor_files) {
 
     deps = [
       ":actor_overlay",
+      ":actor_overlay_web_view",
       ":dom_node_geometry",
       ":ui",
       ":ui_event_types",
@@ -223,22 +244,18 @@ if (!skip_android_unmigrated_actor_files) {
       ":ui",
       "//base/test:test_support",
       "//chrome/browser/actor",
+      "//chrome/browser/glic",
+      "//chrome/browser/glic/test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
       "//chrome/common",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//content/test:test_support",
       "//ui/base/interaction",
     ]
-
-    if (enable_glic) {
-      deps += [
-        "//chrome/browser/glic",
-        "//chrome/browser/glic/test_support",
-      ]
-    }
   }
 }
 
@@ -280,6 +297,7 @@ source_set("ui") {
       "//chrome/app/vector_icons",
       "//chrome/browser/actor",
       "//chrome/browser/actor/resources:browser_resources",
+      "//chrome/browser/glic",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
@@ -296,9 +314,6 @@ source_set("ui") {
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-    if (enable_glic) {
-      deps += [ "//chrome/browser/glic" ]
-    }
   }
 }
 
@@ -375,6 +390,7 @@ source_set("unit_tests") {
     ]
     deps += [
       ":actor_overlay",
+      ":actor_overlay_web_view",
       ":event_dispatcher",
       ":test_support",
       ":ui",

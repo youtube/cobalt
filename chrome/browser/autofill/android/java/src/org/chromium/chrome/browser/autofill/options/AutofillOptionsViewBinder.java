@@ -4,10 +4,11 @@
 
 package org.chromium.chrome.browser.autofill.options;
 
-import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_ENABLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_REAUTH_SETTING_ON;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ELIGIBLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ON;
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_VISIBLE;
+import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.FRAGMENT_TITLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_SETTING_TOGGLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_THIRD_PARTY_TOGGLE_CHANGED;
@@ -36,7 +37,9 @@ class AutofillOptionsViewBinder {
      * @param key An {@link AutofillOptionsProperties} key.
      */
     public static void bind(PropertyModel model, AutofillOptionsFragment view, PropertyKey key) {
-        if (key == THIRD_PARTY_AUTOFILL_ENABLED) {
+        if (key == FRAGMENT_TITLE) {
+            view.getPageTitle().set(model.get(FRAGMENT_TITLE));
+        } else if (key == THIRD_PARTY_AUTOFILL_ENABLED) {
             @RadioButtonGroupThirdPartyPreference.ThirdPartyOption
             int currentOption =
                     model.get(THIRD_PARTY_AUTOFILL_ENABLED)
@@ -85,16 +88,16 @@ class AutofillOptionsViewBinder {
                                         .onResult((boolean) newValue);
                                 return true;
                             });
-        } else if (key == AUTOFILL_AI_ENABLED) {
-            boolean enabled = model.get(AUTOFILL_AI_ENABLED);
+        } else if (key == AUTOFILL_AI_VISIBLE) {
+            boolean visible = model.get(AUTOFILL_AI_VISIBLE);
 
             Preference aiCategory = view.getAutofillAiCategory();
             if (aiCategory != null) {
-                aiCategory.setVisible(enabled);
+                aiCategory.setVisible(visible);
             }
             Preference serviceProviderTitlePreference = view.getAutofillServiceProviderCategory();
             if (serviceProviderTitlePreference != null) {
-                serviceProviderTitlePreference.setVisible(enabled);
+                serviceProviderTitlePreference.setVisible(visible);
             }
         } else {
             assert false : "Unhandled property: " + key;

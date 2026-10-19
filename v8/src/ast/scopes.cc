@@ -797,13 +797,14 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   arguments_ =
       Declare(zone(), ast_value_factory->arguments_string(), VariableMode::kVar,
               NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
-  // According to ES#sec-functiondeclarationinstantiation step 18
-  // we should set argumentsObjectNeeded to false if has lexical
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+  // step 18 we should set argumentsObjectNeeded to false if has lexical
   // declared arguments only when hasParameterExpressions is false
   if (!was_added && IsLexicalVariableMode(arguments_->mode()) &&
       has_simple_parameters()) {
     // Check if there's lexically declared variable named arguments to avoid
-    // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
+    // redeclaration. See
+    // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;
   }
 }
@@ -984,7 +985,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  Tagged<String> name_handle = *name->string();
+  Tagged<String> tagged_name = *name->string();
   Tagged<ScopeInfo> scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -997,20 +998,20 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info->ContextSlotIndex(name_handle, &lookup_result);
+    index = scope_info->ContextSlotIndex(tagged_name, &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info->ModuleIndex(name_handle, &lookup_result.mode,
+    index = scope_info->ModuleIndex(tagged_name, &lookup_result.mode,
                                     &lookup_result.init_flag,
                                     &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info->FunctionContextSlotIndex(name_handle);
+    index = scope_info->FunctionContextSlotIndex(tagged_name);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -1020,6 +1021,16 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   if (!is_module_scope()) {
     DCHECK_NE(index, scope_info->ReceiverContextSlotIndex());
+  }
+
+  if (is_class_scope() && scope_info->HasSavedClassVariable()) {
+    Tagged<String> class_name;
+    int class_index;
+    std::tie(class_name, class_index) = scope_info->SavedClassVariable();
+    if (class_name == tagged_name) {
+      cache->variables_.Add(AsClassScope()->class_variable());
+      return AsClassScope()->class_variable();
+    }
   }
 
   bool was_added;

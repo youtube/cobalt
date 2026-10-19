@@ -365,6 +365,7 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ContentSwitches;
+import org.chromium.ui.base.AcceleratorManager;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
@@ -605,6 +606,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     private Runnable mShowHistoryRunnable;
     private CompositorViewHolder mCompositorViewHolder;
     private IncognitoWindowNightModeStateProvider mIncognitoWindowNightModeStateProvider;
+    private AcceleratorManager mAcceleratorManager;
 
     /** Keeps track of whether or not a specific tab was created based on the startup intent. */
     private boolean mCreatedTabOnStartup;
@@ -1088,7 +1090,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             mRootUiCoordinator.getShareDelegateSupplier(),
                             mXrSceneCoreSessionManagerSupplier.get(),
                             mBackPressManager,
-                            getSnackbarManager());
+                            getSnackbarManager(),
+                            () -> ((TabbedRootUiCoordinator) mRootUiCoordinator).toggleGlic());
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1256,7 +1259,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 this,
                 getSnackbarManager(),
                 mRootUiCoordinator::getBottomSheetController,
-                getModalDialogManagerSupplier(),
+                getModalDialogManagerSupplier().asNonNull(),
                 getActivityResultTracker(),
                 getCurrentTabModel().getCurrentTabSupplier());
     }
@@ -2763,6 +2766,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                                             new BottomSheetSigninAndHistorySyncCoordinator
                                                     .Delegate() {},
                                             SigninAccessPoint.SET_UP_LIST),
+                                    getTabCreator(/* incognito= */ false),
                                     getWindowAndroid(),
                                     getCurrentTabModel().isIncognito(),
                                     getProfileProviderSupplier().get().getOriginalProfile(),
@@ -3009,6 +3013,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     @Override
     public void performPreInflationStartup() {
         super.performPreInflationStartup();
+        mAcceleratorManager = AcceleratorManager.getOrCreate(getWindowAndroid());
 
         if (isMainIntentLaunchPreOnResume()) {
             StartupLatencyInjector startupLatencyInjector = new StartupLatencyInjector();
@@ -3059,7 +3064,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 getLayoutManagerSupplier(),
                 /* menuOrKeyboardActionController= */ this,
                 this::getActivityThemeColor,
-                getModalDialogManagerSupplier(),
+                getModalDialogManagerSupplier().asNonNull(),
                 /* appMenuBlocker= */ this,
                 this::supportsAppMenu,
                 this::supportsFindInPage,
@@ -3320,30 +3325,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             @Override
-            public void showHistorySyncOptIn(Runnable dismissHistorySyncModuleCallback) {
-                AccountPickerBottomSheetStrings accountPickerBottomSheetStrings =
-                        new AccountPickerBottomSheetStrings.Builder(
-                                        getContext()
-                                                .getString(
-                                                        R.string
-                                                                .signin_account_picker_bottom_sheet_title))
-                                .setSubtitleString(
-                                        getContext()
-                                                .getString(
-                                                        R.string
-                                                                .signin_account_picker_bottom_sheet_benefits_subtitle))
-                                .build();
+            public void showHistorySyncOptInLegacy(Runnable dismissHistorySyncModuleCallback) {
                 BottomSheetSigninAndHistorySyncConfig bottomSheetConfig =
-                        new BottomSheetSigninAndHistorySyncConfig.Builder(
-                                        accountPickerBottomSheetStrings,
-                                        BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode
-                                                .NO_SIGNIN,
-                                        BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode
-                                                .DEFAULT_ACCOUNT_BOTTOM_SHEET,
-                                        HistorySyncConfig.OptInMode.REQUIRED,
-                                        getContext().getString(R.string.history_sync_title),
-                                        getContext().getString(R.string.history_sync_subtitle))
-                                .build();
+                        createHistorySyncBottomSheetConfig();
+
                 @Nullable Intent intent =
                         SigninAndHistorySyncActivityLauncherImpl.get()
                                 .createBottomSheetSigninIntentOrShowError(
@@ -3366,6 +3351,61 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             },
                             null);
                 }
+            }
+
+            @Override
+            public void showSignInLegacy() {
+                BottomSheetSigninAndHistorySyncConfig bottomSheetConfig =
+                        createSigninBottomSheetConfig();
+
+                @Nullable Intent intent =
+                        SigninAndHistorySyncActivityLauncherImpl.get()
+                                .createBottomSheetSigninIntentOrShowError(
+                                        ChromeTabbedActivity.this,
+                                        mTabModelSelector.getCurrentModel().getProfile(),
+                                        bottomSheetConfig,
+                                        SigninAccessPoint.SET_UP_LIST);
+
+                if (intent != null) {
+                    WindowAndroid windowAndroid = ChromeTabbedActivity.this.getWindowAndroid();
+                    windowAndroid.showIntent(intent, /* callback= */ null, null);
+                }
+            }
+
+            @Override
+            public BottomSheetSigninAndHistorySyncConfig createHistorySyncBottomSheetConfig() {
+                return new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                createAccountPickerStrings(),
+                                BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode.NO_SIGNIN,
+                                BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode
+                                        .DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                                HistorySyncConfig.OptInMode.REQUIRED,
+                                getContext().getString(R.string.history_sync_title),
+                                getContext().getString(R.string.history_sync_subtitle))
+                        .build();
+            }
+
+            @Override
+            public BottomSheetSigninAndHistorySyncConfig createSigninBottomSheetConfig() {
+                return new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                createAccountPickerStrings(),
+                                BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode
+                                        .BOTTOM_SHEET,
+                                BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode
+                                        .DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                                HistorySyncConfig.OptInMode.OPTIONAL,
+                                getString(R.string.history_sync_title),
+                                getString(R.string.history_sync_subtitle))
+                        .build();
+            }
+
+            private AccountPickerBottomSheetStrings createAccountPickerStrings() {
+                String title = getString(R.string.signin_account_picker_bottom_sheet_title);
+                String subtitle =
+                        getString(R.string.signin_account_picker_bottom_sheet_benefits_subtitle);
+                return new AccountPickerBottomSheetStrings.Builder(title)
+                        .setSubtitleString(subtitle)
+                        .build();
             }
 
             @Override
@@ -3409,27 +3449,17 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             @Override
-            public void startSignInFlow(BottomSheetSigninAndHistorySyncCoordinator coordinator) {
-                String title = getString(R.string.signin_account_picker_bottom_sheet_title);
-                String subtitle =
-                        getString(R.string.signin_account_picker_bottom_sheet_benefits_subtitle);
-                AccountPickerBottomSheetStrings accountPickerBottomSheetStrings =
-                        new AccountPickerBottomSheetStrings.Builder(title)
-                                .setSubtitleString(subtitle)
-                                .build();
-                BottomSheetSigninAndHistorySyncConfig config =
-                        new BottomSheetSigninAndHistorySyncConfig.Builder(
-                                        accountPickerBottomSheetStrings,
-                                        BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode
-                                                .BOTTOM_SHEET,
-                                        BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode
-                                                .DEFAULT_ACCOUNT_BOTTOM_SHEET,
-                                        HistorySyncConfig.OptInMode.OPTIONAL,
-                                        getString(R.string.history_sync_title),
-                                        getString(R.string.history_sync_subtitle))
-                                .build();
+            public boolean maybeShowDefaultBrowserPromoWithRoleManager() {
+                Profile profile = getProfileSupplier().get();
+                if (profile == null) return false;
 
-                coordinator.startSigninFlow(config);
+                Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
+                return DefaultBrowserPromoUtils.getInstance()
+                        .prepareLaunchPromoIfNeeded(
+                                ChromeTabbedActivity.this,
+                                getWindowAndroid(),
+                                tracker,
+                                DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.SET_UP_LIST);
             }
         };
     }
@@ -3449,7 +3479,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         DeviceLockActivityLauncherImpl.get(),
                         profileSupplier,
                         mRootUiCoordinator::getBottomSheetController,
-                        getModalDialogManagerSupplier(),
+                        getModalDialogManagerSupplier().get(),
                         getSnackbarManager(),
                         accessPoint);
     }
@@ -3522,7 +3552,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         if (mMultiInstanceManager != null) {
             int assignedIndex = TabWindowManagerSingleton.getInstance().getIdForWindow(this);
             int taskId = ApplicationStatus.getTaskId(this);
-            mMultiInstanceManager.initialize(assignedIndex, taskId, mSupportedProfileType);
+            mMultiInstanceManager.initialize(
+                    assignedIndex,
+                    taskId,
+                    mSupportedProfileType,
+                    getWindowAndroid().getUnownedUserDataHost());
         }
 
         mTabModelSelector = assertNonNull(mTabModelOrchestrator.getTabModelSelector());
@@ -3633,7 +3667,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             /* tabCreatorManager= */ this,
                             getTabModelSelectorSupplier(),
                             getCompositorViewHolderSupplier(),
-                            getModalDialogManagerSupplier(),
+                            getModalDialogManagerSupplier().asNonNull(),
                             this::getSnackbarManager,
                             getActivityResultTracker(),
                             getBrowserControlsManager(),
@@ -3787,6 +3821,17 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         PersistableBundle persistentState = getPersistentInstanceState();
         Bundle savedInstanceState = getSavedInstanceState();
         int windowId = getExtraWindowIdFromIntent(intent);
+
+        // Record a metric to track the app source that triggered the creation of this activity.
+        if (intent.hasExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE)
+                && IntentHandler.wasIntentSenderChrome(intent)) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    MultiInstanceManager.NEW_WINDOW_APP_SOURCE_HISTOGRAM,
+                    intent.getIntExtra(
+                            IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, NewWindowAppSource.UNKNOWN),
+                    NewWindowAppSource.NUM_ENTRIES);
+        }
+
         if (persistentState != null && persistentState.containsKey(WINDOW_INDEX)) {
             mWindowId = persistentState.getInt(WINDOW_INDEX, INVALID_WINDOW_ID);
             Log.i(TAG_MULTI_INSTANCE, "Retrieved windowId from persistent state.");
@@ -4717,6 +4762,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                     .destroy(mRecentlyClosedEntriesManager);
         }
 
+        if (mAcceleratorManager != null) {
+            mAcceleratorManager.destroy();
+        }
+
         super.onDestroyInternal();
     }
 
@@ -4754,6 +4803,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             if (extensionToolbarCoordinator.dispatchKeyEvent(event)) {
                 result = true;
             }
+        }
+
+        if (mAcceleratorManager.processKeyEvent(event)) {
+            result = true;
         }
 
         return result != null ? result : super.dispatchKeyEvent(event);

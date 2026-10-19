@@ -57,8 +57,8 @@ export interface ViewerToolbarElement {
   $: {
     sidenavToggle: HTMLButtonElement,
     menu: CrActionMenuElement,
-    'present-button': HTMLButtonElement,
-    'two-page-view-button': HTMLButtonElement,
+    presentButton: HTMLButtonElement,
+    twoPageViewButton: HTMLButtonElement,
   };
 }
 
@@ -109,9 +109,7 @@ export class ViewerToolbarElement extends CrLitElement {
       printingEnabled_: {type: Boolean},
       viewportZoomPercent_: {type: Number},
 
-      // <if expr="enable_glic">
       pdfGlicSummarizeEnabled_: {type: Boolean},
-      // </if> enable_glic
 
       // <if expr="enable_pdf_ink2">
       annotationAvailable: {type: Boolean},
@@ -156,9 +154,7 @@ export class ViewerToolbarElement extends CrLitElement {
   protected accessor printingEnabled_: boolean = false;
   private accessor viewportZoomPercent_: number = 0;
 
-  // <if expr="enable_glic">
   protected accessor pdfGlicSummarizeEnabled_: boolean = false;
-  // </if> enable_glic
 
   // <if expr="enable_pdf_save_to_drive">
   accessor pdfSaveToDriveEnabled: boolean = false;
@@ -231,10 +227,8 @@ export class ViewerToolbarElement extends CrLitElement {
 
   private updateLoadTimeData_() {
     this.printingEnabled_ = loadTimeData.getBoolean('printingEnabled');
-    // <if expr="enable_glic">
     this.pdfGlicSummarizeEnabled_ =
         loadTimeData.getBoolean('pdfGlicSummarizeEnabled');
-    // </if> enable_glic
     // <if expr="enable_pdf_ink2">
     this.pdfTextAnnotationsEnabled_ =
         loadTimeData.getBoolean('pdfTextAnnotationsEnabled');
@@ -262,11 +256,9 @@ export class ViewerToolbarElement extends CrLitElement {
                                                         'tooltipFitToWidth');
   }
 
-  // <if expr="enable_glic">
   protected onGlicSummarizeClick_() {
     this.fire('glic-summarize');
   }
-  // </if>
 
   // <if expr="enable_pdf_ink2">
   protected showInk2Buttons_(): boolean {
@@ -282,7 +274,7 @@ export class ViewerToolbarElement extends CrLitElement {
     this.dispatchEvent(new CustomEvent('rotate-left'));
   }
 
-  protected toggleDisplayAnnotations_() {
+  protected onDisplayAnnotationsClick_() {
     record(UserAction.TOGGLE_DISPLAY_ANNOTATIONS);
     this.displayAnnotations_ = !this.displayAnnotations_;
     this.dispatchEvent(new CustomEvent(
@@ -310,7 +302,7 @@ export class ViewerToolbarElement extends CrLitElement {
     return this.sidenavCollapsed ? 'false' : 'true';
   }
 
-  protected toggleTwoPageViewClick_() {
+  protected onTwoPageViewClick_() {
     const newTwoUpViewEnabled = !this.twoUpViewEnabled;
     this.dispatchEvent(
         new CustomEvent('two-up-view-changed', {detail: newTwoUpViewEnabled}));
@@ -348,6 +340,10 @@ export class ViewerToolbarElement extends CrLitElement {
 
   private getZoomInput_(): HTMLInputElement {
     return this.shadowRoot.querySelector('#zoom-controls input')!;
+  }
+
+  protected onZoomBlur_() {
+    this.onZoomChange_();
   }
 
   protected onZoomChange_() {
@@ -481,6 +477,10 @@ export class ViewerToolbarElement extends CrLitElement {
         this.enableUndoRedo;
   }
 
+  protected onUndoClick_() {
+    this.undo();
+  }
+
   /**
    * Undo an annotation stroke, if possible.
    */
@@ -498,6 +498,10 @@ export class ViewerToolbarElement extends CrLitElement {
     this.updateCanUndoRedo_();
     this.fire('strokes-updated', this.currentStroke);
     record(UserAction.UNDO_INK2);
+  }
+
+  protected onRedoClick_() {
+    this.redo();
   }
 
   /**

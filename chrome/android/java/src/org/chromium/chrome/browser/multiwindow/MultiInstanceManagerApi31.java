@@ -16,7 +16,6 @@ import android.provider.Browser;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.SparseBooleanArray;
-import android.util.SparseIntArray;
 
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
@@ -31,6 +30,7 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
+import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -236,18 +236,22 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     @Override
     public void openNewWindow(boolean isIncognito) {
         RecordUserAction.record("Android.WindowManager.NewWindow");
-        openNewWindow(isIncognito, NewWindowAppSource.WINDOW_MANAGER);
+        Intent intent = createNewWindowIntent(isIncognito, NewWindowAppSource.WINDOW_MANAGER);
+        assert intent != null : "The Intent to open a new window must not be null";
+
+        mActivity.startActivity(intent);
     }
 
     @Override
-    public void moveTabsToNewWindow(List<Tab> tabs, @NewWindowAppSource int source) {
+    public void moveTabsToNewWindow(
+            List<Tab> tabs, @Nullable Runnable finalizeCallback, @NewWindowAppSource int source) {
         if (tabs.isEmpty()) return;
         boolean openAdjacently = MultiWindowUtils.shouldOpenInAdjacentWindow(mActivity);
         if (isInstanceLimitReached()) {
             showInstanceCreationLimitMessage();
         } else {
             mTabReparentingDelegate.reparentTabsToNewWindow(
-                    tabs, INVALID_WINDOW_ID, openAdjacently, source);
+                    tabs, INVALID_WINDOW_ID, openAdjacently, finalizeCallback, source);
         }
     }
 
@@ -268,7 +272,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             }
         }
 
-        Activity destActivity = getActivityById(destWindowId);
+        Activity destActivity = MultiWindowUtils.getActivityById(destWindowId);
         // Reparent tabs to the activity associated with the specified instance if it is alive. If
         // the instance does not have a live activity, restore it in a new activity to reparent the
         // tabs into.
@@ -284,9 +288,12 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                     TabWindowManagerSingleton.getInstance()
                             .getTabModelSelectorById(getCurrentInstanceId());
             boolean openAdjacently = assumeNonNull(selector).getTotalTabCount() > 1;
-            // TODO (crbug.com/483801863): Revisit NewWindowAppSource used here.
             mTabReparentingDelegate.reparentTabsToNewWindow(
-                    tabs, destWindowId, openAdjacently, NewWindowAppSource.OTHER);
+                    tabs,
+                    destWindowId,
+                    openAdjacently,
+                    /* finalizeCallback= */ null,
+                    NewWindowAppSource.TAB_REPARENTING_TO_INSTANCE_WITH_NO_ACTIVITY);
         }
     }
 
@@ -311,7 +318,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         }
 
         if (instanceCount <= 1) {
-            moveTabsToNewWindow(tabs, source);
+            moveTabsToNewWindow(tabs, /* finalizeCallback= */ null, source);
 
             // Close the source instance window, if needed.
             closeChromeWindowIfEmpty(mInstanceId);
@@ -353,7 +360,6 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
      *     of window the URL can be opened in.
      */
     @Override
-    // TODO (crbug.com/460800897): Update conditional logic for opening URLs in other windows.
     public void openUrlInOtherWindow(
             LoadUrlParams loadUrlParams,
             int parentTabId,
@@ -373,14 +379,11 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                 return;
             }
 
-            // TODO(crbug.com/458761856): Determine the correct NewWindowAppSource instead of assume
-            // its always NewWindowAppSource.OTHER.
-            launchTabInOtherWindow(
+            launchUrlInOtherWindow(
                     incognitoInstance,
                     loadUrlParams,
                     parentTabId,
                     /* otherActivity= */ null,
-                    NewWindowAppSource.OTHER,
                     preferNew);
             return;
         }
@@ -388,15 +391,15 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         showTargetSelectorDialog(
                 (instanceInfo) -> {
                     ChromeTabbedActivity selectedActivity =
-                            (ChromeTabbedActivity) getActivityById(instanceInfo.instanceId);
-                    launchTabInOtherWindow(
+                            (ChromeTabbedActivity)
+                                    MultiWindowUtils.getActivityById(instanceInfo.instanceId);
+                    launchUrlInOtherWindow(
                             /* isIncognito= */ selectedActivity != null
                                     && selectedActivity.isIncognitoWindow(),
                             loadUrlParams,
                             parentTabId,
                             selectedActivity,
-                            NewWindowAppSource.OTHER,
-                            preferNew);
+                            /* preferNew= */ false);
                 },
                 instanceType,
                 R.string.contextmenu_open_in_other_window);
@@ -416,54 +419,39 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                 titleId);
     }
 
-    @VisibleForTesting
-    void launchTabInOtherWindow(
+    private void launchUrlInOtherWindow(
             boolean isIncognito,
             LoadUrlParams loadUrlParams,
             int parentId,
             @Nullable Activity otherActivity,
-            @NewWindowAppSource int newWindowSource,
             boolean preferNew) {
         ChromeAsyncTabLauncher chromeAsyncTabLauncher = new ChromeAsyncTabLauncher(isIncognito);
         chromeAsyncTabLauncher.launchTabInOtherWindow(
-                loadUrlParams, mActivity, parentId, otherActivity, newWindowSource, preferNew);
+                loadUrlParams,
+                mActivity,
+                parentId,
+                otherActivity,
+                NewWindowAppSource.URL_LAUNCH,
+                preferNew);
     }
 
     @Override
-    public @Nullable Intent createNewWindowIntent(boolean isIncognito) {
-        Intent intent = new Intent(mActivity, ChromeTabbedActivity.class);
-
-        MultiWindowUtils.setOpenInOtherWindowIntentExtras(
-                intent, mActivity, ChromeTabbedActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
-        intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
+    public @Nullable Intent createNewWindowIntent(
+            boolean isIncognito, @NewWindowAppSource int source) {
+        boolean openAdjacently =
+                (mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
+                                || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
+                                || mMultiWindowModeStateDispatcher.isInMultiDisplayMode())
+                        && MultiWindowUtils.shouldOpenInAdjacentWindow(mActivity);
+        Intent intent =
+                MultiWindowUtils.createNewWindowIntent(
+                        mActivity,
+                        /* windowId= */ INVALID_WINDOW_ID,
+                        /* preferNew= */ true,
+                        openAdjacently,
+                        source);
         intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, isIncognito);
-        IntentUtils.addTrustedIntentExtras(intent);
-        if (mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
-                || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
-                || mMultiWindowModeStateDispatcher.isInMultiDisplayMode()) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-        }
-
-        // Remove LAUNCH_ADJACENT flag if shouldOpenInAdjacentWindow() is false.
-        if (!MultiWindowUtils.shouldOpenInAdjacentWindow(mActivity)) {
-            intent.setFlags(intent.getFlags() & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-        }
-
         return intent;
-    }
-
-    @Override
-    protected void openNewWindow(boolean incognito, @NewWindowAppSource int source) {
-        Intent intent = createNewWindowIntent(incognito);
-        assert intent != null : "The Intent to open a new window must not be null";
-
-        mActivity.startActivity(intent);
-        RecordHistogram.recordEnumeratedHistogram(
-                MultiInstanceManager.NEW_WINDOW_APP_SOURCE_HISTOGRAM,
-                source,
-                NewWindowAppSource.NUM_ENTRIES);
     }
 
     @Override
@@ -490,7 +478,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                 continue;
             }
             @InstanceInfo.Type int type = InstanceInfo.Type.OTHER;
-            Activity a = getActivityById(i);
+            Activity a = MultiWindowUtils.getActivityById(i);
             int persistedTaskId = MultiInstancePersistentStore.readTaskId(i);
             if (a != null && !a.isFinishing()) {
                 // The task for the activity must match the persisted task.
@@ -802,7 +790,12 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     }
 
     @Override
-    public void initialize(int instanceId, int taskId, @SupportedProfileType int profileType) {
+    public void initialize(
+            int instanceId,
+            int taskId,
+            @SupportedProfileType int profileType,
+            UnownedUserDataHost host) {
+        super.initialize(instanceId, taskId, profileType, host);
         mInstanceId = instanceId;
         MultiInstancePersistentStore.writeTaskId(instanceId, taskId);
         MultiInstancePersistentStore.writeProfileType(instanceId, profileType);
@@ -1011,18 +1004,6 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         ResettersForTesting.register(() -> sAppTaskIdsForTesting = null);
     }
 
-    @VisibleForTesting
-    static @Nullable Activity getActivityById(int id) {
-        if (sActivitySupplierForTesting != null) {
-            return sActivitySupplierForTesting.get();
-        }
-        TabWindowManager windowManager = TabWindowManagerSingleton.getInstance();
-        for (Activity activity : getAllRunningActivities()) {
-            if (id == windowManager.getIdForWindow(activity)) return activity;
-        }
-        return null;
-    }
-
     private int getInstanceByTask(int taskId) {
         for (int i : getAllPersistedInstanceIds()) {
             if (taskId == MultiInstancePersistentStore.readTaskId(i)) return i;
@@ -1088,58 +1069,6 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     }
 
     /**
-     * @return The window IDs of the currently running ChromeTabbedActivity's. It is possible to
-     *     have more number of saved instances than the number of currently running activities (for
-     *     example, when an activity is killed from the Android app menu, its instance state still
-     *     persists for use by Chrome).
-     */
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    static SparseIntArray getWindowIdsOfRunningTabbedActivities() {
-        List<Activity> activities = ApplicationStatus.getRunningActivities();
-        var windowIdsOfRunningTabbedActivities = new SparseIntArray();
-        for (Activity activity : activities) {
-            if (!(activity instanceof ChromeTabbedActivity)) continue;
-            int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(activity);
-            windowIdsOfRunningTabbedActivities.put(windowId, windowId);
-        }
-        return windowIdsOfRunningTabbedActivities;
-    }
-
-    /**
-     * Launch the given intent in an existing ChromeTabbedActivity instance.
-     *
-     * @param intent The intent to launch.
-     * @param windowId ID of the window to launch the intent in.
-     * @return Whether the intent was launched successfully.
-     */
-    static boolean launchIntentInExistingActivity(Intent intent, @WindowId int windowId) {
-        Activity activity = getActivityById(windowId);
-        if (!(activity instanceof ChromeTabbedActivity)) return false;
-        int taskId = activity.getTaskId();
-        if (taskId == INVALID_TASK_ID) return false;
-
-        // Launch the intent in the existing activity and bring the task to foreground if it is
-        // alive. AppTask.startActivity() is used to robustly bring specific tasks to the front,
-        // which helps bypass Android's Background Activity Launch (BAL) restrictions when a
-        // notification is tapped while the target activity is backgrounded (minimized).
-        AppTask appTask = AndroidTaskUtils.getAppTaskFromId(activity, taskId);
-        if (appTask != null) {
-            // Remove NEW_TASK to prevent the OS from spawning a duplicate instance,
-            // and strictly target the existing activity class.
-            intent.removeFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.setClass(ContextUtils.getApplicationContext(), activity.getClass());
-            appTask.startActivity(ContextUtils.getApplicationContext(), intent, null);
-            return true;
-        }
-
-        // Fallback: If the OS lost the AppTask record but our Activity is still alive,
-        // manually inject the intent and attempt a best effort move to front.
-        ((ChromeTabbedActivity) activity).onNewIntent(intent);
-        ApiCompatibilityUtils.moveTaskToFront(activity, taskId, 0);
-        return true;
-    }
-
-    /**
      * Launch an intent in another window. It is unknown to our caller if the other window currently
      * has a live task associated with it. This method will attempt to discern this and take the
      * appropriate action.
@@ -1151,9 +1080,9 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     static void launchIntentInUnknown(Context context, Intent intent, @WindowId int windowId) {
         // TODO(https://crbug.com/415375532): Remove the need for this to be a public method, and
         // fold all of this functionality into a shared single public method with
-        // #launchIntentInExistingActivity.
+        // #launchIntentInInstance.
 
-        if (launchIntentInExistingActivity(intent, windowId)) return;
+        if (MultiWindowUtils.launchIntentInInstance(intent, windowId)) return;
 
         intent.putExtra(Browser.EXTRA_APPLICATION_ID, context.getPackageName());
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -1170,7 +1099,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             // Bring the task to foreground if the activity is alive, this completes the opening
             // of the instance. Otherwise, create a new activity for the instance and kill the
             // existing task.
-            Activity activity = getActivityById(instanceId);
+            Activity activity = MultiWindowUtils.getActivityById(instanceId);
             if (activity != null) {
                 ApiCompatibilityUtils.moveTaskToFront(mActivity, persistedTaskId, 0);
                 return;
@@ -1185,12 +1114,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         boolean openAdjacently = MultiWindowUtils.shouldOpenInAdjacentWindow(mActivity);
         Intent intent =
                 MultiWindowUtils.createNewWindowIntent(
-                        mActivity,
-                        instanceId,
-                        /* preferNew= */ false,
-                        openAdjacently,
-                        /* addTrustedIntentExtras= */ true,
-                        source);
+                        mActivity, instanceId, /* preferNew= */ false, openAdjacently, source);
         MultiInstancePersistentStore.writeMarkedForDeletion(
                 instanceId, /* markedForDeletion= */ false);
         mActivity.startActivity(intent);
@@ -1201,7 +1125,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         }
 
         RecordHistogram.recordEnumeratedHistogram(
-                "Android.MultiWindowMode.InactiveInstanceRestore.AppSource",
+                "Android.MultiWindowMode.InactiveInstanceRestore.AppSource2",
                 source,
                 NewWindowAppSource.NUM_ENTRIES);
     }
@@ -1257,7 +1181,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             MultiInstancePersistentStore.writeClosureTime(instanceId);
             MultiInstancePersistentStore.removeTaskId(instanceId);
         }
-        Activity activity = getActivityById(instanceId);
+        Activity activity = MultiWindowUtils.getActivityById(instanceId);
         if (activity != null) {
             activity.finishAndRemoveTask();
         }
@@ -1539,17 +1463,16 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     @Override
     public void moveTabGroupToWindowByIdChecked(
             int destWindowId, TabGroupMetadata tabGroupMetadata, int destTabIndex) {
-        Activity destActivity = getActivityById(destWindowId);
+        Activity destActivity = MultiWindowUtils.getActivityById(destWindowId);
         if (destActivity != null) {
             mTabReparentingDelegate.reparentTabGroupToExistingWindow(
                     (ChromeTabbedActivity) destActivity, tabGroupMetadata, destTabIndex);
         } else {
-            // TODO (crbug.com/483801863): Revisit NewWindowAppSource used here.
             mTabReparentingDelegate.reparentTabGroupToNewWindow(
                     tabGroupMetadata,
                     destWindowId,
                     /* openAdjacently= */ true,
-                    NewWindowAppSource.OTHER);
+                    NewWindowAppSource.TAB_REPARENTING_TO_INSTANCE_WITH_NO_ACTIVITY);
         }
     }
 
@@ -1644,8 +1567,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
 
     private boolean isInstanceLimitReached() {
         int instanceCount =
-                MultiWindowUtils.getInstanceCountWithFallback(
-                        MultiInstanceManager.PersistedInstanceType.ACTIVE);
+                MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE);
+        // TODO (crbug.com/460800897): Update conditional logic for opening URLs in other windows.
         return instanceCount >= getMaxInstances();
     }
 

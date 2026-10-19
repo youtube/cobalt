@@ -142,8 +142,7 @@ function createResults(n: number): globalThis.SpeechRecognitionEvent {
 
 function getVoiceSearchButton(composeboxElement: ComposeboxElement):
     HTMLElement|null {
-  const contextElement = composeboxElement.$.context;
-  return contextElement.shadowRoot.querySelector<HTMLElement>(
+  return composeboxElement.shadowRoot.querySelector<HTMLElement>(
       '#voiceSearchButton');
 }
 
@@ -278,9 +277,6 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     assertEquals(1, mockSearchboxPageHandler.getCallCount(ADD_FILE_CONTEXT_FN));
     assertFalse(composebox.hasAttribute('is-dragging-file'));
 
-    const context = composebox.$.context;
-    // Mock backend response: manually add file to frontend to render it in the
-    // frontend
     const mockAddedFile: ComposeboxFile = {
       uuid: sharedToken,
       name: 'foo.pdf',
@@ -291,14 +287,13 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
       dataUrl: null,
       url: null,
       tabId: null,
+      iconName: null,
     };
-    context.onFileContextAdded(mockAddedFile);
-    await microtasksFinished();
-    await context.updateComplete;
+    composebox.addFileContextForTesting(mockAddedFile);
     await microtasksFinished();
 
     const carousel: ComposeboxFileCarouselElement|null =
-        context.shadowRoot.querySelector('cr-composebox-file-carousel');
+        composebox.shadowRoot.querySelector('cr-composebox-file-carousel');
 
     assertTrue(!!carousel, 'Carousel should render');
 
@@ -324,8 +319,9 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     assertEquals(1, mockSearchboxPageHandler.getCallCount(ADD_FILE_CONTEXT_FN));
   });
 
-  test('ExpandAnimationState', function() {
+  test('ExpandAnimationState', async function() {
     contextualTasksApp.$.composebox.startExpandAnimation();
+    await microtasksFinished();
     assertEquals('expanding', composebox.animationState);
   });
 
@@ -809,25 +805,27 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
       });
 
   test('tool click event triggers tool mode change', async () => {
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    composebox.$.context.showModelPicker = true;
+    const contextEntrypoint =
+        composebox.shadowRoot.querySelector('#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.showModelPicker = false;
 
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
 
-    await composebox.$.context.$.contextEntrypoint.dispatchEvent(
+    await contextEntrypoint.dispatchEvent(
         new CustomEvent('tool-click', {
           detail: {toolMode: ComposeboxToolMode.kDeepSearch},
           bubbles: true,
           composed: true,
         }));
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     assertEquals(
         ComposeboxToolMode.kDeepSearch,
-        composebox.$.context.getActiveToolMode(),
+        composebox.activeToolMode,
         'Active tool should be Deep Search after clicking tool');
-    await composebox.$.context.$.contextEntrypoint.dispatchEvent(
+    await contextEntrypoint.dispatchEvent(
         new CustomEvent('tool-click', {
           detail: {toolMode: ComposeboxToolMode.kDeepSearch},
           bubbles: true,
@@ -835,22 +833,24 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
         }));
 
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
 
     assertEquals(
         ComposeboxToolMode.kUnspecified,
-        composebox.$.context.getActiveToolMode(),
+        composebox.activeToolMode,
         'Active tool should be unspecified after clicking tool twice');
   });
 
   test('tool click event triggers tool mode change', async () => {
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    composebox.$.context.showModelPicker = false;
+    const contextEntrypoint =
+        composebox.shadowRoot.querySelector('#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.showModelPicker = false;
 
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
 
-    await composebox.$.context.$.contextEntrypoint.dispatchEvent(
+    await contextEntrypoint.dispatchEvent(
         new CustomEvent(
             'create-image-click',
             {
@@ -859,11 +859,11 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
             },
             ));
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     assertEquals(
-        ComposeboxToolMode.kImageGen, composebox.$.context.getActiveToolMode(),
+        ComposeboxToolMode.kImageGen, composebox.activeToolMode,
         'Active tool should be nano after clicking tool');
-    await composebox.$.context.$.contextEntrypoint.dispatchEvent(
+    await contextEntrypoint.dispatchEvent(
         new CustomEvent(
             'create-image-click',
             {
@@ -873,30 +873,24 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
             ));
 
     await microtasksFinished();
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
 
     assertEquals(
         ComposeboxToolMode.kUnspecified,
-        composebox.$.context.getActiveToolMode(),
+        composebox.activeToolMode,
         'Active tool should be unspecified after clicking tool twice');
   });
 
   test('Deepsearch tool is not reset after submitting a query', async () => {
-    // Context menu and toolchips should show with this setting:
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
     // To change the carousel's tool selection, must send `tool-click` event to
     // button, but because this test should work in both tool picker mode, and
     // context menu mode, we just call the underlying function that responds to
     // both `tool-click` and individual `deep-search-click` events.
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    let deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
 
     assertTrue(!!deepSearchChip, 'Deep search chip should be present');
     composebox.$.input.value = 'test';
@@ -915,8 +909,7 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
     assertTrue(
         !!deepSearchChip,
         'Deep search chip not should be hidden' +
@@ -924,17 +917,11 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
   });
 
   test('Image tool is not reset after submitting a query', async () => {
-    // Context menu and toolchips should show with this setting:
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kImageGen);
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    let imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    let imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
 
     assertTrue(!!imageChip, 'Image chip should be present');
     composebox.$.input.value = 'test';
@@ -950,26 +937,19 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
     assertTrue(
         !!imageChip,
         'Banana nano chip not should be hidden' +
             'after submitting');
   });
 
-  test('Canvas tool is reset after submitting a query', async () => {
-    // Context menu and toolchips should show with this setting:
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-    await composebox.$.context.updateComplete;
+  test('Canvas tool is not reset after submitting a query', async () => {
+    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    let canvasChip =
-        composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
 
     assertTrue(!!canvasChip, 'Canvas chip should be present');
     composebox.$.input.value = 'test';
@@ -985,182 +965,135 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    canvasChip = composebox.$.context.shadowRoot.querySelector('#canvasChip');
-    assertFalse(!!canvasChip, 'Canvas chip should be hidden after submitting');
+    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
+    assertTrue(
+        !!canvasChip, 'Canvas chip should not be hidden after submitting');
   });
 
   test('Deepsearch mode: cancel resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
+
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-
-    let deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
 
     assertTrue(!!deepSearchChip, 'Deep search chip should be present');
     // Simulate cancel button click without having to fully render button.
     composebox.onCancelClick_();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
     assertFalse(!!deepSearchChip, 'Deep search chip should be removed');
   });
 
   test('Image mode: cancel resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
+    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kImageGen);
-
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
-    let imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    let imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
 
     assertTrue(!!imageChip, 'Nano banana chip should be present');
     // Simulate cancel button click without having to fully render button.
     composebox.onCancelClick_();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
     assertFalse(!!imageChip, 'Nano banana chip should be removed');
   });
 
   test('canvas mode: cancel resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
+
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-
-    let canvasChip =
-        composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
 
     assertTrue(!!canvasChip, 'Canvas chip should be present');
     // Simulate cancel button click without having to fully render button.
     composebox.onCancelClick_();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    canvasChip = composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
     assertFalse(!!canvasChip, 'Canvas chip should be removed');
   });
 
   test('Deepsearch mode: esc resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
+    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
-
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
-    let deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
 
     assertTrue(!!deepSearchChip, 'Deep search chip should be present');
     composebox.handleEscapeKeyLogic();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
     assertFalse(!!deepSearchChip, 'Deep search chip should be removed');
   });
 
   test('Image mode: esc resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
+    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kImageGen);
-
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
-    let imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    let imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
 
     assertTrue(!!imageChip, 'Nano banana chip should be present');
     composebox.handleEscapeKeyLogic();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    imageChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    imageChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
     assertFalse(!!imageChip, 'Nano banana chip should be removed');
   });
 
   test('canvas mode: esc resets mode', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
+    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
-    let canvasChip =
-        composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
 
     assertTrue(!!canvasChip, 'Canvas chip should be present');
     composebox.handleEscapeKeyLogic();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    canvasChip = composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
     assertFalse(!!canvasChip, 'Canvas chip should be removed');
   });
 
   test('deep search: thread change resets input', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    composebox.input_ = 'test';
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
+
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-
-    let deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
 
     assertTrue(!!deepSearchChip, 'Deep search chip should be present');
 
     testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
     await testProxy.callbackRouterRemote.$.flushForTesting();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    deepSearchChip =
-        composebox.$.context.shadowRoot.querySelector('#deepSearchChip');
+    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
     assertFalse(!!composebox.input_, 'Input value should be cleared');
     assertTrue(
         composebox.fileUploadsComplete, 'File uploads should be complete');
@@ -1170,19 +1103,12 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
   });
 
   test('image gen: thread change resets input', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    composebox.input_ = 'test';
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
+
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kImageGen);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-
-    let imageGenChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    let imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
 
     assertTrue(!!imageGenChip, 'Image gen chip should be present');
 
@@ -1190,11 +1116,10 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
     await testProxy.callbackRouterRemote.$.flushForTesting();
 
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    imageGenChip =
-        composebox.$.context.shadowRoot.querySelector('#nanoBananaChip');
+    imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
     assertFalse(!!composebox.input_, 'Input value should be cleared');
     assertTrue(
         composebox.fileUploadsComplete, 'File uploads should be complete');
@@ -1204,29 +1129,22 @@ suite('ContextualTasksComposeboxMiscInputsTest', () => {
   });
 
   test('canvas: thread change resets input', async () => {
-    // Reset potentially dirty state.
-    composebox.$.context.setInitialMode(ComposeboxToolMode.kUnspecified);
-    composebox.input_ = 'test';
-    await composebox.$.context.updateComplete;
+    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
+
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    composebox.$.context.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-
-    await composebox.$.context.updateComplete;
-    await microtasksFinished();
-
-    let canvasChip =
-        composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
 
     assertTrue(!!canvasChip, 'Canvas chip should be present');
 
     testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
     await testProxy.callbackRouterRemote.$.flushForTesting();
 
-    await composebox.$.context.updateComplete;
+    await composebox.updateComplete;
     await microtasksFinished();
 
-    canvasChip = composebox.$.context.shadowRoot.querySelector('#canvasChip');
+    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
     assertFalse(!!composebox.input_, 'Input value should be cleared');
     assertTrue(
         composebox.fileUploadsComplete, 'File uploads should be complete');

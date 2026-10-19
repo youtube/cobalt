@@ -6167,7 +6167,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5546" label="InputParsedParentSelect"/>
   <int value="5547" label="InputParsedAncestorSelect"/>
   <int value="5548" label="CSSSelectorPseudoHasSlotted"/>
-  <int value="5549" label="SelectMultipleShowPopup"/>
+  <int value="5549" label="OBSOLETE_SelectMultipleShowPopup"/>
   <int value="5550" label="SharedWorkerExtendedLifetimeFeatureEnabled"/>
   <int value="5551" label="SharedWorkerExtendedLifetimeIsTrue"/>
   <int value="5552" label="OBSOLETE_EditContextTextFormatUpdateAddListener"/>
@@ -6282,7 +6282,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5656" label="MulticastControllerJoinGroupFunction"/>
   <int value="5657" label="MulticastControllerLeaveGroupFunction"/>
   <int value="5658" label="MulticastControllerJoinedGroupsAttribute"/>
-  <int value="5659" label="ContainerNameQueryFailedTreeScope"/>
+  <int value="5659" label="OBSOLETE_ContainerNameQueryFailedTreeScope"/>
   <int value="5660" label="LocalNetworkAccessWebSocketResourceNotKnownPrivate"/>
   <int value="5661" label="CSSPseudoElementUsesImplicitAnchor"/>
   <int value="5662" label="LineClampByLinesOverflows"/>
@@ -6431,6 +6431,16 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5794" label="LanguageModel_ContextWindow"/>
   <int value="5795" label="LanguageModel_MeasureContextUsage"/>
   <int value="5796" label="V8WindowClient_Navigate_Method"/>
+  <int value="5797" label="LanguageModel_OnQuotaOverflow"/>
+  <int value="5798" label="LanguageModel_OnContextOverflow"/>
+  <int value="5799" label="ModelContextExecuteTool"/>
+  <int value="5800" label="ModelContextExecuteDeclarativeTool"/>
+  <int value="5801" label="ModelContextExecuteDeclarativeAutosubmit"/>
+  <int value="5802" label="Prerender2CrossOriginIframes"/>
+  <int value="5803" label="HTMLGeolocationElement"/>
+  <int value="5804" label="HTMLInstallElement"/>
+  <int value="5805" label="HTMLUserMediaElement"/>
+  <int value="5806" label="AutofillEvent"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8846,6 +8856,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="427" label="DRAFT_WebMCP"/>
   <int value="428" label="DRAFT_LoadingLazyMedia"/>
   <int value="429" label="ManifestLocalization"/>
+  <int value="430" label="ContrastColor"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

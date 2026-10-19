@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/metrics/histogram_macros_local.h"
+#include "base/metrics/histogram_functions.h"
 #include "components/accessibility_annotator/content/content_annotator/content_classifier.h"
 #include "components/accessibility_annotator/content/content_annotator/content_classifier_types.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
@@ -21,10 +21,26 @@
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/proto/string_value.pb.h"
 #include "components/page_content_annotations/core/page_content_annotation_type.h"
+#include "components/passage_embeddings/content/page_embeddings_service.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "content/public/browser/page.h"
+#include "content/public/browser/web_contents.h"
 
 namespace accessibility_annotator {
+
+namespace {
+
+bool HasClassifierCategory(
+    const std::optional<ContentClassificationResult::Result>& result) {
+  return result.has_value() && result->category.has_value();
+}
+
+bool PassesSafetyChecks(const ContentClassificationResult& result) {
+  return !result.is_sensitive.value_or(true) &&
+         result.is_in_target_language.value_or(false);
+}
+
+}  // namespace
 
 // static
 std::unique_ptr<ContentAnnotatorService> ContentAnnotatorService::Create(
@@ -33,7 +49,8 @@ std::unique_ptr<ContentAnnotatorService> ContentAnnotatorService::Create(
     page_content_annotations::PageContentExtractionService&
         page_content_extraction_service,
     optimization_guide::RemoteModelExecutor&
-        optimization_guide_remote_model_executor) {
+        optimization_guide_remote_model_executor,
+    passage_embeddings::PageEmbeddingsService& page_embeddings_service) {
   std::unique_ptr<ContentClassifier> content_classifier =
       ContentClassifier::Create();
   if (!content_classifier) {
@@ -41,7 +58,8 @@ std::unique_ptr<ContentAnnotatorService> ContentAnnotatorService::Create(
   }
   return base::WrapUnique(new ContentAnnotatorService(
       page_content_annotations_service, page_content_extraction_service,
-      optimization_guide_remote_model_executor, std::move(content_classifier)));
+      optimization_guide_remote_model_executor, page_embeddings_service,
+      std::move(content_classifier)));
 }
 
 ContentAnnotatorService::ContentAnnotatorService(
@@ -51,11 +69,13 @@ ContentAnnotatorService::ContentAnnotatorService(
         page_content_extraction_service,
     optimization_guide::RemoteModelExecutor&
         optimization_guide_remote_model_executor,
+    passage_embeddings::PageEmbeddingsService& page_embeddings_service,
     std::unique_ptr<ContentClassifier> content_classifier)
     : page_content_annotations_service_(page_content_annotations_service),
       page_content_extraction_service_(page_content_extraction_service),
       optimization_guide_remote_model_executor_(
           optimization_guide_remote_model_executor),
+      page_embeddings_service_(page_embeddings_service),
       join_entries_(kContentAnnotatorMaxPendingUrls.Get()),
       content_classifier_(std::move(content_classifier)) {
   CHECK(content_classifier_);
@@ -63,6 +83,7 @@ ContentAnnotatorService::ContentAnnotatorService(
       page_content_annotations::AnnotationType::kContentVisibility, this);
   page_content_extraction_service_observation_.Observe(
       &page_content_extraction_service_.get());
+  page_embeddings_service_observation_.Observe(&page_embeddings_service_.get());
 }
 
 ContentAnnotatorService::~ContentAnnotatorService() {
@@ -106,6 +127,41 @@ void ContentAnnotatorService::OnPageContentExtracted(
   }
 
   it->second.annotated_page_content = std::move(page_content);
+  it->second.ukm_source_id = page.GetMainDocument().GetPageUkmSourceId();
+  MaybeAnnotate(it);
+}
+
+passage_embeddings::PageEmbeddingsService::UsageMode
+ContentAnnotatorService::GetUsageMode() const {
+  return passage_embeddings::PageEmbeddingsService::UsageMode::kContinuous;
+}
+
+void ContentAnnotatorService::OnPageEmbeddingsAvailable(
+    content::WebContents* web_contents) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::vector<passage_embeddings::PassageEmbedding> embeddings =
+      page_embeddings_service_->GetEmbeddings(web_contents);
+  if (embeddings.empty()) {
+    return;
+  }
+
+  const GURL& url = web_contents->GetLastCommittedURL();
+  CacheIterator it = GetOrCreateJoinEntry(url);
+
+  for (const auto& embedding : embeddings) {
+    // TODO(crbug.com/487779615): Add support for body text embeddings.
+    if (embedding.passage.second == passage_embeddings::PassageType::kTitle) {
+      // TODO(crbug.com/489121690): Remove this check once better URL mapping to
+      // embeddings are available.
+      if (it->second.page_title != embedding.passage.first) {
+        break;
+      }
+      it->second.page_title_embedding = embedding.embedding;
+      break;
+    }
+  }
+
   MaybeAnnotate(it);
 }
 
@@ -115,6 +171,13 @@ ContentAnnotatorService::GetOrCreateJoinEntry(const GURL& url) {
   if (it != join_entries_.end()) {
     return it;
   }
+
+  // Check if the cache is full.
+  // The least recently used entry will be evicted when adding a new entry.
+  if (join_entries_.size() >= join_entries_.max_size()) {
+    join_entries_.rbegin()->second.LogMissingFields();
+  }
+
   return join_entries_.Put(url, ContentClassificationInput(url));
 }
 
@@ -128,12 +191,17 @@ void ContentAnnotatorService::MaybeAnnotate(CacheIterator it) {
   // needed.
   ContentClassificationResult result =
       content_classifier_->Classify(complete_data);
-  LOCAL_HISTOGRAM_BOOLEAN(
-      "AccessibilityAnnotator.ContentAnnotator.MaybeAnnotate."
-      "ContentClassificationResult",
-      result.title_keyword_result.has_value() ||
-          result.url_match_result.has_value());
-  // TODO(crbug.com/476434957): Process classification result.
+
+  // Annotation proceeds if safety checks pass and at least one value classifier
+  // finds relevant content.
+  bool reached_annotation =
+      (HasClassifierCategory(result.title_keyword_result) ||
+       HasClassifierCategory(result.url_match_result)) &&
+      PassesSafetyChecks(result);
+  base::UmaHistogramBoolean("AccessibilityAnnotator.FullAnnotationReached",
+                            reached_annotation);
+  // TODO(crbug.com/485675335): Process classification result with gateway flag
+  // to full annotation.
 }
 
 // TODO(crbug.com/482383206): Update to handle APC ingestion.

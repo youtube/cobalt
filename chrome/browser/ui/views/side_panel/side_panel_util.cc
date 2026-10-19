@@ -17,6 +17,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
@@ -26,19 +28,12 @@
 #include "chrome/browser/ui/views/side_panel/reading_list/reading_list_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_content_proxy.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_service.h"
 #include "components/prefs/pref_service.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/actions/actions.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/ui/views/side_panel/glic/glic_legacy_side_panel_coordinator.h"
-#endif
 
 namespace {
 
@@ -110,15 +105,6 @@ void SidePanelUtil::PopulateGlobalEntries(Browser* browser,
         ->comments_side_panel_coordinator()
         ->CreateAndRegisterEntry(window_registry);
   }
-#if BUILDFLAG(ENABLE_GLIC)
-  if (glic::GlicEnabling::IsEnabledForProfile(browser->profile()) &&
-      browser->is_type_normal() &&
-      !glic::GlicEnabling::IsMultiInstanceEnabled()) {
-    browser->browser_window_features()
-        ->glic_side_panel_coordinator()
-        ->CreateAndRegisterEntry(browser, window_registry);
-  }
-#endif
 }
 
 SidePanelContentProxy* SidePanelUtil::GetSidePanelContentProxy(

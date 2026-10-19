@@ -18,6 +18,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
@@ -98,6 +100,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "components/sync/base/features.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_handle.h"
 #include "components/user_education/common/feature_promo/feature_promo_precondition.h"
@@ -143,11 +146,6 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#endif
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
 #include "chrome/browser/pdf/pdf_help_bubble_handler_factory.h"
@@ -691,7 +689,6 @@ void MaybeRegisterChromeFeaturePromos(
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kTopCenter)));
 
-#if BUILDFLAG(ENABLE_GLIC)
   // kIPHGlicPromoFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForSnoozePromo(
@@ -767,7 +764,6 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(144, "zalmashni@google.com",
                        "Triggered after the Glic side panel is closed or the "
                        "user navigates to a new tab.")));
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   // kIPHGMCCastStartStopFeature:
   registry.RegisterFeature(FeaturePromoSpecification::CreateForLegacyPromo(
@@ -1300,7 +1296,11 @@ void MaybeRegisterChromeFeaturePromos(
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForCustomAction(
           feature_engagement::kIPHSignInBenefitsFeature,
-          kToolbarAvatarButtonElementId, IDS_SIGN_IN_BENEFITS_IPH_TEXT,
+          kToolbarAvatarButtonElementId,
+          (syncer::kExplicitSigninForBookmarks.Get() ||
+           syncer::kExplicitSigninForExtensions.Get())
+              ? IDS_SIGN_IN_BENEFITS_WITHOUT_BOOKMARKS_AND_EXTENSIONS_IPH_TEXT
+              : IDS_SIGN_IN_BENEFITS_IPH_TEXT,
           IDS_PROMO_MANAGE_BUTTON,
           base::BindRepeating(
               [](ContextPtr ctx,
@@ -2075,7 +2075,6 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
           132, "emshack@chromium.org",
           "Shown in app menu when Tab Declutter menu item is enabled.")));
 
-#if BUILDFLAG(ENABLE_GLIC)
   // This is a custom UI new badge that uses a small help bubble to annotate the
   // element instead of a badge.
   registry.RegisterFeature(user_education::NewBadgeSpecification(
@@ -2098,7 +2097,6 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
       features::kGlicAppMenuNewBadge,
       user_education::Metadata(136, "sophey@chromium.org",
                                "Shown in the three dot menu.")));
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   registry.RegisterFeature(user_education::NewBadgeSpecification(
       features::kSideBySide,

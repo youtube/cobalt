@@ -17,6 +17,7 @@
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/web_contents_app_id_utils.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/glic/glic_tab_restore_helper.h"
 #include "chrome/browser/performance_manager/public/background_tab_loading_policy.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_service_utils.h"
@@ -32,11 +33,9 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
-#include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
@@ -55,10 +54,6 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/window_open_disposition.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_tab_restore_helper.h"
-#endif
 
 using content::NavigationController;
 using content::SessionStorageNamespace;
@@ -160,10 +155,8 @@ std::map<std::string, std::string> BrowserLiveTabContext::GetExtraDataForTab(
     int index) const {
   std::map<std::string, std::string> extra_data;
 
-#if BUILDFLAG(ENABLE_GLIC)
   glic::PopulateGlicExtraData(tab_strip_model_->GetWebContentsAt(index),
                               &extra_data);
-#endif
 
   return extra_data;
 }
@@ -323,10 +316,9 @@ sessions::LiveTab* BrowserLiveTabContext::AddRestoredTab(
       }
     } else {
       // Open the group in this browser if it is closed.
-      group_id = tab_group_service->OpenTabGroup(
-          saved_group_id.value(),
-          std::make_unique<tab_groups::TabGroupActionContextDesktop>(
-              browser, tab_groups::OpeningSource::kOpenedFromTabRestore));
+      group_id = tab_groups::SavedTabGroupUtils::OpenSavedTabGroup(
+          browser, saved_group_id.value(),
+          tab_groups::OpeningSource::kOpenedFromTabRestore);
     }
 
     if (is_restoring_group_or_window) {

@@ -15,8 +15,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/lens/lens_overlay_blur_layer_delegate.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_process_host_observer.h"
@@ -233,6 +233,9 @@ class OverlayBaseController : public content::WebContentsDelegate,
 
   // Notification that the tab was foregrounded.
   virtual void NotifyTabWillEnterBackground() = 0;
+
+  // Returns if the overlay view can be shared between multiple tabs.
+  virtual bool IsOverlayViewShared() const = 0;
 
   // If the side panel was closed, we wait for the reflow before beginning
   // the screenshot flow.

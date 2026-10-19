@@ -1,0 +1,33 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//ui/webui/resources/tools/build_webui.gni")
+
+assert(!is_android)
+
+build_webui("build") {
+  grd_prefix = "private_ai_internals"
+
+  static_files = [
+    "private_ai_internals.css",
+    "private_ai_internals.html",
+  ]
+
+  ts_files = [
+    "private_ai_internals.ts",
+    "private_ai_internals_browser_proxy.ts",
+  ]
+
+  mojo_files_deps = [ "//chrome/browser/ui/webui/private_ai_internals:mojo_bindings_ts__generator" ]
+
+  mojo_files = [ "$root_gen_dir/chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom-webui.ts" ]
+
+  ts_composite = true
+  ts_deps = [
+    "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
+  ]
+
+  webui_context_type = "trusted"
+}

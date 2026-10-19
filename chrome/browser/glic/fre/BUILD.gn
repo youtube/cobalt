@@ -5,8 +5,6 @@
 import("//chrome/common/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(enable_glic)
-
 source_set("fre") {
   sources = [
     "fre_util.cc",
@@ -22,6 +20,7 @@ source_set("fre") {
     "//chrome/browser/background/glic",
     "//chrome/browser/glic",
     "//chrome/browser/glic/shared",
+    "//chrome/browser/predictors",
     "//chrome/browser/resources/glic:resources",
     "//chrome/browser/resources/glic/fre:resources_grit",
     "//components/language/core/common",

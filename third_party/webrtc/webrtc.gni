@@ -104,10 +104,6 @@ declare_args() {
   # library that comes with WebRTC (i.e. rtc_build_ssl == 0).
   rtc_ssl_root = ""
 
-  # Enable when an external authentication mechanism is used for performing
-  # packet authentication for RTP packets instead of libsrtp.
-  rtc_enable_external_auth = build_with_chromium
-
   # Selects whether debug dumps for the audio processing module
   # should be generated.
   apm_debug_dump = false
@@ -517,9 +513,6 @@ template("rtc_test") {
     ]
     if (defined(invoker.public_configs)) {
       public_configs += invoker.public_configs
-    }
-    if (deprecate_plan_b) {
-      configs += [ webrtc_root + ":suppress_plan_b_deprecation" ]
     }
     if (!build_with_chromium && is_android) {
       use_default_launcher = false

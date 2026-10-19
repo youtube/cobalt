@@ -20,6 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -27,6 +28,7 @@
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/internal/identity_manager/token_binding_helper.h"
 #include "components/signin/internal/identity_manager/token_binding_oauth2_access_token_fetcher.h"
+#include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/device_id_helper.h"
 #include "components/signin/public/base/hybrid_encryption_key.h"
 #include "components/signin/public/base/signin_client.h"
@@ -53,6 +55,7 @@
 #include "google_apis/gaia/oauth2_mint_access_token_fetcher_adapter.h"
 #include "google_apis/google_api_keys.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace {
 
@@ -67,26 +70,29 @@ const char kAccountIdPrefix[] = "AccountId-";
 BASE_FEATURE(kClearUnreadableTokensUponAddingNewCredential,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enum for the Signin.LoadTokenFromDB histogram.
-// Do not modify, or add or delete other than directly before
-// NUM_LOAD_TOKEN_FROM_DB_STATUS.
-enum class LoadTokenFromDBStatus {
-  // Token was loaded.
-  TOKEN_LOADED = 0,
+// Kill-switch for revoking tokens containing invalid characters on load.
+BASE_FEATURE(kRevokeTokensWithInvalidCharactersOnLoad,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
-  // DEPRECATED
-  // Token was revoked as part of Dice migration.
-  // TOKEN_REVOKED_DICE_MIGRATION = 1,
+// Returns true if `token` contains invalid characters and thus it cannot
+// be a valid refresh or access token. Most likely this happens due to a failed
+// OSCrypt decryption.
+// This check is performed on database load to prevent a crash when the token is
+// later used in an Authorization header.
+// See https://crbug.com/485885766#comment2.
+bool HasInvalidCharacters(std::string_view token) {
+  if (!base::FeatureList::IsEnabled(kRevokeTokensWithInvalidCharactersOnLoad)) {
+    return false;
+  }
 
-  // Token was revoked because it is a secondary account and account consistency
-  // is disabled.
-  TOKEN_REVOKED_SECONDARY_ACCOUNT = 2,
-
-  // Token was revoked on load due to cookie settings.
-  TOKEN_REVOKED_ON_LOAD = 3,
-
-  NUM_LOAD_TOKEN_FROM_DB_STATUS
-};
+  return !std::ranges::all_of(token, [](char c) {
+    // The token must consist of printable ASCII characters.
+    // https://www.rfc-editor.org/rfc/rfc6749.html#appendix-A.17
+    // refresh-token = 1*VSCHAR
+    // VSCHAR = %x20-7E
+    return c >= 0x20 && c <= 0x7E;
+  });
+}
 
 std::string ApplyAccountIdPrefix(const std::string& account_id) {
   return kAccountIdPrefix + account_id;
@@ -486,7 +492,7 @@ void MutableProfileOAuth2TokenServiceDelegate::
 
 void MutableProfileOAuth2TokenServiceDelegate::AddBindingKeyToService(
     base::span<const uint8_t> wrapped_binding_key) {
-  if (token_binding_helper_) {
+  if (token_binding_helper_ && !wrapped_binding_key.empty()) {
     token_binding_helper_->CopyBindingKeyFromAnotherTokenService(
         wrapped_binding_key);
   }
@@ -633,12 +639,20 @@ void MutableProfileOAuth2TokenServiceDelegate::LoadAllCredentialsIntoMemory(
   bool did_reencrypt = false;
   ScopedBatchChange batch(this);
   for (const auto& [prefixed_account_id, token_with_key] : db_tokens) {
+    LoadTokenFromDBStatus load_token_status =
+        LoadTokenFromDBStatus::kTokenLoaded;
+    absl::Cleanup record_histogram = [&load_token_status] {
+      base::UmaHistogramEnumeration("Signin.LoadTokenFromDB",
+                                    load_token_status);
+    };
+
     std::string refresh_token = token_with_key.token;
     std::vector<uint8_t> wrapped_binding_key =
         token_with_key.wrapped_binding_key;
 
     CoreAccountId account_id = RemoveAccountIdPrefix(prefixed_account_id);
     if (account_id.empty()) {
+      load_token_status = LoadTokenFromDBStatus::kTokenRevokedInvalidAccountId;
       if (token_web_data_) {
         VLOG(1) << "MutablePO2TS remove refresh token for invalid account id ["
                 << prefixed_account_id << "]";
@@ -648,61 +662,70 @@ void MutableProfileOAuth2TokenServiceDelegate::LoadAllCredentialsIntoMemory(
     }
 
     DCHECK(!account_id.IsEmail())
-        << "Acount id should be a Gaia id [account_id = " << account_id << "]";
+        << "Account id should be a Gaia id [account_id = " << account_id << "]";
     DCHECK(!refresh_token.empty());
 
-    // Only load secondary accounts when account consistency is enabled.
-    bool load_account =
-        account_id == loading_primary_account_id_ ||
-        account_consistency_ == signin::AccountConsistencyMethod::kDice;
-    LoadTokenFromDBStatus load_token_status =
-        load_account ? LoadTokenFromDBStatus::TOKEN_LOADED
-                     : LoadTokenFromDBStatus::TOKEN_REVOKED_SECONDARY_ACCOUNT;
+    const bool is_primary_account = account_id == loading_primary_account_id_;
+    const bool has_invalid_characters = HasInvalidCharacters(refresh_token);
 
-    bool revoke_token = false;
-    switch (revoke_all_tokens_on_load_) {
-      case RevokeAllTokensOnLoad::kNo:
-        break;
-      case RevokeAllTokensOnLoad::kDeleteSiteDataOnExit:
-        // Tokens are not revoked when clearing cookies if the user
-        // is signed in non-syncing.
-        revoke_token = loading_primary_account_id_.empty();
-        break;
-      case RevokeAllTokensOnLoad::kExplicitRevoke:
-        revoke_token = true;
-        break;
-    }
+    const bool revoke_token_on_load = [&] {
+      switch (revoke_all_tokens_on_load_) {
+        case RevokeAllTokensOnLoad::kNo:
+          return false;
+        case RevokeAllTokensOnLoad::kDeleteSiteDataOnExit:
+          // Tokens are not revoked when clearing cookies if the user
+          // is signed in.
+          return loading_primary_account_id_.empty();
+        case RevokeAllTokensOnLoad::kExplicitRevoke:
+          return true;
+      }
+      NOTREACHED();
+    }();
 
-    if (load_account && revoke_token) {
-      if (account_id == loading_primary_account_id_) {
-        RevokeCredentialsOnServer(refresh_token);
+    const bool revoke_token = [&] {
+      // Revoke all secondary accounts when account consistency is disabled.
+      if (!is_primary_account &&
+          account_consistency_ != signin::AccountConsistencyMethod::kDice) {
+        load_token_status =
+            LoadTokenFromDBStatus::kTokenRevokedSecondaryAccount;
+        return true;
+      }
+      if (revoke_token_on_load) {
+        load_token_status = LoadTokenFromDBStatus::kTokenRevokedOnLoad;
+        return true;
+      }
+      if (has_invalid_characters) {
+        load_token_status =
+            LoadTokenFromDBStatus::kTokenRevokedInvalidTokenCharacters;
+        return true;
+      }
+
+      return false;
+    }();
+
+    if (revoke_token) {
+      RevokeCredentialsOnServer(refresh_token);
+      if (is_primary_account) {
+        // If the primary token needs to be revoked, replace it with
+        // `GaiaConstants::kInvalidRefreshToken`.
         refresh_token = GaiaConstants::kInvalidRefreshToken;
         wrapped_binding_key = std::vector<uint8_t>();
         PersistCredentials(account_id, refresh_token, wrapped_binding_key);
       } else {
-        load_account = false;
+        ClearPersistedCredentials(account_id);
+        FireRefreshTokenRevoked(account_id);
+        continue;
       }
-      load_token_status = LoadTokenFromDBStatus::TOKEN_REVOKED_ON_LOAD;
     }
 
-    UMA_HISTOGRAM_ENUMERATION(
-        "Signin.LoadTokenFromDB", load_token_status,
-        LoadTokenFromDBStatus::NUM_LOAD_TOKEN_FROM_DB_STATUS);
-
-    if (load_account) {
-      if (!revoke_token && should_reencrypt) {
-        did_reencrypt = true;
-        PersistCredentials(account_id, refresh_token, wrapped_binding_key);
-      }
-      RecordAccountAvailabilityStartup(account_id, refresh_token);
-
-      UpdateCredentialsInMemory(account_id, refresh_token, wrapped_binding_key);
-      FireRefreshTokenAvailable(account_id);
-    } else {
-      RevokeCredentialsOnServer(refresh_token);
-      ClearPersistedCredentials(account_id);
-      FireRefreshTokenRevoked(account_id);
+    if (!revoke_token && should_reencrypt) {
+      did_reencrypt = true;
+      PersistCredentials(account_id, refresh_token, wrapped_binding_key);
     }
+
+    RecordAccountAvailabilityStartup(account_id, refresh_token);
+    UpdateCredentialsInMemory(account_id, refresh_token, wrapped_binding_key);
+    FireRefreshTokenAvailable(account_id);
   }
   RecordTokenBindingHistogramsOnCredentialsLoaded(
       token_binding_helper_.get(),
@@ -888,7 +911,8 @@ void MutableProfileOAuth2TokenServiceDelegate::RevokeCredentialsOnServer(
     const std::string& refresh_token) {
   DCHECK(!refresh_token.empty());
 
-  if (refresh_token == GaiaConstants::kInvalidRefreshToken) {
+  if (refresh_token == GaiaConstants::kInvalidRefreshToken ||
+      HasInvalidCharacters(refresh_token)) {
     return;
   }
 

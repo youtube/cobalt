@@ -34,6 +34,9 @@
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
 #include "media/formats/mp4/hevc.h"
 #endif
+#if BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+#include "media/formats/mp4/dolby_vision.h"
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
 #endif
 
 namespace media {
@@ -402,6 +405,15 @@ bool AVCodecContextToAudioDecoderConfig(const AVCodecContext* codec_context,
       codec_context->ch_layout.nb_channels > 8
           ? CHANNEL_LAYOUT_DISCRETE
           : ChannelLayoutToChromeChannelLayout(codec_context->ch_layout);
+
+  // If there is a mismatch of `channel_layout` and `nb_channels`, we trust the
+  // count. We skip this check for DISCRETE layouts since it does not have a
+  // specific channel count.
+  if (channel_layout != CHANNEL_LAYOUT_DISCRETE &&
+      ChannelLayoutToChannelCount(channel_layout) !=
+          codec_context->ch_layout.nb_channels) {
+    channel_layout = GuessChannelLayout(codec_context->ch_layout.nb_channels);
+  }
 
   switch (codec) {
     // For AC3/EAC3 we enable only demuxing, but not decoding, so FFmpeg does
@@ -857,12 +869,20 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
             type.profile = VideoCodecProfile::VIDEO_CODEC_PROFILE_UNKNOWN;
             break;
         }
+
+        auto dv_color_space = mp4::ParseDolbyVisionColorSpace(
+            type.profile, dovi->dv_bl_signal_compatibility_id);
+        if (dv_color_space.IsSpecified()) {
+          type.color_space = dv_color_space;
+        }
+
         // Treat dolby vision contents as dolby vision codec only if the
         // device support clear DV decoding, otherwise use the original
         // HEVC or AVC codec and profile.
         if (media::IsDecoderSupportedVideoType(type)) {
           codec = type.codec;
           profile = type.profile;
+          color_space = type.color_space;
         }
         break;
       }

@@ -41,6 +41,7 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/tab_helper.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/reading_list/reading_list_model_factory.h"
@@ -117,11 +118,6 @@
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/range/range.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/public/glic_enabling.h"
-#endif
-
 using base::UserMetricsAction;
 using content::WebContents;
 
@@ -1389,7 +1385,7 @@ void TabStripModel::SetTabBlocked(int index, bool blocked) {
   if (tab_model->IsBlocked() == blocked) {
     return;
   }
-  tab_model->set_blocked(blocked);
+  tab_model->SetBlocked(blocked);
   NotifyTabChanged(tab_model, TabChangeType::kBlockedOnly);
 }
 
@@ -2533,7 +2529,6 @@ bool TabStripModel::IsContextMenuCommandEnabled(
     case CommandOrganizeTabs:
       return true;
 
-#if BUILDFLAG(ENABLE_GLIC)
     case CommandGlicShareLimit:
       return false;
     case CommandGlicStartShare:
@@ -2547,7 +2542,6 @@ bool TabStripModel::IsContextMenuCommandEnabled(
       return true;
     case CommandGlicUnshare:
       return true;
-#endif
 
     case CommandCopyURL:
       DCHECK(delegate()->IsForWebApp());
@@ -2934,7 +2928,6 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       break;
     }
 
-#if BUILDFLAG(ENABLE_GLIC)
     case CommandGlicShareLimit:
       base::UmaHistogramCounts1000(
           "Tab.ContextMenu.GlicShareLimit.SelectedTabsCount",
@@ -2991,7 +2984,6 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       delegate_->GlicUnpinTabsFromAllConversations(tab_handles);
       break;
     }
-#endif
 
     case CommandCopyURL: {
       base::UmaHistogramCounts1000("Tab.ContextMenu.CopyURL.SelectedTabsCount",
@@ -3667,7 +3659,7 @@ int TabStripModel::InsertTabAtImpl(
       web_modal::WebContentsModalDialogManager::FromWebContents(
           tab->GetContents());
   if (manager) {
-    tab->set_blocked(manager->IsDialogActive());
+    tab->SetBlocked(manager->IsDialogActive());
   }
 
   InsertTabAtIndexImpl(std::move(tab), index, group, pin, active);

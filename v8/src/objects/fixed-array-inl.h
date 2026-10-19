@@ -604,14 +604,14 @@ template <class IsolateT>
 Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
     IsolateT* isolate, uint32_t length,
     std::optional<DisallowGarbageCollection>* no_gc_out,
-    AllocationType allocation) {
+    AllocationType allocation, AllocationAlignment alignment) {
   // Note 0-length is explicitly allowed since not all subtypes can be
   // assumed to have canonical 0-length instances.
   DCHECK_LE(length, kMaxLength);
   DCHECK(!no_gc_out->has_value());
 
-  Tagged<D> xs = UncheckedCast<D>(
-      isolate->factory()->AllocateRawArray(SizeFor(length), allocation));
+  Tagged<D> xs = UncheckedCast<D>(isolate->factory()->AllocateRawArray(
+      SizeFor(length), allocation, AllocationHint(), alignment));
 
   ReadOnlyRoots roots{isolate};
   if (DEBUG_BOOL) no_gc_out->emplace();
@@ -712,6 +712,24 @@ Handle<WeakFixedArray> WeakFixedArray::New(
   std::optional<DisallowGarbageCollection> no_gc;
   Handle<WeakFixedArray> result =
       Cast<WeakFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               initial_value.is_null() ? roots.undefined_value()
+                                       : *initial_value.ToHandleChecked(),
+               capacity);
+  return result;
+}
+
+template <class IsolateT>
+Handle<WeakHomomorphicFixedArray> WeakHomomorphicFixedArray::New(
+    IsolateT* isolate, int capacity, AllocationType allocation,
+    MaybeDirectHandle<Object> initial_value) {
+  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
+  DCHECK_NE(capacity, 0);
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<WeakHomomorphicFixedArray> result = Cast<WeakHomomorphicFixedArray>(
+      Allocate(isolate, capacity, &no_gc, allocation));
   ReadOnlyRoots roots{isolate};
   MemsetTagged((*result)->RawFieldOfFirstElement(),
                initial_value.is_null() ? roots.undefined_value()
@@ -838,7 +856,8 @@ DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
 // static
 template <class IsolateT>
 Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
-                                 AllocationType allocation) {
+                                 AllocationType allocation,
+                                 AllocationAlignment alignment) {
   if (V8_UNLIKELY(static_cast<uint32_t>(length) > kMaxLength)) {
     base::FatalNoSecurityImpact("Fatal JavaScript invalid size error %d",
                                 length);
@@ -848,8 +867,8 @@ Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
 
   std::optional<DisallowGarbageCollection> no_gc;
   // TODO(375937549): Convert to uint32_t.
-  Handle<ByteArray> result = Cast<ByteArray>(
-      Allocate(isolate, static_cast<uint32_t>(length), &no_gc, allocation));
+  Handle<ByteArray> result = Cast<ByteArray>(Allocate(
+      isolate, static_cast<uint32_t>(length), &no_gc, allocation, alignment));
 
   int padding_size = SizeFor(length) - OffsetOfElementAt(length);
   memset(&result->values()[length], 0, padding_size);

@@ -1255,6 +1255,9 @@ config("features") {
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
   }
+  if (v8_use_host_cpu_arm_features) {
+    defines += [ "V8_USE_HOST_CPU_ARM_FEATURES" ]
+  }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
@@ -1859,10 +1862,10 @@ config("strict_warnings") {
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
       cflags += [ "-Wshorten-64-to-32" ]
     }
-    cflags += [
-      "-Wmissing-field-initializers",
-      "-Wunnecessary-virtual-specifier",
-    ]
+    cflags += [ "-Wmissing-field-initializers" ]
+    if (v8_current_cpu != "ppc64" && v8_current_cpu != "s390x") {
+      cflags += [ "-Wunnecessary-virtual-specifier" ]
+    }
   }
 }
 
@@ -3636,6 +3639,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/constants-table-builder.h",
     "src/builtins/data-view-ops.h",
     "src/builtins/profile-data-reader.h",
+    "src/builtins/superspread.h",
     "src/codegen/aligned-slot-allocator.h",
     "src/codegen/assembler-arch.h",
     "src/codegen/assembler-inl.h",
@@ -6004,6 +6008,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/runtime-call-stats.cc",
     "src/logging/tracing-flags.cc",
     "src/numbers/conversions.cc",
+    "src/numbers/hash-seed.cc",
     "src/numbers/ieee754.cc",
     "src/numbers/math-random.cc",
     "src/objects/abstract-code.cc",

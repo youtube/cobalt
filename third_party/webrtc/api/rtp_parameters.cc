@@ -248,14 +248,6 @@ bool RtpExtension::IsSupportedForVideo(absl::string_view uri) {
 
 bool RtpExtension::IsEncryptionSupported(absl::string_view uri) {
   return
-#if defined(ENABLE_EXTERNAL_AUTH)
-      // TODO(jbauch): Figure out a way to always allow "kAbsSendTimeUri"
-      // here and filter out later if external auth is really used in
-      // srtpfilter. External auth is used by Chromium and replaces the
-      // extension header value of "kAbsSendTimeUri", so it must not be
-      // encrypted (which can't be done by Chromium).
-      uri != RtpExtension::kAbsSendTimeUri &&
-#endif
       uri != RtpExtension::kEncryptHeaderExtensionsUri;
 }
 

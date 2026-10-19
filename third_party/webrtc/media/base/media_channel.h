@@ -265,7 +265,7 @@ class MediaReceiveChannelInterface {
   // Sets the abstract interface class for sending RTP/RTCP data.
   virtual void SetInterface(MediaChannelNetworkInterface* iface) = 0;
   // Called on the network when an RTP packet is received.
-  virtual void OnPacketReceived(const RtpPacketReceived& packet) = 0;
+  virtual void OnPacketReceived(RtpPacketReceived packet) = 0;
   // Gets the current unsignaled receive stream's SSRC, if there is one.
   virtual std::optional<uint32_t> GetUnsignaledSsrc() const = 0;
   // This is currently a workaround because of the demuxer state being managed

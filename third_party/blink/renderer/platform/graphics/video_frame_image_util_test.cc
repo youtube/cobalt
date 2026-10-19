@@ -29,9 +29,6 @@ namespace blink {
 namespace {
 
 constexpr auto kTestSize = gfx::Size(64, 64);
-constexpr auto kTestFormat = viz::SinglePlaneFormat::kRGBA_8888;
-constexpr auto kTestAlphaType = kPremul_SkAlphaType;
-constexpr auto kTestColorSpace = gfx::ColorSpace::CreateSRGB();
 
 class AcceleratedCompositingTestPlatform
     : public blink::TestingPlatformSupport {
@@ -105,7 +102,6 @@ class VideoFrameImageUtilTest
 
   scoped_refptr<StaticBitmapImage> DoCreateImageFromVideoFrame(
       scoped_refptr<media::VideoFrame> frame,
-      CanvasSnapshotProvider* snapshot_provider = nullptr,
       media::PaintCanvasVideoRenderer* video_renderer = nullptr,
       bool prefer_tagged_orientation = true) {
     const auto transform =
@@ -119,23 +115,27 @@ class VideoFrameImageUtilTest
       dest_rect.Transpose();
     }
 
-    std::unique_ptr<CanvasSnapshotProvider> local_snapshot_provider;
-
-    if (!snapshot_provider) {
-      auto info =
-          CreateSnapshotProviderInfoForVideoFrame(*frame, dest_rect.size());
-      local_snapshot_provider =
-          CreateSnapshotProviderForVideo(info, raster_context_provider());
-      if (!local_snapshot_provider) {
+    auto info =
+        CreateSnapshotProviderInfoForVideoFrame(*frame, dest_rect.size());
+    std::optional<CanvasSnapshotProvider::Info> sw_draw_info;
+    std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+        snapshot_provider_si;
+    if (ShouldCreateAcceleratedImages(raster_context_provider())) {
+      snapshot_provider_si = CanvasNon2DResourceProviderSharedImage::Create(
+          info.size, info.format, info.alpha_type, info.color_space,
+          SharedGpuContext::ContextProviderWrapper(),
+          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
+      if (!snapshot_provider_si) {
         DLOG(ERROR) << "Failed to create CanvasResourceProvider.";
         return nullptr;
       }
-
-      snapshot_provider = local_snapshot_provider.get();
-      CHECK(snapshot_provider);
+    } else {
+      sw_draw_info = info;
     }
-    return CreateImageFromVideoFrame(std::move(frame), snapshot_provider,
-                                     video_renderer, prefer_tagged_orientation);
+    return CreateImageFromVideoFrame(
+        std::move(frame), snapshot_provider_si.get(), std::move(sw_draw_info),
+        /*cached_sw_draw_surface=*/nullptr, video_renderer,
+        prefer_tagged_orientation);
   }
 
   scoped_refptr<gpu::TestSharedImageInterface> test_sii_;
@@ -174,13 +174,13 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameOrientation) {
 
   // We expect applying transform during copy if `prefer_tagged_orientation` is
   // false.
-  auto image = DoCreateImageFromVideoFrame(frame, nullptr, nullptr,
+  auto image = DoCreateImageFromVideoFrame(frame, nullptr,
                                            /*prefer_tagged_orientation=*/false);
   EXPECT_EQ(image->Orientation(), ImageOrientationEnum::kDefault);
 
   // We expect doing copy without transform applied and result image be tagged
   // with correct orientation.
-  image = DoCreateImageFromVideoFrame(frame, nullptr, nullptr,
+  image = DoCreateImageFromVideoFrame(frame, nullptr,
                                       /*prefer_tagged_orientation=*/true);
 
   // TODO(crbug.com/40172676): Accelerated images are not tagged correctly.
@@ -207,10 +207,11 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameSoftwareFrame) {
 
 TEST_P(VideoFrameImageUtilTest,
        CreateImageFromVideoFrameMappableSharedImageFrame) {
-  auto cpu_frame = CreateTestFrame(
-      kTestSize, gfx::Rect(kTestSize), kTestSize,
-      media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE,
-      media::PIXEL_FORMAT_NV12, base::TimeDelta(), test_sii_.get());
+  auto cpu_frame =
+      CreateTestFrame(kTestSize, gfx::Rect(kTestSize), kTestSize,
+                      media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE,
+                      media::PIXEL_FORMAT_NV12, base::TimeDelta(),
+                      test_sii_.get(), gfx::ColorSpace::CreateREC709());
   auto image = DoCreateImageFromVideoFrame(cpu_frame);
   EXPECT_EQ(image->IsTextureBacked(), expect_accelerated_images());
 }
@@ -242,7 +243,7 @@ TEST_P(VideoFrameImageUtilTest, CreateImageFromVideoFrameTextureFrame) {
   }
 }
 
-TEST_P(VideoFrameImageUtilTest, FlushedAcceleratedImage) {
+TEST_P(VideoFrameImageUtilTest, AcceleratedImageIsCreated) {
   // Only matters for accelerated case.
   if (!expect_accelerated_images()) {
     GTEST_SKIP();
@@ -252,25 +253,8 @@ TEST_P(VideoFrameImageUtilTest, FlushedAcceleratedImage) {
       raster_context_provider(), kTestSize, gfx::Rect(kTestSize),
       base::DoNothing());
 
-  auto provider = CreateSnapshotProviderForVideo(
-      {kTestAlphaType, kTestColorSpace, kTestFormat, kTestSize},
-      raster_context_provider());
-  ASSERT_TRUE(provider);
-  EXPECT_TRUE(provider->IsAccelerated());
-
-  auto image = DoCreateImageFromVideoFrame(texture_frame, provider.get());
+  auto image = DoCreateImageFromVideoFrame(texture_frame);
   EXPECT_TRUE(image->IsTextureBacked());
-
-  image = DoCreateImageFromVideoFrame(texture_frame, provider.get());
-  EXPECT_TRUE(image->IsTextureBacked());
-}
-
-TEST_P(VideoFrameImageUtilTest, CreateSnapshotProviderForVideoFrame) {
-  auto provider = CreateSnapshotProviderForVideo(
-      {kTestAlphaType, kTestColorSpace, kTestFormat, kTestSize},
-      raster_context_provider());
-  ASSERT_TRUE(provider);
-  EXPECT_EQ(provider->IsAccelerated(), expect_accelerated_images());
 }
 
 }  // namespace blink

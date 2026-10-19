@@ -357,8 +357,16 @@ RtpParameters RtpSenderBase::GetParameters() const {
   if (cached && !stopped_ && ssrc_ != 0 && cached_parameters_) {
     RtpParameters cached_filtered = *cached;
     RemoveEncodingLayers(disabled_rids_, &cached_filtered.encodings);
-    RTC_DCHECK(cached_filtered == result)
-        << "The cached value should have been equal (filtered)";
+    if (cached_filtered != result) {
+      RTC_LOG(LS_ERROR)
+          << "Cached send params not equal to worker thread state.\n"
+          << "Cached: " << cached_filtered << "\n"
+          << "Result: " << result;
+    }
+    // TODO(b/478050997): Re-enable this check once the downstream issue is
+    // resolved.
+    // RTC_DCHECK(cached_filtered == result)
+    //     << "The cached value should have been equal (filtered)";
   }
 #endif
   return result;

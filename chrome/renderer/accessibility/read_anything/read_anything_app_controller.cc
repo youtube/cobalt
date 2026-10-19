@@ -553,7 +553,17 @@ void ReadAnythingAppController::OnStringAttributeChanged(
 }
 
 bool ReadAnythingAppController::IsUpdateProcessingPaused() const {
-  if (model_.distillation_in_progress() || read_aloud_model_.speech_playing()) {
+  if (model_.screen2x_distiller_running() ||
+      read_aloud_model_.speech_playing()) {
+    return true;
+  }
+
+  // Update processing should also be considered paused when Readability
+  // is in the process of distilling the page.
+  if (model_.is_readability_next_distillation_method() &&
+      model_.distillation_state() ==
+          read_anything::mojom::ReadAnythingDistillationState::
+              kDistillationInProgress) {
     return true;
   }
 
@@ -573,7 +583,7 @@ bool ReadAnythingAppController::IsUpdateProcessingPaused() const {
 }
 
 void ReadAnythingAppController::ProcessPendingUpdatesIfAllowed() {
-  if (IsUpdateProcessingPaused()) {
+  if (IsUpdateProcessingPaused() || !model_.ContainsActiveTree()) {
     return;
   }
 
@@ -813,7 +823,7 @@ void ReadAnythingAppController::DistillNewTree() {
 
 void ReadAnythingAppController::RecordDistillationSuccess() {
   read_anything::mojom::DistillationStatus distillationStatus;
-  if (model_.distillation_in_progress()) {
+  if (model_.screen2x_distiller_running()) {
     distillationStatus =
         distillationsCompleted_ > 0
             ? read_anything::mojom::DistillationStatus::kRestarted
@@ -918,7 +928,7 @@ void ReadAnythingAppController::Distill(bool for_training_data) {
                         : tree_lang);
   }
   CHECK(serializer.SerializeChanges(tree->root(), &snapshot));
-  model_.set_distillation_in_progress(true);
+  model_.set_screen2x_distiller_running(true);
   if (features::IsImmersiveReadAnythingEnabled()) {
     SetDistillationState(read_anything::mojom::ReadAnythingDistillationState::
                              kDistillationInProgress);
@@ -936,8 +946,8 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // happen after a long time of inactivity. In this case, we shouldn't reset
   // the model since the last state is still the correct state and clearing the
   // model causes issues for read aloud.
-  if (!model_.distillation_in_progress() && tree_id == ui::AXTreeIDUnknown() &&
-      content_node_ids.empty()) {
+  if (!model_.screen2x_distiller_running() &&
+      tree_id == ui::AXTreeIDUnknown() && content_node_ids.empty()) {
     VLOG(1) << "Distillation terminated after the main content extractor "
                "disconnected";
     return;
@@ -946,7 +956,7 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // Reset distillation in progress, because distillation just finished. This
   // is needed for the IsUpdateProcessingPaused check below, because it will
   // consider the processing pipeline paused if distillation is in progress.
-  model_.set_distillation_in_progress(false);
+  model_.set_screen2x_distiller_running(false);
 
   // Update active distillation method now that screen2x distillation has
   // finished.
@@ -2141,6 +2151,12 @@ void ReadAnythingAppController::OnNoTextContent() {
 
 void ReadAnythingAppController::OnDistilled(int word_count) {
   model_.set_words_distilled(word_count);
+  if (model_.current_content_distillation_method() ==
+      ReadAnythingAppModel::DistillationMethod::kReadability) {
+    base::UmaHistogramCustomCounts(
+        "Accessibility.ReadAnything.WordsDistilledByReadability", word_count, 1,
+        kMaxWordsConsumed, kWordsConsumedBuckets);
+  }
 }
 
 void ReadAnythingAppController::UpdateWordsSeen(int words_seen) {
@@ -2181,7 +2197,7 @@ void ReadAnythingAppController::OnLinkClicked(ui::AXNodeID ax_node_id) const {
   // the tree may have changed in an unexpected way.
   // TODO(crbug.com/40802192): Consider how to show this in a more
   // user-friendly way.
-  if (model_.distillation_in_progress()) {
+  if (model_.screen2x_distiller_running()) {
     return;
   }
   page_handler_->OnLinkClicked(model_.active_tree_id(), ax_node_id);
@@ -2305,7 +2321,7 @@ void ReadAnythingAppController::OnSelectionChange(ui::AXNodeID anchor_node_id,
   // the tree may have changed in an unexpected way.
   // TODO(crbug.com/40802192): Consider how to show this in a more
   // user-friendly way.
-  if (model_.distillation_in_progress()) {
+  if (model_.screen2x_distiller_running()) {
     return;
   }
 
@@ -2834,6 +2850,7 @@ void ReadAnythingAppController::UpdateContent(const std::string& title,
   if (!features::IsReadAnythingWithReadabilityEnabled()) {
     return;
   }
+
   dom_distiller_title_ = title;
   dom_distiller_content_html_ = content;
 
@@ -2851,10 +2868,10 @@ void ReadAnythingAppController::UpdateContent(const std::string& title,
     model_.set_next_distillation_method(
         ReadAnythingAppModel::DistillationMethod::kScreen2x);
 
-    // Only update distillation required if we have an active tree, otherwise
-    // wait for event to distill.
+    // Only attempt distillation if we have an active tree, otherwise only
+    // update the model and wait for event to distill.
+    model_.set_requires_distillation(true);
     if (model_.ContainsActiveTree()) {
-      model_.set_requires_distillation(true);
       DistillNewTree();
     }
     return;

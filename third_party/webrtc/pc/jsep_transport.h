@@ -48,7 +48,6 @@ struct JsepTransportDescription {
   JsepTransportDescription(
       bool rtcp_mux_enabled,
       const std::vector<int>& encrypted_header_extension_ids,
-      int rtp_abs_sendtime_extn_id,
       const TransportDescription& transport_description);
   JsepTransportDescription(const JsepTransportDescription& from);
   ~JsepTransportDescription();
@@ -57,7 +56,6 @@ struct JsepTransportDescription {
 
   bool rtcp_mux_enabled = true;
   std::vector<int> encrypted_header_extension_ids;
-  int rtp_abs_sendtime_extn_id = -1;
   // TODO(zhihuang): Add the ICE and DTLS related variables and methods from
   // TransportDescription and remove this extra layer of abstraction.
   TransportDescription transport_desc;

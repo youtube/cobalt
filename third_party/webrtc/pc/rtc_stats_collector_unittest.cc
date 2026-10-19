@@ -90,6 +90,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/clock.h"
@@ -468,7 +469,9 @@ class RTCStatsCollectorWrapper {
     });
     EXPECT_CALL(*sender, AttachmentId()).WillRepeatedly(Return(attachment_id));
     EXPECT_CALL(*sender, Stop()).WillRepeatedly(Return());
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddSender(sender);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
     return sender;
   }
 
@@ -499,7 +502,9 @@ class RTCStatsCollectorWrapper {
         .WillRepeatedly(Return(
             std::vector<scoped_refptr<MediaStreamInterface>>({remote_stream})));
     EXPECT_CALL(*receiver, SetMediaChannel(_)).WillRepeatedly(Return());
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddReceiver(receiver);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
     return receiver;
   }
 
@@ -545,7 +550,9 @@ class RTCStatsCollectorWrapper {
         return nullptr;
       });
       EXPECT_CALL(*rtp_sender, SetSendCodecs(_));
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       pc_->AddSender(rtp_sender);
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     }
 
     // Remote audio tracks and voice receiver infos
@@ -563,7 +570,9 @@ class RTCStatsCollectorWrapper {
       EXPECT_CALL(*rtp_receiver, streams())
           .WillRepeatedly(Return(remote_streams));
       EXPECT_CALL(*rtp_receiver, SetMediaChannel(_)).WillRepeatedly(Return());
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       pc_->AddReceiver(rtp_receiver);
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     }
 
     // Local video tracks and video sender infos
@@ -585,7 +594,9 @@ class RTCStatsCollectorWrapper {
         return nullptr;
       });
       EXPECT_CALL(*rtp_sender, SetSendCodecs(_));
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       pc_->AddSender(rtp_sender);
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     }
 
     // Remote video tracks and video receiver infos
@@ -603,11 +614,15 @@ class RTCStatsCollectorWrapper {
       EXPECT_CALL(*rtp_receiver, streams())
           .WillRepeatedly(Return(remote_streams));
       EXPECT_CALL(*rtp_receiver, SetMediaChannel(_)).WillRepeatedly(Return());
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
       pc_->AddReceiver(rtp_receiver);
+      RTC_ALLOW_PLAN_B_DEPRECATION_END();
     }
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddVoiceChannel("audio", "transport", voice_media_info);
     pc_->AddVideoChannel("video", "transport", video_media_info);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
   }
 
  private:
@@ -722,7 +737,9 @@ class RTCStatsCollectorTestBase : public ::testing::Test {
     video_media_info.receivers[0].packets_received = 123;
     // transport
     graph.transport_id = "TTransportName1";
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
     // outbound-rtp's sender
     graph.sender = stats_->SetupLocalTrackAndSender(
         MediaType::VIDEO, "LocalVideoTrackID", 3, false, 50);
@@ -826,7 +843,9 @@ class RTCStatsCollectorTestBase : public ::testing::Test {
     }
     // transport
     graph.transport_id = "TTransportName1";
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
     pc_->AddVoiceChannel("VoiceMid", "TransportName", media_info);
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
     // outbound-rtp's sender
     graph.sender = stats_->SetupLocalTrackAndSender(
         MediaType::AUDIO, "LocalAudioTrackID", kLocalSsrc, false, 50);
@@ -986,7 +1005,9 @@ TEST_P(RTCStatsCollectorTest, ToJsonProducesParseableJson) {
 TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsSingle) {
   const char kTransportName[] = "transport";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   std::unique_ptr<CertificateInfo> local_certinfo =
       CreateFakeCertificateAndInfoFromDers(
@@ -1016,14 +1037,18 @@ TEST_P(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
   mid1_info.receivers[0].packets_received = 123;
   mid1_info.senders.emplace_back();
   mid1_info.senders[0].add_ssrc(2);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("Mid1", "Transport1", mid1_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   VideoMediaInfo mid2_info;
   mid2_info.receivers.emplace_back();
   mid2_info.receivers[0].add_ssrc(3);
   mid2_info.receivers[0].packets_received = 123;
   mid2_info.senders.emplace_back();
   mid2_info.senders[0].add_ssrc(4);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid2", "Transport1", mid2_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   // Now create a second BUNDLE group with SSRCs colliding with the first group
   // (but again no collisions within the group).
   VoiceMediaInfo mid3_info;
@@ -1032,14 +1057,18 @@ TEST_P(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
   mid3_info.receivers[0].packets_received = 123;
   mid3_info.senders.emplace_back();
   mid3_info.senders[0].add_ssrc(2);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("Mid3", "Transport2", mid3_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   VideoMediaInfo mid4_info;
   mid4_info.receivers.emplace_back();
   mid4_info.receivers[0].add_ssrc(3);
   mid4_info.receivers[0].packets_received = 123;
   mid4_info.senders.emplace_back();
   mid4_info.senders[0].add_ssrc(4);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid4", "Transport2", mid4_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // This should not crash (https://crbug.com/1361612).
   scoped_refptr<const RTCStatsReport> report =
@@ -1060,25 +1089,33 @@ TEST_P(RTCStatsCollectorTest, InvalidSsrcCollisionDoesNotCrash) {
   mid1_info.receivers[0].add_ssrc(1);
   mid1_info.senders.emplace_back();
   mid1_info.senders[0].add_ssrc(1);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("Mid1", "BundledTransport", mid1_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   VideoMediaInfo mid2_info;
   mid2_info.receivers.emplace_back();
   mid2_info.receivers[0].add_ssrc(1);
   mid2_info.senders.emplace_back();
   mid2_info.senders[0].add_ssrc(1);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid2", "BundledTransport", mid2_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   VoiceMediaInfo mid3_info;
   mid3_info.receivers.emplace_back();
   mid3_info.receivers[0].add_ssrc(1);
   mid3_info.senders.emplace_back();
   mid3_info.senders[0].add_ssrc(1);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("Mid3", "BundledTransport", mid3_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   VideoMediaInfo mid4_info;
   mid4_info.receivers.emplace_back();
   mid4_info.receivers[0].add_ssrc(1);
   mid4_info.senders.emplace_back();
   mid4_info.senders[0].add_ssrc(1);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid4", "BundledTransport", mid4_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // This should not crash (https://crbug.com/1361612).
   stats_->GetStatsReport(main_thread_);
@@ -1154,10 +1191,12 @@ TEST_P(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
   outbound_video_info.codec_payload_type = 4;
   video_media_info.senders.push_back(outbound_video_info);
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   auto audio_channels =
       pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
   auto video_channels =
       pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -1282,9 +1321,11 @@ TEST_P(RTCStatsCollectorTest, CodecStatsAreCollectedPerTransport) {
       outbound_codec_pt11.payload_type;
 
   // First two mids contain subsets, the third one contains all PTs.
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid1", "FirstTransport", info_pt10);
   pc_->AddVideoChannel("Mid2", "FirstTransport", info_pt11);
   pc_->AddVideoChannel("Mid3", "FirstTransport", info_pt10_pt11);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // There should be no duplicate codecs because all codec references are on the
   // same transport.
@@ -1295,7 +1336,9 @@ TEST_P(RTCStatsCollectorTest, CodecStatsAreCollectedPerTransport) {
 
   // If a second transport is added with the same PT information, this does
   // count as different codec objects.
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid4", "SecondTransport", info_pt10_pt11);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->stats_collector().ClearCachedStatsReport();
   report = stats_->GetStatsReport(main_thread_);
   codec_stats = report->GetStatsOfType<RTCCodecStats>();
@@ -1339,8 +1382,10 @@ TEST_P(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
       inbound_codec_pt111_fec.payload_type;
 
   // First two mids contain subsets, the third one contains all PTs.
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid1", "BundledTransport", info_nofec);
   pc_->AddVideoChannel("Mid2", "BundledTransport", info_fec);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // Despite having the same PT we should see two codec stats because their FMTP
   // lines are different.
@@ -1355,8 +1400,10 @@ TEST_P(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
   info_fec.receivers[0].local_stats[0].ssrc = 21;
   // Adding more m= sections that does have the same FMTP lines does not result
   // in duplicates.
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid3", "BundledTransport", info_nofec);
   pc_->AddVideoChannel("Mid4", "BundledTransport", info_fec);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->stats_collector().ClearCachedStatsReport();
   report = stats_->GetStatsReport(main_thread_);
   codec_stats = report->GetStatsOfType<RTCCodecStats>();
@@ -1379,7 +1426,9 @@ TEST_P(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
   info_fec_pt112.receivers[0].packets_received = 123;
   info_fec_pt112.receivers[0].codec_payload_type =
       inbound_codec_pt112_fec.payload_type;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid5", "BundledTransport", info_fec_pt112);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->stats_collector().ClearCachedStatsReport();
   report = stats_->GetStatsReport(main_thread_);
   codec_stats = report->GetStatsOfType<RTCCodecStats>();
@@ -1390,7 +1439,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
   const char kAudioTransport[] = "audio";
   const char kVideoTransport[] = "video";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kAudioTransport);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   std::unique_ptr<CertificateInfo> audio_local_certinfo =
       CreateFakeCertificateAndInfoFromDers(
@@ -1403,7 +1454,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
       kAudioTransport,
       audio_remote_certinfo->certificate->GetSSLCertificateChain().Clone());
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("video", kVideoTransport);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   std::unique_ptr<CertificateInfo> video_local_certinfo =
       CreateFakeCertificateAndInfoFromDers(
           std::vector<std::string>({"(local) video"}));
@@ -1426,7 +1479,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsMultiple) {
 TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsChain) {
   const char kTransportName[] = "transport";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   std::unique_ptr<CertificateInfo> local_certinfo =
       CreateFakeCertificateAndInfoFromDers(
@@ -1450,7 +1505,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCCertificateStatsChain) {
 TEST_P(RTCStatsCollectorTest, CertificateStatsCache) {
   const char kTransportName[] = "transport";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // Set local and remote cerificates.
   std::unique_ptr<CertificateInfo> initial_local_certinfo =
@@ -1867,7 +1924,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   a_transport_channel_stats.ice_transport_stats.candidate_stats_list.push_back(
       CandidateStats(*a_local_host_not_paired));
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", "a");
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   pc_->SetTransportStats("a", a_transport_channel_stats);
 
   TransportChannelStats b_transport_channel_stats;
@@ -1878,7 +1937,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidateStats) {
   b_transport_channel_stats.ice_transport_stats.connection_infos[0]
       .remote_candidate = *b_remote;
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("video", "b");
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   pc_->SetTransportStats("b", b_transport_channel_stats);
 
   scoped_refptr<const RTCStatsReport> report =
@@ -1965,7 +2026,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCIceCandidatePairStats) {
   transport_channel_stats.ice_transport_stats.connection_infos.push_back(
       connection_info);
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("video", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   pc_->SetTransportStats(kTransportName, transport_channel_stats);
 
   scoped_refptr<const RTCStatsReport> report =
@@ -2235,8 +2298,10 @@ TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
       .num_packets_reported_lost = 222, .num_packets_reported_recovered = 200};
   pc_->SetCallStats(call_stats);
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   auto voice_media_channels =
       pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupRemoteTrackAndReceiver(MediaType::AUDIO, "RemoteAudioTrackID",
                                       "RemoteStreamId", 1);
 
@@ -2322,7 +2387,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
   voice_media_info.receivers[0].local_stats[0].ssrc = 1;
   voice_media_info.receivers[0].packets_received = 123;
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupRemoteTrackAndReceiver(MediaType::AUDIO, "RemoteAudioTrackID",
                                       "RemoteStreamId", 1);
   // Needed for playoutId to be populated.
@@ -2425,8 +2492,10 @@ TEST_P(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
       .num_packets_reported_lost = 222, .num_packets_reported_recovered = 200};
   pc_->SetCallStats(call_stats);
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   auto video_media_channels =
       pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupRemoteTrackAndReceiver(MediaType::VIDEO, "RemoteVideoTrackID",
                                       "RemoteStreamId", 1);
 
@@ -2532,7 +2601,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCAudioPlayoutStats) {
   audio_device_stats.total_playout_delay_s = 5;
   pc_->SetAudioDeviceStats(audio_device_stats);
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", {});
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupRemoteTrackAndReceiver(MediaType::AUDIO, "RemoteAudioTrackID",
                                       "RemoteStreamId", 1);
 
@@ -2578,7 +2649,9 @@ TEST_P(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
   timing_frame_info.flags = 14;
   video_media_info.receivers[0].timing_frame_info = timing_frame_info;
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("Mid0", "Transport0", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupRemoteTrackAndReceiver(MediaType::VIDEO, "RemoteVideoTrackID",
                                       "RemoteStreamId", 1);
 
@@ -2617,7 +2690,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   voice_media_info.send_codecs.insert(
       std::make_pair(codec_parameters.payload_type, codec_parameters));
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupLocalTrackAndSender(MediaType::AUDIO, "LocalAudioTrackID", 1,
                                    true,
                                    /*attachment_id=*/50);
@@ -2716,8 +2791,10 @@ TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   video_media_info.senders[1].rid = "h";
   video_media_info.senders[1].encoding_index = 1;
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   auto video_media_channels =
       pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupLocalTrackAndSender(MediaType::VIDEO, "LocalVideoTrackID", 1,
                                    true,
                                    /*attachment_id=*/50);
@@ -2815,7 +2892,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
 TEST_P(RTCStatsCollectorTest, CollectRTCTransportStats) {
   const char kTransportName[] = "transport";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   std::unique_ptr<Candidate> rtp_local_candidate =
       CreateFakeCandidate("42.42.42.42", 42, "protocol", ADAPTER_TYPE_WIFI,
@@ -2985,7 +3064,9 @@ TEST_P(RTCStatsCollectorTest, CollectRTCTransportStats) {
 TEST_P(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
   const char kTransportName[] = "transport";
 
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("audio", kTransportName);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   std::unique_ptr<Candidate> rtp_local_candidate =
       CreateFakeCandidate("42.42.42.42", 42, "protocol", ADAPTER_TYPE_WIFI,
@@ -3086,7 +3167,9 @@ TEST_P(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
       std::make_pair(codec_parameters.payload_type, codec_parameters));
 
   // Emulates the case where AddTrack is used without an associated MediaStream
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupLocalTrackAndSender(MediaType::AUDIO, "LocalAudioTrackID", 1,
                                    false,
                                    /*attachment_id=*/50);
@@ -3134,7 +3217,9 @@ TEST_P(RTCStatsCollectorTest, RTCAudioSourceStatsCollectedForSenderWithTrack) {
   voice_media_info.senders[0].apm_statistics.echo_return_loss = 42.0;
   voice_media_info.senders[0].apm_statistics.echo_return_loss_enhancement =
       52.0;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   stats_->SetupLocalTrackAndSender(MediaType::AUDIO, "LocalAudioTrackID", kSsrc,
                                    false, kAttachmentId);
 
@@ -3172,7 +3257,9 @@ TEST_P(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
   video_media_info.aggregated_senders[0].local_stats[0].ssrc = kSsrc;
   video_media_info.aggregated_senders[0].framerate_input = 29.0;
   video_media_info.aggregated_senders[0].frames = 10001;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   auto video_source = FakeVideoTrackSourceForStats::Create(kVideoSourceWidth,
                                                            kVideoSourceHeight);
@@ -3185,7 +3272,9 @@ TEST_P(RTCStatsCollectorTest, RTCVideoSourceStatsCollectedForSenderWithTrack) {
   });
   EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3220,7 +3309,9 @@ TEST_P(RTCStatsCollectorTest,
   video_media_info.senders.push_back(VideoSenderInfo());
   video_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   video_media_info.senders[0].framerate_input = 29.0;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   auto video_source = FakeVideoTrackSourceForStats::Create(kVideoSourceWidth,
                                                            kVideoSourceHeight);
@@ -3233,7 +3324,9 @@ TEST_P(RTCStatsCollectorTest,
   });
   EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3255,7 +3348,9 @@ TEST_P(RTCStatsCollectorTest,
   video_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   video_media_info.senders[0].local_stats[0].ssrc = kSsrc;
   video_media_info.senders[0].framerate_input = 29.0;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   auto video_track = FakeVideoTrackForStats::Create(
       "LocalVideoTrackID", MediaStreamTrackInterface::kLive,
@@ -3267,7 +3362,9 @@ TEST_P(RTCStatsCollectorTest,
   });
   EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3286,7 +3383,9 @@ TEST_P(RTCStatsCollectorTest,
   voice_media_info.senders.push_back(VoiceSenderInfo());
   voice_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   voice_media_info.senders[0].local_stats[0].ssrc = kSsrc;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
   scoped_refptr<MockRtpSenderInternal> sender = CreateMockSender(
       MediaType::AUDIO, /*track=*/nullptr, kSsrc, kAttachmentId, {});
   EXPECT_CALL(*sender, DetachTrackAndGetStopTask()).WillRepeatedly([] {
@@ -3294,7 +3393,9 @@ TEST_P(RTCStatsCollectorTest,
   });
   EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3356,7 +3457,9 @@ class RTCStatsCollectorTestWithParamKind
           sender.report_block_datas.push_back(report_block_data);
           voice_media_info.senders.push_back(sender);
         }
+        RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
         pc_->AddVoiceChannel("mid", transport_name, voice_media_info);
+        RTC_ALLOW_PLAN_B_DEPRECATION_END();
         return;
       }
       case MediaType::VIDEO: {
@@ -3374,7 +3477,9 @@ class RTCStatsCollectorTestWithParamKind
           video_media_info.aggregated_senders.push_back(sender);
           video_media_info.senders.push_back(sender);
         }
+        RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
         pc_->AddVideoChannel("mid", transport_name, video_media_info);
+        RTC_ALLOW_PLAN_B_DEPRECATION_END();
         return;
       }
       case MediaType::DATA:
@@ -3686,7 +3791,9 @@ TEST_P(RTCStatsCollectorTest,
   video_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   video_media_info.senders[0].local_stats[0].ssrc = kSsrc;
   video_media_info.senders[0].framerate_input = 29.0;
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<MockRtpSenderInternal> sender = CreateMockSender(
       MediaType::VIDEO, /*track=*/nullptr, kSsrc, kAttachmentId, {});
@@ -3695,7 +3802,9 @@ TEST_P(RTCStatsCollectorTest,
   });
   EXPECT_CALL(*sender, SetMediaChannel(_)).WillRepeatedly(Return());
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3831,7 +3940,9 @@ TEST_P(RTCStatsCollectorTest, RtpIsMissingWhileSsrcIsZero) {
     return nullptr;
   });
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   scoped_refptr<const RTCStatsReport> report =
       stats_->GetStatsReport(main_thread_);
@@ -3851,7 +3962,9 @@ TEST_P(RTCStatsCollectorTest, DoNotCrashIfSsrcIsKnownButInfosAreStillMissing) {
     return nullptr;
   });
   EXPECT_CALL(*sender, SetSendCodecs(_));
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc_->AddSender(sender);
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 
   // We do not generate any matching voice_sender_info stats.
   scoped_refptr<const RTCStatsReport> report =

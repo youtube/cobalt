@@ -5527,6 +5527,16 @@ chromium-metrics-reviews@google.com.
   <token key="ResultReason" variants="RenderedVideoFrameDetectionResultReason"/>
 </histogram>
 
+<histogram name="Media.MediaFoundationRenderer.SetOutputRect.Hresult"
+    enum="Hresult" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Recorded when the MediaFoundationRenderer hits an error when trying to set
+    output rectangle.
+  </summary>
+</histogram>
+
 <histogram name="Media.MediaHistory.DatabaseExists" enum="Boolean"
     expires_after="2026-05-17">
   <owner>evliu@google.com</owner>
@@ -7409,7 +7419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.PlayMethod.BecomesVisible"
-    enum="Boolean" expires_after="2026-03-29">
+    enum="Boolean" expires_after="2027-02-26">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -7423,7 +7433,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.PlayMethod.OffscreenDuration"
-    units="ms" expires_after="2026-08-02">
+    units="ms" expires_after="2027-02-26">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -7434,7 +7444,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Autoplay.Muted.UnmuteAction" enum="BooleanSuccess"
-    expires_after="2026-03-29">
+    expires_after="2027-02-26">
   <owner>evliu@google.com</owner>
   <owner>dalecurtis@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -8509,6 +8519,20 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Media.WebMediaPlayerCompositor.10xHarmonicFrameRate"
+    units="Hz" expires_after="2026-10-15">
+  <owner>handellm@google.com</owner>
+  <owner>webrtc-video@google.com</owner>
+  <summary>
+    10x the harmonic frame rate of the video frames that were presented by the
+    compositor. This is computed as one over the weighted average of frame
+    durations where the weights are the durations themselves. This is a measure
+    of the effective frame rate of the video, penalizing hitches heavily. This
+    metric is only recorded for non-screencast video. Higher is better. The
+    metric is reported every 10 seconds provided frames have been presented.
+  </summary>
+</histogram>
+
 <histogram name="Media.WebMediaPlayerCompositor.ReasonToClearRenderBuffer"
     enum="ReasonToClearRenderBuffer" expires_after="2026-10-15">
   <owner>kron@chromium.org</owner>
@@ -8519,6 +8543,27 @@ chromium-metrics-reviews@google.com.
     render buffer is cleared. If multiple conditions apply, only the first
     matching enum is reported.
   </summary>
+</histogram>
+
+<histogram
+    name="Media.WebMediaPlayerCompositor.ReproductionJitter.{ContentType}.{Origin}"
+    units="ms" expires_after="2026-10-15">
+  <owner>handellm@google.com</owner>
+  <owner>webrtc-video@google.com</owner>
+  <summary>
+    A RMSE-like measure of the difference between the presented and captured
+    frame durations. This metric can handle both isochronous as well as variable
+    frame rate video. Lower is better. The metric is reported every 10 seconds
+    provided relevant frames have been presented.
+  </summary>
+  <token key="ContentType">
+    <variant name="Screencast"/>
+    <variant name="Unspecified"/>
+  </token>
+  <token key="Origin">
+    <variant name="Capture"/>
+    <variant name="Remote"/>
+  </token>
 </histogram>
 
 <histogram name="Media.WebrtcVideoPerfHistory.GetPerfInfoCodecProfile"

@@ -32,19 +32,24 @@
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/static_node_list.h"
 #include "third_party/blink/renderer/core/html/collection_type.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/heap/heap_traits.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 class Element;
 class ExceptionState;
+class FragmentParserConfig;
+class FragmentParserOptions;
 class GetHTMLOptions;
 class HTMLCollection;
 class RadioNodeList;
 class ScriptState;
 class V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions;
+class V8UnionSetHTMLOptionsOrTrustedParserOptions;
 class StyleRecalcContext;
 class WhitespaceAttacher;
 class WritableStream;
@@ -403,6 +408,40 @@ class CORE_EXPORT ContainerNode : public Node {
       ScriptState*,
       V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions*,
       ExceptionState&);
+  WritableStream* streamHTML(ScriptState*,
+                             V8UnionSetHTMLOptionsOrTrustedParserOptions*,
+                             ExceptionState&);
+  WritableStream* streamAppendHTML(ScriptState*,
+                                   V8UnionSetHTMLOptionsOrTrustedParserOptions*,
+                                   ExceptionState&);
+  void appendHTML(const String& html,
+                  V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+                  ExceptionState& exception_state);
+
+  void appendHTMLUnsafe(
+      const V8UnionStringOrTrustedHTML* html,
+      V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
+      ExceptionState& exception_state);
+
+  void prependHTML(const String& html,
+                   V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+                   ExceptionState& exception_state);
+
+  void prependHTMLUnsafe(
+      const V8UnionStringOrTrustedHTML* html,
+      V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
+      ExceptionState& exception_state);
+
+  void InsertHTMLBefore(Node* ref_child,
+                        const String& html,
+                        const FragmentParserConfig&,
+                        const FragmentParserOptions&,
+                        ExceptionState&);
+  void ReplaceChildWithHTML(Node* ref_child,
+                            const String& html,
+                            const FragmentParserConfig&,
+                            const FragmentParserOptions&,
+                            ExceptionState&);
 
   // DocumentOrElementEventHandlers:
   // These event listeners are only actually web-exposed on interfaces that

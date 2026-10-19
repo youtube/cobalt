@@ -10,6 +10,7 @@
 
 #include "include/core/SkRefCnt.h"
 #include "src/core/SkTHash.h"
+#include "src/gpu/MaskFormat.h"
 #include "src/text/gpu/StrikeCache.h"
 
 struct SkPackedGlyphID;

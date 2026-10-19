@@ -52,7 +52,7 @@ FakeModelBroker::~FakeModelBroker() = default;
 
 mojo::PendingRemote<mojom::ModelBroker> FakeModelBroker::BindAndPassRemote() {
   mojo::PendingRemote<mojom::ModelBroker> remote;
-  GetOrCreateBrokerState().service_controller().BindBroker(
+  GetOrCreateBrokerState().BindModelBroker(
       remote.InitWithNewPipeAndPassReceiver());
   return remote;
 }
@@ -90,6 +90,7 @@ void FakeModelBroker::UpdateLanguageDetectionModel(
 ModelBrokerState& FakeModelBroker::GetOrCreateBrokerState() {
   if (!model_broker_state_) {
     model_broker_state_.emplace(local_state_.local_state(), model_provider_,
+                                component_state_.CreateDelegate(),
                                 component_state_.CreateDelegate(),
                                 fake_launcher_.LaunchFn(),
                                 &component_state_.component_update_service());

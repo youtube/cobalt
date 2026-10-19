@@ -161,8 +161,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
       TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->backing_store()->buffer_start());
-  memory_bases_and_sizes->set_sandboxed_pointer(
-      0, reinterpret_cast<Address>(mem_start));
+  memory_bases_and_sizes->set(0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);
   trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
@@ -410,6 +409,9 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset_ = RoundUp(global_offset_, size);  // align
+  // Make sure that the returned pointer stays valid by pre-reserving enough
+  // space.
+  module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
       {type, true, {}, {global_offset_}, false, false, false});
   global_offset_ += size;

@@ -230,6 +230,7 @@
 <translation id="1358187717814494928">Створити таблицю</translation>
 <translation id="1358223345833465883">Ваша пошукова система в Chromium</translation>
 <translation id="1359836962251219822">Кухня і їдальня</translation>
+<translation id="136059610328993645">Вашу інформацію буде збережено в Google Гаманці для облікового запису <ph name="ACCOUNT" />. Ви можете використовувати її в сервісах Google, щоб швидше заповнювати форми.</translation>
 <translation id="1360955481084547712">Відкрити нове вікно в анонімному режимі</translation>
 <translation id="1361528602584216624">Ліміт платежу через Pix: <ph name="TRANSACTION_LIMIT" /> R$</translation>
 <translation id="1363015776076529485">Список доступних способів оплати відкрито на всю висоту.</translation>
@@ -252,6 +253,7 @@
 <translation id="1392813880755413602">Презентація OpenDocument</translation>
 <translation id="139305205187523129">Хост <ph name="HOST_NAME" /> не надіслав дані.</translation>
 <translation id="1393071644879491291">На сайті, який ви намагалися відвідати, зловмисники можуть обманом змусити вас установити програмне забезпечення або розкрити вашу інформацію, зокрема паролі, номер телефону чи кредитної картки. Chrome радить повернутися на безпечну сторінку. <ph name="BEGIN_LEARN_MORE_LINK" />Докладніше про це попередження<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="1402151528875251561">Показати історію на бічній панелі</translation>
 <translation id="1405567553485452995">Світло-зелений</translation>
 <translation id="1406370515365284486">Ваші способи оплати буде збережено</translation>
 <translation id="1406500794671479665">Перевірка...</translation>
@@ -428,6 +430,7 @@
 <translation id="1664389769577564606">Флексографічна фотополімерна форма</translation>
 <translation id="1667730174533834274">підтвердити вашу особу, перш ніж змінити налаштування</translation>
 <translation id="1668071460721346172">Отримати електронний лист</translation>
+<translation id="1670861525135254448">Збережіть відомості про транспортний засіб</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> – <ph name="TARGET_LANGUAGE" /></translation>
 <translation id="1682696192498422849">Спочатку по ширині</translation>
 <translation id="168693727862418163">Не вдалося перевірити значення цього правила в схемі, тому воно ігноруватиметься.</translation>
@@ -470,6 +473,7 @@
 <translation id="1734878702283171397">Зв’яжіться із системним адміністратором.</translation>
 <translation id="1736163675982669961">Картка "<ph name="CARD_NICKNAME" />", <ph name="CARD_NETWORK_NAME" />, <ph name="CARD_LAST_FOUR_DIGITS" />, дійсна до <ph name="CARD_EXPIRATION" /></translation>
 <translation id="1736420071277903564">Комп'ютер</translation>
+<translation id="1739364174357629566">Оновіть номер надійного мандрівника</translation>
 <translation id="1740404923954980840">Щоб вийти з повноекранного режиму, проведіть пальцем від верхнього краю екрана й натисніть кнопку "Назад"</translation>
 <translation id="1741474054575634405">Керувати картками постійного покупця…</translation>
 <translation id="1741613555002899862">Якщо параметр DnsOverHttpsMode має значення <ph name="SECURE_DNS_MODE_SECURE" />, потрібно вказати правило, яке має бути дійсним рядком.</translation>
@@ -729,6 +733,7 @@
 <translation id="2166049586286450108">Повний адміністративний доступ</translation>
 <translation id="2166378884831602661">Цей сайт не може забезпечити захищене з’єднання</translation>
 <translation id="2168151236314517198">Адміністратор заборонив друкувати цей контент</translation>
+<translation id="2171244127100824330">У сервісі <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> для облікового запису <ph name="ACCOUNT" /></translation>
 <translation id="2172089022819052306">Ремонт і обслуговування транспортних засобів</translation>
 <translation id="2173302385160625112">Перевірте інтернет-з’єднання</translation>
 <translation id="2174875517416416684">Не вдалося здійснити трансакцію. З вашого рахунку не стягнено кошти.</translation>
@@ -907,7 +912,6 @@
 <translation id="2436976580469434549">Текстильне мистецтво</translation>
 <translation id="243815215670139125">Не вдалося зберегти цю картку у вашому обліковому записі Google. Натомість її збережено в Chrome на цьому пристрої.</translation>
 <translation id="2438874542388153331">Пробити чотири отвори праворуч</translation>
-<translation id="2440855519769445271">Щоб приховати варіанти оплати пізніше, перейдіть у <ph name="BEGIN_LINK" />налаштування платежів<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">Наявні способи оплати, дані яких заповнюються дотиком. Клавіатуру сховано.</translation>
 <translation id="2442865686365739754">Chrome <ph name="BEGIN_EMPHASIS" />не зберігатиме<ph name="END_EMPHASIS" />:
           <ph name="BEGIN_LIST" />
@@ -944,6 +948,7 @@
 <translation id="248064299258688299">Повідомлення від розширення <ph name="EXTENSION_NAME" />:</translation>
 <translation id="2482878487686419369">Сповіщення</translation>
 <translation id="248348093745724435">Правила пристрою</translation>
+<translation id="248395913932153421">День</translation>
 <translation id="2485243023686553468">Смартфони</translation>
 <translation id="2491120439723279231">Сертифікат сервера містить помилки.</translation>
 <translation id="2491414235131909199">Розширення заблокувало цю сторінку</translation>
@@ -995,6 +1000,7 @@
 <translation id="2553352788023127673">Історію пошуку й паролі можна видалити в параметрах керування</translation>
 <translation id="2553853292994445426">Перевірте налаштування безпеки DNS. Можливо, ви налаштували безпечний DNS-сервер, до якого не вдається підключитися.</translation>
 <translation id="255497580849974774">Під час оновлення не відключайте зарядний пристрій.</translation>
+<translation id="2555855727505718984">Ці дані будуть недоступні для функції автозаповнення на цьому пристрої</translation>
 <translation id="2556876185419854533">&amp;Відмінити редагування</translation>
 <translation id="2559566667529177711">Багатошаровий друк</translation>
 <translation id="2570734079541893434">Керувати налаштуваннями</translation>
@@ -1319,6 +1325,7 @@
 <translation id="3115363211799416195">{0,plural, =1{Завантажити конфіденційний файл?}one{Завантажити конфіденційні файли?}few{Завантажити конфіденційні файли?}many{Завантажити конфіденційні файли?}other{Завантажити конфіденційні файли?}}</translation>
 <translation id="3115874930288085374">Домен <ph name="ENROLLMENT_DOMAIN" /> вимагає, щоб ви створили резервну копію своїх даних і повернули пристрій <ph name="DEVICE_TYPE" />.</translation>
 <translation id="3116158981186517402">Заламінувати</translation>
+<translation id="3116695032231023709">Збережіть дані посвідчення особи</translation>
 <translation id="3119689199889622589">Органічна й натуральна їжа</translation>
 <translation id="3120730422813725195">Elo</translation>
 <translation id="31207688938192855"><ph name="BEGIN_LINK" />Проведіть діагностику з’єднання<ph name="END_LINK" />.</translation>
@@ -1326,6 +1333,7 @@
 <translation id="3121994479408824897">Перейти на сторінку <ph name="DOMAIN" /></translation>
 <translation id="3122696783148405307">Показати результати за останні 30 днів</translation>
 <translation id="3126023634486644099">Етикетки (перманентні)</translation>
+<translation id="3132345256151444894">Збережіть номер оскарження</translation>
 <translation id="3133565499688974786">Тепер <ph name="SEARCH_ENGINE_NAME" /> – ваша пошукова система за умовчанням</translation>
 <translation id="3134859781443140237">Локальна мережа</translation>
 <translation id="3137283076021007034"><ph name="KEYWORD" /> – пошук: <ph name="KEYWORD_SHORT_NAME" /></translation>
@@ -1444,6 +1452,7 @@
 <translation id="33073482541490531">Введений пароль розкрито через порушення безпеки даних. Менеджер паролів радить негайно його змінити.</translation>
 <translation id="3307649904964670439">Кнопка "Налаштувати Chrome"; активуйте, щоб налаштувати вигляд веб-переглядача</translation>
 <translation id="3308006649705061278">Організаційний підрозділ (OU)</translation>
+<translation id="3310946375819654151">Вебпереглядач Chrome намагається автоматично заповнити чутливу інформацію на сайті <ph name="APP_NAME" />.</translation>
 <translation id="3312952471765023168">Успішно завантажено</translation>
 <translation id="3318016344440038475">Телевізійні комедії</translation>
 <translation id="3324687287337751929">4 x 6 дюйм.</translation>
@@ -1509,7 +1518,6 @@
 <translation id="3427342743765426898">&amp;Повторити редагування</translation>
 <translation id="342781501876943858">Chromium радить скинути пароль, якщо ви застосовували його на інших сайтах.</translation>
 <translation id="3428151540071562330">Щонайменше один ідентифікатор URI шаблону сервера DnsOverHttpsTemplates недійсний і не використовуватиметься.</translation>
-<translation id="3428789896412418755">Історія, упорядкована за групами</translation>
 <translation id="3432601291244612633">Закрити сторінку</translation>
 <translation id="3433111389595862568">Програмне забезпечення для спільної роботи й відеоконференцій</translation>
 <translation id="3433144818443565002">Голосові й відеочати</translation>
@@ -1735,6 +1743,7 @@
 <translation id="3752181611900535304">Зберегти адресу в обліковому записі?</translation>
 <translation id="3752543821772132562">Ігнорується, оскільки правило <ph name="POLICY_NAME" /> не налаштовано.</translation>
 <translation id="3754210790023674521">Вийти з режиму "Картинка в картинці"</translation>
+<translation id="3754664361823138853">&amp;Відкрити сторінку "Історія"</translation>
 <translation id="3759461132968374835">У вас немає останніх повідомлень про аварійне завершення роботи. Тут не відображатимуться випадки аварійного завершення роботи, які сталися, коли повідомлення про аварійне завершення роботи було вимкнено.</translation>
 <translation id="3760561303380396507">Використовувати Windows Hello замість коду CVC?</translation>
 <translation id="3761171036307311438">Ім'я на картці:</translation>
@@ -2044,6 +2053,7 @@
 <translation id="4233220688695460165">Chrome автоматично видаляє теми й сайти, які пропонують оголошення, через 30 днів. Ви також можете заблокувати теми й сайти, які вас не цікавлять.</translation>
 <translation id="4235360514405112390">Дійсний</translation>
 <translation id="4239799716689808527">Етикетки</translation>
+<translation id="424063167283213501">Збережіть номер надійного мандрівника</translation>
 <translation id="4241830393007970744">На сайті, який ви намагалися відвідати, зловмисники можуть обманом змусити вас установити програмне забезпечення або розкрити вашу інформацію, зокрема паролі, номер телефону чи кредитної картки.</translation>
 <translation id="4242380780309416996">Конверт (щільний)</translation>
 <translation id="4242981939686657948">Щоб спробувати розширений пошук в історії вебперегляду, увімкніть налаштування</translation>
@@ -2280,7 +2290,6 @@
 <translation id="4648262692072505866">Хеш має бути у форматі SHA-256.</translation>
 <translation id="4652266463001779298">Заборонено</translation>
 <translation id="4652440160515225514">Ваша організація заблокувала цей сайт, оскільки він порушує правила.</translation>
-<translation id="4654457557264366314">Платіжні плани доступні за певних умов.</translation>
 <translation id="4658638640878098064">Скріпити вгорі ліворуч</translation>
 <translation id="4658801711339831733">Відсканований документ збережено на Google Диску</translation>
 <translation id="4660592918803576381">Відкрити на Диску</translation>
@@ -2306,6 +2315,7 @@
 <translation id="4691093235373904540">Покрівельні роботи</translation>
 <translation id="4692623383562244444">Пошукові системи</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> – запитати <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4698308118265482293">Оновіть паспортні дані</translation>
 <translation id="4698692901173737941">Спортивні єдиноборства</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
 <translation id="4702504834785592287">Сторона</translation>
@@ -2347,7 +2357,6 @@
 <translation id="4751249061288707459">Згоду востаннє оновлено:</translation>
 <translation id="4751476147751820511">Датчики руху та світла</translation>
 <translation id="4754461935447132332">Заборонено для незахищених сайтів</translation>
-<translation id="4756388243121344051">&amp;Історія</translation>
 <translation id="4756501505996488486">PRC 16K</translation>
 <translation id="4757740693289347881">Код недійсний</translation>
 <translation id="4757993714154412917">Щойно ви ввели пароль на оманливому сайті. Щоб захистити ваші облікові записи, Chromium радить перевірити збережені паролі.</translation>
@@ -2401,6 +2410,7 @@
 <translation id="4832388034239846146">Щоб ділитися групами вкладок, оновіть Chrome</translation>
 <translation id="483241715238664915">Увімкнути попередження</translation>
 <translation id="4832961164064927107">Барбекю й гриль</translation>
+<translation id="4839984801146463230">Збережіть свою інформацію, щоб швидше виконувати завдання, наприклад заповнювати форми в продуктах Google. Ви можете <ph name="BEGIN_LINK" />керувати цією інформацією<ph name="END_LINK" /> в сервісі <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> для облікового запису <ph name="ACCOUNT" />.</translation>
 <translation id="4840250757394056958">Переглянути історію Chrome</translation>
 <translation id="484462545196658690">Автоматично</translation>
 <translation id="4844937814014739139">Зміна масштабу й прокручування спільних вкладок</translation>
@@ -2590,7 +2600,6 @@
 <translation id="512756860033933700">Блокування клавіатури дозволено</translation>
 <translation id="5127934926273826089">Квіти</translation>
 <translation id="5129534298163637277">Вікно підтвердження</translation>
-<translation id="5129662217315786329">Польська</translation>
 <translation id="5135404736266831032">Керувати адресами…</translation>
 <translation id="5136841603454277753">Введіть правильний код</translation>
 <translation id="5137761395480718572">Цей додаток запитує дозвіл установити облікові дані Wi-Fi. Після налаштування ваш пристрій <ph name="DEVICE_TYPE" /> автоматично підключатиметься до відповідних мереж Wi-Fi. Щоб вилучити ці облікові дані, видаліть додаток. <ph name="LEARN_MORE" /></translation>
@@ -2746,10 +2755,12 @@
 <translation id="5385966243497224160">Неможливо переглянути URL-адресу, яка не використовує протокол HTTPS</translation>
 <translation id="5386426401304769735">Ланцюжок сертифіката цього сайту містить сертифікат, підписаний за допомогою SHA-1.</translation>
 <translation id="5391010642126249196">Ви відвідали цей сайт</translation>
+<translation id="5391306025131596142">&amp;Відкрити сторінку "Історія"</translation>
 <translation id="539203134595252721">Настільний теніс</translation>
 <translation id="5392506727170022660">Метал (напівглянцевий)</translation>
 <translation id="5394069166371280357">Сімейні телевізійні шоу</translation>
 <translation id="5396631636586785122">Зшити вздовж правого краю</translation>
+<translation id="5396837962335265787"><ph name="ATTRIBUTE_NAME" />, було: <ph name="OLD_ATTRIBUTE_ATTRIBUTE" /></translation>
 <translation id="5397794290049113714">Ви</translation>
 <translation id="5398461103557553443">Щоб наступного разу автоматично заповнити цей номер IBAN, збережіть його в Google Гаманці</translation>
 <translation id="5398772614898833570">Оголошення заблоковано</translation>
@@ -2855,7 +2866,6 @@
 <translation id="5543564889050342791">Зоопарки, акваріуми й заповідники</translation>
 <translation id="5543722831081909240">180 градусів</translation>
 <translation id="5544836308113951378">Круїзи й чартерні поїздки</translation>
-<translation id="5545314360139398232">Підключіть обліковий запис <ph name="ISSUER_NAME" />, щоб здійснювати покупки на виплат</translation>
 <translation id="5547939254150808298">Друк і видавництво</translation>
 <translation id="554815783948612276">Форуми й чати</translation>
 <translation id="5548606607480005320">Перевірка безпеки</translation>
@@ -3274,6 +3284,8 @@
 <translation id="6236290670123303279">Керувати налаштуваннями</translation>
 <translation id="623825323736974198">Укажіть, які сайти завжди залишатимуться активними й не закриватимуться, щоб звільнити пам’ять</translation>
 <translation id="6240447795304464094">Логотип Google Pay</translation>
+<translation id="6240553182907836376">Оновіть дані посвідчення особи</translation>
+<translation id="6240601837375010619">Збережіть паспортні дані</translation>
 <translation id="6240964651812394252">Щоб використовувати Менеджер паролів у вашій операційній системі, перезапустіть Chrome і надайте доступ до додатка, що керує паролями на цьому комп’ютері. Після перезапуску поточні вкладки відкриються знову.</translation>
 <translation id="6241121617266208201">Сховати пропозиції</translation>
 <translation id="624499991300733384">Сервіс компонування друку</translation>
@@ -3482,6 +3494,7 @@
 <translation id="6547208576736763147">Пробити два отвори ліворуч</translation>
 <translation id="6549443526281184652">Костюми</translation>
 <translation id="6550245281449521513">Блокування миші заборонено</translation>
+<translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, нове</translation>
 <translation id="6552566579578780089">Способи оплати</translation>
 <translation id="6554732001434021288">Останнє відвідування: <ph name="NUM_DAYS" /> дн. тому</translation>
 <translation id="6556866813142980365">Повторити</translation>
@@ -3533,11 +3546,11 @@
 <translation id="6649510485211003056">195 x 270 мм</translation>
 <translation id="6651270836885078973">Керує:</translation>
 <translation id="6652101503459149953">Використовувати Windows Hello</translation>
-<translation id="6654224358955673568">Формальний стиль</translation>
 <translation id="6654244995031366386">Скло (текстуроване)</translation>
 <translation id="6655085656059574817">Зі зв’язаним обліковим записом ви зможете швидше оплачувати покупки через <ph name="BNPL_ISSUER_NAME" />. Щоб від’єднати його, перейдіть на сторінку <ph name="BEGIN_LINK" /><ph name="IDS_AUTOFILL_BNPL_TOS_LINK_TEXT_WALLET_LINK_TEXT" /><ph name="END_LINK" />.</translation>
 <translation id="6656935431494847393">Містить інформацію про бронювання авіаквитків і транспортні засоби</translation>
 <translation id="6657585470893396449">Пароль</translation>
+<translation id="6659156657345021268">Ваша інформація зберігається лише на пристрої. Ви зможете зберегти її в Гаманці наступного разу, коли заповнюватимете відповідну форму.</translation>
 <translation id="6659246032834639189">Це низька ціна</translation>
 <translation id="6660413144148052430">геодані</translation>
 <translation id="6662457027866368246">Перший рулон</translation>
@@ -3638,6 +3651,7 @@
 <translation id="681021252041861472">Обов’язкове поле</translation>
 <translation id="6810899417690483278">Ідентифікатор налаштування</translation>
 <translation id="6816109178681043245">Спортивні товари</translation>
+<translation id="681631578600400068">Збережіть дані посвідчення водія</translation>
 <translation id="6817217109584391709">JavaScript</translation>
 <translation id="6820143000046097424">послідовні порти</translation>
 <translation id="6820686453637990663">CVC</translation>
@@ -3704,7 +3718,6 @@
 <translation id="6926216138694948720">Боді-арт</translation>
 <translation id="692638818576287323">Комерційні транспортні засоби</translation>
 <translation id="6927878187051807444">файли з камери й знімки екрана</translation>
-<translation id="6929949393612835405">Закрити й повернутися до розділу "<ph name="OPENER_TITLE" />"</translation>
 <translation id="6930607614725241390">Пошук на бічній панелі</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Пошукова система за умовчанням дає змогу здійснювати пошук в Інтернеті й підтримує такі функції Chrome,<ph name="END_BOLD" /> як пошук з адресного рядка й за зображеннями на веб-сторінках. Функція може бути недоступна, якщо ваша пошукова система її не підтримує.</translation>
 <translation id="6934672428414710184">Це ім’я з вашого облікового запису Google</translation>
@@ -3850,6 +3863,7 @@
 <translation id="7143668445748322952">файли з камери, завантаження й знімки екрана</translation>
 <translation id="7143682719845053166">PRC 32K</translation>
 <translation id="7144878232160441200">Повторити спробу</translation>
+<translation id="7145337554745942724">Оновіть дані посвідчення водія</translation>
 <translation id="7150146631451105528"><ph name="DATE" /></translation>
 <translation id="7152230779180489711">Останнє відвідування</translation>
 <translation id="7153549335910886479">{PAYMENT_METHOD,plural, =0{<ph name="PAYMENT_METHOD_PREVIEW" />}=1{<ph name="PAYMENT_METHOD_PREVIEW" /> і ще <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" />}one{<ph name="PAYMENT_METHOD_PREVIEW" /> і ще <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" />}few{<ph name="PAYMENT_METHOD_PREVIEW" /> і ще <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" />}many{<ph name="PAYMENT_METHOD_PREVIEW" /> і ще <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" />}other{<ph name="PAYMENT_METHOD_PREVIEW" /> і ще <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" />}}</translation>
@@ -4043,6 +4057,7 @@
 <translation id="7444176988908839653">{COUNT,plural, =0{Сьогодні файли cookie буде знову заблоковано}=1{Завтра файли cookie буде знову заблоковано}one{Через # день файли cookie буде знову заблоковано}few{Через # дні файли cookie буде знову заблоковано}many{Через # днів файли cookie буде знову заблоковано}other{Через # дня файли cookie буде знову заблоковано}}</translation>
 <translation id="7447234474237738389">Створення одягу й аксесуарів</translation>
 <translation id="7447625772313191651"><ph name="NAME" /> (<ph name="WIDTH" /> x <ph name="HEIGHT" /> мм)</translation>
+<translation id="7450486349221991286">Оновіть відомості про транспортний засіб</translation>
 <translation id="7450577240311017924">Кнопка "Керувати синхронізацією"; активуйте, щоб вибрати в налаштуваннях Chrome, яку інформацію синхронізувати</translation>
 <translation id="7451311239929941790"><ph name="BEGIN_LINK" />дізнатися більше<ph name="END_LINK" /> про цю проблему.</translation>
 <translation id="745208957946308667">Гра Dino: натисніть пробіл, щоб грати</translation>
@@ -4277,6 +4292,7 @@
 <translation id="7779418012194492374">Скасувати доступ для пристрою <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Учора</translation>
 <translation id="7782465647372057580">Дані облікового запису шифруються й зберігаються конфіденційно</translation>
+<translation id="7785471469930192436">Перегляньте вказівки пошукової системи щодо того, як видалити історію пошуку (якщо вона є)</translation>
 <translation id="7785790577395078482">цього планшета</translation>
 <translation id="7786368602962652765">Обов’язкове поле порожнє. Заповніть його, перш ніж зберегти.</translation>
 <translation id="7791011319128895129">Не випущено</translation>
@@ -4307,7 +4323,6 @@
 <translation id="7840103971441592723">Запис екрана розпочато</translation>
 <translation id="784137052867620416">Статистика покупок</translation>
 <translation id="7841633276323004751">Список доступних способів оплати. Клавіатуру сховано.</translation>
-<translation id="784404208867107517">Історія, упорядкована за групами</translation>
 <translation id="7844689747373518809">{COUNT,plural, =0{Немає}=1{1 додаток (<ph name="EXAMPLE_APP_1" />)}=2{2 додатки (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}one{# додаток (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}few{# додатки (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}many{# додатків (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}other{# додатка (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Сталася помилка. Повторіть спробу.</translation>
 <translation id="784623644169604270">Немає останніх дій</translation>
@@ -4737,6 +4752,7 @@
 <translation id="8544217240017914508">Google Chrome намагається змінити параметри заповнення способів оплати.</translation>
 <translation id="8544303911974837265">Поліестер</translation>
 <translation id="854548366864113872">Варіант із високою ціною</translation>
+<translation id="854583198371106098"><ph name="ATTRIBUTE_VALUE" />  <ph name="BEGIN_NEW" />Нове<ph name="END_NEW" /></translation>
 <translation id="8546254312340305428">Укажіть причину завантаження (обов’язково)</translation>
 <translation id="8546350655047701518">Експортувати журнали у формат JSON</translation>
 <translation id="8546667245446052521">Папір (архівний)</translation>
@@ -4891,6 +4907,7 @@
 <translation id="8811725516933141693">Щоб спілкуватися в чаті з Gemini, введіть @gemini</translation>
 <translation id="8813277370772331957">Нагадати пізніше</translation>
 <translation id="8814707942599948500">Конверт C8</translation>
+<translation id="881559332211266856">Оновіть номер оскарження</translation>
 <translation id="8816395686387277279"><ph name="UPDATE_CHROME_FOCUSED_FRIENDLY_MATCH_TEXT" />; натисніть Tab, а потім – Enter, щоб оновити веб-переглядач Chrome у його налаштуваннях</translation>
 <translation id="8819855907485254989">Зберегти квиток на транспорт у Гаманці</translation>
 <translation id="8820817407110198400">Закладки</translation>
@@ -4940,6 +4957,7 @@
 <translation id="8894794286471754040">Спершу по довжині</translation>
 <translation id="8897221284075091877">Щоб попросити дозвіл на перегляд цього контенту, увійди в обліковий запис Google</translation>
 <translation id="8897428486789851669">Плавання</translation>
+<translation id="8898854704577986668">Показати історію на бічній панелі</translation>
 <translation id="8899807382908246773">Нав’язливі оголошення</translation>
 <translation id="8903921497873541725">Збільшити масштаб</translation>
 <translation id="8903998444169664879">Щоб змінити налаштування платежів, підтвердьте свою особу</translation>

@@ -86,6 +86,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/string_encode.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/test_certificate_verifier.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -2451,6 +2452,7 @@ TEST_P(PeerConnectionIntegrationTest,
 // received end-to-end.
 TEST_F(PeerConnectionIntegrationTestPlanB,
        MediaFlowsAfterEarlyWarmupWithCreateSender) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   auto caller_audio_sender =
@@ -2461,6 +2463,7 @@ TEST_F(PeerConnectionIntegrationTestPlanB,
       callee()->pc()->CreateSender("audio", "callee_stream");
   auto callee_video_sender =
       callee()->pc()->CreateSender("video", "callee_stream");
+  RTC_ALLOW_PLAN_B_DEPRECATION_END()
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue(),
                         {.timeout = kMaxWaitForActivation}),
@@ -2542,6 +2545,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 // from the caller to the callee, rather than being forwarded to a third
 // PeerConnection.
 TEST_F(PeerConnectionIntegrationTestPlanB, CanSendRemoteVideoTrack) {
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Just send a video track from the caller.
@@ -2555,6 +2559,7 @@ TEST_F(PeerConnectionIntegrationTestPlanB, CanSendRemoteVideoTrack) {
   // Echo the stream back, and do a new offer/anwer (initiated by callee this
   // time).
   callee()->pc()->AddStream(callee()->remote_streams()->at(0));
+  RTC_ALLOW_PLAN_B_DEPRECATION_END()
   callee()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue(),
                         {.timeout = kMaxWaitForActivation}),

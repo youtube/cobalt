@@ -115,42 +115,6 @@
           'isolated_scripts': 'isolated_scripts_group_perf',
         },
       },
-      'linux-amd': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_amd_rx_5500_xt',
-        ],
-        'test_suites': {
-        },
-      },
-      'linux-exp-intel': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_intel_uhd_630_experimental',
-        ],
-        'test_suites': {
-        },
-      },
-      'linux-exp-nvidia': {
-        'os_type': 'linux',
-        'mixins': [
-          'linux_nvidia_gtx_1660_experimental',
-        ],
-        'test_suites': {
-        },
-      },
-      'linux-exp-swiftshader': {
-        'os_type': 'linux',
-        'mixins': [
-          'gpu-swarming-pool',
-          'no_gpu',
-          'linux-jammy',
-          'timeout_15m',
-          'x86-64',
-        ],
-        'test_suites': {
-        },
-      },
       'linux-exp-swiftshader-asan': {
         'os_type': 'linux',
         'mixins': [
@@ -270,15 +234,6 @@
         ],
         'test_suites': {
           'gtest_tests': 'mac_amd_and_intel_gtests',
-        },
-      },
-      'mac-arm64-apple': {
-        'os_type': 'mac',
-        'mixins': [
-          'mac_arm64_apple_m2_retina_gpu_stable',
-        ],
-        'test_suites': {
-          'gtest_tests': 'mac_apple_gtests',
         },
       },
       'mac-exp-amd': {
@@ -462,6 +417,14 @@
         'test_suites': {
         },
       },
+      'angle-linux-x64-intel-uhd630-exp-rel': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_intel_uhd_630_experimental',
+        ],
+        'test_suites': {
+        },
+      },
       'angle-linux-x64-intel-uhd630-rel': {
         'os_type': 'linux',
         'mixins': [
@@ -470,6 +433,14 @@
         'test_suites': {
           'gtest_tests': 'linux_intel_gtests',
           'isolated_scripts': 'isolated_scripts_group_common',
+        },
+      },
+      'angle-linux-x64-nvidia-gtx1660-exp-rel': {
+        'os_type': 'linux',
+        'mixins': [
+          'linux_nvidia_gtx_1660_experimental',
+        ],
+        'test_suites': {
         },
       },
       'angle-linux-x64-nvidia-gtx1660-rel': {
@@ -498,6 +469,15 @@
         'additional_compile_targets': [
           'noop_target',
         ],
+      },
+      'angle-mac-arm64-apple-m2-rel': {
+        'os_type': 'mac',
+        'mixins': [
+          'mac_arm64_apple_m2_retina_gpu_stable',
+        ],
+        'test_suites': {
+          'gtest_tests': 'mac_apple_gtests',
+        },
       },
     },
   },

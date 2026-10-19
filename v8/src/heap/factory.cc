@@ -1572,20 +1572,23 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
 }
 
 DirectHandle<InterceptorInfo> Factory::NewInterceptorInfo(
-    AllocationType allocation) {
+    InterceptorKind kind, AllocationType allocation) {
   Tagged<InterceptorInfo> info =
       Cast<InterceptorInfo>(New(interceptor_info_map(), allocation));
   DisallowGarbageCollection no_gc;
   info->set_data(*undefined_value());
-  info->set_flags(0);
+  info->set_flags(
+      InterceptorInfo::NamedBit::encode(kind == InterceptorKind::kNamed));
   info->clear_padding();
 
   // Initialization of these lazy-initialized callback fields is the same
   // for named and indexed versions.
 #define INIT_CALLBACK_FIELD(Name, name) info->init_named_##name();
 
-  INTERCEPTOR_INFO_CALLBACK_LIST(INIT_CALLBACK_FIELD)
+  COMMON_INTERCEPTOR_INFO_CALLBACK_LIST(INIT_CALLBACK_FIELD)
 #undef INIT_CALLBACK_FIELD
+
+  info->init_indexed_index_of();
 
   return direct_handle(info, isolate());
 }
@@ -2003,14 +2006,25 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObjectInitialized() {
 }
 
 DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
-    wasm::StackMemory* stack) {
+    DirectHandle<WasmStackObject> stack_obj) {
   Tagged<Map> map = *wasm_continuation_object_map();
   Tagged<WasmContinuationObject> obj =
       Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kYoung, map));
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
-  cont->init_stack(IsolateForSandbox(isolate()), stack);
+  cont->set_stack_obj(*stack_obj);
   return cont;
+}
+
+DirectHandle<WasmStackObject> Factory::NewWasmStackObject(
+    wasm::StackMemory* stack) {
+  Tagged<Map> map = *wasm_stack_object_map();
+  Tagged<WasmStackObject> obj =
+      Cast<WasmStackObject>(AllocateRawWithImmortalMap(
+          map->instance_size(), AllocationType::kYoung, map));
+  DirectHandle<WasmStackObject> result(obj, isolate());
+  result->init_stack(isolate(), stack);
+  return result;
 }
 
 DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
@@ -3149,12 +3163,11 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
   // require us to change property values to PropertyCells.
-  DCHECK_EQ(map->NextFreePropertyIndex(), 0);
+  DCHECK_EQ(map->GetInObjectProperties(), 0);
 
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
   DCHECK_EQ(map->UnusedPropertyFields(), 0);
-  DCHECK_EQ(map->GetInObjectProperties(), 0);
 
   // Initial size of the backing store to avoid resize of the storage during
   // bootstrapping. The size differs between the JS global object ad the
@@ -3487,7 +3500,7 @@ DirectHandle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
           map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
           NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper)));
   FieldIndex index = FieldIndex::ForDescriptor(
-      *map, InternalIndex(JSModuleNamespace::kToStringTagFieldIndex));
+      *map, InternalIndex(JSModuleNamespace::kToStringTagIndex));
   module_namespace->FastPropertyAtPut(index, read_only_roots().Module_string(),
                                       SKIP_WRITE_BARRIER);
   return module_namespace;
@@ -3501,7 +3514,7 @@ Factory::NewJSDeferredModuleNamespace() {
           map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
           NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper)));
   FieldIndex index = FieldIndex::ForDescriptor(
-      *map, InternalIndex(JSDeferredModuleNamespace::kToStringTagFieldIndex));
+      *map, InternalIndex(JSModuleNamespace::kToStringTagIndex));
   deferred_namespace->FastPropertyAtPut(
       index, read_only_roots().Deferred_Module_string(), SKIP_WRITE_BARRIER);
 
@@ -4521,9 +4534,9 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     DirectHandle<Name> name = isolate()->factory()->name_string();
-    Descriptor d =
-        Descriptor::DataField(isolate(), name, field_index++, roc_attribs,
-                              Representation::Tagged(), true);
+    Descriptor d = Descriptor::DataField(
+        isolate(), name, map->GetInObjectPropertyOffset(field_index++),
+        roc_attribs, Representation::Tagged(), true);
     map->AppendDescriptor(isolate(), &d);
 
   } else {
@@ -4613,9 +4626,9 @@ DirectHandle<Map> Factory::CreateStrictFunctionMap(
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     DirectHandle<Name> name = isolate()->factory()->name_string();
-    Descriptor d =
-        Descriptor::DataField(isolate(), name, field_index++, roc_attribs,
-                              Representation::Tagged(), true);
+    Descriptor d = Descriptor::DataField(
+        isolate(), name, map->GetInObjectPropertyOffset(field_index++),
+        roc_attribs, Representation::Tagged(), true);
     map->AppendDescriptor(isolate(), &d);
 
   } else {

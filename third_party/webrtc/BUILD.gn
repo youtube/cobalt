@@ -332,10 +332,6 @@ config("common_config") {
     defines += [ "WEBRTC_HAVE_SCTP" ]
   }
 
-  if (rtc_enable_external_auth) {
-    defines += [ "ENABLE_EXTERNAL_AUTH" ]
-  }
-
   if (rtc_use_h264) {
     defines += [ "WEBRTC_USE_H264" ]
   }

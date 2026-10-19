@@ -721,8 +721,15 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
   switch (command_id) {
     // These commands don't invoke the popup via OnBefore/AfterPossibleChange().
     case IDC_PASTE_AND_GO:
-      controller()->edit_model()->PasteAndGo(
-          GetClipboardText(/*notify_if_restricted=*/true));
+      GetClipboardText(
+          /*notify_if_restricted=*/true,
+          base::BindOnce(
+              [](base::WeakPtr<OmniboxViewViews> self, std::u16string text) {
+                if (self) {
+                  self->controller()->edit_model()->PasteAndGo(text);
+                }
+              },
+              weak_factory_.GetWeakPtr()));
       return;
     case IDC_EDIT_SEARCH_ENGINES:
     case IDC_SHOW_FULL_URLS:
@@ -754,6 +761,25 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
       OnAfterPossibleChange(true);
       return;
   }
+}
+
+void OmniboxViewViews::ShowContextMenuForViewImpl(
+    views::View* source,
+    const gfx::Point& point,
+    ui::mojom::MenuSourceType source_type) {
+  GetClipboardText(
+      /*notify_if_restricted=*/false,
+      base::BindOnce(&OmniboxViewViews::ShowContextMenuForViewImplComplete,
+                     weak_factory_.GetWeakPtr(), source, point, source_type));
+}
+
+void OmniboxViewViews::ShowContextMenuForViewImplComplete(
+    views::View* source,
+    const gfx::Point& point,
+    ui::mojom::MenuSourceType source_type,
+    std::u16string text) {
+  clipboard_text_ = text;
+  Textfield::ShowContextMenuForViewImpl(source, point, source_type);
 }
 
 void OmniboxViewViews::OnInputMethodChanged() {
@@ -891,8 +917,13 @@ void OmniboxViewViews::UpdateAccessibleTextSelection() {
 }
 
 void OmniboxViewViews::OnOmniboxPaste() {
-  const std::u16string text(GetClipboardText(/*notify_if_restricted=*/true));
+  GetClipboardText(
+      /*notify_if_restricted=*/true,
+      base::BindOnce(&OmniboxViewViews::OnOmniboxPasteComplete,
+                     weak_factory_.GetWeakPtr()));
+}
 
+void OmniboxViewViews::OnOmniboxPasteComplete(std::u16string text) {
   if (text.empty() ||
       // When the fakebox is focused, ignore pasted whitespace because if the
       // fakebox is hidden and there's only whitespace in the omnibox, it's
@@ -1358,8 +1389,7 @@ std::u16string OmniboxViewViews::GetLabelForCommandId(int command_id) const {
   )
     return l10n_util::GetStringUTF16(IDS_PASTE_AND_GO_EMPTY);
 
-  const std::u16string clipboard_text =
-      GetClipboardText(/*notify_if_restricted=*/false);
+  const std::u16string clipboard_text = clipboard_text_;
 
   if (clipboard_text.empty()) {
     return l10n_util::GetStringUTF16(IDS_PASTE_AND_GO_EMPTY);
@@ -1823,8 +1853,7 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
     }
 #endif
 
-    return controller()->edit_model()->CanPasteAndGo(
-        GetClipboardText(/*notify_if_restricted=*/false));
+    return controller()->edit_model()->CanPasteAndGo(clipboard_text_);
   }
 
   // These menu items are only shown when they are valid.
@@ -1840,8 +1869,19 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
           location_bar_view_->command_updater()->IsCommandEnabled(command_id));
 }
 
-std::u16string OmniboxViewViews::GetSelectionClipboardText() const {
-  return omnibox::SanitizeTextForPaste(Textfield::GetSelectionClipboardText());
+void OmniboxViewViews::PasteSelectionClipboard(
+    base::OnceCallback<void(bool)> callback) {
+  ui::Clipboard::GetForCurrentThread()->ReadText(
+      ui::ClipboardBuffer::kSelection, /* data_dst = */ std::nullopt,
+      base::BindOnce(&OmniboxViewViews::OnTextReadForPasteSelectionClipboard,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void OmniboxViewViews::OnTextReadForPasteSelectionClipboard(
+    base::OnceCallback<void(bool)> callback,
+    std::u16string text) {
+  text = omnibox::SanitizeTextForPaste(text);
+  Textfield::OnTextReadForPasteSelectionClipboard(std::move(callback), text);
 }
 
 void OmniboxViewViews::DoInsertChar(char16_t ch) {
@@ -2226,17 +2266,23 @@ void OmniboxViewViews::OnAfterUserAction(views::Textfield* sender) {
   OnAfterPossibleChange(true);
 }
 
-void OmniboxViewViews::OnAfterCutOrCopy(ui::ClipboardBuffer clipboard_buffer) {
+bool OmniboxViewViews::OnBeforeCutOrCopy(views::Textfield* sender,
+                                         std::u16string* copy_contents) {
+  *copy_contents = std::u16string(GetSelectedText());
+  HandleCutOrCopyAdjustments(ui::ClipboardBuffer::kCopyPaste, copy_contents);
+  return true;
+}
+
+void OmniboxViewViews::OnAfterCutOrCopy(ui::ClipboardBuffer clipboard_buffer) {}
+
+void OmniboxViewViews::HandleCutOrCopyAdjustments(
+    ui::ClipboardBuffer clipboard_buffer,
+    std::u16string* text) {
   const base::TimeTicks now(base::TimeTicks::Now());
-  const ui::Clipboard* cb = ui::Clipboard::GetForCurrentThread();
-  std::u16string selected_text;
-  ui::DataTransferEndpoint data_dst = ui::DataTransferEndpoint(
-      ui::EndpointType::kDefault, {.notify_if_restricted = false});
-  cb->ReadText(clipboard_buffer, &data_dst, &selected_text);
   GURL url;
   bool write_url = false;
-  controller()->edit_model()->AdjustTextForCopy(
-      GetSelectedRange().GetMin(), &selected_text, &url, &write_url);
+  controller()->edit_model()->AdjustTextForCopy(GetSelectedRange().GetMin(),
+                                                text, &url, &write_url);
   if (IsSelectAll()) {
     UMA_HISTOGRAM_COUNTS_1M(OmniboxEditModel::kCutOrCopyAllTextHistogram, 1);
 
@@ -2260,16 +2306,6 @@ void OmniboxViewViews::OnAfterCutOrCopy(ui::ClipboardBuffer clipboard_buffer) {
       }
     }
   }
-
-  ui::ScopedClipboardWriter scoped_clipboard_writer(clipboard_buffer);
-  scoped_clipboard_writer.WriteText(selected_text);
-  if (!ShouldDoLearning()) {
-    // Data is copied from an incognito window, so mark it as off the record.
-    scoped_clipboard_writer.MarkAsOffTheRecord();
-  }
-
-  // Regardless of |write_url|, don't write a hyperlink to the clipboard.
-  // Plaintext URLs are simply handled more consistently than hyperlinks.
 }
 
 void OmniboxViewViews::OnWriteDragData(ui::OSExchangeData* data) {
@@ -2369,6 +2405,31 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
   if (omnibox_feature_configs::Toolbelt::Get().enabled) {
     menu_contents->AddCheckItemWithStringId(IDC_SHOW_SEARCH_TOOLS,
                                             IDS_CONTEXT_MENU_SHOW_SEARCH_TOOLS);
+  }
+}
+
+std::unique_ptr<ui::ScopedClipboardWriter>
+OmniboxViewViews::CreateClipboardWriter() {
+  auto writer = std::make_unique<ui::ScopedClipboardWriter>(
+      ui::ClipboardBuffer::kCopyPaste);
+  if (!ShouldDoLearning()) {
+    writer->MarkAsOffTheRecord();
+  }
+  return writer;
+}
+
+void OmniboxViewViews::UpdateSelectionClipboard() {
+  if (ui::Clipboard::IsSupportedClipboardBuffer(
+          ui::ClipboardBuffer::kSelection)) {
+    if (GetTextInputType() != ui::TEXT_INPUT_TYPE_PASSWORD) {
+      std::u16string text(GetSelectedText());
+      HandleCutOrCopyAdjustments(ui::ClipboardBuffer::kSelection, &text);
+      ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kSelection);
+      writer.WriteText(text);
+      if (!ShouldDoLearning()) {
+        writer.MarkAsOffTheRecord();
+      }
+    }
   }
 }
 

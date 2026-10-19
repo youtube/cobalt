@@ -17,10 +17,23 @@ specific_include_rules = {
     "html_anchor_element.cc" : [
         "+base/command_line.h"
     ],
+    "html_login_element.cc" : [
+        "+services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h",
+    ],
+    "html_login_element_test.cc" : [
+        "+base/run_loop.h",
+        "+mojo/public/cpp/bindings/receiver.h",
+        "+services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h",
+        "+services/network/public/cpp/permissions_policy/permissions_policy.h",
+        "+services/network/public/cpp/permissions_policy/permissions_policy_declaration.h",
+    ],
     "html_meta_element.h": [
         "+services/network/public/cpp/client_hints.h",
     ],
     "trust_token_attribute_parsing_test.cc": [
         "+services/network/test",
+    ],
+    "html_perftest.cc": [
+        "+base/strings/safe_sprintf.h",
     ],
 }

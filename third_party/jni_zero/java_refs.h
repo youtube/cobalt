@@ -84,6 +84,18 @@ template <typename T = jobject>
 class JavaRef;
 #endif  // BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+template <typename T>
+concept IsJavaRef =
+    std::is_base_of_v<jni_zero::JavaRef<jobject>, std::remove_cvref_t<T>>;
+#else
+template <typename T>
+inline constexpr bool IsJavaRef =
+    std::is_base_of_v<jni_zero::JavaRef<jobject>, std::decay_t<T>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
+
 namespace internal {
 // Create an instance of JavaRef<T> without DCHECK'ing that it is a local ref.
 // Should only be used by the JNI Zero code generator.
@@ -539,6 +551,25 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT LeakedJavaGlobalRef : public JavaRef<T> {
 template <typename T>
 using JavaParamRef = JavaRef<T>;
 #endif
+
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+// Identity overload for FromJniType when the destination type is already a
+// JavaRef.
+template <typename T>
+  requires IsJavaRef<T>
+inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
+  return static_cast<T>(obj);
+}
+
+// Identity overload for ToJniType when the input type is already a JavaRef.
+template <typename T>
+  requires IsJavaRef<T>
+inline decltype(auto) ToJniType(JNIEnv* env, T&& arg) {
+  return std::forward<T>(arg);
+}
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 }  // namespace jni_zero
 

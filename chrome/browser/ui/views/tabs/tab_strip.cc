@@ -592,7 +592,8 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
     int x = 0;
     for (const TabSlotView* view : views) {
       const int width = view->width();
-      bounds.emplace_back(x, height() - view->height(), width, view->height());
+      bounds.emplace_back(x, std::max(0, height() - view->height()), width,
+                          view->height());
       x += width - overlap;
     }
 
@@ -1219,6 +1220,7 @@ void TabStrip::UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) {
 }
 
 void TabStrip::AddTabsAt(const std::vector<AddTabData>& tabs_datas) {
+  const int old_tab_count = GetTabCount();
   std::vector<TabContainer::TabInsertionParams> tabs_params;
 
   for (const auto& tab_data : tabs_datas) {
@@ -1252,6 +1254,12 @@ void TabStrip::AddTabsAt(const std::vector<AddTabData>& tabs_datas) {
     // As such, it is important that we complete the drag *after* adding the tab
     // so that the model and tabstrip are in sync.
     drag_context_->TabWasAdded();
+  }
+
+  if (base::FeatureList::IsEnabled(features::kDesktopGlowUp) &&
+      old_tab_count < TabStyle::kTabStripDeclutterMinTabs &&
+      GetTabCount() >= TabStyle::kTabStripDeclutterMinTabs) {
+    tab_container_->SchedulePaint();
   }
 
   // BrowserWindowInterface can be null during unit tests.
@@ -1302,6 +1310,7 @@ void TabStrip::RemoveTabAt(content::WebContents* contents,
   CHECK(drag_context_->CanRemoveTabIfDragging(contents))
       << "Attempted to remove a tab that could not be removed during drag.";
 
+  const int old_tab_count = GetTabCount();
   tab_container_->RemoveTab(model_index, was_active);
 
   UpdateHoverCard(nullptr, HoverCardUpdateType::kTabRemoved);
@@ -1310,6 +1319,12 @@ void TabStrip::RemoveTabAt(content::WebContents* contents,
 
   if (observer_) {
     observer_->OnTabRemoved(model_index);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kDesktopGlowUp) &&
+      old_tab_count >= TabStyle::kTabStripDeclutterMinTabs &&
+      GetTabCount() < TabStyle::kTabStripDeclutterMinTabs) {
+    tab_container_->SchedulePaint();
   }
 }
 
@@ -1490,6 +1505,13 @@ void TabStrip::SetSelection(const ui::ListSelectionModel& new_selection) {
       // If the tab that is about to be selected is in a collapsed group,
       // automatically expand the group.
       if (IsGroupCollapsed(new_group)) {
+        // If the group is being dragged, do not expand it.
+        if (drag_context_->GetDragController() &&
+            drag_context_->GetDragController()->group_header_id() ==
+                new_group) {
+          continue;
+        }
+
         ToggleTabGroupCollapsedState(
             new_group, ToggleTabGroupCollapsedStateOrigin::kTabsSelected);
       }
@@ -1564,14 +1586,6 @@ std::optional<int> TabStrip::GetModelIndexOf(const TabSlotView* view) const {
     return std::nullopt;
   }
   return viewmodel_index;
-}
-
-int TabStrip::GetTabCount() const {
-  if (!tab_container_) {
-    return 0;
-  }
-
-  return tab_container_->GetTabCount();
 }
 
 int TabStrip::GetModelCount() const {
@@ -1877,6 +1891,14 @@ void TabStrip::TabKeyboardFocusChangedTo(const tabs::TabInterface* tab) {
   controller_->TabKeyboardFocusChangedTo(tab);
 }
 
+int TabStrip::GetTabCount() const {
+  if (!tab_container_) {
+    return 0;
+  }
+
+  return tab_container_->GetTabCount();
+}
+
 bool TabStrip::IsActiveTab(const TabSlotView* tab) const {
   std::optional<int> model_index = GetModelIndexOf(tab);
   return model_index.has_value() &&
@@ -1898,8 +1920,7 @@ bool TabStrip::ShouldCompactLeadingEdge() const {
               ->browser_widget()
               ->GetFrameView()
               ->CaptionButtonsOnLeadingEdge() &&
-         (tabs::GetTabSearchPosition(
-              GetBrowserWindowInterface()->GetProfile()) ==
+         (tabs::GetTabSearchPosition(GetBrowserWindowInterface()) ==
           tabs::TabSearchPosition::kTrailingHorizontalTabstrip);
 }
 
@@ -1956,7 +1977,7 @@ Tab* TabStrip::GetTabAt(const gfx::Point& point) {
     view = view->parent();
   }
 
-  return view && view->GetID() == VIEW_ID_TAB ? static_cast<Tab*>(view)
+  return view && view->GetID() == VIEW_ID_TAB ? views::AsViewClass<Tab>(view)
                                               : nullptr;
 }
 
@@ -2415,8 +2436,8 @@ void TabStrip::TabContextMenuController::ShowContextMenuForViewImpl(
     ui::mojom::MenuSourceType source_type) {
   // We are only intended to be installed as a context-menu handler for tabs, so
   // this cast should be safe.
-  CHECK(views::IsViewClass<Tab>(source)) << "The source must be a Tab class.";
-  Tab* const tab = static_cast<Tab*>(source);
+  Tab* const tab = views::AsViewClass<Tab>(source);
+  CHECK(tab) << "The source must be a Tab class.";
   if (tab->closing()) {
     return;
   }

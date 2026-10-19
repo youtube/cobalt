@@ -99,6 +99,11 @@ BASE_FEATURE_PARAM(bool,
                    &kReplaceSyncPromosWithSignInPromos,
                    "explicit_signin_for_extensions",
                    false);
+BASE_FEATURE_PARAM(bool,
+                   kExplicitSigninForBookmarks,
+                   &kReplaceSyncPromosWithSignInPromos,
+                   "explicit_signin_for_bookmarks",
+                   false);
 
 BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -195,8 +200,20 @@ BASE_FEATURE(kSyncEnableNewSyncDashboardUrl, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncRecordDeviceStatisticsMetrics,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSyncRecordDeviceStatisticsMetricsDelay,
+                   &kSyncRecordDeviceStatisticsMetrics,
+                   "SyncRecordDeviceStatisticsMetricsDelay",
+                   base::Seconds(30));
+BASE_FEATURE_PARAM(int,
+                   kSyncRecordDeviceStatisticsMetricsPeriodDays,
+                   &kSyncRecordDeviceStatisticsMetrics,
+                   "SyncRecordDeviceStatisticsMetricsPeriodDays",
+                   1);
 
 BASE_FEATURE(kSyncDeviceInfoUseWallClockTimer,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncValidateAccessToken, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace syncer

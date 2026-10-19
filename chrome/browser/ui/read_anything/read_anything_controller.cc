@@ -5,11 +5,15 @@
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_service.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -17,9 +21,6 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/navigation_handle.h"
@@ -94,12 +95,15 @@ ReadAnythingController* ReadAnythingController::From(tabs::TabInterface* tab) {
 ReadAnythingController::ReadAnythingController(
     tabs::TabInterface* tab,
     SidePanelRegistry* side_panel_registry)
-    : tab_(tab),
+    : tabs::ContentsObservingTabFeature(*tab),
+      tab_(tab),
+      side_panel_registry_(side_panel_registry),
       scoped_unowned_user_data_(tab->GetUnownedUserDataHost(), *this),
       read_anything_side_panel_controller_(
           std::make_unique<ReadAnythingSidePanelController>(
               tab,
-              side_panel_registry)),
+              side_panel_registry,
+              tab->GetContents())),
       distillation_state_locked_for_testing_(freeze_distillation_for_testing_) {
   // This controller should only be instantiated if
   // IsImmersiveReadAnythingEnabled is enabled
@@ -108,14 +112,6 @@ ReadAnythingController::ReadAnythingController(
   tab_subscriptions_.push_back(
       tab_->RegisterWillDetach(base::BindRepeating(
           &ReadAnythingController::TabWillDetach, weak_factory_.GetWeakPtr())));
-
-  main_page_observer_ = std::make_unique<WebContentsObserverInstance>(
-      /*web_contents=*/tab_->GetContents(),
-      /*primary_page_changed_callback=*/
-      base::BindRepeating(&ReadAnythingController::OnMainPagePrimaryPageChanged,
-                          base::Unretained(this)),
-      /*renderer_crashed_callback=*/base::DoNothing(),
-      /*visibility_changed_callback=*/base::DoNothing());
 
   if (features::IsReadAnythingOmniboxChipEnabled() &&
       base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
@@ -137,14 +133,14 @@ ReadAnythingController::~ReadAnythingController() {
   // this here too.
   ReleaseMainContentsCapture();
 
-  // This method is transiently used to reset features that do not handle tab
-  // discarding themselves.
-  read_anything_side_panel_controller_->ResetForTabDiscard();
-
   if (ra_web_ui_observer_ && ra_web_ui_observer_->web_contents()) {
     ra_web_ui_observer_->web_contents()->RemoveUserData(
         ReadAnythingControllerGlue::UserDataKey());
   }
+
+  // If the Side Panel was showing, it might still hold the WebContents. Ensure
+  // the glue is removed from there too.
+  read_anything_side_panel_controller_->RemoveReadAnythingControllerGlue();
 }
 
 void ReadAnythingController::AddObserver(Observer* observer) {
@@ -289,6 +285,14 @@ void ReadAnythingController::TransferWebUiOwnership(
   CHECK(!web_ui_wrapper_);
   web_ui_wrapper_ = std::move(web_ui_wrapper);
   SetPresentationState(PresentationState::kInactive);
+
+  // If the WebUI was never shown, it likely means it was still loading when
+  // we closed it. If we reuse this wrapper, we might miss the "ShowUI" signal
+  // if it fires while detached. Force recreation to ensure a fresh signal
+  // next time.
+  if (!has_shown_ui_) {
+    RecreateWebUIWrapper();
+  }
 }
 
 void ReadAnythingController::ShowImmersiveUI(ReadAnythingOpenTrigger trigger) {
@@ -296,6 +300,9 @@ void ReadAnythingController::ShowImmersiveUI(ReadAnythingOpenTrigger trigger) {
   // Reading Mode was inactive.
   if (distillation_state_ == DistillationState::kDistillationEmpty &&
       GetPresentationState() == PresentationState::kInactive) {
+    base::UmaHistogramEnumeration(
+        "Accessibility.ReadAnything.SidePanelTriggeredByEmptyState", trigger);
+
     SidePanelOpenTrigger side_panel_open_trigger =
         read_anything::ReadAnythingToSidePanelOpenTrigger(trigger);
 
@@ -410,11 +417,33 @@ void ReadAnythingController::SetPresentationState(PresentationState new_state) {
   observers_.Notify(&Observer::OnReadingModePresenterChanged);
 }
 
-void ReadAnythingController::OnMainPagePrimaryPageChanged() {
+void ReadAnythingController::OnDiscardContents(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  tabs::ContentsObservingTabFeature::OnDiscardContents(tab, old_contents,
+                                                       new_contents);
+
+  // OnDiscardContents shouldn't be called when tab is active, which means
+  // Reading Mode shouldn't be active.
+  CHECK(GetPresentationState() == PresentationState::kUndefined ||
+        GetPresentationState() == PresentationState::kInactive);
+
+  web_ui_wrapper_.reset();
+  ra_web_ui_observer_.reset();
+
+  read_anything_side_panel_controller_->ResetForTabDiscard();
+  read_anything_side_panel_controller_ =
+      std::make_unique<ReadAnythingSidePanelController>(
+          tab_, side_panel_registry_, new_contents);
+}
+
+void ReadAnythingController::PrimaryPageChanged(content::Page& page) {
   if (GetPresentationState() == PresentationState::kInImmersiveOverlay) {
     CloseImmersiveUI();
   }
 }
+
 void ReadAnythingController::OnReadAnythingVisibilityChanged(
     content::Visibility visibility) {
   if (visibility == content::Visibility::VISIBLE) {
@@ -462,6 +491,10 @@ void ReadAnythingController::OnDistillationStateChanged(
 
   if (new_state == DistillationState::kDistillationEmpty &&
       GetPresentationState() == PresentationState::kInImmersiveOverlay) {
+    base::UmaHistogramEnumeration(
+        "Accessibility.ReadAnything.SidePanelTriggeredByEmptyState",
+        ReadAnythingOpenTrigger::kReadAnythingTogglePresentationButton);
+
     TogglePresentation();
   }
   distillation_state_ = new_state;

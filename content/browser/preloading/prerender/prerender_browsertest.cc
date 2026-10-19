@@ -15,7 +15,7 @@
 #include "base/feature_list.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
-#include "base/memory/memory_pressure_monitor.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/metrics_hashes.h"
@@ -177,24 +177,6 @@ ukm::SourceId ToSourceId(int64_t navigation_id) {
   return ukm::ConvertToSourceId(navigation_id,
                                 ukm::SourceIdType::NAVIGATION_ID);
 }
-
-// A fake implementation of base::MemoryPressureMonitor. An instance of this
-// class is used via a global variable. The base class sets itself in the
-// global variable on the constructor and unsets it on the destructor.
-// base::MemoryPressureMonitor::Get() provides access to the instance.
-class FakeMemoryPressureMonitor : public base::MemoryPressureMonitor {
- public:
-  explicit FakeMemoryPressureMonitor(base::MemoryPressureLevel level)
-      : level_(level) {}
-
-  base::MemoryPressureLevel GetCurrentPressureLevel(
-      base::MemoryPressureMonitorTag tag) const override {
-    return level_;
-  }
-
- private:
-  const base::MemoryPressureLevel level_ = base::MEMORY_PRESSURE_LEVEL_NONE;
-};
 
 // Example class which inherits the DocumentUserData, all the data is
 // associated to the lifetime of the document.
@@ -1121,7 +1103,8 @@ INSTANTIATE_TEST_SUITE_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     ::testing::Bool());
 
-class NoVarySearchPrerenderBrowserTest : public PrerenderBrowserTest {
+class NoVarySearchPrerenderBrowserTest
+    : public PrerenderBrowserTestFallbackEnabledDisabled {
  public:
   using StartedReason = PrerenderHost::WaitingForHeadersStartedReason;
   using FinishedReason = PrerenderHost::WaitingForHeadersFinishedReason;
@@ -1141,6 +1124,11 @@ class NoVarySearchPrerenderBrowserTest : public PrerenderBrowserTest {
  private:
   base::test::ScopedFeatureList feature_list_;
 };
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    NoVarySearchPrerenderBrowserTest,
+    ::testing::Bool());
 
 class NoVarySearchHintPrerenderHostObserver : public PrerenderHost::Observer {
  public:
@@ -1194,7 +1182,7 @@ class NoVarySearchHintPrerenderHostObserver : public PrerenderHost::Observer {
 
 // Test that the timer is enabled and cleared appropriately when navigating to
 // a No-Vary-Search hint matched prerender successfully.
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     NoVarySearchPrerenderBrowserTest,
     EagerTimerWorksCorrectlyForHeadersThatArriveBeforeTimeout) {
   const std::string kTestingRelativeUrl =
@@ -1300,7 +1288,7 @@ IN_PROC_BROWSER_TEST_F(
 // Tests the case where prerendering navigation fails while a potential
 // activation navigation is waiting for the No-Vary-Search header.
 // This is a regression test for crbug.com/420906968.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        FailureOnPrerenderNavigation) {
   const std::string kTestingRelativeUrl =
       "/delayed_with_no_vary_search?prerender";
@@ -1371,12 +1359,38 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 
   EXPECT_EQ(observer.wait_for_headers_start_reason().value(),
             StartedReason::kWithTimeout);
-  EXPECT_EQ(observer.wait_for_headers_finish_reason().value(),
-            FinishedReason::kPrerenderNavigationFailed);
 
-  histogram_tester().ExpectUniqueSample(
-      "Prerender.Experimental.WaitingForHeadersFinishedReason.SpeculationRule",
-      FinishedReason::kPrerenderNavigationFailed, 1);
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectFinalStatusForSpeculationRule(
+        PrerenderFinalStatus::kPrerenderFailedDuringPrefetch);
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             PrimaryPageSourceId(), PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kFailure,
+             ToPreloadingFailureReason(PrefetchStatus::kPrefetchFailedNetError),
+             /*accurate=*/true,
+             /*ready_time=*/std::nullopt,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             PrimaryPageSourceId(), PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kFailure,
+             ToPreloadingFailureReason(
+                 PrerenderFinalStatus::kPrerenderFailedDuringPrefetch),
+             /*accurate=*/false,
+             /*ready_time=*/std::nullopt,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    EXPECT_EQ(observer.wait_for_headers_finish_reason().value(),
+              FinishedReason::kPrerenderNavigationFailed);
+    histogram_tester().ExpectUniqueSample(
+        "Prerender.Experimental.WaitingForHeadersFinishedReason."
+        "SpeculationRule",
+        FinishedReason::kPrerenderNavigationFailed, 1);
+  }
 }
 
 // Test that the timer is enabled and cleared appropriately when navigating to
@@ -1389,7 +1403,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 #define MAYBE_EagerTimerWorksCorrectlyForHeadersThatArriveAfterTimeout \
   EagerTimerWorksCorrectlyForHeadersThatArriveAfterTimeout
 #endif
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     NoVarySearchPrerenderBrowserTest,
     MAYBE_EagerTimerWorksCorrectlyForHeadersThatArriveAfterTimeout) {
   const std::string kTestingRelativeUrl =
@@ -1595,14 +1609,14 @@ void NoVarySearchPrerenderBrowserTest::TestNoVarySearchHeaderFailure(
 }
 
 // Test that a No-Vary-Search header is malformed.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        MalformedNoVarySearchHeader) {
   TestNoVarySearchHeaderFailure("No-Vary-Search: malformed(\"a\")",
                                 FinishedReason::kNoVarySearchHeaderParseFailed);
 }
 
 // Test that a No-Vary-Search header is default value.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        NoVarySearchHeaderWithDefaultValue) {
   TestNoVarySearchHeaderFailure(
       "No-Vary-Search: params=()",
@@ -1610,13 +1624,13 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 }
 
 // Test that a No-Vary-Search header is not served.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, NoNoVarySearchHeader) {
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, NoNoVarySearchHeader) {
   TestNoVarySearchHeaderFailure("",
                                 FinishedReason::kNoVarySearchHeaderNotReceived);
 }
 
 // Test that a No-Vary-Search header is received but does not match.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        UnmatchedNoVarySearchHeader) {
   TestNoVarySearchHeaderFailure(
       "No-Vary-Search: params=(\"different\")",
@@ -1626,7 +1640,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 // Test that activation is successful when navigating to an inexact URL
 // before No-Vary-Search header is back from the server, if the No-Vary-Search
 // header is matching when it is received.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        HintActivationSuccessful) {
   const std::string kTestingRelativeUrl =
       "/delayed_with_no_vary_search?prerender";
@@ -1727,14 +1741,36 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
   ASSERT_EQ(web_contents()->GetLastCommittedURL(), kNavigationUrl);
 
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.MatchableHostCountOnActivation", 1, 1);
@@ -1743,7 +1779,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 // Test that activation is not successful when navigating to an inexact URL
 // before No-Vary-Search header is back from the server if the No-Vary-Search
 // header is not matching when it is received.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        HintActivationUnsuccessful) {
   const std::string kTestingRelativeUrl =
       "/delayed_without_no_vary_search?prerender";
@@ -1841,7 +1877,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 
 // Test that activation is successful when navigating to an exact URL before
 // No-Vary-Search header is back from the server.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        HintActivationSuccessful_ExactUrl) {
   const std::string testing_relative_url =
       "/delayed_with_no_vary_search?prerender";
@@ -1940,7 +1976,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 }
 
 // Test that activation is successful when 2 matchable PrerenderHosts exist.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        MultipleMatchableHosts) {
   const std::string testing_relative_url =
       "/delayed_with_no_vary_search?prerender";
@@ -2051,7 +2087,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 
 // Tests that the speculationrules No-Vary-Search hint is populated for the
 // PrerenderHost.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
   const GURL kInitialUrl = GetUrl("/empty.html");
   const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
 
@@ -2072,7 +2108,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
 
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search for same URL.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
   const GURL kInitialUrl = GetUrl("/empty.html");
   const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
   const GURL kNavigationUrl = kPrerenderingUrl;
@@ -2103,19 +2139,41 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 0);
 
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
   const GURL kInitialUrl = GetUrl("/empty.html");
   const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
   const GURL kNavigationUrl = GetUrl("/no_vary_search_a.html?prerender&a=3");
@@ -2150,19 +2208,41 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
 
   // URL match was inexact but should be recorded as accurate.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search for same URL in the presence of redirection.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        ExactMatchWithUrlRedirection) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -2201,19 +2281,41 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 0);
 
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search for inexact URL in the presence of redirection.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        InexactMatchWithUrlRedirection) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -2262,19 +2364,41 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 
   // URL match was inexact but should be recorded as accurate.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search for inexact URL in the presence of main frame navigation.
-IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        InexactUrlMatchWithMainFrameNavigation) {
   const GURL kInitialUrl = GetUrl("/empty.html");
   const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
@@ -2315,14 +2439,36 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
 
   // URL match was inexact but should be recorded as accurate.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that the speculationrules trigger works.
@@ -2434,7 +2580,8 @@ INSTANTIATE_TEST_SUITE_P(All,
                            return info.param;
                          });
 
-class AutoSpeculationRulesPrerenderBrowserTest : public PrerenderBrowserTest {
+class AutoSpeculationRulesPrerenderBrowserTest
+    : public PrerenderBrowserTestFallbackEnabledDisabled {
  public:
   AutoSpeculationRulesPrerenderBrowserTest() {
     sub_feature_list_.InitAndEnableFeatureWithParameters(
@@ -2493,6 +2640,10 @@ class AutoSpeculationRulesPrerenderBrowserTest : public PrerenderBrowserTest {
   static constexpr char kPrerenderedUrlPath[] = "/empty.html?prerender";
 };
 
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         AutoSpeculationRulesPrerenderBrowserTest,
+                         testing::Bool());
+
 class AutoSpeculationRulesPrerenderBrowserTestWithHoldback
     : public AutoSpeculationRulesPrerenderBrowserTest {
  public:
@@ -2506,7 +2657,16 @@ class AutoSpeculationRulesPrerenderBrowserTestWithHoldback
   base::test::ScopedFeatureList sub_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(AutoSpeculationRulesPrerenderBrowserTest, Metrics) {
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(AutoSpeculationRulesPrerenderBrowserTest, Metrics) {
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // TODO(crbug.com/375330756): Test enabled case.
+    GTEST_SKIP();
+  }
+
   const GURL kInitialUrl = GetInitialUrl();
   const GURL kPrerenderingUrl = GetPrerenderedUrl();
 
@@ -2572,8 +2732,13 @@ IN_PROC_BROWSER_TEST_F(AutoSpeculationRulesPrerenderBrowserTest, Metrics) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
+IN_PROC_BROWSER_TEST_P(AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
                        Metrics) {
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // TODO(crbug.com/375330756): Test enabled case.
+    GTEST_SKIP();
+  }
+
   const GURL kInitialUrl = GetInitialUrl();
   const GURL kPrerenderingUrl = GetPrerenderedUrl();
 
@@ -4785,7 +4950,8 @@ class RedirectChainObserver : public WebContentsObserver {
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SameOriginRedirection) {
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
+                       SameOriginRedirection) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -4825,17 +4991,40 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SameOriginRedirection) {
   // Cross-check that in case redirection when the prerender navigates and user
   // ends up navigating to the redirected URL. accurate_triggering is true.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CrossSiteRedirection) {
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
+                       CrossSiteRedirection) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -4847,10 +5036,38 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CrossSiteRedirection) {
       GetUrl("/server-redirect?" + kRedirectedUrl.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
                                             kPrerenderingUrl);
+
+  base::RunLoop run_loop;
+  std::optional<PrefetchStatus> prefetch_status;
+  PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
+      base::BindLambdaForTesting(
+          [&](base::WeakPtr<PrefetchContainer> prefetch_container) {
+            if (prefetch_container->GetURL() != kPrerenderingUrl) {
+              return;
+            }
+            prefetch_status = prefetch_container->GetPrefetchStatus();
+            run_loop.Quit();
+          }));
+
   AddPrerenderAsync(kPrerenderingUrl);
   host_observer.WaitForDestroyed();
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
+
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // The cancellation is controlled by `PrerenderNavigationThrottle`. If
+    // `kPrerender2FallbackPrefetchSpecRule` is enabled, prefetch ahead of
+    // prerender is triggered and it follows all redirect in the loading phase
+    // of prefetch, and `PrerenderNavigationThrottle` cancels the prerender in
+    // the serving phase of prefetch.
+    run_loop.Run();
+    EXPECT_TRUE(prefetch_status.has_value());
+    EXPECT_EQ(prefetch_status.value(), PrefetchStatus::kPrefetchSuccessful);
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+  } else {
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
+  }
+
   EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
   EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
   ExpectFinalStatusForSpeculationRule(
@@ -7213,22 +7430,60 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 enum class SSLPrerenderTestErrorBlockType { kClientCertRequested, kCertError };
 
 std::string SSLPrerenderTestErrorBlockTypeToString(
-    const testing::TestParamInfo<SSLPrerenderTestErrorBlockType>& info) {
-  switch (info.param) {
-    case SSLPrerenderTestErrorBlockType::kClientCertRequested:
-      return "ClientCertRequested";
-    case SSLPrerenderTestErrorBlockType::kCertError:
-      return "CertError";
-  }
+    const testing::TestParamInfo<
+        std::tuple<SSLPrerenderTestErrorBlockType, bool>>& info) {
+  return base::StringPrintf(
+      "%s_%s",
+      std::get<0>(info.param) ==
+              SSLPrerenderTestErrorBlockType::kClientCertRequested
+          ? "ClientCertRequested"
+          : "CertError",
+      std::get<1>(info.param) ? "FallbackEnabled" : "FallbackDisabled");
 }
 
 class SSLPrerenderBrowserTest
-    : public testing::WithParamInterface<SSLPrerenderTestErrorBlockType>,
-      public PrerenderBrowserTest {
+    : public PrerenderBrowserTest,
+      public testing::WithParamInterface<
+          std::tuple<SSLPrerenderTestErrorBlockType, bool>> {
+ public:
+  SSLPrerenderBrowserTest() {
+    if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+      scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
+          {
+              {
+                  features::kPrerender2FallbackPrefetchSpecRules,
+                  {
+                      {
+                          features::
+                              kPrerender2FallbackPrefetchUseBlockUntilHeadTimetout
+                                  .name,
+                          "false",
+                      },
+                      {
+                          features::kPrerender2FallbackPrefetchSchedulerPolicy
+                              .name,
+                          "NotUse",
+                      },
+                  },
+              },
+          },
+          {});
+    } else {
+      scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
+          {}, {
+                  features::kPrerender2FallbackPrefetchSpecRules,
+              });
+    }
+  }
+
+  bool IsPrerender2FallbackPrefetchSpecRulesEnabled() const {
+    return std::get<1>(GetParam());
+  }
+
  protected:
   void RequireClientCertsOrSendExpiredCerts() {
     net::SSLServerConfig ssl_config;
-    switch (GetParam()) {
+    switch (std::get<0>(GetParam())) {
       case SSLPrerenderTestErrorBlockType::kClientCertRequested:
         ssl_config.client_cert_type =
             net::SSLServerConfig::ClientCertType::REQUIRE_CLIENT_CERT;
@@ -7242,7 +7497,7 @@ class SSLPrerenderBrowserTest
     }
   }
   PrerenderFinalStatus GetExpectedFinalStatus() {
-    switch (GetParam()) {
+    switch (std::get<0>(GetParam())) {
       case SSLPrerenderTestErrorBlockType::kClientCertRequested:
         return PrerenderFinalStatus::kClientCertRequested;
       case SSLPrerenderTestErrorBlockType::kCertError:
@@ -7250,20 +7505,25 @@ class SSLPrerenderBrowserTest
     }
   }
   int GetExpectedNetError() {
-    switch (GetParam()) {
+    switch (std::get<0>(GetParam())) {
       case SSLPrerenderTestErrorBlockType::kClientCertRequested:
         return net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
       case SSLPrerenderTestErrorBlockType::kCertError:
         return net::ERR_CERT_COMMON_NAME_INVALID;
     }
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_prerender2_fallback_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    All,
+    /* no prefix */,
     SSLPrerenderBrowserTest,
-    testing::Values(SSLPrerenderTestErrorBlockType::kClientCertRequested,
-                    SSLPrerenderTestErrorBlockType::kCertError),
+    testing::Combine(
+        testing::Values(SSLPrerenderTestErrorBlockType::kClientCertRequested,
+                        SSLPrerenderTestErrorBlockType::kCertError),
+        testing::Bool()),
     SSLPrerenderTestErrorBlockTypeToString);
 
 // For a prerendering navigation request, if the server requires a client
@@ -7271,6 +7531,11 @@ INSTANTIATE_TEST_SUITE_P(
 // prernedering should be canceled.
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        CertificateValidation_Navigation) {
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // TODO(crbug.com/375330756): Test enabled case.
+    GTEST_SKIP();
+  }
+
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -7329,6 +7594,11 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 // resource request is intercepted and sent by a service worker.
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        CertificateValidation_SWMainResource) {
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // TODO(crbug.com/375330756): Test enabled case.
+    GTEST_SKIP();
+  }
+
   // Register a service worker that intercepts resource requests.
   const GURL kInitialUrl = GetUrl("/workers/service_worker_setup.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -7350,7 +7620,8 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
   // just cancels the url request, and leads to the cancellation of
   // prerendering with kNavigationRequestNetworkError.
   ExpectFinalStatusForSpeculationRule(
-      GetParam() == SSLPrerenderTestErrorBlockType::kClientCertRequested
+      std::get<0>(GetParam()) ==
+              SSLPrerenderTestErrorBlockType::kClientCertRequested
           ? PrerenderFinalStatus::kClientCertRequested
           : PrerenderFinalStatus::kNavigationRequestNetworkError);
 }
@@ -7363,7 +7634,7 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
   // Skip the test when the block type is kCertError. With the type, this test
   // times out due to https://crbug.com/1311887.
   // TODO(crbug.com/40220378): Enable the test with kCertError.
-  if (GetParam() == SSLPrerenderTestErrorBlockType::kCertError) {
+  if (std::get<0>(GetParam()) == SSLPrerenderTestErrorBlockType::kCertError) {
     return;
   }
 
@@ -12135,11 +12406,8 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Emulate moderate-level memory pressure state.
-  FakeMemoryPressureMonitor memory_pressure_monitor(
+  base::MemoryPressureListenerRegistry::SimulatePressureNotification(
       base::MEMORY_PRESSURE_LEVEL_MODERATE);
-  ASSERT_EQ(base::MemoryPressureMonitor::Get()->GetCurrentPressureLevel(
-                base::MemoryPressureMonitorTag::kTest),
-            base::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Triggering prerendering should not be canceled due to the moderate level
   // memory pressure.
@@ -12159,11 +12427,8 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Emulate critical-level memory pressure state.
-  FakeMemoryPressureMonitor memory_pressure_monitor(
+  base::MemoryPressureListenerRegistry::SimulatePressureNotification(
       base::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  ASSERT_EQ(base::MemoryPressureMonitor::Get()->GetCurrentPressureLevel(
-                base::MemoryPressureMonitorTag::kTest),
-            base::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
   // Triggering prerendering should be canceled due to the critical level memory
   // pressure.
@@ -12389,8 +12654,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Tests that same-site cross-origin redirection by speculation rules with the
 // feature enabled but without opt-in.
-IN_PROC_BROWSER_TEST_F(
-    PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginRedirectionSpeculationRulesWithoutOptInHeader) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12419,8 +12684,8 @@ IN_PROC_BROWSER_TEST_F(
 // speculation rules with the feature enabled but the redirected page without
 // opt-in. This test verifies a case which is a.test -> a.test (credentialed
 // prerender) -> b.a.test (no credentialed prerender).
-IN_PROC_BROWSER_TEST_F(
-    PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginCredentialedPrerenderRedirectionSpeculationRulesWithoutOptInHeader) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12449,8 +12714,8 @@ IN_PROC_BROWSER_TEST_F(
 // speculation rules with the feature enabled but the redirected page without
 // opt-in. This test verifies a case which is a.test -> b.a.test (credentialed
 // prerender) -> b.a.test (no credentialed prerender)
-IN_PROC_BROWSER_TEST_F(
-    PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginCredentialedPrerenderRedirectionSpeculationRulesWithoutOptInHeader2) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12477,8 +12742,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Tests that same-site cross-origin navigation redirecting back to same-origin
 // without opt-in.
-IN_PROC_BROWSER_TEST_F(
-    PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginNavigationBackToSameOriginWithoutOptInHeader) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12515,14 +12780,15 @@ IN_PROC_BROWSER_TEST_F(
 
 // Tests that cross-origin redirection in multiple redirections by speculation
 // rules should be canceled.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        CrossSiteMultipleRedirectionSpeculationRules) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
 
   // Start prerendering a URL that causes cross-origin redirection. The
-  // cross-origin redirection should fail prerendering without an opt-in header.
+  // cross-origin redirection should fail prerendering without an opt-in
+  // header.
   const GURL kRedirectedUrl = GetSameSiteCrossOriginUrl(
       "/prerender/prerender_with_opt_in_header.html?prerender");
   const GURL kRedirectedUrl2 =
@@ -12531,12 +12797,39 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       GetUrl("/server-redirect?" + kRedirectedUrl2.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
                                             kPrerenderingUrl);
+
+  base::RunLoop run_loop;
+  std::optional<PrefetchStatus> prefetch_status;
+  PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
+      base::BindLambdaForTesting(
+          [&](base::WeakPtr<PrefetchContainer> prefetch_container) {
+            if (prefetch_container->GetURL() != kPrerenderingUrl) {
+              return;
+            }
+            prefetch_status = prefetch_container->GetPrefetchStatus();
+            run_loop.Quit();
+          }));
+
   AddPrerenderAsync(kPrerenderingUrl);
   host_observer.WaitForDestroyed();
 
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 0);
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // The cancellation is controlled by `PrerenderNavigationThrottle`. If
+    // `kPrerender2FallbackPrefetchSpecRule` is enabled, prefetch ahead of
+    // prerender is triggered and it follows all redirect in the loading phase
+    // of prefetch, and `PrerenderNavigationThrottle` cancels the prerender in
+    // the serving phase of prefetch.
+    run_loop.Run();
+    EXPECT_TRUE(prefetch_status.has_value());
+    EXPECT_EQ(prefetch_status.value(), PrefetchStatus::kPrefetchSuccessful);
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 1);
+  } else {
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
+    EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 0);
+  }
   EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
   EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
   EXPECT_FALSE(HasHostForUrl(kRedirectedUrl2));
@@ -12568,7 +12861,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
 // Tests that same-site cross-origin redirection by speculation rules is
 // allowed.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SameSiteCrossOriginSpeculationRulesRedirection) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12615,20 +12908,42 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // user ends up navigating to the redirected URL. accurate_triggering is
   // true.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm(
+        {attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrefetch,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kSuccess,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/kMockElapsedTime,
+             blink::mojom::SpeculationEagerness::kImmediate)});
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 // Tests that multiple same-site cross-origin redirections by speculation rules
 // is allowed, and only the terminal one is checked for the opt in header.
-IN_PROC_BROWSER_TEST_F(
-    PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginSpeculationRulesMultipleRedirections) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
@@ -12681,14 +12996,37 @@ IN_PROC_BROWSER_TEST_F(
   // Cross-check that in case redirection when the prerender navigates and user
   // ends up navigating to the redirected URL. accurate_triggering is true.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
-  ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
-      ukm_source_id, PreloadingType::kPrerender,
-      PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-      PreloadingTriggeringOutcome::kSuccess,
-      PreloadingFailureReason::kUnspecified,
-      /*accurate=*/true,
-      /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kImmediate)});
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    ExpectPreloadingAttemptUkm({
+        attempt_ukm_entry_builder().BuildEntry(
+            ukm_source_id, PreloadingType::kPrefetch,
+            PreloadingEligibility::kEligible,
+            PreloadingHoldbackStatus::kAllowed,
+            PreloadingTriggeringOutcome::kSuccess,
+            PreloadingFailureReason::kUnspecified,
+            /*accurate=*/true,
+            /*ready_time=*/kMockElapsedTime,
+            blink::mojom::SpeculationEagerness::kImmediate),
+        attempt_ukm_entry_builder().BuildEntry(
+            ukm_source_id, PreloadingType::kPrerender,
+            PreloadingEligibility::kEligible,
+            PreloadingHoldbackStatus::kAllowed,
+            PreloadingTriggeringOutcome::kSuccess,
+            PreloadingFailureReason::kUnspecified,
+            /*accurate=*/true,
+            /*ready_time=*/kMockElapsedTime,
+            blink::mojom::SpeculationEagerness::kImmediate),
+    });
+  } else {
+    ExpectPreloadingAttemptUkm({attempt_ukm_entry_builder().BuildEntry(
+        ukm_source_id, PreloadingType::kPrerender,
+        PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
+        PreloadingTriggeringOutcome::kSuccess,
+        PreloadingFailureReason::kUnspecified,
+        /*accurate=*/true,
+        /*ready_time=*/kMockElapsedTime,
+        blink::mojom::SpeculationEagerness::kImmediate)});
+  }
 }
 
 void PrerenderBrowserTest::TestEmbedderTriggerWithUnsupportedScheme(

@@ -397,7 +397,8 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
   {
     SCOPED_TRACE("Icon override");
 
-    const char search_icon[] = "//resources/images/icon_search.svg";
+    const char search_icon[] =
+        "//resources/cr_components/searchbox/icons/search_spark.svg";
     const std::string& svg_name = handler_->AutocompleteIconToResourceName(
         omnibox::kSubdirectoryArrowRightIcon);
 
@@ -493,10 +494,4 @@ TEST_F(WebuiOmniboxHandlerTest, WebuiOmniboxUpdatesSelection) {
   EXPECT_EQ(
       searchbox::mojom::SelectionLineState::kFocusedButtonRemoveSuggestion,
       selection->state);
-}
-
-TEST_F(WebuiOmniboxHandlerTest, OnShow) {
-  EXPECT_CALL(page_, OnShow());
-  handler_->OnShow();
-  page_.FlushForTesting();
 }

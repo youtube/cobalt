@@ -56,6 +56,7 @@ ContextImplLiteRt::ContextImplLiteRt(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kLiteRT,
                        tflite::GraphBuilderTflite::GetContextProperties(),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -123,7 +124,7 @@ ContextImplLiteRt::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
-  return tflite::TensorImplTflite::Create(std::move(receiver), AsWeakPtr(),
+  return tflite::TensorImplTflite::Create(std::move(receiver), *this,
                                           std::move(tensor_info));
 }
 

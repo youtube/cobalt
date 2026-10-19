@@ -5,11 +5,13 @@
 package org.chromium.chrome.browser.autofill.editors.common;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DATE;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DROPDOWN;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NON_EDITABLE_TEXT;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NOTICE;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.TEXT_INPUT;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.isDropdownField;
+import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.VALUE;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -44,6 +46,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.R;
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
+import org.chromium.chrome.browser.autofill.editors.common.date_field.DateFieldView;
+import org.chromium.chrome.browser.autofill.editors.common.date_field.DateFieldViewBinder;
 import org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldView;
 import org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldViewBinder;
 import org.chromium.chrome.browser.autofill.editors.common.field.FieldView;
@@ -105,6 +109,8 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
             mTextFieldMCPs = new ArrayList<>();
     private final List<PropertyModelChangeProcessor<PropertyModel, DropdownFieldView, PropertyKey>>
             mDropdownFieldMCPs = new ArrayList<>();
+    private final List<PropertyModelChangeProcessor<PropertyModel, DateFieldView, PropertyKey>>
+            mDateFieldMCPs = new ArrayList<>();
     private final List<EditText> mEditableTextFields = new ArrayList<>();
     private final List<Spinner> mDropdownFields = new ArrayList<>();
 
@@ -121,7 +127,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
 
     private @Nullable Callback<Activity> mOpenHelpCallback;
 
-    private @Nullable Runnable mDeleteRunnable;
+    private @Nullable Callback<Boolean> mDeleteCallback;
     private @Nullable Runnable mDoneRunnable;
     private @Nullable Runnable mCancelRunnable;
 
@@ -200,10 +206,6 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         return Collections.unmodifiableList(mFieldViews);
     }
 
-    public void addFieldView(FieldView fieldView) {
-        mFieldViews.add(fieldView);
-    }
-
     public void setEditorTitle(String editorTitle) {
         assert editorTitle != null : "Editor title can't be null";
         EditorDialogToolbar toolbar = mContainerView.findViewById(R.id.action_bar);
@@ -244,8 +246,8 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         toolbar.setShowDeleteMenuItem(allowDelete);
     }
 
-    public void setDeleteRunnable(Runnable deleteRunnable) {
-        mDeleteRunnable = deleteRunnable;
+    public void setDeleteCallback(Callback<Boolean> deleteCallback) {
+        mDeleteCallback = deleteCallback;
     }
 
     public void setDoneRunnable(Runnable doneRunnable) {
@@ -409,7 +411,9 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     mDeleteConfirmationText,
                                     mDeleteConfirmationPrimaryButtonText);
                         } else {
-                            handleDelete();
+                            assert mDeleteCallback != null;
+                            mDeleteCallback.onResult(true);
+                            animateOutDialog();
                         }
                     } else if (item.getItemId() == R.id.help_menu_id) {
                         assumeNonNull(mOpenHelpCallback).onResult(mActivity);
@@ -461,8 +465,10 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         mFieldViews.clear();
         mTextFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
         mDropdownFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
+        mDateFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
         mTextFieldMCPs.clear();
         mDropdownFieldMCPs.clear();
+        mDateFieldMCPs.clear();
         mEditableTextFields.clear();
         mDropdownFields.clear();
 
@@ -532,7 +538,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     editorItem.model,
                                     dropdownView,
                                     DropdownFieldViewBinder::bindDropdownFieldView));
-                    addFieldView(dropdownView);
+                    mFieldViews.add(dropdownView);
                     mDropdownFields.add(dropdownView.getDropdown());
                     childView = dropdownView.getLayout();
                     break;
@@ -546,7 +552,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     editorItem.model,
                                     inputLayout,
                                     TextFieldViewBinder::bindTextFieldView));
-                    addFieldView(inputLayout);
+                    mFieldViews.add(inputLayout);
                     mEditableTextFields.add(inputLayout.getEditText());
                     childView = inputLayout;
                     break;
@@ -567,15 +573,33 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                 }
             case NOTICE:
                 {
+                    // Inflate the notice with the parent ViewGroup, but do not attach it. This is
+                    // done so that android:layout_margin* parameters take effect.
                     View noticeLayout =
                             LayoutInflater.from(getStyledContext())
-                                    .inflate(R.layout.autofill_editor_dialog_notice, null);
+                                    .inflate(
+                                            R.layout.autofill_editor_dialog_notice,
+                                            parent,
+                                            /* attachToRoot= */ false);
                     TextView textView = noticeLayout.findViewById(R.id.notice);
                     PropertyModelChangeProcessor.create(
                             editorItem.model,
                             textView,
                             EditorComponentsViewBinder::bindNoticeTextView);
                     childView = noticeLayout;
+                    break;
+                }
+            case DATE:
+                {
+                    DateFieldView dateField =
+                            new DateFieldView(getStyledContext(), editorItem.model.get(VALUE));
+                    mDateFieldMCPs.add(
+                            PropertyModelChangeProcessor.create(
+                                    editorItem.model,
+                                    dateField,
+                                    DateFieldViewBinder::bindDateFieldView));
+                    mFieldViews.add(dateField);
+                    childView = dateField;
                     break;
                 }
         }
@@ -596,12 +620,6 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         }
     }
 
-    private void handleDelete() {
-        assert mDeleteRunnable != null;
-        mDeleteRunnable.run();
-        animateOutDialog();
-    }
-
     private void handleDeleteWithConfirmation(
             String confirmationTitle, CharSequence confirmationText, int primaryButtonText) {
         boolean canShowConfirmation = mActivity instanceof ModalDialogManagerHolder;
@@ -614,11 +632,11 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         var confirmationDialog = new ActionConfirmationDialog(mContext, modalDialogManager);
         ConfirmationDialogHandler confirmationDialogHandler =
                 (dismissHandler, buttonClickResult, stopShowing) -> {
+                    assert mDeleteCallback != null;
+                    mDeleteCallback.onResult(buttonClickResult == ButtonClickResult.POSITIVE);
                     if (buttonClickResult == ButtonClickResult.POSITIVE) {
-                        recordDeletionHistogram(true);
-                        handleDelete();
+                        animateOutDialog();
                     } else {
-                        recordDeletionHistogram(false);
                         if (sObserverForTest != null) {
                             sObserverForTest.onEditorReadyToEdit();
                         }
@@ -653,9 +671,6 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
 
     /** Called when the editor is shown to initialize the view focus. */
     protected abstract void initFocus();
-
-    /** Called when the user attempted to delete the edited entry. */
-    protected abstract void recordDeletionHistogram(boolean deleted);
 
     public static void setEditorObserverForTest(EditorObserverForTest observerForTest) {
         sObserverForTest = observerForTest;

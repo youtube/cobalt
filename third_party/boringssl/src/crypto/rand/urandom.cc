@@ -25,12 +25,17 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#if defined(STARBOARD)
+// Starboard's musl has no Linux UAPI headers; GRND_NONBLOCK is here.
+#include <sys/random.h>
+#else
+#include <linux/random.h>
+#endif
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #include "../internal.h"
-#include "getrandom_fillin.h"
 
 
 using namespace bssl;

@@ -42,6 +42,12 @@ compile_ts("gcrweb_error") {
   sources = [ "resources/gcrweb_error.ts" ]
 }
 
+compile_ts("assert") {
+  sources = [ "resources/assert.ts" ]
+
+  deps = [ ":gcrweb_error" ]
+}
+
 compile_ts("util_scripts") {
   sources = [ "resources/utils.ts" ]
 }
@@ -49,7 +55,10 @@ compile_ts("util_scripts") {
 compile_ts("error_reporting") {
   sources = [ "resources/error_reporting.ts" ]
 
-  deps = [ ":util_scripts" ]
+  deps = [
+    ":util_scripts",
+    "//ios/web/js_features/crash_keys:crash_keys_js",
+  ]
 }
 
 # `compile_ts` and `optimize_js` targets are defined separately here instead of
@@ -78,6 +87,7 @@ source_set("unittests") {
   testonly = true
 
   deps = [
+    ":assert_test_api",
     ":gcrweb_test_api",
     ":util_test_api",
     "//base",
@@ -89,6 +99,7 @@ source_set("unittests") {
   ]
 
   sources = [
+    "assert_javascript_test.mm",
     "gcrweb_javascript_test.mm",
     "utils_javascript_test.mm",
   ]
@@ -111,4 +122,15 @@ optimize_ts("gcrweb_test_api") {
   sources = [ "resources/gcrweb_test_api.ts" ]
 
   deps = [ ":gcrweb" ]
+}
+
+optimize_ts("assert_test_api") {
+  testonly = true
+
+  sources = [ "resources/assert_test_api.ts" ]
+
+  deps = [
+    ":assert",
+    ":gcrweb",
+  ]
 }

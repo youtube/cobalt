@@ -193,18 +193,18 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) Clipboard
   virtual void ReadAvailableTypes(
       ClipboardBuffer buffer,
       const std::optional<DataTransferEndpoint>& data_dst,
-      ReadAvailableTypesCallback callback) const;
+      ReadAvailableTypesCallback callback) const = 0;
 
   // Reads Unicode text from the clipboard, if available.
   virtual void ReadText(ClipboardBuffer buffer,
                         const std::optional<DataTransferEndpoint>& data_dst,
-                        ReadTextCallback callback) const;
+                        ReadTextCallback callback) const = 0;
 
   // Reads ASCII text from the clipboard, if available.
   virtual void ReadAsciiText(
       ClipboardBuffer buffer,
       const std::optional<DataTransferEndpoint>& data_dst,
-      ReadAsciiTextCallback callback) const;
+      ReadAsciiTextCallback callback) const = 0;
 
   // Reads HTML from the clipboard, if available. If the HTML fragment requires
   // context to parse, |fragment_start| and |fragment_end| are indexes into
@@ -243,33 +243,16 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) Clipboard
       ReadFilenamesCallback callback) const = 0;
 
   // Reads a bookmark from the clipboard, if available.
-  // |title| or |url| may be null.
+  // `title` and `url` will both be empty if the clipboard does not contain a
+  // bookmark.
   virtual void ReadBookmark(const std::optional<DataTransferEndpoint>& data_dst,
-                            ReadBookmarkCallback callback) const;
+                            ReadBookmarkCallback callback) const = 0;
 
   // Reads data from the clipboard with the given format type. Stores result
   // as a byte vector.
   virtual void ReadData(const ClipboardFormatType& format,
                         const std::optional<DataTransferEndpoint>& data_dst,
-                        ReadDataCallback callback) const;
-
-  // Synchronous reads are deprecated (https://crbug.com/443355). Please use the
-  // equivalent functions that take callbacks above.
-  virtual void ReadAvailableTypes(ClipboardBuffer buffer,
-                                  const DataTransferEndpoint* data_dst,
-                                  std::vector<std::u16string>* types) const = 0;
-  virtual void ReadText(ClipboardBuffer buffer,
-                        const DataTransferEndpoint* data_dst,
-                        std::u16string* result) const = 0;
-  virtual void ReadAsciiText(ClipboardBuffer buffer,
-                             const DataTransferEndpoint* data_dst,
-                             std::string* result) const = 0;
-  virtual void ReadBookmark(const DataTransferEndpoint* data_dst,
-                            std::u16string* title,
-                            std::string* url) const = 0;
-  virtual void ReadData(const ClipboardFormatType& format,
-                        const DataTransferEndpoint* data_dst,
-                        std::string* result) const = 0;
+                        ReadDataCallback callback) const = 0;
 
   // Returns an estimate of the time the clipboard was last updated.  If the
   // time is unknown, returns Time::Time().

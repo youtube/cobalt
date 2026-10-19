@@ -1792,6 +1792,201 @@ std::ostream &operator<<(std::ostream &os, QueryType value)
 }
 
 template <>
+SamplerParameter FromGLenum<SamplerParameter>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_TEXTURE_MAG_FILTER:
+            return SamplerParameter::MagFilter;
+        case GL_TEXTURE_MIN_FILTER:
+            return SamplerParameter::MinFilter;
+        case GL_TEXTURE_WRAP_S:
+            return SamplerParameter::WrapS;
+        case GL_TEXTURE_WRAP_T:
+            return SamplerParameter::WrapT;
+        case GL_TEXTURE_WRAP_R:
+            return SamplerParameter::WrapR;
+        case GL_TEXTURE_MIN_LOD:
+            return SamplerParameter::MinLod;
+        case GL_TEXTURE_MAX_LOD:
+            return SamplerParameter::MaxLod;
+        case GL_TEXTURE_COMPARE_MODE:
+            return SamplerParameter::CompareMode;
+        case GL_TEXTURE_COMPARE_FUNC:
+            return SamplerParameter::CompareFunc;
+        case GL_TEXTURE_BORDER_COLOR:
+            return SamplerParameter::BorderColor;
+        case GL_TEXTURE_MAX_ANISOTROPY_EXT:
+            return SamplerParameter::MaxAnisotropy;
+        case GL_TEXTURE_SRGB_DECODE_EXT:
+            return SamplerParameter::SrgbDecode;
+        default:
+            return SamplerParameter::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(SamplerParameter from)
+{
+    switch (from)
+    {
+        case SamplerParameter::MagFilter:
+            return GL_TEXTURE_MAG_FILTER;
+        case SamplerParameter::MinFilter:
+            return GL_TEXTURE_MIN_FILTER;
+        case SamplerParameter::WrapS:
+            return GL_TEXTURE_WRAP_S;
+        case SamplerParameter::WrapT:
+            return GL_TEXTURE_WRAP_T;
+        case SamplerParameter::WrapR:
+            return GL_TEXTURE_WRAP_R;
+        case SamplerParameter::MinLod:
+            return GL_TEXTURE_MIN_LOD;
+        case SamplerParameter::MaxLod:
+            return GL_TEXTURE_MAX_LOD;
+        case SamplerParameter::CompareMode:
+            return GL_TEXTURE_COMPARE_MODE;
+        case SamplerParameter::CompareFunc:
+            return GL_TEXTURE_COMPARE_FUNC;
+        case SamplerParameter::BorderColor:
+            return GL_TEXTURE_BORDER_COLOR;
+        case SamplerParameter::MaxAnisotropy:
+            return GL_TEXTURE_MAX_ANISOTROPY_EXT;
+        case SamplerParameter::SrgbDecode:
+            return GL_TEXTURE_SRGB_DECODE_EXT;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, SamplerParameter value)
+{
+    switch (value)
+    {
+        case SamplerParameter::MagFilter:
+            os << "GL_TEXTURE_MAG_FILTER";
+            break;
+        case SamplerParameter::MinFilter:
+            os << "GL_TEXTURE_MIN_FILTER";
+            break;
+        case SamplerParameter::WrapS:
+            os << "GL_TEXTURE_WRAP_S";
+            break;
+        case SamplerParameter::WrapT:
+            os << "GL_TEXTURE_WRAP_T";
+            break;
+        case SamplerParameter::WrapR:
+            os << "GL_TEXTURE_WRAP_R";
+            break;
+        case SamplerParameter::MinLod:
+            os << "GL_TEXTURE_MIN_LOD";
+            break;
+        case SamplerParameter::MaxLod:
+            os << "GL_TEXTURE_MAX_LOD";
+            break;
+        case SamplerParameter::CompareMode:
+            os << "GL_TEXTURE_COMPARE_MODE";
+            break;
+        case SamplerParameter::CompareFunc:
+            os << "GL_TEXTURE_COMPARE_FUNC";
+            break;
+        case SamplerParameter::BorderColor:
+            os << "GL_TEXTURE_BORDER_COLOR";
+            break;
+        case SamplerParameter::MaxAnisotropy:
+            os << "GL_TEXTURE_MAX_ANISOTROPY_EXT";
+            break;
+        case SamplerParameter::SrgbDecode:
+            os << "GL_TEXTURE_SRGB_DECODE_EXT";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
+ShaderParameter FromGLenum<ShaderParameter>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_SHADER_TYPE:
+            return ShaderParameter::ShaderType;
+        case GL_DELETE_STATUS:
+            return ShaderParameter::DeleteStatus;
+        case GL_COMPILE_STATUS:
+            return ShaderParameter::CompileStatus;
+        case GL_INFO_LOG_LENGTH:
+            return ShaderParameter::InfoLogLength;
+        case GL_SHADER_SOURCE_LENGTH:
+            return ShaderParameter::ShaderSourceLength;
+        case GL_COMPLETION_STATUS_KHR:
+            return ShaderParameter::CompletionStatus;
+        case GL_TRANSLATED_SHADER_SOURCE_LENGTH_ANGLE:
+            return ShaderParameter::TranslatedShaderSourceLength;
+        default:
+            return ShaderParameter::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(ShaderParameter from)
+{
+    switch (from)
+    {
+        case ShaderParameter::ShaderType:
+            return GL_SHADER_TYPE;
+        case ShaderParameter::DeleteStatus:
+            return GL_DELETE_STATUS;
+        case ShaderParameter::CompileStatus:
+            return GL_COMPILE_STATUS;
+        case ShaderParameter::InfoLogLength:
+            return GL_INFO_LOG_LENGTH;
+        case ShaderParameter::ShaderSourceLength:
+            return GL_SHADER_SOURCE_LENGTH;
+        case ShaderParameter::CompletionStatus:
+            return GL_COMPLETION_STATUS_KHR;
+        case ShaderParameter::TranslatedShaderSourceLength:
+            return GL_TRANSLATED_SHADER_SOURCE_LENGTH_ANGLE;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, ShaderParameter value)
+{
+    switch (value)
+    {
+        case ShaderParameter::ShaderType:
+            os << "GL_SHADER_TYPE";
+            break;
+        case ShaderParameter::DeleteStatus:
+            os << "GL_DELETE_STATUS";
+            break;
+        case ShaderParameter::CompileStatus:
+            os << "GL_COMPILE_STATUS";
+            break;
+        case ShaderParameter::InfoLogLength:
+            os << "GL_INFO_LOG_LENGTH";
+            break;
+        case ShaderParameter::ShaderSourceLength:
+            os << "GL_SHADER_SOURCE_LENGTH";
+            break;
+        case ShaderParameter::CompletionStatus:
+            os << "GL_COMPLETION_STATUS_KHR";
+            break;
+        case ShaderParameter::TranslatedShaderSourceLength:
+            os << "GL_TRANSLATED_SHADER_SOURCE_LENGTH_ANGLE";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
 ShaderType FromGLenum<ShaderType>(GLenum from)
 {
     switch (from)
@@ -2785,6 +2980,86 @@ std::ostream &operator<<(std::ostream &os, TilingMode value)
             break;
         case TilingMode::Linear:
             os << "GL_LINEAR_TILING_EXT";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
+UniformBlockParameter FromGLenum<UniformBlockParameter>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_UNIFORM_BLOCK_BINDING:
+            return UniformBlockParameter::Binding;
+        case GL_UNIFORM_BLOCK_DATA_SIZE:
+            return UniformBlockParameter::DataSize;
+        case GL_UNIFORM_BLOCK_NAME_LENGTH:
+            return UniformBlockParameter::NameLength;
+        case GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS:
+            return UniformBlockParameter::ActiveUniforms;
+        case GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES:
+            return UniformBlockParameter::ActiveUniformIndices;
+        case GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER:
+            return UniformBlockParameter::ReferencedByVertexShader;
+        case GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER:
+            return UniformBlockParameter::ReferencedByFragmentShader;
+        default:
+            return UniformBlockParameter::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(UniformBlockParameter from)
+{
+    switch (from)
+    {
+        case UniformBlockParameter::Binding:
+            return GL_UNIFORM_BLOCK_BINDING;
+        case UniformBlockParameter::DataSize:
+            return GL_UNIFORM_BLOCK_DATA_SIZE;
+        case UniformBlockParameter::NameLength:
+            return GL_UNIFORM_BLOCK_NAME_LENGTH;
+        case UniformBlockParameter::ActiveUniforms:
+            return GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS;
+        case UniformBlockParameter::ActiveUniformIndices:
+            return GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES;
+        case UniformBlockParameter::ReferencedByVertexShader:
+            return GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER;
+        case UniformBlockParameter::ReferencedByFragmentShader:
+            return GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, UniformBlockParameter value)
+{
+    switch (value)
+    {
+        case UniformBlockParameter::Binding:
+            os << "GL_UNIFORM_BLOCK_BINDING";
+            break;
+        case UniformBlockParameter::DataSize:
+            os << "GL_UNIFORM_BLOCK_DATA_SIZE";
+            break;
+        case UniformBlockParameter::NameLength:
+            os << "GL_UNIFORM_BLOCK_NAME_LENGTH";
+            break;
+        case UniformBlockParameter::ActiveUniforms:
+            os << "GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS";
+            break;
+        case UniformBlockParameter::ActiveUniformIndices:
+            os << "GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES";
+            break;
+        case UniformBlockParameter::ReferencedByVertexShader:
+            os << "GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER";
+            break;
+        case UniformBlockParameter::ReferencedByFragmentShader:
+            os << "GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER";
             break;
         default:
             os << "GL_INVALID_ENUM";

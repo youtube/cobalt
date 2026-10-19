@@ -159,7 +159,7 @@ bool PaymentsValidators::IsValidPaymentValidationErrorsFormat(
 
 bool PaymentsValidators::IsValidMethodFormat(v8::Isolate* isolate,
                                              const String& identifier) {
-  KURL url(NullURL(), identifier);
+  KURL url(NullUrl(), identifier);
   if (!url.IsValid()) {
     // Syntax for a valid standardized PMI:
     // https://www.w3.org/TR/payment-method-id/#dfn-syntax-of-a-standardized-payment-method-identifier
@@ -174,7 +174,7 @@ bool PaymentsValidators::IsValidMethodFormat(v8::Isolate* isolate,
     return false;
 
   // TODO(http://crbug.com/1200225): Align this with the specification.
-  return url.ProtocolIsInHTTPFamily() &&
+  return url.ProtocolIsInHttpFamily() &&
          network::IsUrlPotentiallyTrustworthy(GURL(url));
 }
 

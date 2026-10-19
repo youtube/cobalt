@@ -86,6 +86,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo useLargeSizeForDynamicBuffers = {
+        "useLargeSizeForDynamicBuffers",
+        FeatureCategory::VulkanWorkarounds,
+        &members,
+    };
+
     FeatureInfo supportsRenderpass2 = {
         "supportsRenderpass2",
         FeatureCategory::VulkanFeatures,
@@ -322,6 +328,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo preferCPUForBufferSubData = {
         "preferCPUForBufferSubData",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo preferGPUForCopyBufferSubData = {
+        "preferGPUForCopyBufferSubData",
         FeatureCategory::VulkanFeatures,
         &members,
     };

@@ -40,6 +40,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.options.AutofillOptionsMediator;
 import org.chromium.chrome.browser.autofill.settings.SettingsNavigationHelper;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
@@ -629,6 +630,7 @@ public class MainSettings extends ChromeBaseSettingsFragment
         addPreferenceIfAbsent(PREF_AUTOFILL_SECTION);
         addPreferenceIfAbsent(PREF_AUTOFILL_OPTIONS);
         Preference autofillOptionsPreference = findPreference(PREF_AUTOFILL_OPTIONS);
+        autofillOptionsPreference.setTitle(AutofillOptionsMediator.getFragmentTitle(getContext()));
         autofillOptionsPreference.setFragment(null);
         autofillOptionsPreference.setOnPreferenceClickListener(
                 preference -> {
@@ -661,7 +663,9 @@ public class MainSettings extends ChromeBaseSettingsFragment
                 preference -> {
                     onPreferenceSelected(preference);
                     showPasswordSettings(
-                            getActivity(), getProfile(), mModalDialogManagerSupplier.asNonNull());
+                            getActivity(),
+                            getProfile(),
+                            mModalDialogManagerSupplier.asNonNull().get());
                     return true;
                 });
 
@@ -694,9 +698,9 @@ public class MainSettings extends ChromeBaseSettingsFragment
             Profile profile,
             String key,
             Bundle extras,
-            MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
+            ModalDialogManager modalDialogManager) {
         if (key.equals(PREF_PASSWORDS)) {
-            MainSettings.showPasswordSettings(context, profile, modalDialogManagerSupplier);
+            MainSettings.showPasswordSettings(context, profile, modalDialogManager);
             // Open an external activity. Keep the state as is.
             return false;
         } else if (key.equals(PREF_MANAGE_SYNC)) {
@@ -715,14 +719,12 @@ public class MainSettings extends ChromeBaseSettingsFragment
     }
 
     private static void showPasswordSettings(
-            Context context,
-            Profile profile,
-            MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
+            Context context, Profile profile, ModalDialogManager modalDialogManager) {
         PasswordManagerLauncher.showPasswordSettings(
                 context,
                 profile,
                 ManagePasswordsReferrer.CHROME_SETTINGS,
-                modalDialogManagerSupplier.asNonNull(),
+                modalDialogManager,
                 /* managePasskeys= */ false);
     }
 

@@ -47,12 +47,20 @@ class ProjectsPanelTabGroupsItemView : public views::Button {
   void SetIsDragging(bool dragging);
   bool is_dragging() const { return dragging_; }
 
-  // views::View
+  // Returns the image used during dragging.
+  gfx::ImageSkia GetDragImage();
+
+  // views::View:
+  void PaintChildren(const views::PaintInfo& paint_info) override;
   void OnThemeChanged() override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
   void OnDragDone() override;
+  void AnimationProgressed(const gfx::Animation* animation) override;
+
+  // views::Button:
+  void PaintButtonContents(gfx::Canvas* canvas) override;
 
   views::Label* title_for_testing() { return title_; }
   views::MenuButton* more_button_for_testing() { return more_button_; }
@@ -61,6 +69,8 @@ class ProjectsPanelTabGroupsItemView : public views::Button {
   const gfx::VectorIcon& tab_group_vector_icon_for_testing() {
     return *tab_group_vector_icon_;
   }
+
+  static void disable_animations_for_testing();
 
  private:
   void OnMoreButtonPressed();
@@ -73,6 +83,8 @@ class ProjectsPanelTabGroupsItemView : public views::Button {
 
   // Whether this item is currently being dragged.
   bool dragging_ = false;
+
+  gfx::SlideAnimation button_fade_animation_{this};
 
   raw_ptr<views::Label> title_ = nullptr;
   raw_ptr<views::ImageView> tab_group_icon_ = nullptr;

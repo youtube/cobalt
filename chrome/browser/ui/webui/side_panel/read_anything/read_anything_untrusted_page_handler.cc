@@ -110,6 +110,7 @@ class ReadAnythingUntrustedPageHandler::DistillerDelegate
 
   void StartDistillation(dom_distiller::DomDistillerService* service,
                          content::WebContents* contents) {
+    start_time_ = base::TimeTicks::Now();
     // If existing distillation request, cancel it. This removes delegate as
     // observer of previous request and allow it to observe new request.
     viewer_handle_.reset();
@@ -125,6 +126,10 @@ class ReadAnythingUntrustedPageHandler::DistillerDelegate
   // dom_distiller::ViewRequestDelegate:
   void OnArticleReady(
       const dom_distiller::DistilledArticleProto* article_proto) override {
+    CHECK(!start_time_.is_null());
+    base::UmaHistogramMediumTimes(
+        "Accessibility.ReadAnything.TimeFromStartDistillationToOnArticleReady",
+        base::TimeTicks::Now() - start_time_);
     handler_->ProcessDistilledArticle(article_proto);
     viewer_handle_.reset();
   }
@@ -137,6 +142,7 @@ class ReadAnythingUntrustedPageHandler::DistillerDelegate
  private:
   raw_ptr<ReadAnythingUntrustedPageHandler> handler_;
   std::unique_ptr<dom_distiller::ViewerHandle> viewer_handle_;
+  base::TimeTicks start_time_;
 };
 
 namespace {
@@ -1264,13 +1270,16 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
 #endif  // BUILDFLAG(ENABLE_PDF)
 
   // When IsReadAnythingWithReadabilityEnabled is true, we still send AX tree
-  // for text selection.
+  // for text selection. This should be done after we request DomDistiller
+  // distillation to ensure the distillation state is correct prior to
+  // updating the accessibility tree. Otherwise, reading mode can get into
+  // an incorrect distillation state, which can cause crashes and unexpected
+  // behavior.
   content::RenderFrameHost* rfh = contents->GetPrimaryMainFrame();
   VLOG(1) << "Sending non-pdf tree with id " << rfh->GetAXTreeID();
+  RequestDomDistillerDistillation(contents);
   page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(), rfh->GetPageUkmSourceId(),
                                  /*is_pdf=*/false);
-
-  RequestDomDistillerDistillation(contents);
 }
 
 void ReadAnythingUntrustedPageHandler::RequestDomDistillerDistillation(

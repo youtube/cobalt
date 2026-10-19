@@ -31,6 +31,13 @@
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 
+class ApplicationLocaleStorage;
+class PrefService;
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
 namespace views {
 class View;
 }  // namespace views
@@ -50,8 +57,14 @@ class LoginDisplayHostMojo : public LoginDisplayHostCommon,
                              public views::ViewObserver,
                              public ui::UserActivityObserver {
  public:
-  LoginDisplayHostMojo(DisplayedScreen displayed_screen,
-                       bool update_geolocation_usage_allowed);
+  // `local_state`, `application_locale_storage` and
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  LoginDisplayHostMojo(
+      PrefService* local_state,
+      ApplicationLocaleStorage* application_locale_storage,
+      policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      DisplayedScreen displayed_screen,
+      bool update_geolocation_usage_allowed);
 
   LoginDisplayHostMojo(const LoginDisplayHostMojo&) = delete;
   LoginDisplayHostMojo& operator=(const LoginDisplayHostMojo&) = delete;

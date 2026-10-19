@@ -221,7 +221,10 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
                                   scale;
 
   // Selected, hover, and inactive tab fills are a detached squarcle tab.
-  if ((path_type == TabStyle::PathType::kFill &&
+  // If kDetachedTabs is enabled, the active tab fill and border are also a
+  // detached tab.
+  if (base::FeatureList::IsEnabled(features::kDetachedTabs) ||
+      (path_type == TabStyle::PathType::kFill &&
        state != TabStyle::TabSelectionState::kActive) ||
       path_type == TabStyle::PathType::kHighlight ||
       path_type == TabStyle::PathType::kInteriorClip ||
@@ -723,6 +726,13 @@ TabStyle::SeparatorOpacities TabStyleViewsImpl::GetSeparatorOpacities(
 
 float TabStyleViewsImpl::GetSeparatorOpacity(bool for_layout,
                                              bool leading) const {
+  // Do not show separators if the tab strip is in a decluttered state.
+  if (base::FeatureList::IsEnabled(features::kDesktopGlowUp) &&
+      tab()->controller()->GetTabCount() >=
+          TabStyle::kTabStripDeclutterMinTabs) {
+    return 0.0f;
+  }
+
   const auto has_visible_background = [](const Tab* const tab) {
     return tab->IsActive() || tab->IsSelected() || tab->IsMouseHovered();
   };

@@ -12,11 +12,12 @@ export function getHtml(this: ContextualEntrypointButtonElement) {
   return html`<!--_html_template_start_-->
 ${this.hasAllowedInputs_() ? html`
   <div id="${this.getWrapperId_()}" class="${this.getWrapperCssClass_()}">
-    ${this.showContextMenuDescription ? html`
+    ${this.showContextMenuDescription && !this.windowWidthBelowThreshold_ ? html`
       <cr-button id="entrypoint" class="ai-mode-button" part="entrypoint-button"
           @click="${this.onEntrypointClick_}"
           title="${this.i18n('addContextTitle')}"
-          ?disabled="${this.uploadButtonDisabled}" noink>
+          ?disabled="${this.uploadButtonDisabled}" noink
+          aria-label="${this.i18n('addContextTitle')}">
         <cr-icon id="entrypointIcon" icon="cr:add" slot="prefix-icon"></cr-icon>
         <span id="description"
             @animationend="${this.onDescriptionAnimationEnd_}">
@@ -29,7 +30,8 @@ ${this.hasAllowedInputs_() ? html`
           iron-icon="cr:add"
           @click="${this.onEntrypointClick_}"
           title="${this.i18n('addContextTitle')}"
-          ?disabled="${this.uploadButtonDisabled}" noink>
+          ?disabled="${this.uploadButtonDisabled}" noink
+          aria-label="${this.i18n('addContextTitle')}">
       </cr-icon-button>
     `}
     ${this.glifAnimationState !== GlifAnimationState.INELIGIBLE ? html`

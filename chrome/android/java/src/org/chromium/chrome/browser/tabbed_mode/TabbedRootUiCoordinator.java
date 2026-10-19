@@ -107,8 +107,7 @@ import org.chromium.chrome.browser.gesturenav.BackActionDelegate;
 import org.chromium.chrome.browser.gesturenav.HistoryNavigationCoordinator;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
 import org.chromium.chrome.browser.gesturenav.TabbedSheetDelegate;
-import org.chromium.chrome.browser.glic.GlicKeyedService;
-import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
+import org.chromium.chrome.browser.glic.GlicKeyedServiceHandler;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.hub.HubManager;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthCoordinatorFactory;
@@ -457,7 +456,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
             @NonNull MenuOrKeyboardActionController menuOrKeyboardActionController,
             @NonNull Supplier<Integer> activityThemeColorSupplier,
-            @NonNull MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+            @NonNull NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
             @NonNull AppMenuBlocker appMenuBlocker,
             @NonNull BooleanSupplier supportsAppMenuSupplier,
             @NonNull BooleanSupplier supportsFindInPage,
@@ -965,18 +964,19 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     new TabbedOpenInAppEntryPoint(
                             mActivityTabProvider.asObservable(),
                             assumeNonNull(mOmniboxChipManager),
-                            mActivity);
+                            mActivity,
+                            mTabModelSelectorSupplier);
         }
 
-        if (ChromeFeatureList.sGlicActorUi.isEnabled()
-                && ChromeFeatureList.sGlicActorUiOverlay.getValue()) {
+        if (ChromeFeatureList.sGlic.isEnabled()) {
             ViewStub stub = mActivity.findViewById(R.id.actor_overlay_stub);
             mActorOverlayCoordinator =
                     new ActorOverlayCoordinator(
                             stub,
                             assumeNonNull(mTabModelSelectorSupplier.get()),
                             mBrowserControlsManager,
-                            mTabObscuringHandlerSupplier.get());
+                            assumeNonNull(mTabObscuringHandlerSupplier.get()),
+                            assumeNonNull(mSnackbarManagerSupplier.get()));
         }
     }
 
@@ -1570,6 +1570,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         if (hubManager != null) {
                             hubManager.setStatusIndicatorHeight(indicatorHeight);
                         }
+                        // Disable edge-to-edge on top when the status indicator is visible
+                        // to avoid the indicator being obscured by the status bar in e2e
+                        // mode.
+                        if (mTopInsetCoordinator != null) {
+                            mTopInsetCoordinator.setStatusIndicatorVisible(indicatorHeight > 0);
+                        }
                     }
                 };
         mStatusIndicatorCoordinator.addObserver(mStatusIndicatorObserver);
@@ -1858,7 +1864,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
 
         mSidePanelContainerCoordinator =
-                SidePanelContainerCoordinatorFactory.create(mSideUiCoordinator);
+                SidePanelContainerCoordinatorFactory.create(mActivity, mSideUiCoordinator);
         if (mSidePanelContainerCoordinator != null) {
             mSidePanelContainerCoordinator.init();
         }
@@ -1879,6 +1885,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mSideUiCoordinator.destroy();
             mSideUiCoordinator = null;
         }
+    }
+
+    public @Nullable SidePanelContainerCoordinator getSidePanelContainerCoordinatorForTesting() {
+        return mSidePanelContainerCoordinator;
     }
 
     /** Returns the {@link TabGroupSyncControllerImpl} if it has been created yet. */
@@ -1910,6 +1920,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
     public TabbedSystemUiCoordinator getTabbedSystemUiCoordinatorForTesting() {
         return mSystemUiCoordinator;
+    }
+
+    public ActorOverlayCoordinator getActorOverlayCoordinatorForTesting() {
+        return mActorOverlayCoordinator;
     }
 
     /** Called when a link is copied through context menu. */
@@ -2040,13 +2054,16 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
         if (DefaultBrowserPromoUtils.getInstance()
                 .prepareLaunchPromoIfNeeded(
-                        mActivity, mWindowAndroid, TrackerFactory.getTrackerForProfile(profile))) {
+                        mActivity,
+                        mWindowAndroid,
+                        TrackerFactory.getTrackerForProfile(profile),
+                        DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.CHROME_STARTUP)) {
             return true;
         }
         return AppLanguagePromoDialog.maybeShowPrompt(
                 mActivity,
                 profile,
-                mModalDialogManagerSupplier.asNonNull().get(),
+                mModalDialogManagerSupplier.get(),
                 () -> ApplicationLifetime.terminate(true));
     }
 
@@ -2177,29 +2194,16 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mActivity.finishAndRemoveTask();
             return true;
         } else if (id == R.id.glic_menu_id) {
-            Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
-            assert profile != null;
-
-            GlicKeyedService service = GlicKeyedServiceFactory.getForProfile(profile);
-            if (service == null) {
-                return false;
-            }
-
-            var task = mChromeAndroidTaskSupplier.get();
-            if (task == null) {
-                Log.w(TAG, "Failed to trigger GLIC: ChromeAndroidTask is null.");
-                return false;
-            }
-            long browserWindowPtr = task.getOrCreateNativeBrowserWindowPtr(profile);
-            // TODO(crbug.com/479863299): Create and pass in enum for invocationSource.
-            service.toggleUI(
-                    browserWindowPtr,
-                    assumeNonNull(mProfileSupplier.get()),
-                    /* invocationSource= */ 7);
-            return true;
+            return toggleGlic();
         }
-
         return false;
+    }
+
+    public boolean toggleGlic() {
+        Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
+        assert profile != null;
+
+        return GlicKeyedServiceHandler.toggleGlic(profile, mChromeAndroidTaskSupplier.get());
     }
 
     /* package */ KeyboardFocusRowManager getKeyboardFocusRowManagerForTesting() {

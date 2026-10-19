@@ -73,8 +73,13 @@ class DomStorageDatabase {
   // `map_id`. Some maps are loaded on demand where `map_id` remains unknown
   // until the first read or write.
   //
-  // The number of sessions consuming a map can increase or decrease. A session
-  // can clone a map, which then shares the same map across multiple sessions.
+  // Local storage does not use `session_id`.  Instead, local storage contains a
+  // single global session where each `storage_key` owns one map of key value
+  // pairs.
+  //
+  // In session storage, each map must have at least one `session_id`. The
+  // number of sessions consuming a map can increase or decrease. A session can
+  // clone a map, which then shares the same map across multiple sessions.
   // Cloned maps have at least 2 IDs in `session_ids_`. A session may also stop
   // using a map by deleting it or forking it, which then removes an ID from
   // `session_ids_`. `session_ids_` is empty for an unused map.
@@ -86,10 +91,16 @@ class DomStorageDatabase {
   // Maps without sessions are not in use. They can be deleted.
   class MapLocator {
    public:
+    // Construct a map locator for the global session in local storage.
+    explicit MapLocator(blink::StorageKey storage_key);
+    MapLocator(blink::StorageKey storage_key, int64_t map_id);
+
+    // Construct a map locator for a specific `session_id` in session storage.
     MapLocator(std::string session_id, blink::StorageKey storage_key);
     MapLocator(std::string session_id,
                blink::StorageKey storage_key,
                int64_t map_id);
+
     ~MapLocator();
 
     MapLocator(MapLocator&&);
@@ -251,6 +262,13 @@ class DomStorageDatabase {
 
   virtual ~DomStorageDatabase() = default;
 
+  // Opens an on-disk or in-memory database and returns the result. To create an
+  // in-memory database, provide an empty `database_path`.
+  virtual DbStatus Open(
+      const base::FilePath& database_path,
+      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
+          memory_dump_id) = 0;
+
   // Gets an entire map's key/value pairs.
   virtual StatusOr<std::map<Key, Value>> ReadMapKeyValues(
       MapLocator map_locator) = 0;
@@ -298,6 +316,7 @@ class DomStorageDatabase {
   // NOTE: If `RewriteDB()` fails, this DomStorageDatabase may no longer
   // be usable; in such cases, all future operations will return an IOError
   // status.
+  // TODO(crbug.com/485785252): Also implement this for the SQLite backend.
   virtual DbStatus RewriteDB() = 0;
 
   // Test-only functions.
@@ -317,20 +336,13 @@ class DomStorageDatabaseFactory {
  public:
   using PassKey = base::PassKey<DomStorageDatabaseFactory>;
 
-  using OpenCallback = base::OnceCallback<void(
-      StatusOr<base::SequenceBound<DomStorageDatabase>> database)>;
-
-  // Creates and opens a `SequenceBound<DomStorageDatabase>` using
-  // `blocking_task_runner`. Runs `callback` with result after opening the
-  // database.
+  // Creates and opens a `SequenceBound<DomStorageDatabase>`.
   //
   // To create an in-memory database, provide an empty `database_path`.
-  static void Open(
+  static base::SequenceBound<DomStorageDatabase> Create(
       StorageType storage_type,
-      const base::FilePath& database_path,
-      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
-          memory_dump_id,
-      OpenCallback callback);
+      bool is_in_memory,
+      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner);
 
   using StatusCallback = base::OnceCallback<void(DbStatus)>;
 
@@ -349,23 +361,14 @@ class DomStorageDatabaseFactory {
   friend class SessionStorageLevelDBTest;
   friend class SessionStorageSqliteTest;
 
-  // `Open()` uses this function to asynchronously create a
-  // `base::SequenceBound<DomStorageDatabase>`. The `TDatabase` template
-  // specifies the derived type to construct like `LocalStorageLevelDB`. The
-  // derived type must inherit the `DomStorageDatabase` interface. After
-  // failure, `callback` runs with an error `status`.
-  template <typename TDatabase>
-  static void CreateSequenceBoundDomStorageDatabase(
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-      const base::FilePath& database_path,
-      const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
-          memory_dump_id,
-      base::OnceCallback<
-          void(StatusOr<base::SequenceBound<TDatabase>> database)> callback);
-
   // Allow unit tests to create a database instance without `SequenceBound`.
   static PassKey CreatePassKeyForTesting();
 };
+
+// Creates a blocking task runner to use for `database_path`.  `database_path`
+// will be empty for in memory databases.
+scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForDb(
+    const base::FilePath& database_path);
 
 // A shared implementation of `DomStorageDatabase::PurgeOrigins()` from above.
 // Both LevelDB and SQLite implementations use this helper function.

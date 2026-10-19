@@ -314,6 +314,10 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
   return active_tasks;
 }
 
+size_t ActorKeyedService::GetActiveTasksCount() const {
+  return active_tasks_.size();
+}
+
 void ActorKeyedService::ResetForTesting() {
   for (auto it = active_tasks_.begin(); it != active_tasks_.end();) {
     StopTask((it++)->first, ActorTask::StoppedReason::kTaskComplete);
@@ -396,6 +400,9 @@ void ActorKeyedService::NotifyTaskStateChanged(TaskId task_id,
 void ActorKeyedService::RequestTabObservation(
     tabs::TabInterface& tab,
     TaskId task_id,
+    std::optional<page_content_annotations::ScreenshotOptions::
+                      ScreenshotCollectionOptions>
+        screenshot_collection_options,
     base::OnceCallback<void(TabObservationResult)> callback) {
   TRACE_EVENT0("actor", "ActorKeyedService::RequestTabObservation");
   const GURL& last_committed_url = tab.GetContents()->GetLastCommittedURL();
@@ -410,9 +417,11 @@ void ActorKeyedService::RequestTabObservation(
           // kFullPageScreenshot being true implies
           // kGlicTabScreenshotPaintPreviewBackend is enabled.
           ? page_content_annotations::ScreenshotOptions::FullPage(
-                CreateOptionalPaintPreviewOptions().value())
+                CreateOptionalPaintPreviewOptions().value(),
+                std::move(screenshot_collection_options))
           : page_content_annotations::ScreenshotOptions::ViewportOnly(
-                CreateOptionalPaintPreviewOptions());
+                CreateOptionalPaintPreviewOptions(),
+                std::move(screenshot_collection_options));
 
   options.annotated_page_content_options =
       optimization_guide::ActionableAIPageContentOptions(
@@ -598,15 +607,16 @@ bool ActorKeyedService::IsActiveOnTab(const tabs::TabInterface& tab) const {
   return false;
 }
 
-TaskId ActorKeyedService::GetTaskFromTab(const tabs::TabInterface& tab) const {
+ActorTask* ActorKeyedService::GetTaskFromTab(
+    const tabs::TabInterface& tab) const {
   tabs::TabHandle handle = tab.GetHandle();
-  for (auto [task_id, task] : GetActiveTasks()) {
+  for (const auto& [task_id, task] : active_tasks_) {
     if (task->HasTab(handle)) {
-      return task_id;
+      return task.get();
     }
   }
 
-  return TaskId();
+  return nullptr;
 }
 
 Profile* ActorKeyedService::GetProfile() {

@@ -54,10 +54,8 @@
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/skills/skills_update_observer.h"
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/back_to_opener/back_to_opener_controller.h"
@@ -90,7 +88,6 @@
 #include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/translate/translate_page_action_controller.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
@@ -119,16 +116,11 @@
 #include "components/permissions/permission_indicators_tab_data.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/security_interstitials/core/features.h"
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
-#include "components/skills/features.h"
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
 #include "components/tabs/public/tab_interface.h"
 #include "components/wallet/core/common/wallet_features.h"
 #include "net/base/features.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -136,7 +128,10 @@
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 
-#endif
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/skills/skills_update_observer.h"
+#include "components/skills/features.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"  // nogncheck
@@ -218,11 +213,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           tab, *page_action_controller_);
     }
 
-    if (IsPageActionMigrated(PageActionIconType::kPwaInstall)) {
-      pwa_install_page_action_controller_ =
-          std::make_unique<PwaInstallPageActionController>(
-              tab, *page_action_controller_);
-    }
+    pwa_install_page_action_controller_ =
+        std::make_unique<PwaInstallPageActionController>(
+            tab, *page_action_controller_);
 
     if (IsPageActionMigrated(PageActionIconType::kPriceInsights)) {
       commerce_price_insights_page_action_view_controller_ =
@@ -356,7 +349,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                   *collaboration_messaging_tab_data_);
     }
 
-#if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
       glic_instance_helper_ =
           GetUserDataFactory().CreateInstance<glic::GlicInstanceHelper>(tab,
@@ -375,7 +367,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
               .CreateInstance<glic::GlicSidePanelCoordinatorImpl>(
                   tab, &tab, side_panel_registry_.get());
     }
-#endif  // BUILDFLAG(ENABLE_GLIC)
     // TODO(crbug.com/433973411): Move this logic to a helper function.
     if (base::FeatureList::IsEnabled(features::kGlicActor) &&
         base::FeatureList::IsEnabled(features::kGlicActorUi) &&
@@ -445,7 +436,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     // ownership of this controller is migrated to ReadAnythingController.
     read_anything_side_panel_controller_ =
         std::make_unique<ReadAnythingSidePanelController>(
-            &tab, side_panel_registry_.get());
+            &tab, side_panel_registry_.get(), tab.GetContents());
   }
 
   // Create the HttpAuthCacheStatus to start observing resource load
@@ -550,13 +541,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         std::make_unique<back_to_opener::BackToOpenerController>(tab);
   }
 
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-    skills_update_observer_ =
-        std::make_unique<skills::SkillsUpdateObserver>(tab);
-  }
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
-
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(enterprise_reporting::kSaasUsageReporting)) {
     saas_usage_navigation_observer_ =
@@ -566,6 +550,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
+    skills_update_observer_ =
+        std::make_unique<skills::SkillsUpdateObserver>(tab);
+  }
   if (base::FeatureList::IsEnabled(features::kIndigo)) {
     indigo_page_action_controller_ =
         std::make_unique<indigo::IndigoPageActionController>(
@@ -602,21 +590,14 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
 
   Profile* profile = tab->GetBrowserWindowInterface()->GetProfile();
 
-  if (features::IsImmersiveReadAnythingEnabled()) {
-    // TODO(crbug.com/467301642): Handle having the ReadAnythingController
-    // discard internally, rather than having TabFeatures recreate it.
-    read_anything_controller_.reset();
-    read_anything_controller_ =
-        GetUserDataFactory().CreateInstance<ReadAnythingController>(
-            *tab, tab, side_panel_registry_.get());
-  } else {
+  if (!features::IsImmersiveReadAnythingEnabled()) {
     // This method is transiently used to reset features that do not handle tab
     // discarding themselves.
     read_anything_side_panel_controller_->ResetForTabDiscard();
     read_anything_side_panel_controller_.reset();
     read_anything_side_panel_controller_ =
         std::make_unique<ReadAnythingSidePanelController>(
-            tab, side_panel_registry_.get());
+            tab, side_panel_registry_.get(), new_contents);
   }
   // Deregister side-panel entries that are web-contents scoped rather than tab
   // scoped.

@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
+import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -140,6 +141,7 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
                 buttonView,
                 contextMenuBridge,
                 new RelativeViewRectProvider(buttonView, mRootView),
+                /* dismissRunnable= */ null,
                 mRootView);
     }
 
@@ -195,21 +197,27 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         List<ExtensionsMenuTypes.MenuEntryState> entries = mMenuBridge.getMenuEntries();
 
         for (ExtensionsMenuTypes.MenuEntryState entry : entries) {
+            boolean isActionPinned = entry.contextMenuButton.isOn;
+            int contextMenuIcon =
+                    isActionPinned ? R.drawable.ic_keep_24dp : R.drawable.ic_more_vert;
             PropertyModel model =
                     new PropertyModel.Builder(ExtensionsMenuItemProperties.ALL_KEYS)
                             .with(ExtensionsMenuItemProperties.TITLE, entry.actionButton.text)
                             .with(
-                                    ExtensionsMenuItemProperties.CLICK_LISTENER,
+                                    ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ON_CLICK,
                                     (view) ->
                                             onContextMenuButtonClicked(
                                                     (ListMenuButton) view, entry.id))
                             .with(ExtensionsMenuItemProperties.ICON, entry.actionButton.icon)
+                            .with(
+                                    ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ICON,
+                                    contextMenuIcon)
                             .build();
+
             mActionModels.add(new ListItem(0, model));
         }
 
-        boolean isZeroState = entries.isEmpty();
-        mMenuPropertyModel.set(ExtensionsMenuProperties.IS_ZERO_STATE, isZeroState);
+        updateZeroState();
     }
 
     @Override
@@ -221,6 +229,14 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
 
         Bitmap icon = mMenuBridge.getActionIcon(actionIndex);
         model.set(ExtensionsMenuItemProperties.ICON, icon);
+    }
+
+    @Override
+    public void onActionRemoved(int actionIndex) {
+        assert actionIndex >= 0 && actionIndex < mActionModels.size();
+        mActionModels.removeAt(actionIndex);
+
+        updateZeroState();
     }
 
     private boolean isMainPageVisible() {
@@ -239,5 +255,11 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     public void onReady() {
         onModelChanged();
         mOnReady.run();
+    }
+
+    /** Updates the zero state visibility. */
+    private void updateZeroState() {
+        boolean isZeroState = mActionModels.size() == 0;
+        mMenuPropertyModel.set(ExtensionsMenuProperties.IS_ZERO_STATE, isZeroState);
     }
 }

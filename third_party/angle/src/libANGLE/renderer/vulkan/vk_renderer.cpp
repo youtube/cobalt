@@ -78,6 +78,7 @@ namespace rx
 namespace
 {
 constexpr angle::PackedEnumMap<QueueSubmitReason, const char *> kQueueSubmitReason = {{
+    {QueueSubmitReason::EGLBindTexImage, "Queue submission imminent due to eglBindTexImage()"},
     {QueueSubmitReason::EGLSwapBuffers, "Queue submission imminent due to eglSwapBuffers()"},
     {QueueSubmitReason::EGLWaitClient, "Queue submission imminent due to eglWaitClient()"},
     {QueueSubmitReason::DeferredFlush, "Queue submission imminent due to deferred flushing"},
@@ -152,13 +153,21 @@ constexpr uint32_t kMinDefaultUniformBufferSize = 16 * 1024u;
 // This size is picked based on experience. Majority of devices support 64K
 // maxUniformBufferSize. Since this is per context buffer, a bigger buffer size reduces the
 // number of descriptor set allocations, so we picked the maxUniformBufferSize that most
-// devices supports. It may needs further tuning based on specific device needs and balance
+// devices supports. It may need further tuning based on specific device needs and balance
 // between performance and memory usage.
 constexpr uint32_t kPreferredDefaultUniformBufferSize = 64 * 1024u;
+
+// The limit below is used to avoid allocating too many device memory handles. If the device has an
+// allocation count limit less than or equal to this threshold, the initial size for the dynamic
+// buffers will be larger.
+constexpr size_t kAllocationCountThresholdForDynamicVertexDataSize = 4096;
 
 // Maximum size to use VMA image suballocation. Any allocation greater than or equal to this
 // value will use a dedicated VkDeviceMemory.
 constexpr size_t kImageSizeThresholdForDedicatedMemoryAllocation = 8 * 1024 * 1024;
+
+// Maximum size for an allocated memory for a single object.
+constexpr VkDeviceSize kMemoryAllocationSizeLimit = 1 * 1024 * 1024 * 1024;
 
 // Pipeline cache header version. It should be incremented any time there is an update to the cache
 // header or data structure.
@@ -2085,6 +2094,7 @@ Renderer::Renderer()
       mSupportedBufferWritePipelineStageMask(0),
       mSupportedVulkanShaderStageMask(0),
       mMemoryAllocationTracker(MemoryAllocationTracker(this)),
+      mMaxMemoryAllocationSize(0),
       mMaxBufferMemorySizeLimit(0),
       mNativeVectorWidthDouble(0),
       mNativeVectorWidthHalf(0),
@@ -5720,13 +5730,20 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                        mPhysicalDeviceProperties.limits.maxVertexInputBindingStride)
             : 0;
 
+    // Although the maximum memory allocation size for a single object can be derived from the
+    // Vulkan driver, it could still be too large for common use (e.g., ~4GB on some platforms) and
+    // increase the risk of overflow if the object dimensions used for size calculations are 32-bit.
+    // The limit can be restricted to a specific fixed value to reduce this risk.
+    mMaxMemoryAllocationSize =
+        std::min(mMaintenance3Properties.maxMemoryAllocationSize, kMemoryAllocationSizeLimit);
+
     // The limits related to buffer size should also take the max memory allocation size and padding
     // (if applicable) into account.
-    mMaxBufferMemorySizeLimit = getMaxMemoryAllocationSize() - mMaxVertexAttribStride;
+    mMaxBufferMemorySizeLimit = mMaxMemoryAllocationSize - mMaxVertexAttribStride;
 
     ANGLE_FEATURE_CONDITION(&mFeatures, forceD16TexFilter, IsAndroid() && isQualcommProprietary);
 
-    // Allocation sanitization disabled by default because of a heaveyweight implementation
+    // Allocation sanitization disabled by default because of a heavyweight implementation
     // that can cause OOM and timeouts.
     ANGLE_FEATURE_CONDITION(&mFeatures, allocateNonZeroMemory, false);
 
@@ -5738,6 +5755,9 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // http://issuetracker.google.com/485970552 - PowerVR
     ANGLE_FEATURE_CONDITION(&mFeatures, preferCPUForBufferSubData,
                             isARMProprietary || isQualcommProprietary || isPowerVR);
+
+    // Prefer GPU for glCopyBufferSubData dirty region buffer update on ARM devices.
+    ANGLE_FEATURE_CONDITION(&mFeatures, preferGPUForCopyBufferSubData, isARMProprietary);
 
     // On android, we usually are GPU limited, we try to use CPU to do data copy when other
     // conditions are the same. Set to zero will use GPU to do copy. This is subject to further
@@ -6056,6 +6076,12 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
 
     // Use VMA for image suballocation.
     ANGLE_FEATURE_CONDITION(&mFeatures, useVmaForImageSuballocation, true);
+
+    // Use larger size for DynamicBuffer objects used as streaming vertex buffers (currently limited
+    // to GLES1).
+    ANGLE_FEATURE_CONDITION(&mFeatures, useLargeSizeForDynamicBuffers,
+                            mPhysicalDeviceProperties.limits.maxMemoryAllocationCount <=
+                                kAllocationCountThresholdForDynamicVertexDataSize);
 
     // Some platforms perform better using BGR565 than RGB565.
     bool isBGR565Renderable = hasImageFormatFeatureBits(angle::FormatID::B5G6R5_UNORM,
@@ -6569,7 +6595,8 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // Disable for Samsung, details here -> http://anglebug.com/386749841#comment21
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsDynamicRenderingLocalRead,
-        mDynamicRenderingLocalReadFeatures.dynamicRenderingLocalRead == VK_TRUE &&
+        mFeatures.supportsDynamicRendering.enabled &&
+            mDynamicRenderingLocalReadFeatures.dynamicRenderingLocalRead == VK_TRUE &&
             !(isNvidia || isSamsung));
 
     // Using dynamic rendering when VK_KHR_dynamic_rendering_local_read is available, because that's

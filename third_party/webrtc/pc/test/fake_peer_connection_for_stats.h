@@ -504,9 +504,11 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
   std::vector<scoped_refptr<RtpSenderInterface>> GetSenders() const override {
     std::vector<scoped_refptr<RtpSenderInterface>> senders;
     for (auto transceiver : transceivers_) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (auto sender : transceiver->internal()->senders()) {
         senders.push_back(sender);
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
     }
     return senders;
   }
@@ -515,9 +517,11 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase,
       const override {
     std::vector<scoped_refptr<RtpReceiverInterface>> receivers;
     for (auto transceiver : transceivers_) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (auto receiver : transceiver->internal()->receivers()) {
         receivers.push_back(receiver);
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
     }
     return receivers;
   }

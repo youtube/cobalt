@@ -119,6 +119,7 @@
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/picture_in_picture_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
@@ -468,6 +469,10 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)viewIsAppearing:(BOOL)animated {
   [super viewIsAppearing:animated];
+  if (_settingsAreDismissed) {
+    return;
+  }
+
   // Update the `_safetyCheckItem` icon when returning to this view controller.
   [self updateSafetyCheckItemTrailingIcon];
   if (IsBottomOmniboxAvailable()) {
@@ -487,6 +492,10 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  if (_settingsAreDismissed) {
+    return;
+  }
+
   [self maybeShowSigninIPH];
 }
 
@@ -1262,7 +1271,13 @@ struct EnhancedSafeBrowsingActivePromoData
         [self reloadData];
       }
 
-      controller = [[DefaultBrowserSettingsTableViewController alloc] init];
+      DefaultBrowserSettingsTableViewController* defaultBrowserController =
+          [[DefaultBrowserSettingsTableViewController alloc] init];
+      defaultBrowserController.PIPHandler = HandlerForProtocol(
+          _browser->GetCommandDispatcher(), PictureInPictureCommands);
+      defaultBrowserController.settingsHandler = HandlerForProtocol(
+          _browser->GetCommandDispatcher(), SettingsCommands);
+      controller = defaultBrowserController;
       break;
     }
     case SettingsItemTypeSearchEngine:
@@ -2183,6 +2198,9 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)settingsWillBeDismissed {
   CHECK(!_settingsAreDismissed, base::NotFatalUntil::M151);
+  if (_settingsAreDismissed) {
+    return;
+  }
 
   // Remove Enhanced Safe Browsing Promo.
   [self removeEnhancedSafeBrowsingPromoFETDataIfNeeded];

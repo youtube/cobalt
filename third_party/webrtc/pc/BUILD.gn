@@ -170,22 +170,6 @@ rtc_library("dtls_transport") {
   ]
 }
 
-rtc_library("external_hmac") {
-  visibility = [ ":*" ]
-  sources = [
-    "external_hmac.cc",
-    "external_hmac.h",
-  ]
-  deps = [
-    "../api:array_view",
-    "../rtc_base:logging",
-    "../rtc_base:zero_memory",
-  ]
-  if (rtc_build_libsrtp) {
-    deps += [ "//third_party/libsrtp" ]
-  }
-}
-
 rtc_library("ice_transport") {
   visibility = [ ":*" ]
   sources = [
@@ -696,7 +680,6 @@ rtc_library("srtp_session") {
     "srtp_session.h",
   ]
   deps = [
-    ":external_hmac",
     "../api:array_view",
     "../api:field_trials_view",
     "../api:sequence_checker",
@@ -1065,6 +1048,7 @@ rtc_library("rtc_stats_collector") {
     "../rtc_base:threading",
     "../rtc_base:timeutils",
     "../rtc_base/containers:flat_set",
+    "../rtc_base/system:plan_b_only",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1151,6 +1135,7 @@ rtc_library("sdp_offer_answer") {
     "../api:jsep",
     "../api:make_ref_counted",
     "../api:media_stream_interface",
+    "../api:payload_type",
     "../api:peer_connection_interface",
     "../api:rtc_error",
     "../api:rtp_parameters",
@@ -1452,6 +1437,7 @@ rtc_library("legacy_stats_collector") {
     "../rtc_base:ssl_adapter",
     "../rtc_base:threading",
     "../rtc_base:timeutils",
+    "../rtc_base/system:plan_b_only",
     "../system_wrappers",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
@@ -2328,6 +2314,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base/containers:flat_set",
       "../rtc_base/network:received_packet",
       "../rtc_base/network:sent_packet",
+      "../rtc_base/system:plan_b_only",
       "../system_wrappers:metrics",
       "../test:create_test_environment",
       "../test:create_test_field_trials",
@@ -2730,6 +2717,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:weak_ptr",
       "../rtc_base/containers:flat_map",
       "../rtc_base/synchronization:mutex",
+      "../rtc_base/system:plan_b_only",
       "../system_wrappers",
       "../system_wrappers:metrics",
       "../test:audio_codec_mocks",

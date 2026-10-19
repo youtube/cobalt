@@ -94,8 +94,9 @@ bool IsValidContextName(const String& name_or_keyword) {
   // an underscore are reserved for special keywords.)"
   if (name_or_keyword.empty())
     return false;
-  if (name_or_keyword.StartsWith("_"))
+  if (name_or_keyword.starts_with('_')) {
     return false;
+  }
   return true;
 }
 
@@ -255,8 +256,9 @@ SpeculationRule* ParseSpeculationRule(JSONObject* input,
       // Let parsedURL be the result of parsing urlString with baseURL.
       // If parsedURL is failure, then continue.
       KURL parsed_url(base_url_to_parse, url_string);
-      if (!parsed_url.IsValid() || !parsed_url.ProtocolIsInHTTPFamily())
+      if (!parsed_url.IsValid() || !parsed_url.ProtocolIsInHttpFamily()) {
         continue;
+      }
 
       urls.push_back(std::move(parsed_url));
     }
@@ -609,7 +611,7 @@ void SpeculationRuleSet::SetTag(String tag) {
 
 void SpeculationRuleSet::AddWarnings(
     base::span<const String> warning_messages) {
-  warning_messages_.AppendSpan(warning_messages);
+  warning_messages_.append_range(warning_messages);
 }
 
 // static
@@ -768,7 +770,7 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
 
           if (rule->predicate()) {
             result->has_document_rule_ = true;
-            result->selectors_.AppendVector(rule->predicate()->GetStyleRules());
+            result->selectors_.append_range(rule->predicate()->GetStyleRules());
           }
 
           if (rule->eagerness() !=

@@ -41,6 +41,8 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/property-details.h"
+#include "src/objects/tagged-field.h"
 #include "src/objects/trusted-object.h"
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"
@@ -525,19 +527,36 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
   CHECK_IMPLIES(HasSloppyArgumentsElements(), IsJSArgumentsObject(*this));
   if (HasFastProperties()) {
-    int actual_unused_property_fields = map()->GetInObjectProperties() +
-                                        property_array()->length() -
-                                        map()->NextFreePropertyIndex();
-    if (map()->UnusedPropertyFields() != actual_unused_property_fields) {
-      // There are two reasons why this can happen:
-      // - in the middle of StoreTransitionStub when the new extended backing
-      //   store is already set into the object and the allocation of the
-      //   HeapNumber triggers GC while the map isn't updated yet.
-      // - deletion of the last property can leave additional backing store
-      //   capacity behind.
-      CHECK_GT(actual_unused_property_fields, map()->UnusedPropertyFields());
-      int delta = actual_unused_property_fields - map()->UnusedPropertyFields();
-      CHECK_EQ(0, delta % JSObject::kFieldsAdded);
+    FieldStorageLocation offset = map()->NextFreeFieldStorageLocation();
+    if (map()->HasOutOfObjectProperties()) {
+      CHECK_GT(property_array()->length(), 0);
+      CHECK(!offset.is_in_object);
+      int actual_first_unused_property_index =
+          offset.offset_in_words -
+          OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+      int expected_first_unused_property_index =
+          property_array()->length() - map()->UnusedPropertyFields();
+      CHECK_EQ(actual_first_unused_property_index,
+               expected_first_unused_property_index);
+    } else {
+      // We should have a 0 length property array, but we might be in the middle
+      // of adding the first property array entry so we might have a fresh
+      // property array.
+      CHECK(property_array()->length() == 0 ||
+            property_array()->length() == JSObject::kFieldsAdded);
+      if (!offset.is_in_object) {
+        CHECK_EQ(map()->GetInObjectPropertiesStartInWords() +
+                     map()->GetInObjectProperties(),
+                 map()->instance_size_in_words());
+        CHECK_EQ(map()->UnusedPropertyFields(), 0);
+      } else {
+        int actual_first_unused_property_index =
+            offset.offset_in_words - map()->GetInObjectPropertiesStartInWords();
+        int expected_first_unused_property_index =
+            map()->GetInObjectProperties() - map()->UnusedPropertyFields();
+        CHECK_EQ(actual_first_unused_property_index,
+                 expected_first_unused_property_index);
+      }
     }
     Tagged<DescriptorArray> descriptors = map()->instance_descriptors(isolate);
     map()->VerifyDescriptorInObjectBits(isolate, descriptors,
@@ -932,6 +951,14 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   }
 }
 
+void WeakHomomorphicFixedArray::WeakHomomorphicFixedArrayVerify(
+    Isolate* isolate) {
+  CHECK(IsSmi(length_.load()));
+  for (int i = 0; i < length(); i++) {
+    Object::VerifyMaybeObjectPointer(isolate, get(i));
+  }
+}
+
 void TrustedWeakFixedArray::TrustedWeakFixedArrayVerify(Isolate* isolate) {
   CHECK(IsSmi(length_.load()));
   uint32_t len = ulength().value();
@@ -1084,7 +1111,6 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
 
     // Check that properties with private symbols names are non-enumerable, and
     // that fields are in order.
-    int expected_field_index = 0;
     for (InternalIndex descriptor :
          InternalIndex::Range(number_of_descriptors())) {
       Tagged<Object> key =
@@ -1098,10 +1124,14 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       }
       Tagged<MaybeObject> value = GetValue(descriptor);
       if (details.location() == PropertyLocation::kField) {
-        CHECK_EQ(details.field_index(), expected_field_index);
+        if (details.is_in_object()) {
+          CHECK_GE(details.field_offset(), JSObject::kHeaderSize / kTaggedSize);
+        } else {
+          CHECK_GE(details.field_offset(),
+                   PropertyArray::OffsetOfElementAt(0) / kTaggedSize);
+        }
         CHECK(value == FieldType::None() || value == FieldType::Any() ||
               IsMap(value.GetHeapObjectAssumeWeak()));
-        expected_field_index += details.field_width_in_words();
       } else {
         CHECK(!value.IsWeakOrCleared());
         CHECK(!IsMap(Cast<Object>(value)));
@@ -3105,7 +3135,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
   // Named properties
   if (HasFastProperties()) {
     info->number_of_objects_with_fast_properties_++;
-    info->number_of_fast_used_fields_ += map()->NextFreePropertyIndex();
+    info->number_of_fast_used_fields_ +=
+        map()->GetInObjectProperties() + property_array()->length();
     info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject(*this)) {
     Tagged<GlobalDictionary> dict =

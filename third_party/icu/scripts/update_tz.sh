@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2015 The Chromium Authors. All rights reserved.
+# Copyright (c) 2026 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -10,33 +10,40 @@
 #
 # For IANA Time zone database, see https://www.iana.org/time-zones
 
-# See
-# https://github.blog/news-insights/product-news/sunsetting-subversion-support/
-# Github no longer supports SVN. To download files, this script will download
-# the repo as a tarball and extract from a temporary folder location
-
 tmp_dir=~/tmp/icu-tz
-repo_url="https://github.com/unicode-org/icu/archive/refs/heads/main.tar.gz"
-tarball="${tmp_dir}/source.tar.gz"
+repo_url="https://github.com/unicode-org/icu.git"
 treeroot="$(dirname "$0")/.."
 datapath="source/data/misc"
 
-# Check if the repo for $version is available.
-if ! wget --spider $repo_url 2>/dev/null; then
-  echo "$repo_url does not exists"
-  exit 1
-fi
+echo "[*] Performing sparse clone from the upstream repository to tmp directory"
+rm -rf "$tmp_dir"
+mkdir -p "$tmp_dir"
 
-echo "Download main from the upstream repository to tmp directory"
-rm -rf $tmp_dir
-mkdir -p $tmp_dir
-curl -L $repo_url --output $tarball
+# Clone the repo with depth 1 and block downloading any files (--filter=blob:none)
+git clone --filter=blob:none --no-checkout --depth 1 "$repo_url" "$tmp_dir"
+cd "$tmp_dir" || exit 1
 
-echo "Extracting timezone files from main to ICU tree root"
-for file in metaZones.txt timezoneTypes.txt windowsZones.txt zoneinfo64.txt
-do
-  tar -xf $tarball -C $treeroot --strip-components=2 "icu-main/icu4c/${datapath}/${file}"
+git sparse-checkout set --no-cone \
+  "icu4c/${datapath}/metaZones.txt" \
+  "icu4c/${datapath}/timezoneTypes.txt" \
+  "icu4c/${datapath}/windowsZones.txt" \
+  "icu4c/${datapath}/zoneinfo64.txt"
+
+git checkout main
+
+echo "[*] Copying timezone files to ICU tree root"
+mkdir -p "${treeroot}/${datapath}"
+
+for file in metaZones.txt timezoneTypes.txt windowsZones.txt zoneinfo64.txt; do
+  cp "icu4c/${datapath}/${file}" "${treeroot}/${datapath}/${file}"
 done
 
-echo "Cleaning up tmp directory"
-rm -rf $tmp_dir
+echo "[*] Cleaning up tmp directory"
+cd - > /dev/null || exit 1
+rm -rf "$tmp_dir"
+
+read -p "Do you want to patch timezoneTypes.txt to remove 'Factory{\"Etc/Unknown\"}'? (See https://crbug.com/381620359) [y/N]: " response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+  echo "[*] Patching timezoneTypes.txt..."
+  sed -i '/Factory{"Etc\/Unknown"}/d' "${treeroot}/${datapath}/timezoneTypes.txt"
+fi
