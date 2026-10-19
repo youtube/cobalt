@@ -149,9 +149,6 @@ SbDecodeTargetGraphicsContextProvider* GetDecodeTargetProvider() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-// Makes the SbPlayer calls, or forwards them to the SbPlayerInterface that a
-// test set. Unlike media::DefaultSbPlayerInterface, it doesn't track the calls
-// in the metrics of the media pipeline's players.
 // A player's Core was destroyed, and with it its SbPlayer.
 void OnCoreDestroyed() {
   PlayersBeingDestroyed& players = GetPlayersBeingDestroyed();
@@ -166,6 +163,9 @@ void OnCoreDestroyed() {
   }
 }
 
+// Makes the SbPlayer calls, or forwards them to the SbPlayerInterface that a
+// test set. Unlike media::DefaultSbPlayerInterface, it doesn't track the calls
+// in the metrics of the media pipeline's players.
 class SbPlayerCalls {
  public:
   SbPlayerCalls()
@@ -330,12 +330,12 @@ class NativeSplashVideoPlayer::Core {
 
   void Start() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    if (stopped_->data.IsSet()) {
-      return;
-    }
     if (!ChooseVideo()) {
-      LOG(WARNING) << "NativeSplash: VP9 isn't supported.";
-      ReportError(Error::kUnsupported);
+      // Unless the NativeSplashVideoPlayer is gone, e.g., on conceal.
+      if (!stopped_->data.IsSet()) {
+        LOG(WARNING) << "NativeSplash: VP9 isn't supported.";
+        ReportError(Error::kUnsupported);
+      }
       return;
     }
     SetDefaultExperimentalFeaturesForCurrentThread();
@@ -403,6 +403,10 @@ class NativeSplashVideoPlayer::Core {
   // the thread that creates the player, e.g., the main thread at startup.
   bool ChooseVideo() {
     while (next_video_ < videos_.size()) {
+      // The queries can take long, which a conceal would wait for.
+      if (stopped_->data.IsSet()) {
+        return false;
+      }
       Video& video = videos_[next_video_++];
       const bool cached = !video.owned_webm.empty();
       if (cached) {
