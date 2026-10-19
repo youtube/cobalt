@@ -27,7 +27,7 @@
 #include "content/public/browser/global_routing_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "services/network/public/mojom/client_security_state.mojom-forward.h"
+#include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom-forward.h"
 #include "services/network/public/mojom/document_isolation_policy.mojom-forward.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
