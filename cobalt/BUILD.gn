@@ -403,7 +403,10 @@ test("cobalt_unittests") {
   }
 
   if (is_android) {
-    sources += [ "//cobalt/app/cobalt_switch_defaults_android_test.cc" ]
+    sources += [
+      "//cobalt/android/androidtv_flag_map_test.cc",
+      "//cobalt/app/cobalt_switch_defaults_android_test.cc",
+    ]
   }
 
   if (use_evergreen) {
@@ -415,6 +418,7 @@ test("cobalt_unittests") {
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/splash_screen_metrics_unittest.cc",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }
@@ -477,6 +481,7 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//components/network_session_configurator/common",
     "//content/browser:for_content_tests",
     "//content/public/common:switches",
     "//content/test:test_support",
@@ -496,8 +501,11 @@ test("cobalt_unittests") {
   if (is_android) {
     deps += [
       "//base:base_java_test_support",
+      "//cobalt/android:androidtv_flags",
+      "//components/network_session_configurator/common",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
+      "//ui/display",
     ]
   }
 

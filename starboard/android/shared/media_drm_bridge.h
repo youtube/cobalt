@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
 
 #include <jni.h>
+#include <stdint.h>
 
 #include <optional>
 #include <ostream>
@@ -25,6 +26,7 @@
 
 #include "base/memory/raw_ref.h"
 #include "starboard/common/pass_key.h"
+#include "starboard/common/span.h"
 #include "starboard/drm.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -89,13 +91,13 @@ class MediaDrmBridge {
   }
 
   OperationResult CreateSession(int ticket,
-                                std::string_view init_data,
+                                Span<const uint8_t> init_data,
                                 std::string_view mime) const;
   std::string GenerateProvisionRequest() const;
-  OperationResult ProvideProvisionResponse(std::string_view response) const;
+  OperationResult ProvideProvisionResponse(Span<const uint8_t> response) const;
 
   OperationResult UpdateSession(int ticket,
-                                std::string_view key,
+                                Span<const uint8_t> key,
                                 std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   std::optional<std::string_view> GetMetrics();
