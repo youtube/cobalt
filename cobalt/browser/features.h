@@ -182,6 +182,10 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
 
+// Runs H5vccPlatformServiceManager and PlatformService Mojo receivers on a
+// dedicated CobaltPlatformService thread instead of the browser UI thread.
+BASE_DECLARE_FEATURE(kCobaltPlatformServicesOffUiThread);
+
 // Freezes the web app (document freeze event, JS timers stopped, freeze-time
 // memory purging) when the Android Activity is stopped, after an optional
 // delay. Disabled by default: Chrobalt currently never freezes in the

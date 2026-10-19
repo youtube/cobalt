@@ -434,6 +434,66 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.PlatformService.Has.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent querying Starboard Has() for a
+    platform service. Recorded once per H5vccPlatformServiceManager::Has() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Open.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent opening a Starboard platform service.
+    Recorded once per PlatformServiceImpl::OpenStarboardService() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Open.Success" enum="Boolean"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Whether opening a Starboard platform service succeeded. Recorded once per
+    PlatformServiceImpl::OpenStarboardService() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Send.DurationUs" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Wall-clock time in microseconds spent executing a synchronous platform
+    service Send() call. Recorded once per PlatformServiceImpl::Send() call.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.PlatformService.Send.Status"
+    enum="PlatformServiceSendStatus" expires_after="never">
+<!-- expires-never: Core platform service IPC health metric. -->
+
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Outcome status of a PlatformServiceImpl::Send() call. Recorded once per
+    PlatformServiceImpl::Send() call.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
     enum="Boolean" expires_after="never">
   <owner>borongchen@google.com</owner>
