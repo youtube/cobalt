@@ -18,6 +18,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -234,8 +235,48 @@ TEST_F(NativeSplashVideoPlayerTest, NoPlayerIsCreatedOnceDestroyed) {
     starting.Wait();
   }
   player_.reset();
+  // E.g., the conceal waits for the player's thread, which still starts it.
+  bool sbplayers_destroyed = false;
+  NativeSplashVideoPlayer::WhenSbPlayersDestroyed(
+      base::BindLambdaForTesting([&] { sbplayers_destroyed = true; }));
+  EXPECT_FALSE(sbplayers_destroyed);
+
   destroyed.Signal();
   task_environment_.RunUntilIdle();
+  EXPECT_TRUE(sbplayers_destroyed);
+}
+
+// A destroyed player's SbPlayer is destroyed asynchronously, on the player's
+// thread: WhenSbPlayersDestroyed() waits for it, e.g., for the conceal.
+TEST_F(NativeSplashVideoPlayerTest, WhenSbPlayersDestroyedWaitsForTheSbPlayer) {
+  CreatedPlayer created;
+  EXPECT_CALL(sbplayer_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(CreatesPlayer(&created));
+  std::atomic<bool> sbplayer_destroyed{false};
+  EXPECT_CALL(sbplayer_, Destroy(_)).WillOnce([&](SbPlayer player) {
+    delete reinterpret_cast<media::MockSbPlayer*>(player);
+    sbplayer_destroyed = true;
+  });
+  ASSERT_NO_FATAL_FAILURE(CreatePlayer(/*cached_webm=*/""));
+
+  player_.reset();
+  bool sbplayers_destroyed = false;
+  NativeSplashVideoPlayer::WhenSbPlayersDestroyed(
+      base::BindLambdaForTesting([&] {
+        EXPECT_TRUE(sbplayer_destroyed);
+        sbplayers_destroyed = true;
+      }));
+  EXPECT_FALSE(sbplayers_destroyed);
+
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(sbplayers_destroyed);
+}
+
+TEST_F(NativeSplashVideoPlayerTest, WhenSbPlayersDestroyedRunsWithoutPlayers) {
+  bool sbplayers_destroyed = false;
+  NativeSplashVideoPlayer::WhenSbPlayersDestroyed(
+      base::BindLambdaForTesting([&] { sbplayers_destroyed = true; }));
+  EXPECT_TRUE(sbplayers_destroyed);
 }
 
 }  // namespace
