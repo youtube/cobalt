@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/android/shared/exoplayer/exoplayer_player_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_max_video_resolution.h"
@@ -211,8 +212,12 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   bool use_exoplayer = starboard::features::FeatureList::IsEnabled(
       starboard::features::kEnableExoPlayer);
+#else
+  bool use_exoplayer = false;
+#endif
   if (use_exoplayer &&
       (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture ||
        creation_param->drm_system != kSbDrmSystemInvalid)) {
