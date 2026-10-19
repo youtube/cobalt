@@ -125,7 +125,7 @@ public class AudioOutputManager {
             Log.i(
                 TAG,
                 "Audio device %s: %s (%s). Notifying active tracks (RESTART_PLAYER) "
-                    + "to renegotiate audio capabilities.",
+                    + "to renegotiate audio capabilities for passthrough playback.",
                 eventName,
                 relevantDevice.getProductName(),
                 getDeviceTypeName(relevantDevice.getType()));
