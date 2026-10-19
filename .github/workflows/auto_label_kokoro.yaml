@@ -70,6 +70,10 @@ jobs:
       IS_CI: 1
     outputs:
       affects_tvos: ${{ steps.analyze.outputs.affects_tvos }}
+    # Container jobs run steps with `sh` by default.
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -87,10 +91,13 @@ jobs:
         with:
           test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
 
+      # There's no tvOS golden workspace. The Linux one has a synced checkout
+      # with depot_tools and gn, which is enough for the tvOS `gn gen`.
       - name: Prepare OverlayFS Workspace
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
+          platform: linux-x64x11
           use_gcloud: true
 
       - name: Checkout
@@ -100,6 +107,12 @@ jobs:
           ref: ${{ github.sha }}
           fetch_depth: 1
           use_cache: true
+
+      - name: Set Up Depot Tools
+        uses: ./.github/actions/depot_tools
+        with:
+          platform: linux-x64x11
+          use_gcloud: true
 
       # github.sha is the base branch tip in pull_request_target. GitHub updates
       # refs/pull/<num>/merge asynchronously, so wait until it merges the head.
@@ -124,11 +137,11 @@ jobs:
         working-directory: cobalt/src
         env:
           TEST_TARGETS: ${{ steps.parse-targets.outputs.test_targets_json }}
-          # Changes that gn analyze can't see.
-          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|\.github/workflows/(tvos|auto_label_kokoro)\.yaml$)
+          # Changes that gn analyze can't see, e.g. the platform's
+          # configuration_public.h, included via STARBOARD_CONFIGURATION_INCLUDE.
+          ALWAYS_AFFECTS_TVOS: ^(DEPS$|\.gn$|build/|build_overrides/|cobalt/build/|cobalt/devinfra/kokoro/|cobalt/testing/filters/tvos-arm64-simulator/|starboard/tvos/arm64/simulator/|\.github/workflows/(tvos|auto_label_kokoro)\.yaml$)
           HEADERS: \.(h|hh|hpp|inc|inl|def)$
         run: |
-          export PATH="/runner-cache/golden-workspace/depot_tools:${GITHUB_WORKSPACE}/cobalt/depot_tools:${PATH}"
           files="${RUNNER_TEMP}/changed_files.txt"
           if grep -qE "${ALWAYS_AFFECTS_TVOS}" "${files}"; then
             echo "affects_tvos=true" >> "${GITHUB_OUTPUT}"
