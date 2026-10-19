@@ -4,11 +4,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
-<<<<<<< HEAD:.github/workflows/tvos_27.lts.yaml
       - 27.lts
-=======
-      - main
->>>>>>> 701825eab (ci: Skip tvOS Kokoro builds for draft PRs and unrelated changes (#13332)):.github/workflows/tvos.yaml
       - 'stack/**'
   workflow_dispatch:
     inputs:
