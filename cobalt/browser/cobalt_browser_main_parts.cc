@@ -48,8 +48,6 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "base/memory/memory_pressure_monitor.h"
-#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
@@ -59,7 +57,9 @@
 #endif
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+#include "base/memory/memory_pressure_monitor.h"
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)

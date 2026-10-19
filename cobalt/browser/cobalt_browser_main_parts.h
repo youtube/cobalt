@@ -36,9 +36,11 @@ namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 namespace memory_pressure {
 class MultiSourceMemoryPressureMonitor;
 }  // namespace memory_pressure
+#endif
 
 namespace cobalt {
 
