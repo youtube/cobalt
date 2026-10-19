@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import androidx.annotation.IntDef;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -150,6 +151,13 @@ public class StartupGuard {
   };
   public static final int MAX_LOGGED_MILESTONE = MILESTONE_NAMES.length - 1;
 
+  /** Listener notified when startup milestones or armed state change. */
+  public interface Observer {
+    void onMilestoneReached(@Milestone int milestone);
+
+    void onArmedChanged(boolean armed);
+  }
+
   private final Handler mHandler;
   private final Runnable mCrashRunnable;
   private final AtomicLong mStartupStatus = new AtomicLong(0L);
@@ -158,6 +166,7 @@ public class StartupGuard {
   private final AtomicLong mLastMilestoneTimestampMs =
       new AtomicLong(SystemClock.elapsedRealtime());
   private volatile Runnable mPreCrashHook;
+  private volatile @Nullable Observer mObserver;
 
   private static class LazyHolder {
     private static final StartupGuard INSTANCE = new StartupGuard();
@@ -197,6 +206,11 @@ public class StartupGuard {
     this.mPreCrashHook = hook;
   }
 
+  /** Sets an observer to be notified when startup milestones or armed state change. */
+  public void setObserver(@Nullable Observer observer) {
+    this.mObserver = observer;
+  }
+
   private String getStartupStatusAndDiagnosisInfo() {
     StringBuilder message = new StringBuilder();
     message.append("Status: 0x");
@@ -233,6 +247,11 @@ public class StartupGuard {
     long previous = mStartupStatus.getAndUpdate(current -> current | mask);
     if ((previous & mask) != 0) {
       return;
+    }
+
+    Observer observer = mObserver;
+    if (observer != null) {
+      observer.onMilestoneReached(milestone);
     }
 
     if (milestone >= MIN_LOGGED_MILESTONE && milestone <= MAX_LOGGED_MILESTONE) {
@@ -284,6 +303,10 @@ public class StartupGuard {
     if (mIsArmed.compareAndSet(/* expect= */ false, /* update= */ true)) {
       mHandler.postDelayed(mCrashRunnable, delaySeconds * 1000);
       Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
+      Observer observer = mObserver;
+      if (observer != null) {
+        observer.onArmedChanged(true);
+      }
     } else {
       Log.w(
           TAG,
@@ -297,6 +320,10 @@ public class StartupGuard {
     if (mIsArmed.compareAndSet(/* expect= */ true, /* update= */ false)) {
       mHandler.removeCallbacks(mCrashRunnable);
       Log.i(TAG, "StartupGuard cancelled crash. " + getStartupStatusAndDiagnosisInfo());
+      Observer observer = mObserver;
+      if (observer != null) {
+        observer.onArmedChanged(false);
+      }
     }
   }
 
@@ -322,5 +349,6 @@ public class StartupGuard {
     }
     mLastMilestoneTimestampMs.set(SystemClock.elapsedRealtime());
     mPreCrashHook = null;
+    mObserver = null;
   }
 }

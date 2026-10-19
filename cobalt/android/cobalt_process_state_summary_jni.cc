@@ -61,4 +61,15 @@ std::optional<std::vector<uint8_t>> GetPriorSessionProcessStateSummary(
 }
 
 }  // namespace android
+
+static void JNI_CobaltProcessStateSummary_SetStartupMilestone(JNIEnv* env,
+                                                              jint milestone) {
+  android::SetStartupMilestoneFromJava(milestone);
+}
+
+static void JNI_CobaltProcessStateSummary_SetStartupGuardArmed(JNIEnv* env,
+                                                               jboolean armed) {
+  android::SetStartupGuardArmedFromJava(armed);
+}
+
 }  // namespace cobalt

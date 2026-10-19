@@ -31,6 +31,14 @@ void SetProcessStateSummary(base::span<const uint8_t> summary_bytes);
 std::optional<std::vector<uint8_t>> GetPriorSessionProcessStateSummary(
     int* out_exit_reason = nullptr);
 
+// Forwards a startup milestone notification from Java StartupGuard to
+// CobaltProcessStateSummaryManager.
+void SetStartupMilestoneFromJava(int milestone);
+
+// Forwards a StartupGuard armed state change from Java StartupGuard to
+// CobaltProcessStateSummaryManager.
+void SetStartupGuardArmedFromJava(bool armed);
+
 }  // namespace android
 }  // namespace cobalt
 

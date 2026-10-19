@@ -322,4 +322,17 @@ bool CobaltProcessStateSummaryManager::IsDirtyForTesting() {
   return dirty_;
 }
 
+namespace android {
+
+void SetStartupMilestoneFromJava(int milestone) {
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupMilestone(
+      milestone);
+}
+
+void SetStartupGuardArmedFromJava(bool armed) {
+  CobaltProcessStateSummaryManager::GetInstance()->SetStartupGuardArmed(armed);
+}
+
+}  // namespace android
+
 }  // namespace cobalt
