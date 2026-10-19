@@ -45,6 +45,21 @@ java_cpp_strings("cobalt_pref_names_java") {
   template = "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNames.java.tmpl"
 }
 
+java_cpp_strings("cobalt_androidtv_flags_java") {
+  sources = [ "//cobalt/android/androidtv_flags.h" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/AndroidTvFlags.java.tmpl"
+}
+
+java_cpp_strings("cobalt_switches_java") {
+  sources = [ "//cobalt/browser/switches.h" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/CobaltSwitches.java.tmpl"
+}
+
+java_cpp_strings("cobalt_display_switches_java") {
+  sources = [ "//ui/display/display_switches.cc" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/DisplaySwitches.java.tmpl"
+}
+
 java_cpp_enum("cobalt_crash_streak_thresholds_java") {
   sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
 }
@@ -74,6 +89,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
   ]
 
@@ -105,6 +121,25 @@ source_set("app_event_bridge") {
     "//base",
     "//starboard:starboard_headers_only",
     "//starboard/common",
+  ]
+}
+
+source_set("androidtv_flags") {
+  sources = [
+    "androidtv_flag_map.cc",
+    "androidtv_flag_map.h",
+    "androidtv_flags.h",
+    "v8_switches.h",
+  ]
+  deps = [
+    "//base",
+    "//cc/base",
+    "//cobalt/browser:switches",
+    "//components/network_session_configurator/common",
+    "//content/public/common",
+    "//gpu/command_buffer/service",
+    "//services/network/public/cpp:flags_and_switches",
+    "//third_party/blink/public/common",
   ]
 }
 
@@ -152,10 +187,13 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":cobalt_androidtv_flags_java",
     ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
+    ":cobalt_display_switches_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
+    ":cobalt_switches_java",
     ":java_features_srcjar",
     ":jni_headers",
     "//starboard/android/shared:java_enums",
@@ -209,6 +247,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
     "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
@@ -322,6 +361,7 @@ shared_library_with_jni("libchrobalt") {
     configs += [ "//build/config/compiler:thinlto_optimize_max" ]
   }
   deps = [
+    ":androidtv_flags",
     ":app_event_bridge",
     "//cobalt:cobalt_app",
     "//cobalt:common",
