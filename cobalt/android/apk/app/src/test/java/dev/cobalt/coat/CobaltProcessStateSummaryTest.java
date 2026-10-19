@@ -25,6 +25,7 @@ import android.app.ApplicationExitInfo;
 import dev.cobalt.util.ProcessExitReasonHelper;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import org.chromium.base.library_loader.LibraryLoader;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,6 +49,7 @@ public class CobaltProcessStateSummaryTest {
 
   @After
   public void tearDown() {
+    CobaltProcessStateSummaryJni.setInstanceForTesting(null);
     CobaltProcessStateSummary.resetForTesting();
   }
 
@@ -155,5 +157,38 @@ public class CobaltProcessStateSummaryTest {
     byte[] retrieved = CobaltProcessStateSummary.getPriorSessionProcessStateSummary(outReason);
     assertThat(retrieved).isEqualTo(expectedSummary);
     assertThat(outReason[0]).isEqualTo(-1);
+  }
+
+  @Test
+  public void testOnStartupMilestoneReached_syncsPreNativeStateAfterLibraryLoaderInit() {
+    CobaltProcessStateSummary.Natives mockNatives = mock(CobaltProcessStateSummary.Natives.class);
+    CobaltProcessStateSummaryJni.setInstanceForTesting(mockNatives);
+    LibraryLoader mockLibraryLoader = mock(LibraryLoader.class);
+    when(mockLibraryLoader.isInitialized()).thenReturn(true);
+    LibraryLoader.setLibraryLoaderForTesting(mockLibraryLoader);
+
+    long startupStatus = (1L << 1) | (1L << 2) | (1L << 3);
+    CobaltProcessStateSummary.onStartupMilestoneReached(3, startupStatus, true);
+
+    verify(mockNatives).setStartupGuardArmed(true);
+    verify(mockNatives).setStartupMilestone(1);
+    verify(mockNatives).setStartupMilestone(2);
+    verify(mockNatives).setStartupMilestone(3);
+  }
+
+  @Test
+  public void testOnStartupGuardArmedChanged_forwardsWhenLibraryLoaderInitialized() {
+    CobaltProcessStateSummary.Natives mockNatives = mock(CobaltProcessStateSummary.Natives.class);
+    CobaltProcessStateSummaryJni.setInstanceForTesting(mockNatives);
+    LibraryLoader mockLibraryLoader = mock(LibraryLoader.class);
+    when(mockLibraryLoader.isInitialized()).thenReturn(true);
+    LibraryLoader.setLibraryLoaderForTesting(mockLibraryLoader);
+
+    long startupStatus = (1L << 1) | (1L << 36);
+    CobaltProcessStateSummary.onStartupGuardArmedChanged(false, startupStatus);
+
+    verify(mockNatives).setStartupMilestone(1);
+    verify(mockNatives).setStartupMilestone(36);
+    verify(mockNatives).setStartupGuardArmed(false);
   }
 }

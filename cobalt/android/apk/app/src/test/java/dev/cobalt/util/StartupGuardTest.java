@@ -236,4 +236,47 @@ public class StartupGuardTest {
       assertTrue(expected.getMessage().contains("Application startup may not have succeeded"));
     }
   }
+
+  @Test
+  public void testObserver_notifiedOnMilestoneAndArmedChanges() {
+    final int[] lastMilestone = new int[] {0};
+    final int[] milestoneCallCount = new int[] {0};
+    final boolean[] lastArmedChanged = new boolean[] {false};
+    final int[] armedCallCount = new int[] {0};
+
+    mStartupGuard.setObserver(
+        new StartupGuard.Observer() {
+          @Override
+          public void onMilestoneReached(int milestone) {
+            lastMilestone[0] = milestone;
+            milestoneCallCount[0]++;
+          }
+
+          @Override
+          public void onArmedChanged(boolean isArmed) {
+            lastArmedChanged[0] = isArmed;
+            armedCallCount[0]++;
+          }
+        });
+
+    mStartupGuard.scheduleCrash(5);
+    assertEquals(1, armedCallCount[0]);
+    assertTrue(lastArmedChanged[0]);
+
+    mStartupGuard.setStartupMilestone(1);
+    assertEquals(1, milestoneCallCount[0]);
+    assertEquals(1, lastMilestone[0]);
+
+    // Duplicate milestone should not re-trigger observer.
+    mStartupGuard.setStartupMilestone(1);
+    assertEquals(1, milestoneCallCount[0]);
+
+    mStartupGuard.setStartupMilestone(14);
+    assertEquals(2, milestoneCallCount[0]);
+    assertEquals(14, lastMilestone[0]);
+
+    mStartupGuard.disarm();
+    assertEquals(2, armedCallCount[0]);
+    assertFalse(lastArmedChanged[0]);
+  }
 }
