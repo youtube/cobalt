@@ -23,8 +23,8 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/strings/string_split.h"
-#include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
@@ -84,17 +84,13 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   // Low-end device mode is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableLowEndDeviceMode));
-  EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
-            cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+  // V8 heap sizes and the GPU memory cap default in
+  // CommandLinePreprocessor::ApplyDefaults(), not here.
+  EXPECT_FALSE(cmd_line.HasSwitch(blink::switches::kJavaScriptFlags));
   // The device scale factor is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceDeviceScaleFactor));
-#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-  EXPECT_EQ("64",
-            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
-#else
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceGpuMemAvailableMb));
-#endif
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableFeatures));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableFeatures));
   EXPECT_FALSE(cmd_line.HasSwitch(switches::kUseStarboardLifecycle));
@@ -192,8 +188,7 @@ TEST(AndroidTvFlagMapTest, MojoPipeSizingWithoutParams) {
 TEST(AndroidTvFlagMapTest, NonNumericValuesFallBackToDefaults) {
   const base::CommandLine cmd_line =
       ExpandWith("V8InitialOldSpaceSize=abc,GpuImageCacheLimitItems");
-  EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
-            cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+  EXPECT_FALSE(cmd_line.HasSwitch(blink::switches::kJavaScriptFlags));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kCCImageCacheLimitItems));
 }
 
@@ -219,9 +214,28 @@ TEST(AndroidTvFlagMapTest, UserProvidedSwitchesTakePrecedence) {
   EXPECT_EQ("UserDisabledFeature,LessAggressiveParkableString",
             cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   // V8 is last-wins, so the user value must come last.
+  EXPECT_EQ("--max-old-space-size=1024,--max-old-space-size=2048",
+            cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+}
+
+// Experiments override the defaults from
+// CommandLinePreprocessor::ApplyDefaults(), which runs after
+// ExpandAndroidTvFlags() in NativeInit().
+TEST(AndroidTvFlagMapTest, ExperimentsOverrideSwitchDefaults) {
+  base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
+  ExpandAndroidTvFlags(MapFrom("ForceGpuMemAvailableMb=256,"
+                               "V8InitialOldSpaceSize=128,"
+                               "V8MaxOldSpaceSize=1024"),
+                       &cmd_line);
+  CommandLinePreprocessor::ApplyDefaults(&cmd_line);
+
+  EXPECT_EQ("256",
+            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+  // V8 is last-wins, so the experiment values must come after the defaults.
   EXPECT_EQ(
-      "--initial-old-space-size=64,--max-old-space-size=1024,"
-      "--max-old-space-size=2048",
+      "--no-decommit-pooled-pages,--no-concurrent-marking,"
+      "--initial-old-space-size=64,--max-old-space-size=512,"
+      "--initial-old-space-size=128,--max-old-space-size=1024",
       cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
 }
 

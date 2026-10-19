@@ -24,6 +24,7 @@
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/switches.h"
@@ -55,8 +56,16 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
 #else
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kUseANGLE));
 #endif
-  EXPECT_EQ("--no-decommit-pooled-pages,--no-concurrent-marking",
-            cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+  EXPECT_EQ(
+      "--no-decommit-pooled-pages,--no-concurrent-marking,"
+      "--initial-old-space-size=64,--max-old-space-size=512",
+      cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
+  EXPECT_EQ("64",
+            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+#else
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceGpuMemAvailableMb));
+#endif
   EXPECT_EQ("PreciseMemoryInfo",
             cmd_line.GetSwitchValueASCII(::switches::kEnableBlinkFeatures));
   EXPECT_EQ(
@@ -112,6 +121,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   EXPECT_EQ(
       "--no-decommit-pooled-pages,--no-concurrent-marking,"
+      "--initial-old-space-size=64,--max-old-space-size=512,"
       "--test-flag,--another-flag",
       cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_EQ("TestBlinkFeature,PreciseMemoryInfo",
