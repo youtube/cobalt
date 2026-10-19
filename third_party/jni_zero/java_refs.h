@@ -39,17 +39,13 @@
 namespace jni_zero {
 
 namespace internal {
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-concept IsJobject =
-    std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 }
 
 // Creates a new local reference frame, in which at least a given number of
@@ -107,8 +103,11 @@ template <typename T>
 class _CalledByNatives;
 
 // Concept to check if the _CalledByNatives<T> specialization is defined.
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -152,7 +151,10 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
   // There is an rvalue version of this in ScopedJavaLocalRef that enables
   // assignment.
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   const JavaRef<To>& As() const {
     return *reinterpret_cast<const JavaRef<To>*>(this);
   }
@@ -231,7 +233,10 @@ class JavaRef : public JavaRef<jobject> {
 
   // Define this only when the _jni.h header has been #included.
   const internal::_CalledByNatives<T>* operator->() const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::HasCalledByNatives<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     // CalledByNatives does the reverse reinterpret_cast<>.
     // This approach optimizes better than passing |this| as a parameter.
@@ -389,7 +394,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   // Enables casting while assigning. E.g.:
   // ScopedJavaLocalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef<To>&& As() && {
     return std::move(*reinterpret_cast<ScopedJavaLocalRef<To>*>(this));
   }
@@ -525,7 +533,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   // Enables casting while assigning. E.g.:
   // ScopedJavaGlobalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef<To>&& As() && {
     return std::move(*reinterpret_cast<ScopedJavaGlobalRef<To>*>(this));
   }
