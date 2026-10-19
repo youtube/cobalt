@@ -272,7 +272,7 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   base::FilePath user_data_dir;
   if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
@@ -290,7 +290,7 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   }
   return base::FilePath();
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
