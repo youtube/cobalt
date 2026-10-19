@@ -125,8 +125,8 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 // punch-out video shows through. Plays the same video as
 // ForceVideoSplashScreen, i.e., the one that the WebApp cached or the built-in
 // one, and takes precedence over it. If the video can't be played this way,
-// e.g., where Starboard media isn't used, ForceVideoSplashScreen's video splash
-// screen shows instead.
+// e.g., where Starboard media isn't used, or fails before its first frame, the
+// main WebContents shows right away instead.
 // Locally: --enable-features=NativeVideoSplashScreen
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 
