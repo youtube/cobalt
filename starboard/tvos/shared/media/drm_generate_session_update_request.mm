@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/drm.h"
+// clang-format on
+
 #include <stdint.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/span.h"
-#include "starboard/drm.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 #import "starboard/tvos/shared/media/application_drm_system.h"
