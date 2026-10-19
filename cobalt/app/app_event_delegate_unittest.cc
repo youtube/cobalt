@@ -262,6 +262,124 @@ TEST_F(AppEventDelegateTest, StartPreloaded) {
             AppEventDelegate::ApplicationState::kConcealed);
 }
 
+TEST_F(AppEventDelegateTest,
+       StartWithPreloadLaunchParamStartsConcealedAndRevealsOnFirstLink) {
+  const char* kArgs[] = {
+      "cobalt", "--url=https://www.youtube.com/tv?launch=preload#start"};
+  SbEventStartData data = {const_cast<char**>(kArgs), 2, nullptr};
+
+  // Start carrying launch=preload is rewritten to kSbEventTypePreload.
+  EXPECT_CALL(*runner_, DoStart(_)).WillOnce(Invoke([this](const SbEvent* e) {
+    EXPECT_EQ(e->type, kSbEventTypePreload);
+    is_running_ = true;
+  }));
+  SendEvent(kSbEventTypeStart, &data);
+  EXPECT_FALSE(delegate_->IsVisible());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  // The first kSbEventTypeLink reveals and focuses the app.
+  const char* kLink = "https://www.youtube.com/tv";
+  {
+    InSequence s;
+    EXPECT_CALL(*runner_, OnLink(_));
+    EXPECT_CALL(*runner_, DoReveal());
+    EXPECT_CALL(*runner_, DoFocus());
+  }
+  SendEvent(kSbEventTypeLink, const_cast<char*>(kLink));
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kStarted);
+
+  // Once started, a later Conceal + Link does not auto-reveal.
+  SendEvent(kSbEventTypeConceal);
+  ASSERT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  EXPECT_CALL(*runner_, OnLink(_));
+  SendEvent(kSbEventTypeLink, const_cast<char*>(kLink));
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest, StartWithoutPreloadLaunchParamStartsVisible) {
+  const char* kArgs[] = {"cobalt", "--url=https://www.youtube.com/tv"};
+  SbEventStartData data = {const_cast<char**>(kArgs), 2, nullptr};
+
+  EXPECT_CALL(*runner_, DoStart(_)).WillOnce(Invoke([this](const SbEvent* e) {
+    EXPECT_EQ(e->type, kSbEventTypeStart);
+    is_running_ = true;
+  }));
+  SendEvent(kSbEventTypeStart, &data);
+  EXPECT_TRUE(delegate_->IsFocused());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kStarted);
+}
+
+TEST_F(AppEventDelegateTest, PreloadWithLaunchParamDoesNotRevealOnLink) {
+  const char* kArgs[] = {
+      "cobalt", "--url=https://www.youtube.com/tv?launch=preload#start"};
+  SbEventStartData data = {const_cast<char**>(kArgs), 2, nullptr};
+
+  EXPECT_CALL(*runner_, DoStart(_)).WillOnce(Invoke([this](const SbEvent* e) {
+    EXPECT_EQ(e->type, kSbEventTypePreload);
+    is_running_ = true;
+  }));
+  SendEvent(kSbEventTypePreload, &data);
+  ASSERT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  // A native preload keeps waiting for Focus/Reveal; a bare Link is just a
+  // link.
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  EXPECT_CALL(*runner_, OnLink(_));
+  SendEvent(kSbEventTypeLink, const_cast<char*>("https://www.youtube.com/tv"));
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest, PreloadWithoutLaunchParamDoesNotRevealOnLink) {
+  const char* kArgs[] = {"cobalt", "--url=https://www.youtube.com/tv"};
+  SbEventStartData data = {const_cast<char**>(kArgs), 2, nullptr};
+
+  EXPECT_CALL(*runner_, DoStart(_));
+  SendEvent(kSbEventTypePreload, &data);
+  ASSERT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  EXPECT_CALL(*runner_, OnLink(_));
+  SendEvent(kSbEventTypeLink, const_cast<char*>("https://www.youtube.com/tv"));
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+}
+
+TEST_F(AppEventDelegateTest,
+       BlurAndConcealWhilePreloadedFromRewrittenStartDoNotReveal) {
+  const char* kArgs[] = {
+      "cobalt", "--url=https://www.youtube.com/tv?launch=preload#start"};
+  SbEventStartData data = {const_cast<char**>(kArgs), 2, nullptr};
+  SendEvent(kSbEventTypeStart, &data);
+  ASSERT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  // starboard::Application still believes it is Started and synthesizes a
+  // Blur ahead of Conceal; that must not activate the window.
+  EXPECT_CALL(*runner_, DoReveal()).Times(0);
+  EXPECT_CALL(*runner_, DoBlur()).Times(0);
+  EXPECT_CALL(*runner_, DoConceal()).Times(0);
+  SendEvent(kSbEventTypeBlur);
+  SendEvent(kSbEventTypeConceal);
+  EXPECT_FALSE(delegate_->is_transitioning());
+  EXPECT_EQ(delegate_->GetState(),
+            AppEventDelegate::ApplicationState::kConcealed);
+
+  // Blur then Freeze (a suspend) freezes cleanly.
+  EXPECT_CALL(*runner_, DoFreeze(_)).Times(1);
+  SendEvent(kSbEventTypeBlur);
+  SendEvent(kSbEventTypeFreeze);
+  EXPECT_EQ(delegate_->GetState(), AppEventDelegate::ApplicationState::kFrozen);
+}
+
 TEST_F(AppEventDelegateTest, LinearityBlur) {
   {
     InSequence s;
