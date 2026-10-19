@@ -1760,12 +1760,24 @@ bool RenderProcessHostImpl::Init() {
       !base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableGpuShaderDiskCache)) {
     if (auto* cache_factory = GetGpuDiskCacheFactorySingleton()) {
+#if BUILDFLAG(IS_COBALT)
+      // Cobalt: GPU disk caches live in DIR_CACHE, not persistent storage
+      // (b/573641124). All partitions share one handle per type.
+      for (const gpu::GpuDiskCacheType type : gpu::kGpuDiskCacheTypes) {
+        base::FilePath cache_path = GetCobaltGpuDiskCachePath(type);
+        if (!cache_path.empty()) {
+          auto handle = cache_factory->GetCacheHandle(type, cache_path);
+          gpu_client_->SetDiskCacheHandle(handle);
+        }
+      }
+#else
       for (const gpu::GpuDiskCacheType type : gpu::kGpuDiskCacheTypes) {
         auto handle = cache_factory->GetCacheHandle(
             type, storage_partition_impl_->GetPath().Append(
                       gpu::GetGpuDiskCacheSubdir(type)));
         gpu_client_->SetDiskCacheHandle(handle);
       }
+#endif
     }
   }
 

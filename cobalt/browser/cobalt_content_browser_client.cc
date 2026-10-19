@@ -272,25 +272,30 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
-#if BUILDFLAG(IS_ANDROID)
-base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+namespace {
+
+base::FilePath GetCacheSubdirectory(base::FilePath::StringViewType subdir) {
+  base::FilePath cache_dir;
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+      !cache_dir.empty()) {
+    return cache_dir.Append(subdir);
   }
   return base::FilePath();
 }
 
-base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
-  }
-  return base::FilePath();
+}  // namespace
+
+base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
+  return GetCacheSubdirectory(FILE_PATH_LITERAL("ShaderCache"));
 }
-#endif
+
+base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
+  return GetCacheSubdirectory(FILE_PATH_LITERAL("GrShaderCache"));
+}
+
+base::FilePath CobaltContentBrowserClient::GetGraphiteDawnDiskCacheDirectory() {
+  return GetCacheSubdirectory(FILE_PATH_LITERAL("GraphiteDawnCache"));
+}
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
