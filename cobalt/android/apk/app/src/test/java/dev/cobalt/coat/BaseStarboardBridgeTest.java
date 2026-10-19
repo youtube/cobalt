@@ -32,6 +32,9 @@ import android.app.ApplicationExitInfo;
 import android.app.Service;
 import android.content.Context;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 import android.view.Surface;
 import android.view.WindowManager;
 import dev.cobalt.coat.CobaltService.ResponseToClient;
@@ -40,6 +43,7 @@ import dev.cobalt.media.VideoSurfaceViewJni;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.ProcessExitReasonHelper;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,6 +55,7 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
@@ -553,6 +558,155 @@ public class BaseStarboardBridgeTest {
 
     bridge.onActivityStart(activity);
     assertTrue(isKeepScreenOnSet(activity));
+  }
+
+  @Test
+  public void openCobaltService_onBackgroundLooper_routesLifecycleCallbacksToServiceLooper()
+      throws Exception {
+    HandlerThread serviceThread = new HandlerThread("CobaltPlatformServiceTest");
+    serviceThread.start();
+    try {
+      Looper serviceLooper = serviceThread.getLooper();
+      Handler serviceHandler = new Handler(serviceLooper);
+      AtomicReference<Looper> resumeLooper = new AtomicReference<>();
+      AtomicReference<Looper> suspendLooper = new AtomicReference<>();
+      AtomicReference<Looper> closeLooper = new AtomicReference<>();
+
+      final TestLifecycleCobaltService service =
+          new TestLifecycleCobaltService() {
+            @Override
+            public void beforeStartOrResume() {
+              super.beforeStartOrResume();
+              resumeLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void beforeSuspend() {
+              super.beforeSuspend();
+              suspendLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void close() {
+              super.close();
+              closeLooper.set(Looper.myLooper());
+            }
+          };
+
+      bridge.registerCobaltService(
+          new CobaltService.Factory() {
+            @Override
+            public CobaltService createCobaltService(long nativeService) {
+              return service;
+            }
+
+            @Override
+            public String getServiceName() {
+              return "bgService";
+            }
+          });
+
+      serviceHandler.post(() -> bridge.openCobaltService(501L, "bgService"));
+      Shadows.shadowOf(serviceLooper).idle();
+
+      Activity activity = mock(Activity.class);
+      bridge.onActivityCreate(activity);
+      bridge.onActivityStart(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.startOrResumeCount);
+      assertEquals(serviceLooper, resumeLooper.get());
+
+      bridge.onActivityStop(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.suspendCount);
+      assertEquals(serviceLooper, suspendLooper.get());
+
+      bridge.onActivityDestroy(activity);
+      Shadows.shadowOf(serviceLooper).idle();
+      assertEquals(1, service.closeCount);
+      assertEquals(serviceLooper, closeLooper.get());
+    } finally {
+      serviceThread.quitSafely();
+      serviceThread.join(5000);
+    }
+  }
+
+  @Test
+  public void openCobaltService_updatesServiceHandlerWhenLooperChangesOrQuits() throws Exception {
+    HandlerThread serviceThread1 = new HandlerThread("CobaltPlatformServiceTest1");
+    HandlerThread serviceThread2 = new HandlerThread("CobaltPlatformServiceTest2");
+    serviceThread1.start();
+    serviceThread2.start();
+    try {
+      Looper looper1 = serviceThread1.getLooper();
+      Looper looper2 = serviceThread2.getLooper();
+      Handler handler1 = new Handler(looper1);
+      Handler handler2 = new Handler(looper2);
+      AtomicReference<Looper> resumeLooper = new AtomicReference<>();
+
+      final TestLifecycleCobaltService service1 = new TestLifecycleCobaltService();
+      final TestLifecycleCobaltService service2 =
+          new TestLifecycleCobaltService() {
+            @Override
+            public void beforeStartOrResume() {
+              super.beforeStartOrResume();
+              resumeLooper.set(Looper.myLooper());
+            }
+
+            @Override
+            public void beforeSuspend() {
+              super.beforeSuspend();
+              throw new RuntimeException("simulated beforeSuspend failure");
+            }
+          };
+
+      bridge.registerCobaltService(
+          new CobaltService.Factory() {
+            @Override
+            public CobaltService createCobaltService(long nativeService) {
+              return nativeService == 601L ? service1 : service2;
+            }
+
+            @Override
+            public String getServiceName() {
+              return "switchService";
+            }
+          });
+
+      // Open on looper1 first, then close and re-open on looper2.
+      handler1.post(() -> bridge.openCobaltService(601L, "switchService"));
+      Shadows.shadowOf(looper1).idle();
+      handler1.post(() -> bridge.closeCobaltService(601L));
+      Shadows.shadowOf(looper1).idle();
+      assertEquals(1, service1.closeCount);
+
+      handler2.post(() -> bridge.openCobaltService(602L, "switchService"));
+      Shadows.shadowOf(looper2).idle();
+
+      Activity activity = mock(Activity.class);
+      bridge.onActivityCreate(activity);
+      bridge.onActivityStart(activity);
+      Shadows.shadowOf(looper2).idle();
+      assertEquals(1, service2.startOrResumeCount);
+      assertEquals(looper2, resumeLooper.get());
+
+      // Verify beforeSuspend catches exceptions on the background service looper.
+      bridge.onActivityStop(activity);
+      Shadows.shadowOf(looper2).idle();
+      assertEquals(1, service2.suspendCount);
+
+      // Quit looper2 before onActivityDestroy and verify closeAllCobaltService falls back
+      // synchronously when handler.post returns false.
+      serviceThread2.quitSafely();
+      serviceThread2.join(5000);
+      bridge.onActivityDestroy(activity);
+      assertEquals(1, service2.closeCount);
+    } finally {
+      serviceThread1.quitSafely();
+      serviceThread1.join(5000);
+      serviceThread2.quitSafely();
+      serviceThread2.join(5000);
+    }
   }
 
   private Activity startActivity() {

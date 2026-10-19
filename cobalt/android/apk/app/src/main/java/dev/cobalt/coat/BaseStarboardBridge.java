@@ -128,10 +128,12 @@ public class BaseStarboardBridge {
 
   private long mAppStartTimestamp = 0;
 
-  private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService.Factory> mCobaltServiceFactories =
+      new ConcurrentHashMap<>();
   // Keyed by native pointer handle so multiple documents, iframes, or overlapping Activities
   // can open services with the same name without colliding or leaking on close.
   private final Map<Long, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
+  private volatile Handler mServiceHandler;
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -403,29 +405,49 @@ public class BaseStarboardBridge {
     }
   }
 
+  private void runOnServiceThread(Runnable action) {
+    if (mCobaltServices.isEmpty()) {
+      return;
+    }
+    Handler handler = mServiceHandler;
+    if (handler != null && handler.getLooper() != Looper.myLooper()) {
+      if (!handler.post(action)) {
+        action.run();
+      }
+    } else {
+      action.run();
+    }
+  }
+
   protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
-    for (CobaltService service : mCobaltServices.values()) {
-      service.beforeStartOrResume();
-    }
+    runOnServiceThread(
+        () -> {
+          for (CobaltService service : mCobaltServices.values()) {
+            service.beforeStartOrResume();
+          }
+        });
     mAdvertisingId.refresh();
   }
 
   protected void beforeSuspend() {
-    try {
-      Log.i(TAG, "Prepare to suspend");
-      // We want the MediaSession to be deactivated immediately before suspending so that by
-      // the
-      // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
-      // the web app can take their time suspending after that.
-      for (CobaltService service : mCobaltServices.values()) {
-        service.beforeSuspend();
-      }
-    } catch (Throwable e) {
-      Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
-    }
+    Log.i(TAG, "Prepare to suspend");
+    // We want the MediaSession to be deactivated immediately before suspending so that by
+    // the
+    // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
+    // the web app can take their time suspending after that.
+    runOnServiceThread(
+        () -> {
+          try {
+            for (CobaltService service : mCobaltServices.values()) {
+              service.beforeSuspend();
+            }
+          } catch (Throwable e) {
+            Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
+          }
+        });
   }
 
   protected void afterStopped() {
@@ -925,6 +947,15 @@ public class BaseStarboardBridge {
   // Avoid using mActivityHolder.get(), because onActivityStop() can set it to null.
   @CalledByNative
   public CobaltService openCobaltService(long nativeService, String serviceName) {
+    Looper myLooper = Looper.myLooper();
+    if (myLooper != null && myLooper != Looper.getMainLooper()) {
+      Handler currentHandler = mServiceHandler;
+      if (currentHandler == null || currentHandler.getLooper() != myLooper) {
+        mServiceHandler = new Handler(myLooper);
+      }
+    } else if (myLooper == Looper.getMainLooper()) {
+      mServiceHandler = null;
+    }
     final CobaltService.Factory factory = mCobaltServiceFactories.get(serviceName);
     if (factory == null) {
       Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
@@ -986,9 +1017,12 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   public void closeAllCobaltService() {
-    for (Long nativeService : new ArrayList<>(mCobaltServices.keySet())) {
-      closeCobaltService(nativeService);
-    }
+    runOnServiceThread(
+        () -> {
+          for (Long nativeService : new ArrayList<>(mCobaltServices.keySet())) {
+            closeCobaltService(nativeService);
+          }
+        });
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {
