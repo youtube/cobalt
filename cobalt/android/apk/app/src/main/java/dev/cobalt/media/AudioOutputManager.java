@@ -102,14 +102,13 @@ public class AudioOutputManager {
             }
 
             String eventName = isAdded ? "added" : "removed";
-            // If all active audio tracks are PCM and seamless switching is enabled, Android OS
-            // automatically handles dynamic routing (e.g. to Bluetooth A2DP or built-in speakers)
-            // without requiring player recreation. While player recreation is avoided, an audio
-            // sink flush (RESET_AND_CONTINUE) is still performed to reset timestamps and latency.
-            // Only flag player recreation (RESTART_PLAYER) if seamless switching is disabled or
-            // there is an active passthrough track that cannot be routed to incompatible sinks.
-            if (AudioOutputManagerJni.get().isSeamlessAudioSwitchingEnabled()
-                && !hasActivePassthroughTrack(mAudioTrackBridgeList)) {
+            // If all active audio tracks are PCM, Android OS automatically handles dynamic routing
+            // (e.g. to Bluetooth A2DP or built-in speakers) without requiring player recreation.
+            // While player recreation is avoided, an audio sink flush (RESET_AND_CONTINUE) is still
+            // performed to reset timestamps and latency. Only flag player recreation
+            // (RESTART_PLAYER) if there is an active passthrough track that cannot be routed to
+            // incompatible sinks.
+            if (!hasActivePassthroughTrack(mAudioTrackBridgeList)) {
               Log.i(
                   TAG,
                   "Audio device %s: %s (%s). Notifying active tracks (RESET_AND_CONTINUE) "
@@ -712,7 +711,5 @@ public class AudioOutputManager {
   @NativeMethods
   interface Natives {
     void onAudioDeviceChanged();
-
-    boolean isSeamlessAudioSwitchingEnabled();
   }
 }
