@@ -105,12 +105,6 @@ std::string JavaByteArrayToString(
   return out;
 }
 
-ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
-                                                     std::string_view data) {
-  return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(data.data()),
-                         data.size());
-}
-
 DrmOperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
@@ -194,7 +188,7 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
     std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  auto j_session_id = ToScopedJavaByteArray(env, session_id);
+  auto j_session_id = ToJavaByteArray(env, session_id);
   auto j_response = ToJavaByteArray(env, key.data(), key.size());
 
   return ToOperationResult(
@@ -205,7 +199,7 @@ DrmOperationResult MediaDrmBridge::UpdateSession(
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  auto j_session_id = ToScopedJavaByteArray(env, session_id);
+  auto j_session_id = ToJavaByteArray(env, session_id);
 
   Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
