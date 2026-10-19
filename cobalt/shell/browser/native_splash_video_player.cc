@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -63,6 +64,22 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
 namespace content {
+
+namespace {
+
+// The players that are destroyed but whose SbPlayer may not be yet, and what
+// waits for those SbPlayers, on the sequence of the players.
+struct PlayersBeingDestroyed {
+  int count = 0;
+  std::vector<base::OnceClosure> callbacks;
+};
+
+PlayersBeingDestroyed& GetPlayersBeingDestroyed() {
+  static base::NoDestructor<PlayersBeingDestroyed> players;
+  return *players;
+}
+
+}  // namespace
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -135,6 +152,20 @@ SbDecodeTargetGraphicsContextProvider* GetDecodeTargetProvider() {
 // Makes the SbPlayer calls, or forwards them to the SbPlayerInterface that a
 // test set. Unlike media::DefaultSbPlayerInterface, it doesn't track the calls
 // in the metrics of the media pipeline's players.
+// A player's Core was destroyed, and with it its SbPlayer.
+void OnCoreDestroyed() {
+  PlayersBeingDestroyed& players = GetPlayersBeingDestroyed();
+  DCHECK_GT(players.count, 0);
+  if (--players.count > 0) {
+    return;
+  }
+  std::vector<base::OnceClosure> callbacks;
+  callbacks.swap(players.callbacks);
+  for (base::OnceClosure& callback : callbacks) {
+    std::move(callback).Run();
+  }
+}
+
 class SbPlayerCalls {
  public:
   SbPlayerCalls()
@@ -262,9 +293,11 @@ class NativeSplashVideoPlayer::Core {
   Core(std::vector<Video> videos,
        const gfx::Rect& bounds,
        Callbacks callbacks,
-       scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped)
+       scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped,
+       base::OnceClosure on_destroyed)
       : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         stopped_(std::move(stopped)),
+        on_destroyed_(std::move(on_destroyed)),
         videos_(std::move(videos)),
         bounds_(bounds),
         callbacks_(std::move(callbacks)) {
@@ -292,6 +325,7 @@ class NativeSplashVideoPlayer::Core {
     if (SbPlayerIsValid(player_)) {
       sbplayer_.Destroy(player_);
     }
+    std::move(on_destroyed_).Run();
   }
 
   void Start() {
@@ -615,6 +649,8 @@ class NativeSplashVideoPlayer::Core {
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   // Set once the NativeSplashVideoPlayer is destroyed.
   const scoped_refptr<base::RefCountedData<base::AtomicFlag>> stopped_;
+  // Run once the SbPlayer, if any, is destroyed, on the player's sequence.
+  base::OnceClosure on_destroyed_;
   // The candidates, in order: ChooseVideo() picks the next one that the
   // platform plays, as `webm_` and `index_`.
   std::vector<Video> videos_;
@@ -728,7 +764,8 @@ NativeSplashVideoPlayer::CreateForVideos(std::vector<Video> videos,
       base::ThreadPool::CreateSingleThreadTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
           base::SingleThreadTaskRunnerThreadMode::DEDICATED),
-      std::move(videos), bounds, std::move(core_callbacks), player->stopped_);
+      std::move(videos), bounds, std::move(core_callbacks), player->stopped_,
+      base::BindPostTaskToCurrentDefault(base::BindOnce(&OnCoreDestroyed)));
   player->core_.AsyncCall(&Core::Start);
   return player;
 }
@@ -740,7 +777,20 @@ NativeSplashVideoPlayer::NativeSplashVideoPlayer(Callbacks callbacks)
 NativeSplashVideoPlayer::~NativeSplashVideoPlayer() {
   if (stopped_) {
     stopped_->data.Set();
+    // Until `core_` is destroyed on its thread, with the SbPlayer.
+    ++GetPlayersBeingDestroyed().count;
   }
+}
+
+// static
+void NativeSplashVideoPlayer::WhenSbPlayersDestroyed(
+    base::OnceClosure callback) {
+  PlayersBeingDestroyed& players = GetPlayersBeingDestroyed();
+  if (players.count == 0) {
+    std::move(callback).Run();
+    return;
+  }
+  players.callbacks.push_back(std::move(callback));
 }
 
 void NativeSplashVideoPlayer::SetBounds(const gfx::Rect& bounds) {

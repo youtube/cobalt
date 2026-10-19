@@ -99,6 +99,12 @@ class NativeSplashVideoPlayer {
   // when the window is resized. Ignored if empty.
   void SetBounds(const gfx::Rect& bounds);
 
+  // Runs `callback` once the SbPlayers of the players destroyed so far are
+  // destroyed too, which they are asynchronously, on their thread: right away
+  // if there are none. E.g., the conceal waits for them before it destroys the
+  // window and terminates EGL. Must be called on the sequence of the players.
+  static void WhenSbPlayersDestroyed(base::OnceClosure callback);
+
  private:
   class Core;
   // A video to play, and the MIME type that the platform must play for it.
