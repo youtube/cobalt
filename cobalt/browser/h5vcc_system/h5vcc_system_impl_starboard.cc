@@ -145,7 +145,9 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 }
 
-void H5vccSystemImpl::HideSplashScreen() {}
+void H5vccSystemImpl::HideSplashScreen() {
+  NotifyMainReady();
+}
 
 void H5vccSystemImpl::GetWasLowMemoryKilled(
     GetWasLowMemoryKilledCallback callback) {
