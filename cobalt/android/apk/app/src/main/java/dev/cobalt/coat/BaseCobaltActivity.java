@@ -25,7 +25,12 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.ViewGroup.LayoutParams;
+import android.view.ViewParent;
+import android.widget.FrameLayout;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +51,10 @@ public abstract class BaseCobaltActivity extends Activity {
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   protected long mTimeInNanoseconds;
+
+  // The view whose surface punch-out video is rendered to. Subclasses create it. It stays null
+  // when video uses an AndroidOverlay instead.
+  protected VideoSurfaceView mVideoSurfaceView;
 
   Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -241,13 +250,66 @@ public abstract class BaseCobaltActivity extends Activity {
     return (intentUri == null) ? "" : intentUri.toString();
   }
 
-  /*
-   * TODO(https://crbug.com/495203133): move the implementation from CobaltActivity here when
-   * bringing up Cobalt on AOSP.
-   */
-  public void resetVideoSurface() {}
+  /** Replaces the video surface view with a new one, which gets a new surface. */
+  public void resetVideoSurface() {
+    runOnUiThread(this::createNewSurfaceView);
+  }
 
-  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {}
+  /** Moves and resizes the video surface view to the player's bounds, in screen pixels. */
+  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (width == 0 || height == 0) {
+      // The SurfaceView should be covered by our UI layer in this case.
+      return;
+    }
+    runOnUiThread(
+        () -> {
+          if (mVideoSurfaceView == null) {
+            return;
+          }
+          LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
+          // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
+          // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
+          if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
+            // The bounds are screen coordinates, so anchor the view at the top left.
+            frameLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+            frameLayoutParams.setMargins(x, y, x + width, y + height);
+          } else {
+            Log.w(
+                TAG,
+                "Unexpected video surface layout params class "
+                    + layoutParams.getClass().getName());
+          }
+          layoutParams.width = width;
+          layoutParams.height = height;
+          // Even though as a NativeActivity we're not using the Android UI framework, by setting
+          // the  layout params it will force a layout to be requested. That will cause the
+          // SurfaceView to position its underlying Surface to match the screen coordinates of
+          // where the view would be in a UI layout and to set the surface transform matrix to
+          // match the view's size.
+          mVideoSurfaceView.setLayoutParams(layoutParams);
+        });
+  }
+
+  protected void createNewSurfaceView() {
+    if (mVideoSurfaceView == null) {
+      return;
+    }
+    ViewParent parent = mVideoSurfaceView.getParent();
+    if (parent instanceof FrameLayout frameLayout) {
+      int index = frameLayout.indexOfChild(mVideoSurfaceView);
+      frameLayout.removeView(mVideoSurfaceView);
+      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
+
+      mVideoSurfaceView = new VideoSurfaceView(this);
+      frameLayout.addView(
+          mVideoSurfaceView,
+          index,
+          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
+    } else {
+      Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
+    }
+  }
 
   public long getAppStartTimestamp() {
     return mTimeInNanoseconds;
