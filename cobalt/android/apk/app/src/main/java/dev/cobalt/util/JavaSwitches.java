@@ -24,11 +24,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-<<<<<<< HEAD
 import java.util.StringJoiner;
-=======
 import org.chromium.base.BaseSwitches;
->>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
@@ -218,22 +215,6 @@ public class JavaSwitches {
     }
   }
 
-<<<<<<< HEAD
-  public static List<String> getDefaultCommandLineArgs() {
-    List<String> defaultArgs = new ArrayList<>();
-    defaultArgs.add(DEFAULT_DISABLE_QUIC);
-    defaultArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
-    if (!"arm64".equals(DeviceInfo.getArch()) && !"x86_64".equals(DeviceInfo.getArch())) {
-      defaultArgs.add("--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
-    }
-    defaultArgs.add(
-        "--js-flags=--initial-old-space-size="
-            + DEFAULT_INITIAL_OLD_SPACE_SIZE
-            + ";--max-old-space-size="
-            + DEFAULT_MAX_OLD_SPACE_SIZE);
-    defaultArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
-    return defaultArgs;
-=======
   /**
    * Applies pre-native switches to {@code args} and stashes the sanitized map for C++ expansion
    * ({@code cobalt/android/androidtv_flag_map.cc}). In crash-streak safe mode, no switches are
@@ -241,7 +222,6 @@ public class JavaSwitches {
    */
   public static void apply(Map<String, String> javaSwitches, List<String> args) {
     apply(javaSwitches, shouldApplyExperimentConfigs(), args);
->>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
   }
 
   @VisibleForTesting
@@ -250,215 +230,9 @@ public class JavaSwitches {
     if (!shouldApplyExperimentConfigs || javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
-<<<<<<< HEAD
 
-    List<String> extraCommandLineArgs = new ArrayList<>();
-    StringJoiner jsFlags = new StringJoiner(";");
-
-    if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
-      extraCommandLineArgs.add(DEFAULT_DISABLE_QUIC);
-    }
-
-    // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices. Use Java
-    // switch due to IsLowEndDevice called before Finch is initialized. We should migrate to Finch
-    // if high-end device benefits from removing this low-end-device-mode flag.
-    if (!javaSwitches.containsKey(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE)) {
-      extraCommandLineArgs.add(ENABLE_LOW_END_DEVICE_MODE_SWITCH);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC)) {
-      jsFlags.add("--minor-ms");
-      jsFlags.add("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
-    }
-
-    String oldTime = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_SET_BYTECODE_OLD_TIME);
-    if (oldTime != null) {
-      jsFlags.add("--flush-bytecode");
-      jsFlags.add("--bytecode-old-time=" + oldTime);
-    }
-
-    String initialOldSpace =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE);
-    if (initialOldSpace != null) {
-      jsFlags.add("--initial-old-space-size=" + initialOldSpace);
-    } else {
-      jsFlags.add("--initial-old-space-size=" + DEFAULT_INITIAL_OLD_SPACE_SIZE);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.V8_DISABLE_SPARKPLUG)) {
-      jsFlags.add("--no-sparkplug");
-    }
-
-    String maxOldSpace = getSanitizedNumericValue(javaSwitches, JavaSwitches.V8_MAX_OLD_SPACE_SIZE);
-    if (maxOldSpace != null) {
-      jsFlags.add("--max-old-space-size=" + maxOldSpace);
-    } else {
-      jsFlags.add("--max-old-space-size=" + DEFAULT_MAX_OLD_SPACE_SIZE);
-    }
-
-    String forceGpuMem =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB);
-    if (forceGpuMem != null) {
-      extraCommandLineArgs.add("--force-gpu-mem-available-mb=" + forceGpuMem);
-    } else if (!"arm64".equals(DeviceInfo.getArch()) && !"x86_64".equals(DeviceInfo.getArch())) {
-      extraCommandLineArgs.add(
-          "--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
-      extraCommandLineArgs.add("--disable-gpu-memory-buffer-compositor-resources");
-    }
-
-    String limit = getSanitizedNumericValue(javaSwitches, JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS);
-    if (limit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-items=" + limit);
-    }
-
-    String decodeLimit =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB);
-    if (decodeLimit != null) {
-      extraCommandLineArgs.add("--cc-image-cache-limit-mbs=" + decodeLimit);
-    }
-
-    String budget =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES);
-    if (budget != null) {
-      extraCommandLineArgs.add("--decoded-image-working-set-budget-bytes=" + budget);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES)) {
-      extraCommandLineArgs.add("--enable-scaling-clipped-images");
-    }
-
-    StringJoiner mojoPipeParams = new StringJoiner("/");
-    String subresourceSize =
-        getSanitizedNumericValue(
-            javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE);
-    if (subresourceSize != null) {
-      mojoPipeParams.add("subresource_size/" + subresourceSize);
-    }
-
-    String mediaSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE);
-    if (mediaSize != null) {
-      mojoPipeParams.add("media_size/" + mediaSize);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING)
-        || mojoPipeParams.length() > 0) {
-      if (mojoPipeParams.length() > 0) {
-        extraCommandLineArgs.add(
-            "--enable-features=CobaltDynamicMojoPipeSizing:" + mojoPipeParams.toString());
-      } else {
-        extraCommandLineArgs.add("--enable-features=CobaltDynamicMojoPipeSizing");
-      }
-    }
-
-    if (javaSwitches.containsKey(
-        JavaSwitches.ENABLE_COBALT_CONTENT_LENGTH_AWARE_MOJO_PIPE_SIZING)) {
-      extraCommandLineArgs.add("--enable-features=CobaltContentLengthAwareMojoPipeSizing");
-    }
-
-    StringJoiner featureParams = new StringJoiner("/");
-    String interestAreaSize =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS);
-    if (interestAreaSize != null) {
-      featureParams.add("size_in_pixels/" + interestAreaSize);
-    }
-
-    String reclaimDelay =
-        getSanitizedNumericValue(javaSwitches, JavaSwitches.RECLAIM_DELAY_IN_SECONDS);
-    if (reclaimDelay != null) {
-      featureParams.add("reclaim_delay_s/" + reclaimDelay);
-    }
-
-    if (featureParams.length() > 0) {
-      extraCommandLineArgs.add("--enable-features=SmallerInterestArea:" + featureParams.toString());
-    }
-
-    if (jsFlags.length() > 0) {
-      extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
-      extraCommandLineArgs.add("--avoid-cc-reuse-resource");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE)) {
-      extraCommandLineArgs.add("--enable-features=CobaltMmapFontCache");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET)) {
-      extraCommandLineArgs.add("--enable-features=AreaBasedVideoBufferBudget");
-    }
-
-    if (javaSwitches.containsKey(
-        JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
-      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING)) {
-      extraCommandLineArgs.add("--disable-features=LessAggressiveParkableString");
-    }
-
-    List<String> enabledMemoryPressureFeatures = new ArrayList<>();
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MODERATE_MEMORY_PRESSURE)) {
-      enabledMemoryPressureFeatures.add("CobaltEnableModerateMemoryPressure");
-    }
-    if (javaSwitches.containsKey(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS)) {
-      String cooldown = javaSwitches.get(JavaSwitches.MEMORY_PRESSURE_COOLDOWN_IN_SECONDS);
-      if (cooldown != null) {
-        String cooldownVal = cooldown.replaceAll("[^0-9]", "");
-        if (!cooldownVal.isEmpty()) {
-          enabledMemoryPressureFeatures.add(
-              "CobaltMemoryPressureCooldown:cooldown-seconds/" + cooldownVal);
-        }
-      }
-    }
-    if (!enabledMemoryPressureFeatures.isEmpty()) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + String.join(",", enabledMemoryPressureFeatures));
-    }
-
-    // Convert the Java switch to a command-line flag so C++ code and non-Activity Java components
-    // (such as NetworkStatus) can query
-    // CommandLine.getInstance().hasSwitch("use-starboard-lifecycle").
-    if (javaSwitches.containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)) {
-      extraCommandLineArgs.add("--" + USE_STARBOARD_LIFECYCLE_SWITCH);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
-      extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
-        && DeviceUtil.is1GbDevice()
-        && DeviceUtil.isDisplayAtLeast1080p()) {
-      extraCommandLineArgs.add("--force-device-scale-factor=1.5");
-    } else {
-      extraCommandLineArgs.add("--force-device-scale-factor=" + DEFAULT_FORCE_DEVICE_SCALE_FACTOR);
-    }
-
-    return extraCommandLineArgs;
-=======
     addSwitchesReadBeforeNativeInit(args, javaSwitches);
     sNativeKeyValues = toNativeKeyValues(javaSwitches);
->>>>>>> 088a1fa3c3 (cobalt: Move experiments using C++ flags into C++ layer (#13330))
   }
 
   /** Returns and clears the sanitized [key0, value0, ...] array for C++ initialization. */
