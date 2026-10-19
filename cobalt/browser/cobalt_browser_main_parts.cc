@@ -372,6 +372,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -476,8 +478,11 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     auto* monitor =
         static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
             base::MemoryPressureMonitor::Get());
-    // |monitor| may be nullptr in browser tests or if memory monitoring is
-    // disabled.
+    if (!monitor) {
+      memory_pressure_monitor_ =
+          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+      monitor = memory_pressure_monitor_.get();
+    }
     if (monitor) {
       cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
           media_allowance_getter;
@@ -493,9 +498,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 
 #if BUILDFLAG(IS_ANDROID)
       // Register evaluator for Android OS memory pressure signals.
-      monitor->SetSystemEvaluator(
+      android_os_signal_evaluator_ =
           std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
-              monitor->CreateVoter()));
+              monitor->CreateVoter());
       LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
 #endif  // BUILDFLAG(IS_ANDROID)
     } else {
@@ -560,6 +565,16 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
                  "immediately.";
     std::move(task).Run();
   }
+}
+
+void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+#if BUILDFLAG(IS_ANDROID)
+  android_os_signal_evaluator_.reset();
+#endif
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  memory_pressure_monitor_.reset();
+#endif
+  ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {

@@ -53,22 +53,17 @@ class AndroidOsSignalEvaluatorTest : public testing::Test {
 // on destruction.
 TEST_F(AndroidOsSignalEvaluatorTest,
        RegistersForwarderAndCleansUpOnDestruction) {
-  EXPECT_EQ(AndroidOsSignalEvaluator::GetInstance(), evaluator_.get());
-
   std::vector<base::MemoryPressureListener::MemoryPressureLevel> dispatches;
   monitor_->SetDispatchCallbackForTesting(base::BindLambdaForTesting(
       [&](base::MemoryPressureListener::MemoryPressureLevel level) {
         dispatches.push_back(level);
       }));
 
-  // Verify forwarder callback was registered.
-  const auto& forwarder =
-      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting();
-  ASSERT_TRUE(forwarder);
-
-  // Simulate Android OS signal via forwarder: dispatches CRITICAL and resets
-  // vote to NONE so no sticky vote remains.
-  forwarder.Run(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  // Simulate Android OS signal via MemoryPressureListenerAndroid: dispatches
+  // CRITICAL through the evaluator and resets vote to NONE so no sticky vote
+  // remains.
+  base::android::MemoryPressureListenerAndroid::OnMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
   ASSERT_EQ(dispatches.size(), 1u);
   EXPECT_EQ(dispatches[0],
             base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
@@ -78,16 +73,18 @@ TEST_F(AndroidOsSignalEvaluatorTest,
             base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
 
   // NONE updates current_vote to NONE, and notify = false suppresses dispatch.
-  forwarder.Run(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+  base::android::MemoryPressureListenerAndroid::OnMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
   EXPECT_EQ(evaluator_->current_vote(),
             base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
   EXPECT_EQ(dispatches.size(), 1u);
 
-  // Destroy evaluator and ensure singleton instance and forwarder are cleared.
+  // Destroy evaluator and ensure forwarder is cleared so signals no longer
+  // route through monitor_.
   evaluator_.reset();
-  EXPECT_EQ(AndroidOsSignalEvaluator::GetInstance(), nullptr);
-  EXPECT_FALSE(
-      base::android::MemoryPressureListenerAndroid::GetForwarderCallbackForTesting());
+  base::android::MemoryPressureListenerAndroid::OnMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  EXPECT_EQ(dispatches.size(), 1u);
 }
 
 }  // namespace memory

@@ -36,7 +36,17 @@ namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
 
+namespace memory_pressure {
+class MultiSourceMemoryPressureMonitor;
+}  // namespace memory_pressure
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID)
+namespace memory {
+class AndroidOsSignalEvaluator;
+}  // namespace memory
+#endif
 
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
@@ -52,12 +62,13 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override;
 
   // ShellBrowserMainParts overrides.
   int PreEarlyInitialization() override;
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
+  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
@@ -91,6 +102,15 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   base::OnceClosure pending_task_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<memory_pressure::MultiSourceMemoryPressureMonitor>
+      memory_pressure_monitor_;
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<memory::AndroidOsSignalEvaluator>
+      android_os_signal_evaluator_;
+#endif
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

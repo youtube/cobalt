@@ -29,9 +29,8 @@ namespace memory {
 // for the MultiSourceMemoryPressureMonitor.
 //
 // Ownership:
-// This class is owned by MultiSourceMemoryPressureMonitor via
-// SetSystemEvaluator() and its lifetime is tied to the monitor (and thus
-// CobaltBrowserMainParts).
+// This class is owned by CobaltBrowserMainParts and its lifetime is tied to
+// the browser main message loop.
 //
 // Threading Model:
 // This class is thread-affine and must be constructed, used, and destroyed on
@@ -47,9 +46,6 @@ class AndroidOsSignalEvaluator
 
   AndroidOsSignalEvaluator(const AndroidOsSignalEvaluator&) = delete;
   AndroidOsSignalEvaluator& operator=(const AndroidOsSignalEvaluator&) = delete;
-
-  // Singleton instance accessor for JNI forwarding.
-  static AndroidOsSignalEvaluator* GetInstance();
 
   // Called when Android sends a memory pressure notification over JNI.
   void OnMemoryPressure(MemoryPressureLevel level);

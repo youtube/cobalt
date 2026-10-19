@@ -8,13 +8,17 @@
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/memory/memory_pressure_listener.h"
+
+#if BUILDFLAG(IS_COBALT)
 #include "base/no_destructor.h"
+#endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/memory_jni/MemoryPressureListener_jni.h"
 
 using base::android::JavaParamRef;
 
+#if BUILDFLAG(IS_COBALT)
 namespace {
 base::android::MemoryPressureListenerAndroid::MemoryPressureForwarderCallback&
 GetForwarderCallback() {
@@ -24,19 +28,20 @@ GetForwarderCallback() {
   return *forwarder_callback;
 }
 }  // namespace
+#endif
 
 // Defined and called by JNI.
 static void JNI_MemoryPressureListener_OnMemoryPressure(
     JNIEnv* env,
     jint memory_pressure_level) {
-  auto level = static_cast<base::MemoryPressureListener::MemoryPressureLevel>(
+#if BUILDFLAG(IS_COBALT)
+  base::android::MemoryPressureListenerAndroid::OnMemoryPressure(
       memory_pressure_level);
-  auto& forwarder = GetForwarderCallback();
-  if (forwarder) {
-    forwarder.Run(level);
-    return;
-  }
-  base::MemoryPressureListener::NotifyMemoryPressure(level);
+#else
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      static_cast<base::MemoryPressureListener::MemoryPressureLevel>(
+          memory_pressure_level));
+#endif
 }
 
 static void JNI_MemoryPressureListener_OnPreFreeze(JNIEnv* env) {
@@ -80,15 +85,24 @@ static jint JNI_MemoryPressureListener_GetMemoryPressureCooldownSeconds(
 
 namespace base::android {
 
+#if BUILDFLAG(IS_COBALT)
 void MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
     MemoryPressureForwarderCallback callback) {
   GetForwarderCallback() = std::move(callback);
 }
 
-const MemoryPressureListenerAndroid::MemoryPressureForwarderCallback&
-MemoryPressureListenerAndroid::GetForwarderCallbackForTesting() {
-  return GetForwarderCallback();
+void MemoryPressureListenerAndroid::OnMemoryPressure(
+    int memory_pressure_type) {
+  auto level = static_cast<base::MemoryPressureListener::MemoryPressureLevel>(
+      memory_pressure_type);
+  auto& forwarder = GetForwarderCallback();
+  if (forwarder) {
+    forwarder.Run(level);
+    return;
+  }
+  base::MemoryPressureListener::NotifyMemoryPressure(level);
 }
+#endif
 
 void MemoryPressureListenerAndroid::Initialize(JNIEnv* env) {
   Java_MemoryPressureListener_addNativeCallback(env);

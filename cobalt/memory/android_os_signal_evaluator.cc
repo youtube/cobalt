@@ -17,39 +17,23 @@
 #include <utility>
 
 #include "base/android/memory_pressure_listener_android.h"
-#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 
 namespace cobalt {
 namespace memory {
 
-namespace {
-AndroidOsSignalEvaluator* g_instance = nullptr;
-}  // namespace
-
 AndroidOsSignalEvaluator::AndroidOsSignalEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter)
     : ::memory_pressure::SystemMemoryPressureEvaluator(std::move(voter)) {
-  DCHECK(!g_instance);
-  g_instance = this;
-
   base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
       base::BindRepeating(&AndroidOsSignalEvaluator::OnMemoryPressure,
                           base::Unretained(this)));
 }
 
 AndroidOsSignalEvaluator::~AndroidOsSignalEvaluator() {
-  DCHECK_EQ(g_instance, this);
-  g_instance = nullptr;
-
   base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
       base::NullCallback());
-}
-
-// static
-AndroidOsSignalEvaluator* AndroidOsSignalEvaluator::GetInstance() {
-  return g_instance;
 }
 
 void AndroidOsSignalEvaluator::OnMemoryPressure(MemoryPressureLevel level) {
