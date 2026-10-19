@@ -350,6 +350,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // and switches to the main WebContents, even if it hasn't loaded yet: the
   // surface of the video may not survive.
   void StopNativeSplashVideo();
+  // Stops the splash screen video played natively, if any, and switches to the
+  // main WebContents, even if it hasn't loaded yet, e.g., when the video can't
+  // be played natively: there's no other splash screen to fall back to.
+  void SwitchFromNativeSplashVideo();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 

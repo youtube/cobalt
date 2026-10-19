@@ -860,7 +860,7 @@ void Shell::OnCachedSplashVideoRead(SplashScreenFetchedState state,
     return;
   }
   if (!MaybeStartNativeSplashVideo(std::move(cached_webm))) {
-    LoadSplashScreenURL(SplashScreenPage::kDefault);
+    SwitchFromNativeSplashVideo();
   }
 }
 
@@ -883,7 +883,7 @@ bool Shell::MaybeStartNativeSplashVideo(std::string cached_webm) {
       std::move(callbacks));
   if (!native_splash_video_player_) {
     LOG(WARNING) << "NativeSplash: Can't play the splash screen video "
-                    "natively, falling back to the HTML video.";
+                    "natively.";
     RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kNotStarted);
     return false;
   }
@@ -972,24 +972,16 @@ void Shell::OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error) {
       RecordNativeSplashVideoOutcome(
           NativeSplashVideoOutcome::kPlaybackErrorAfterFirstFrame);
       // The video already shows, and its splash screen's duration already
-      // counts: reloading the page would flash and restart the video. The
-      // player keeps its last frame on screen until the splash screen ends as
-      // usual.
+      // counts: the player keeps its last frame on screen until the splash
+      // screen ends as usual.
       LOG(WARNING) << "NativeSplash: The splash screen video failed after its "
                       "first frame.";
       awaiting_splash_video_first_frame_ = false;
       StartSplashScreenTimer();
       return;
   }
-  native_splash_video_player_.reset();
-  awaiting_splash_video_first_frame_ = false;
-  if (has_switched_to_main_frame_ || !splash_screen_web_contents_ ||
-      splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
-    return;
-  }
-  LOG(WARNING) << "NativeSplash: The splash screen video failed, falling back "
-                  "to the HTML video.";
-  LoadSplashScreenURL(SplashScreenPage::kDefault);
+  LOG(WARNING) << "NativeSplash: The splash screen video failed.";
+  SwitchFromNativeSplashVideo();
 }
 
 void Shell::StopNativeSplashVideo() {
@@ -1001,14 +993,19 @@ void Shell::StopNativeSplashVideo() {
   if (splash_cache_reader_ || native_splash_video_player_) {
     RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kStoppedOnConceal);
   }
+  // Without its video, the page's video hole would show the cleared video
+  // surface once the app is revealed.
+  SwitchFromNativeSplashVideo();
+}
+
+void Shell::SwitchFromNativeSplashVideo() {
   splash_cache_reader_.reset();
   native_splash_video_player_.reset();
   awaiting_splash_video_first_frame_ = false;
-  // Without its video, the page's video hole would show the cleared video
-  // surface once the app is revealed. The main WebContents shows instead, even
-  // if it hasn't loaded yet, as without a splash screen.
-  // TODO(cobalt, b/574620132): Decide what shows once the app is revealed,
-  // e.g., the image splash screen until the main WebContents has loaded.
+  // The main WebContents shows instead, even if it hasn't loaded yet, as
+  // without a splash screen.
+  // TODO(cobalt, b/574620132): Decide what shows instead, e.g., the image
+  // splash screen until the main WebContents has loaded.
   SwitchToMainWebContents();
 }
 

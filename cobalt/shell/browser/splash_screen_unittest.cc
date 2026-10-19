@@ -749,22 +749,19 @@ TEST_F(SplashScreenTest, NativeVideoFirstFrameWaitIsBounded) {
   shell->Close();
 }
 
-TEST_F(SplashScreenTest, NativeVideoErrorBeforeFirstFrameFallsBackToHtmlVideo) {
-  // As with NativeVideoSplashScreen, which shows a video too.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      cobalt::features::kForceVideoSplashScreen);
+TEST_F(SplashScreenTest, NativeVideoErrorBeforeFirstFrameSwitchesToMainFrame) {
   Shell* shell = CreateShellWithSplashScreen();
-
   CallLoadSplashScreenWebContents(shell);
   ShowNativeSplashVideoHole(shell);
-  EXPECT_EQ(
-      GetPendingSplashScreenURL(shell),
-      GURL(std::string(switches::kSplashScreenURL) + "?native_video=true"));
 
+  // There's no other splash screen to fall back to: the main frame shows
+  // instead, even if it hasn't loaded yet.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallOnNativeSplashVideoError(shell,
                                NativeSplashVideoPlayer::Error::kPlaybackError);
-  EXPECT_EQ(GetPendingSplashScreenURL(shell), GURL(switches::kSplashScreenURL));
+  EXPECT_FALSE(IsMainFrameLoaded(shell));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(GetSplashScreenWebContents(shell), nullptr);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
