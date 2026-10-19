@@ -166,6 +166,16 @@ public class JavaSwitches {
   /** Flag to force 720p UI for 1GB RAM devices on 1080p+ displays for A/B testing. */
   public static final String FORCE_720P_UI_ON_1GB_DEVICES = "Force720pUiOn1GbDevices";
 
+  /** Flag to run MediaCodec callbacks on a dedicated thread instead of the main thread. */
+  public static final String ENABLE_MEDIA_CODEC_CALLBACK_THREAD = "EnableMediaCodecCallbackThread";
+
+  /**
+   * Command-line switch name passed to CommandLine when ENABLE_MEDIA_CODEC_CALLBACK_THREAD is set.
+   * Read by MediaCodecBridge.
+   */
+  public static final String ENABLE_MEDIA_CODEC_CALLBACK_THREAD_SWITCH =
+      "enable-media-codec-callback-thread";
+
   private static Boolean sOverrideForTesting;
 
   public static void setOverrideForTesting(Boolean override) {
@@ -500,6 +510,10 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.ENABLE_ACTIVITY_LIFECYCLE_COORDINATION)) {
       extraCommandLineArgs.add("--enable-activity-lifecycle-coordination");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_MEDIA_CODEC_CALLBACK_THREAD)) {
+      extraCommandLineArgs.add("--" + ENABLE_MEDIA_CODEC_CALLBACK_THREAD_SWITCH);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES)
