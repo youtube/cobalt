@@ -258,7 +258,7 @@ if (current_toolchain == starboard_toolchain) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
     if (use_evergreen && use_crashpad) {
-      deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]
+      deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
     }
     if (is_starboard) {
       deps += [
