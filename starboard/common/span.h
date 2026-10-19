@@ -41,6 +41,9 @@ class Span {
   constexpr size_t size() const { return size_; }
   constexpr bool empty() const { return size_ == 0; }
 
+  constexpr T* begin() const noexcept { return data_; }
+  constexpr T* end() const noexcept { return data_ + size_; }
+
  private:
   T* data_ = nullptr;
   size_t size_ = 0;
