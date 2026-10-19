@@ -23,7 +23,9 @@
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
+#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/switches.h"
@@ -44,6 +46,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableAcceleratedVideoEncode));
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kHideScrollbars));
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kUseCustomAndroidFontsXml));
+  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
 
   EXPECT_EQ("no-user-gesture-required",
             cmd_line.GetSwitchValueASCII(::switches::kAutoplayPolicy));
@@ -55,8 +58,16 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
 #else
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kUseANGLE));
 #endif
-  EXPECT_EQ("--no-decommit-pooled-pages,--no-concurrent-marking",
-            cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+  EXPECT_EQ(
+      "--no-decommit-pooled-pages,--no-concurrent-marking,"
+      "--initial-old-space-size=64,--max-old-space-size=512",
+      cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
+#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
+  EXPECT_EQ("64",
+            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+#else
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceGpuMemAvailableMb));
+#endif
   EXPECT_EQ("PreciseMemoryInfo",
             cmd_line.GetSwitchValueASCII(::switches::kEnableBlinkFeatures));
   EXPECT_EQ(
@@ -112,12 +123,27 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       cmd_line.GetSwitchValueASCII(::switches::kDisableFeatures));
   EXPECT_EQ(
       "--no-decommit-pooled-pages,--no-concurrent-marking,"
+      "--initial-old-space-size=64,--max-old-space-size=512,"
       "--test-flag,--another-flag",
       cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_EQ("TestBlinkFeature,PreciseMemoryInfo",
             cmd_line.GetSwitchValueASCII(::switches::kEnableBlinkFeatures));
   EXPECT_EQ("1048576",
             cmd_line.GetSwitchValueASCII(switches::kMaxHttpCacheSize));
+}
+
+TEST(CobaltSwitchDefaultsAndroidTest, EnableQuicSuppressesDisableQuic) {
+  const auto input_argv = std::to_array<const char*>({
+      "PROGRAM",
+      "--enable-quic",
+  });
+  base::CommandLine cmd_line(static_cast<int>(input_argv.size()),
+                             input_argv.data());
+  CommandLinePreprocessor::ApplyDefaults(&cmd_line);
+
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  // Other toggle defaults are still applied.
+  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kSingleProcess));
 }
 
 }  // namespace

@@ -54,6 +54,10 @@ constexpr char kEnableActivityLifecycleCoordination[] =
 constexpr char kAllowCriticalMemoryPressureHandlingInForeground[] =
     "allow-critical-memory-pressure-handling-in-foreground";
 
+// Suppresses Cobalt's default --disable-quic. Chromium has no --enable-quic
+// switch; this is only read by CommandLinePreprocessor::ApplyDefaults().
+constexpr char kEnableQuic[] = "enable-quic";
+
 }  // namespace switches
 }  // namespace cobalt
 

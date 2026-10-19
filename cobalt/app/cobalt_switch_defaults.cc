@@ -24,7 +24,9 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/blink/public/common/switches.h"
 
@@ -55,6 +57,30 @@ void MergeFeatures(base::CommandLine* cmd_line,
   }
 }
 
+// A toggle-switch default that ApplyDefaults() skips when `suppressed_by` is
+// present. Listing a switch here does not make it a default.
+struct SwitchSuppression {
+  std::string_view switch_name;
+  std::string_view suppressed_by;
+};
+
+// Returns whether the toggle-switch default `toggle` is suppressed by a switch
+// on `cmd_line`. Shared by all platforms; an entry only matters on platforms
+// where its switch is a default.
+bool IsToggleSuppressed(const base::CommandLine& cmd_line,
+                        std::string_view toggle) {
+  // Function-local because Chromium switch constants are extern, so a
+  // namespace-scope table would need a static initializer.
+  static const SwitchSuppression kSwitchSuppressions[] = {
+      {::switches::kDisableQuic, cobalt::switches::kEnableQuic},
+  };
+  return std::ranges::any_of(kSwitchSuppressions,
+                             [&](const SwitchSuppression& entry) {
+                               return entry.switch_name == toggle &&
+                                      cmd_line.HasSwitch(entry.suppressed_by);
+                             });
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -63,8 +89,11 @@ namespace cobalt {
 void CommandLinePreprocessor::ApplyDefaults(base::CommandLine* cmd_line) {
   CHECK(cmd_line);
 
-  // Toggle-switch defaults are just turned on by default.
+  // Toggle-switch defaults are turned on unless explicitly suppressed.
   for (const auto& cobalt_switch : GetCobaltToggleSwitches()) {
+    if (IsToggleSuppressed(*cmd_line, cobalt_switch)) {
+      continue;
+    }
     cmd_line->AppendSwitch(cobalt_switch);
   }
 

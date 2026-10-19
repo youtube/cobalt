@@ -296,6 +296,7 @@ source_set("common") {
     "//cobalt/shell:pak",
     "//cobalt/utility",
     "//components/memory_system",
+    "//components/network_session_configurator/common",
     "//content/public/app",
     "//gpu/command_buffer/service",
     "//media",

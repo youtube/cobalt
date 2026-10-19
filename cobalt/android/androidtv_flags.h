@@ -99,7 +99,8 @@ inline constexpr char kEnableCobaltMmapFontCache[] =
 inline constexpr char kEnableModerateMemoryPressure[] =
     "EnableModerateMemoryPressure";
 
-// Enables QUIC for network requests; otherwise --disable-quic is passed.
+// Enables QUIC for network requests by passing --enable-quic, which suppresses
+// the default --disable-quic (cobalt/app/cobalt_switch_defaults_android.cc).
 // See b/467778593.
 inline constexpr char kEnableQuic[] = "EnableQUIC";
 
