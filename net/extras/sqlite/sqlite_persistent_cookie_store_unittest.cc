@@ -34,6 +34,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "crypto/aes_cbc.h"
 #include "net/base/features.h"
 #include "net/base/test_completion_callback.h"
@@ -675,6 +676,23 @@ TEST_F(SQLitePersistentCookieStoreTest, TestBeforeCommitCallback) {
 
   DestroyStore();
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(SQLitePersistentCookieStoreTest, AddAndDeleteCommitImmediately) {
+  InitializeStore(/*crypt=*/false, /*restore_old_session_cookies=*/false);
+
+  int commit_count = 0;
+  store_->SetBeforeCommitCallback(
+      base::BindLambdaForTesting([&]() { commit_count++; }));
+
+  base::Time now = base::Time::Now();
+  AddCookie("A", "B", "example.com", "/", now);
+  RunUntilIdle();
+  EXPECT_EQ(commit_count, 1);
+
+  DestroyStore();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Test that we can force the database to be written by calling Flush().
 TEST_F(SQLitePersistentCookieStoreTest, TestFlush) {

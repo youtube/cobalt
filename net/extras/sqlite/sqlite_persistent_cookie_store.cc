@@ -518,6 +518,9 @@ class SQLitePersistentCookieStore::Backend
 #if BUILDFLAG(IS_COBALT)
   // Timer for the total load time of the cookie database.
   std::unique_ptr<base::ElapsedTimer> load_timer_;
+  // True when an immediate background Commit() has already been posted for the
+  // current batch of pending operations.
+  bool immediate_commit_pending_ GUARDED_BY(lock_) = false;
 #endif  // BUILDFLAG(IS_COBALT)
 };
 
@@ -1512,6 +1515,9 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
   auto po = std::make_unique<PendingOperation>(op, cc);
 
   PendingOperationsMap::size_type num_pending;
+#if BUILDFLAG(IS_COBALT)
+  bool trigger_immediate_commit = false;
+#endif
   {
     base::AutoLock locked(lock_);
     // When queueing the operation, see if it overwrites any already pending
@@ -1545,8 +1551,30 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
     // the current length of the queue; this is intentional to guarantee
     // progress, as the length of the queue may decrease in some cases.
     num_pending = ++num_pending_;
+#if BUILDFLAG(IS_COBALT)
+    if ((op != PendingOperation::COOKIE_UPDATEACCESS ||
+         num_pending == kCommitAfterBatchSize) &&
+        !immediate_commit_pending_) {
+      immediate_commit_pending_ = true;
+      trigger_immediate_commit = true;
+    }
+#endif
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (trigger_immediate_commit) {
+    // Commit additions and deletions right away so cookies are persisted even
+    // if the process is force-stopped before the delayed commit timer fires.
+    PostBackgroundTask(FROM_HERE, base::BindOnce(&Backend::Commit, this));
+  } else if (num_pending == 1) {
+    // Access-time updates are batched over kCommitInterval.
+    if (!background_task_runner()->PostDelayedTask(
+            FROM_HERE, base::BindOnce(&Backend::Commit, this),
+            kCommitInterval)) {
+      DUMP_WILL_BE_NOTREACHED() << "background_task_runner() is not running.";
+    }
+  }
+#else
   if (num_pending == 1) {
     // We've gotten our first entry for this batch, fire off the timer.
     if (!background_task_runner()->PostDelayedTask(
@@ -1558,6 +1586,7 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
     // We've reached a big enough batch, fire off a commit now.
     PostBackgroundTask(FROM_HERE, base::BindOnce(&Backend::Commit, this));
   }
+#endif
 }
 
 void SQLitePersistentCookieStore::Backend::DoCommit() {
@@ -1572,6 +1601,9 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     base::AutoLock locked(lock_);
     pending_.swap(ops);
     num_pending_ = 0;
+#if BUILDFLAG(IS_COBALT)
+    immediate_commit_pending_ = false;
+#endif
   }
 
 #if BUILDFLAG(IS_COBALT)
