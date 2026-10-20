@@ -27,11 +27,11 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "third_party/jni_zero/jni_zero.h"
 
-// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+// TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+#if !BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/BaseStarboardBridge_jni.h"
@@ -156,52 +156,52 @@ void JNI_BaseStarboardBridge_HandleDeepLink(JNIEnv* env,
 
 void JNI_BaseStarboardBridge_SetAndroidOSExperience(JNIEnv* env,
                                                     jboolean isAmatiDevice) {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+#if !BUILDFLAG(IS_STARBOARD)
   std::string value = isAmatiDevice ? "Amati" : "Watson";
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       cobalt::browser::kAndroidOSExperienceHeaderName, value);
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_BaseStarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env,
                                                            jlong version) {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+#if !BUILDFLAG(IS_STARBOARD)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       cobalt::browser::kPlayServicesVersionHeaderName,
       base::NumberToString(version));
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_BaseStarboardBridge_SetAndroidBuildFingerprint(
     JNIEnv* env,
     const JavaParamRef<jstring>& fingerprint) {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+#if !BUILDFLAG(IS_STARBOARD)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       cobalt::browser::kBuildFingerprintHeaderName,
       ConvertJavaStringToUTF8(env, fingerprint));
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
     JNIEnv* env,
     const JavaParamRef<jstring>& certScope) {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+#if !BUILDFLAG(IS_STARBOARD)
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       cobalt::browser::kCobaltCertScopeHeaderName,
       ConvertJavaStringToUTF8(env, certScope));
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
