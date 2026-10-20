@@ -15,7 +15,9 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
   statuses: read
 
 jobs:
@@ -70,9 +72,52 @@ jobs:
     timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
     outputs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
+      skipped: ${{ steps.check-skip.outputs.skipped }}
     steps:
+      # Skips (outputs skipped=true), continues to wait for Kokoro, or fails.
+      - name: Check if tvOS build should be skipped
+        id: check-skip
+        if: github.event_name == 'pull_request'
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          RUN_NAME_SUFFIX: "@ ${{ needs.get-sha.outputs.sha }} (${{ github.event.action }}))"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
+          [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
+
+          # Wait up to 20 min for the Auto Label Kokoro run of this commit and
+          # event, which decides whether to add the kokoro:run label.
+          for _ in {1..120}; do
+            run=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
+              --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
+            [[ "$(jq -r .status <<< "${run}")" == "completed" ]] && break
+            sleep 10
+          done
+
+          # Continue if a Kokoro build was requested. Kokoro posts a pending
+          # status before removing the label, so one of them is always visible.
+          labeled=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
+            --jq 'any(.labels[]; .name == "kokoro:run" or .name == "kokoro:force-run")' || echo false)
+          started=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/status?per_page=100" \
+            --jq 'any(.statuses[]; .context == "kokoro")' || echo false)
+          [[ "${labeled}" == "true" || "${started}" == "true" ]] && exit 0
+
+          # No build requested. Skip if Auto Label Kokoro decided so, or if this
+          # commit is outdated. Otherwise it didn't finish: fail rather than skip.
+          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${run}")
+          [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
+          head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
+          [[ "${conclusion}" == "cancelled" && -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
+          echo "::error::Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
+          exit 1
+
       - name: Poll GitHub Statuses API for Kokoro build
         id: poll-status
+        if: steps.check-skip.outputs.skipped != 'true'
         env:
           COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,7 +125,8 @@ jobs:
           echo "Polling GitHub Statuses API for Kokoro status on commit ${COMMIT_SHA}..."
           for i in {1..240}; do # Poll for 2 hours (240 * 30s)
             echo "Attempt ${i}/240..."
-            statuses=$(gh api "repos/youtube/cobalt/commits/${COMMIT_SHA}/statuses")
+            # Latest status per context; /statuses would need paging.
+            statuses=$(gh api "repos/youtube/cobalt/commits/${COMMIT_SHA}/status?per_page=100" --jq '.statuses')
 
             echo "--- Current Statuses ---"
             echo "${statuses}" | jq -r '.[] | "\(.context): \(.state) (\(.description))"'
@@ -121,6 +167,7 @@ jobs:
 
   download-artifacts:
     needs: [get-sha, wait-for-kokoro-build, get-targets]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
     runs-on: [self-hosted, odt-runner]
     container:
       image: ghcr.io/youtube/cobalt/linux:main
@@ -148,7 +195,8 @@ jobs:
   # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
   run-tests:
     name: tvos_${{ matrix.target }}
-    needs: [get-targets, download-artifacts]
+    needs: [get-targets, wait-for-kokoro-build, download-artifacts]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -252,6 +300,7 @@ jobs:
     steps:
       - name: Check test results
         env:
+          GATE_SKIPPED: ${{ needs.wait-for-kokoro-build.outputs.skipped }}
           RUN_TESTS_RESULT: ${{ needs.run-tests.result }}
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
@@ -264,7 +313,12 @@ jobs:
               test_failures: {}
             }' > shepherd_report.json
 
-          if [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
+          # Check the gate's output. Not RUN_TESTS_RESULT == "skipped", which causes run-tests
+          # skipped when a job it needs fails.
+          if [[ "${GATE_SKIPPED}" == "true" ]]; then
+            echo "tvOS build skipped."
+            exit 0
+          elif [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
             echo "All tvOS tests passed successfully!"
             exit 0
           else
