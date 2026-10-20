@@ -313,13 +313,10 @@ class TestRunnerBindings final : public gin::Wrappable<TestRunnerBindings> {
   void FocusDevtoolsSecondaryWindow();
   void ForceNextDrawingBufferCreationToFail();
   void ForceNextWebGLContextCreationToFail();
-  #if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
   void GetBluetoothManualChooserEvents(v8::Local<v8::Function> callback);
-<<<<<<< HEAD
+#endif
   gin::Dictionary GetClipboardReadState(v8::Isolate* isolate);
-=======
-  #endif
->>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void GetManifestThen(v8::Local<v8::Function> callback);
   std::string GetWritableDirectory();
   void InsertStyleSheet(const std::string& source_code);
