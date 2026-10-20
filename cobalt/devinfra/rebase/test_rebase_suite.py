@@ -1414,12 +1414,27 @@ target("foo") {{}}
         f.write("// normal file")
       self.assertFalse(is_unmodified_third_party(base_file, tmpdir))
 
-      # 2. Tooling under third_party (e.g. jni_zero) is allowed to be modified
+      # 2. Tooling and first-party Blink under third_party are patchable
       jni_file = os.path.join(tmpdir, "third_party", "jni_zero", "tool.py")
       os.makedirs(os.path.dirname(jni_file), exist_ok=True)
       with open(jni_file, "w", encoding="utf-8") as f:
         f.write("# tooling")
       self.assertFalse(is_unmodified_third_party(jni_file, tmpdir))
+
+      blink_file = os.path.join(
+          tmpdir,
+          "third_party",
+          "blink",
+          "renderer",
+          "platform",
+          "loader",
+          "fetch",
+          "policy_container_utils.cc",
+      )
+      os.makedirs(os.path.dirname(blink_file), exist_ok=True)
+      with open(blink_file, "w", encoding="utf-8") as f:
+        f.write("// new upstream Blink file\n")
+      self.assertFalse(is_unmodified_third_party(blink_file, tmpdir))
 
       # 3. Pure third-party file with no Cobalt git history or macros
       pure_tp = os.path.join(tmpdir, "third_party", "zlib", "zlib.h")
@@ -2390,6 +2405,55 @@ class RejectedPatchLoopTest(unittest.TestCase):
     self.assertEqual(
         records[0].error, "SEARCH text not found in the current file; "
         "re-read the file and copy the lines exactly")
+
+  def test_expert_preflight_notifies_when_tool_budget_exhausted(self):
+    seen_histories = []
+
+    class _MockEngine:
+      flash_model = "flash"
+      expert_model = "expert"
+
+      def generate_expert_guidance(self, **kwargs):
+        seen_histories.append(kwargs.get("investigation_history", ""))
+        if len(seen_histories) <= 2:
+          return {"guidance": "TOOL_READ_FILE: cobalt/a.cc 1-5"}
+        return {"guidance": "Final synthesized architectural plan."}
+
+    class _DummyResolver(BaseResolver):
+      """Resolver stub for testing _expert_preflight."""
+
+      @property
+      def name(self):
+        return "compile"
+
+      def run_command(self, iteration):
+        del iteration
+        return True, "", ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del build_output, siso_output
+        return []
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return "", "flash", "cobalt/a.cc"
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      src = os.path.join(tmpdir, "cobalt", "a.cc")
+      os.makedirs(os.path.dirname(src))
+      with open(src, "w", encoding="utf-8") as f:
+        f.write("int a = 1;\n")
+      resolver = _DummyResolver(tmpdir, engine=_MockEngine())
+      # pylint: disable=protected-access
+      plan = resolver._expert_preflight(
+          [Diagnostic(file_path=src, error_message="err")],
+          "raw log",
+          stuck=False,
+          stuck_count=0,
+      )
+    self.assertEqual(plan, "Final synthesized architectural plan.")
+    self.assertEqual(len(seen_histories), 3)
+    self.assertIn("TOOL BUDGET EXHAUSTED", seen_histories[2])
 
 
 class PipelineFlagsTest(unittest.TestCase):
