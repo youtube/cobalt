@@ -129,16 +129,6 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/display/screen_info.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/public/common/features.h"
-#endif  // BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/strings/string_util.h"
-#include "media/base/starboard/sbmedia_interface.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #ifndef LOG_MEDIA_EVENTS
 // Default to not logging events because so many are generated they can
 // overwhelm the rest of the logging.
@@ -307,40 +297,11 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   // knows it cannot render.
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_IOS_TVOS)
-    // content_type_str is empty for src-attribute loads. Use the MIME
-    // type for data: URLs extracted by MimeTypeFromDataURL() so
-    // CanPlayMimeAndKeySystem receives a valid type instead of an
-    // empty string.
-    auto ascii = content_type_str.empty() ? content_mime_type.Ascii()
-                                          : content_type_str.Ascii();
-#else
-    auto ascii = content_type_str.Ascii();
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-    SbMediaSupportType support_type =
-        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
-                                                                "");
-    MIMETypeRegistry::SupportsType result;
-    switch (support_type) {
-      case kSbMediaSupportTypeNotSupported:
-        result = MIMETypeRegistry::kNotSupported;
-        break;
-      case kSbMediaSupportTypeMaybe:
-        result = MIMETypeRegistry::kMaybeSupported;
-        break;
-      case kSbMediaSupportTypeProbably:
-        result = MIMETypeRegistry::kSupported;
-        break;
-    }
-    LOG(INFO) << __func__ << "(" << ascii << ") -> " << result;
-    return result;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return MIMETypeRegistry::SupportsMediaMIMEType(content_mime_type,
                                                    content_type_codecs) !=
            MIMETypeRegistry::kNotSupported;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
+
   return false;
 }
 
@@ -401,56 +362,11 @@ std::ostream& operator<<(std::ostream& stream,
   return stream << static_cast<void const*>(&media_element);
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Checks for progressive formats served by the YouTube H5 player.
-// These formats have a mime type of "video/mp4", and lists both audio and
-// video codecs under the "codecs" parameter. This is not a comprehensive
-// check and may not detect all progressive formats.
-bool IsProgressiveFormat(const ContentType& content_type) {
-  const String type = content_type.GetType();
-  const String codecs = content_type.Parameter("codecs");
-
-  if (type.empty() && codecs.empty()) {
-    return false;
-  }
-
-  const Vector<String> split_codecs = codecs.SplitSkippingEmpty(',');
-  return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // anonymous namespace
 
 // static
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Interrupt Chromium's IsTypeSupported() from here for better performance.
-  MIMETypeRegistry::SupportsType result;
-  if (IsProgressiveFormat(content_type)) {
-    LOG(INFO) << "Progressive content type \'" << content_type.Raw()
-              << "\' is unsupported.";
-    result = MIMETypeRegistry::kNotSupported;
-  } else {
-    auto ascii = content_type.Raw().Ascii();
-    SbMediaSupportType support_type =
-        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
-                                                                "");
-    switch (support_type) {
-      case kSbMediaSupportTypeNotSupported:
-        result = MIMETypeRegistry::kNotSupported;
-        break;
-      case kSbMediaSupportTypeMaybe:
-        result = MIMETypeRegistry::kMaybeSupported;
-        break;
-      case kSbMediaSupportTypeProbably:
-        result = MIMETypeRegistry::kSupported;
-        break;
-    }
-  }
-  LOG(INFO) << __func__ << "(" << content_type.Raw() << ") -> " << result;
-  return result;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   String type = content_type.GetType().DeprecatedLower();
   // The codecs string is not lower-cased because MP4 values are case sensitive
   // per http://tools.ietf.org/html/rfc4281#page-7.
@@ -471,7 +387,6 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
   MIMETypeRegistry::SupportsType result =
       MIMETypeRegistry::SupportsMediaMIMEType(type, type_codecs);
   return result;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool HTMLMediaElement::IsHLSURL(const KURL& url) {
@@ -2542,15 +2457,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     ScheduleNamedEvent(event_type_names::kProgress);
     previous_progress_time_ = base::ElapsedTimer();
     sent_stalled_event_ = false;
-#if BUILDFLAG(IS_COBALT)
-    if (!base::FeatureList::IsEnabled(
-            features::kCobaltSkipHiddenMediaControlsWork) ||
-        ShouldShowControls()) {
-      UpdateLayoutObject();
-    }
-#else
     UpdateLayoutObject();
-#endif  // BUILDFLAG(IS_COBALT)
   } else if (!media_source_attachment_ &&
              previous_progress_time_->Elapsed() >
                  kStalledNotificationInterval &&
@@ -3303,10 +3210,6 @@ void HTMLMediaElement::SetLoop(bool b) {
 }
 
 bool HTMLMediaElement::ShouldShowControls() const {
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt targets TV specifically and does not support media control.
-  return false;
-#else
   // If the document is not active, then we should not show controls.
   if (!GetDocument().IsActive()) {
     return false;
@@ -3332,7 +3235,6 @@ bool HTMLMediaElement::ShouldShowControls() const {
     return true;
   }
   return false;
-#endif
 }
 
 bool HTMLMediaElement::ShouldShowAllControls() const {
@@ -4616,17 +4518,6 @@ MediaControls* HTMLMediaElement::GetMediaControls() const {
 void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
-
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt does not show native controls or the cast overlay button, so skip
-  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
-  // when native controls are not needed.
-  if (base::FeatureList::IsEnabled(
-          features::kCobaltSkipHiddenMediaControlsWork) &&
-      !ShouldShowControls()) {
-    return;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
   // It might be nice to lazily initialize only the controls we need when they
   // are actually visible, but cursory tests don't show any memory improvements.
