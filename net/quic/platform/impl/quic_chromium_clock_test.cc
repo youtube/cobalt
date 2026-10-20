@@ -100,14 +100,19 @@ TEST(QuicChromiumClockTest, OuterScopeCachesAfterInnerScopeEnds) {
   QuicChromiumClock clock;
 
   QuicChromiumClock::ScopedApproximateNow outer_scope;
+  QuicTime start = QuicTime::Zero();
   {
     QuicChromiumClock::ScopedApproximateNow inner_scope;
-    clock.Now();
+    start = clock.Now();
   }
-  QuicTime now = clock.Now();
-  task_environment.FastForwardBy(base::Milliseconds(1));
+  task_environment.FastForwardBy(base::Seconds(8));
 
-  EXPECT_EQ(clock.ApproximateNow(), now);
+  // The inner scope cleared the cached time, so the clock is read.
+  EXPECT_EQ(clock.ApproximateNow(), start + QuicTime::Delta::FromSeconds(8));
+
+  // That read is cached for the rest of the outer scope.
+  task_environment.FastForwardBy(base::Milliseconds(1));
+  EXPECT_EQ(clock.ApproximateNow(), start + QuicTime::Delta::FromSeconds(8));
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
