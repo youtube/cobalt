@@ -356,10 +356,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SplashTimeoutCountsFromVideoStart \
   DISABLED_SplashTimeoutCountsFromVideoStart
-#else
+#else  // BUILDFLAG(IS_ANDROID)
 #define MAYBE_SplashTimeoutCountsFromVideoStart \
   SplashTimeoutCountsFromVideoStart
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 // splash.html's timeout counts from when its video starts, as Shell's does.
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
                        MAYBE_SplashTimeoutCountsFromVideoStart) {
