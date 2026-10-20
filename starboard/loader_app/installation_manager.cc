@@ -447,6 +447,10 @@ int InstallationManager::GetInstallationPath(int installation_index,
     SB_LOG(ERROR) << "GetInstallationPath: not initialized";
     return IM_ERROR;
   }
+  if (!IsValidIndex(installation_index)) {
+    SB_LOG(ERROR) << "GetInstallationPath: invalid index" << installation_index;
+    return IM_ERROR;
+  }
   return GetInstallationPathInternal(installation_index, path, path_length)
              ? IM_SUCCESS
              : IM_ERROR;
@@ -676,7 +680,7 @@ bool InstallationManager::LoadInstallationStore() {
 bool InstallationManager::GetInstallationPathInternal(int installation_index,
                                                       char* path,
                                                       int path_length) {
-  if (!IsValidIndex(installation_index)) {
+  if (installation_index < 0) {
     SB_LOG(ERROR) << "GetInstallationPath: invalid index" << installation_index;
     return false;
   }
@@ -722,8 +726,9 @@ bool InstallationManager::CleanInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
   // The index 0 slot is under the content directory.
   for (int i = 1; i < installation_store_.installations_size(); i++) {
-    snprintf(path.data(), kSbFileMaxPath, "%s%s%s%d", storage_dir_.c_str(),
-             kSbFileSepString, "installation_", i);
+    if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
+      return false;
+    }
     struct stat info;
     if (stat(path.data(), &info) == 0 &&
         !starboard::SbFileDeleteRecursive(path.data(), false)) {
