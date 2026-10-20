@@ -42,7 +42,7 @@ class StubContextMenuController final : public ContextMenuController {
   // ContextMenuController override:
   bool ShowContextMenu(LocalFrame*,
                        const PhysicalOffset&,
-                       WebMenuSourceType,
+                       ui::mojom::blink::MenuSourceType,
                        const MouseEvent* mouse_event) override;
 };
 
