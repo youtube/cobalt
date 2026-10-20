@@ -103,36 +103,31 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
-  base::ScopedTempDir temp_user_data_dir;
-  base::ScopedTempDir temp_cache_dir;
-  ASSERT_TRUE(temp_user_data_dir.CreateUniqueTempDir());
-  ASSERT_TRUE(temp_cache_dir.CreateUniqueTempDir());
-  base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA,
-                                              temp_user_data_dir.GetPath());
-  base::ScopedPathOverride cache_override(base::DIR_CACHE,
-                                          temp_cache_dir.GetPath());
+  base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA);
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath user_data_dir =
+      base::PathService::CheckedGet(content::SHELL_DIR_USER_DATA);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
 
   CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
                                     /*deep_link=*/"",
                                     /*is_visible=*/true);
   // By default (kCobaltStorageCleanup disabled), shader disk cache directories
   // remain in SHELL_DIR_USER_DATA.
-  EXPECT_EQ(
-      client.GetShaderDiskCacheDirectory(),
-      temp_user_data_dir.GetPath().Append(FILE_PATH_LITERAL("ShaderCache")));
-  EXPECT_EQ(
-      client.GetGrShaderDiskCacheDirectory(),
-      temp_user_data_dir.GetPath().Append(FILE_PATH_LITERAL("GrShaderCache")));
+  EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
+            user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+            user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
 
   // When kCobaltStorageCleanup is enabled, shader disk cache directories use
   // base::DIR_CACHE.
   base::test::ScopedFeatureList feature_list(
       base::features::kCobaltStorageCleanup);
   EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
-            temp_cache_dir.GetPath().Append(FILE_PATH_LITERAL("ShaderCache")));
-  EXPECT_EQ(
-      client.GetGrShaderDiskCacheDirectory(),
-      temp_cache_dir.GetPath().Append(FILE_PATH_LITERAL("GrShaderCache")));
+            cache_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+            cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
 }
 #endif
 
