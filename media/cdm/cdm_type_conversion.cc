@@ -8,11 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-<<<<<<< HEAD
-=======
-#include "base/not_fatal_until.h"
 #include "build/build_config.h"
->>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/numerics/safe_conversions.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
