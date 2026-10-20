@@ -110,6 +110,7 @@ source_set("browser") {
     "//components/prefs",
     "//components/variations/service",
     "//components/viz/common",
+    "//gpu/config",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]

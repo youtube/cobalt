@@ -31,6 +31,8 @@ GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
 GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                       kCobaltRemoveUiPlaneDestroyBuffersDelay);
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuShaderDiskCache);
+GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuShaderDiskCacheSizeKb);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
