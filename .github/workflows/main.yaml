@@ -166,7 +166,6 @@ jobs:
             echo "test_yts=$(jq -rc '.test_yts // false' "${config_file}")"
             echo "test_yts_playback=$(jq -rc '.test_yts_playback // false' "${config_file}")"
             echo "test_yts_wpt=$(jq -rc '.test_yts_wpt // false' "${config_file}")"
-            echo "test_yts_wpt_required=$(jq -rc '.test_yts_wpt_required // true' "${config_file}")"
             echo "test_yts_finch=$(jq -rc '.test_yts_finch // false' "${config_file}")"
           } >> "${GITHUB_OUTPUT}"
       - name: Set Browser tests
@@ -357,7 +356,6 @@ jobs:
       test_yts_playback: ${{ steps.set-internal-tests.outputs.test_yts_playback }}
       test_browser: ${{ steps.set-test-browser.outputs.test_browser }}
       test_yts_wpt: ${{ steps.set-internal-tests.outputs.test_yts_wpt }}
-      test_yts_wpt_required: ${{ steps.set-internal-tests.outputs.test_yts_wpt_required }}
       test_yts_finch: ${{ steps.set-internal-tests.outputs.test_yts_finch }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_chromedriver: ${{ steps.set-test-chromedriver.outputs.test_chromedriver }}
@@ -823,7 +821,6 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
           test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-          required: ${{ needs.initialize.outputs.test_yts_wpt_required }}
 
   yts-finch-test:
     needs: [initialize, build]
