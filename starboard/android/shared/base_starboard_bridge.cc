@@ -479,6 +479,12 @@ void StarboardBridge::HideSplashScreen(JNIEnv* env) const {
   Java_BaseStarboardBridge_hideSplashScreen(env, j_starboard_bridge_);
 }
 
+void StarboardBridge::OnPrimaryMainFrameNavigationStarted(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_BaseStarboardBridge_onPrimaryMainFrameNavigationStarted(
+      env, j_starboard_bridge_);
+}
+
 void StarboardBridge::SetStartupMilestone(jint milestone) const {
   JNIEnv* env = AttachCurrentThread();
   Java_BaseStarboardBridge_setStartupMilestone(env, j_starboard_bridge_,
