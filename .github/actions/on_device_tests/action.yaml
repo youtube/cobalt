@@ -216,16 +216,13 @@ runs:
           fi
 
           target_required=$(echo "${TEST_TARGETS_JSON:-[]}" | jq -r --arg t "${test_target_with_path}" '.[] | select((if type == "object" then .target else . end) == $t) | if type == "object" and has("required") then .required else true end')
-          if [[ "${#xml_files[@]}" -eq 0 ]]; then
+          if [[ "${#xml_files[@]}" -eq 0 ]] || grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
             if [[ "${target_required}" == "false" || "${REQUIRED:-true}" == "false" ]]; then
-              echo "Test result xml is missing for non-required target ${test_target}; ignoring."
+              echo "Test result xml is missing or contains failures for non-required target ${test_target}; ignoring."
             else
-              echo "::error::Test result xml is missing for ${test_target}."
+              echo "::error::Test result xml is missing or contains failures for ${test_target}."
               target_failed=1
             fi
-          elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-            echo "::error::Found failures in the test xml."
-            target_failed=1
           fi
         done
         exit ${target_failed}
