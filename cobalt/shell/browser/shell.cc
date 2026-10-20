@@ -239,15 +239,17 @@ constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
 // this type, and shows its image otherwise.
 constexpr char kSplashVideoType[] = "video/webm; codecs=\"vp9\";";
 
-// Overrides CanSplashScreenPlayVideo() in tests, if set.
+// Overrides CanSplashScreenPlayVideo() in tests, if set. Only accessed on the
+// UI thread, which passes it to CanSplashScreenPlayVideo().
 std::optional<bool> g_can_splash_screen_play_video_for_testing;
 
 // Whether splash.html plays its video rather than its image.
 // MediaSource.isTypeSupported() passes the type to Starboard as is, so this
-// asks Starboard the same. May block.
-bool CanSplashScreenPlayVideo() {
-  if (g_can_splash_screen_play_video_for_testing.has_value()) {
-    return *g_can_splash_screen_play_video_for_testing;
+// asks Starboard the same, unless `can_play_video_for_testing` is set. May
+// block.
+bool CanSplashScreenPlayVideo(std::optional<bool> can_play_video_for_testing) {
+  if (can_play_video_for_testing.has_value()) {
+    return *can_play_video_for_testing;
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   return SbMediaCanPlayMimeAndKeySystem(kSplashVideoType, "") !=
@@ -756,7 +758,8 @@ void Shell::LoadSplashScreenWebContents() {
         // off the UI thread, as that may block.
         base::ThreadPool::PostTaskAndReplyWithResult(
             FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
-            base::BindOnce(&CanSplashScreenPlayVideo),
+            base::BindOnce(&CanSplashScreenPlayVideo,
+                           g_can_splash_screen_play_video_for_testing),
             base::BindOnce(&Shell::OnSplashScreenVideoSupportChecked,
                            weak_factory_.GetWeakPtr()));
       }
