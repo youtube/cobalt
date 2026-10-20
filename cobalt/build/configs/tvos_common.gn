@@ -27,3 +27,7 @@ enable_native_on_screen_keyboard = true
 
 # Enable custom Dial Web APIs and server.
 enable_in_app_dial = true
+
+# Allows generating the tvOS GN build graph on Linux hosts (for example,
+# when running `gn analyze` in CI).
+allow_tvos_gn_on_linux = true

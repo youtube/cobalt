@@ -194,6 +194,17 @@ BASE_DECLARE_FEATURE(kCobaltFreezeOnBackground);
 // immediately; 1500 matches the Cobalt 25 Conceal -> Freeze delay.
 extern const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs;
 
+#if BUILDFLAG(IS_ANDROID)
+// Android-only: Enables and configures persisting the 16-byte process state
+// summary to Android's ActivityManager.setProcessStateSummary() (API 30+).
+BASE_DECLARE_FEATURE(kCobaltProcessStateSummary);
+
+// Android-only: Minimum interval between rate-limited process state summary
+// flushes to ActivityManager (default: 15s).
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kProcessStateSummaryMinFlushIntervalParam);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace features
 }  // namespace cobalt
 
