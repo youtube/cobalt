@@ -18,13 +18,17 @@
 #include <string>
 #include <variant>
 
+#include "base/base_paths.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "content/public/browser/overlay_window.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -76,6 +80,33 @@ TEST_F(CobaltContentBrowserClientTest,
   EXPECT_EQ(window, nullptr);
 #endif
 }
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
+  base::ScopedTempDir cache_dir;
+  ASSERT_TRUE(cache_dir.CreateUniqueTempDir());
+  base::ScopedPathOverride cache_override(base::DIR_CACHE, cache_dir.GetPath());
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // Feature off (the default): no directory, so no GPU disk cache can be
+  // created even without --disable-gpu-shader-disk-cache.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_TRUE(client.GetGrShaderDiskCacheDirectory().empty());
+  }
+
+  // Feature on: under base::DIR_CACHE, never under the user data directory.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+              cache_dir.GetPath().Append(FILE_PATH_LITERAL("GrShaderCache")));
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
