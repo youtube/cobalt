@@ -92,6 +92,13 @@ static const WrapperTypeInfo g_dummy_namespace_wrapper_type_info = {
   class ClassName { public: static const WrapperTypeInfo wrapper_type_info_; }; \
   const WrapperTypeInfo ClassName::wrapper_type_info_ = g_dummy_namespace_wrapper_type_info;
 
+// WebRTC V8 Wrappers
+STUB_V8_WRAPPER(V8RTC)
+STUB_V8_WRAPPER(RTC)
+
+// AI V8 Wrappers
+STUB_V8_WRAPPER(V8Classifier)
+
 // Web Bluetooth V8 Wrappers
 STUB_V8_WRAPPER(V8Bluetooth)
 STUB_V8_WRAPPER(V8BluetoothAdvertisingEvent)

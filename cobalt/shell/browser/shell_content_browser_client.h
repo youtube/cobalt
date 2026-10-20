@@ -193,13 +193,6 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       const std::optional<url::Origin>& request_initiator_origin,
       NonNetworkURLLoaderFactoryMap* factories) override;
 
-  // Turns on features via permissions policy for Isolated App
-  // Web Platform Tests.
-  std::optional<std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>>
-  GetPermissionsPolicyForIsolatedWebApp(
-      content::BrowserContext* browser_context,
-      const url::Origin& app_origin) override;
-
   virtual void CreateFeatureListAndFieldTrials();
   ShellBrowserContext* browser_context();
   ShellBrowserContext* off_the_record_browser_context();

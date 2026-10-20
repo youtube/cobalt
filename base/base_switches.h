@@ -194,7 +194,8 @@ inline constexpr char kPackageVersionName[] = "package-version-name";
 #endif
 
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT)
-extern const char kUseCustomAndroidFontsXml[];
+inline constexpr char kUseCustomAndroidFontsXml[] =
+    "use-custom-android-fonts-xml";
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

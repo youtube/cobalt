@@ -670,17 +670,6 @@ void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {}
 
 void ShellContentBrowserClient::SetUpFieldTrials() {}
 
-std::optional<std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>>
-ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
-    content::BrowserContext* browser_context,
-    const url::Origin& app_origin) {
-  std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr> policy;
-  policy.push_back(blink::mojom::IsolatedAppPermissionPolicyEntry::New(
-      "cross-origin-isolated", std::vector<std::string>{"*"}));
-  policy.push_back(blink::mojom::IsolatedAppPermissionPolicyEntry::New(
-      "direct-sockets", std::vector<std::string>{"'self'"}));
-  return policy;
-}
 
 // Tests may install their own ShellContentBrowserClient, track the list here.
 // The list is ordered with oldest first and newer ones added after it.
