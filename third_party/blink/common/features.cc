@@ -474,6 +474,15 @@ BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Skips HTMLMediaElement work that only exists to support native media
+// controls, which Cobalt never shows (ShouldShowControls() is always false).
+// This includes creating MediaControlsImpl (shadow DOM, observers, and media
+// event listeners) and calling UpdateLayoutObject() from
+// ProgressEventTimerFired().
+BASE_FEATURE(kCobaltSkipHiddenMediaControlsWork,
+             "CobaltSkipHiddenMediaControlsWork",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",

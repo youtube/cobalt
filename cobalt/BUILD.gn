@@ -268,6 +268,8 @@ source_set("common") {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
   } else if (is_ios && target_platform == "tvos") {
     sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
+  } else if (is_android) {
+    sources += [ "app/cobalt_switch_defaults_android.cc" ]
   }
 
   if (use_evergreen) {
@@ -304,6 +306,13 @@ source_set("common") {
     "//ui/gl",
   ]
 
+  if (is_android) {
+    deps += [
+      "//components/services/storage",
+      "//content/public/common",
+    ]
+  }
+
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
@@ -314,6 +323,10 @@ source_set("common") {
 
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader" ]
   }
 }
 
@@ -358,6 +371,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/metrics/cobalt_stability_metrics_helper_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_storage_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
@@ -388,6 +402,13 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (is_android) {
+    sources += [
+      "//cobalt/android/androidtv_flag_map_test.cc",
+      "//cobalt/app/cobalt_switch_defaults_android_test.cc",
+    ]
+  }
+
   if (use_evergreen) {
     sources += [ "//cobalt/browser/loader_app_metrics_unittest.cc" ]
   }
@@ -397,6 +418,7 @@ test("cobalt_unittests") {
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
+      "//cobalt/shell/browser/splash_screen_metrics_unittest.cc",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
     ]
   }
@@ -459,6 +481,7 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//components/network_session_configurator/common",
     "//content/browser:for_content_tests",
     "//content/public/common:switches",
     "//content/test:test_support",
@@ -467,6 +490,10 @@ test("cobalt_unittests") {
     "//ui/events/devices",
   ]
 
+  if (is_starboard || is_androidtv) {
+    deps += [ "//cobalt/browser/h5vcc_native_stability" ]
+  }
+
   if (is_starboard) {
     deps += [ "//ui/ozone/platform/starboard" ]
   }
@@ -474,9 +501,16 @@ test("cobalt_unittests") {
   if (is_android) {
     deps += [
       "//base:base_java_test_support",
+      "//cobalt/android:androidtv_flags",
+      "//components/network_session_configurator/common",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
+      "//ui/display",
     ]
+  }
+
+  if (is_androidtv) {
+    deps += [ "//starboard/crashpad_wrapper:native_stability_reader_test" ]
   }
 
   if (use_aura) {

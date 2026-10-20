@@ -20,10 +20,6 @@
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #include "starboard/extension/native_stability.h"
 
-namespace base {
-class FilePath;
-}  // namespace base
-
 namespace crashpad {
 
 // The key name used in Crashpad for the version annotation.
@@ -46,6 +42,11 @@ extern const char kCrashpadCertScopeKey[];
 // upload.
 void InstallCrashpadHandler(const std::string& ca_certificates_path);
 
+// The implementation of InstallCrashpadHandler() shared by all platforms. A
+// platform that needs some setup first runs it in InstallCrashpadHandler(),
+// then calls this.
+void InstallCrashpadHandlerImpl(const std::string& ca_certificates_path);
+
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
 // Associates the given value with the given key in Crashpad's map of
@@ -60,11 +61,6 @@ void DumpWithoutCrashingWrapper();
 // currently stored in the local Crashpad database (both pending and completed).
 // Returns the number of reports read, or -1 on failure.
 int ReadReports(SbNativeStabilityReport* reports, int max_num_reports);
-
-namespace internal {
-// Sets the global database path override for testing.
-void SetDatabasePathForTesting(const base::FilePath& path);
-}  // namespace internal
 
 }  // namespace crashpad
 

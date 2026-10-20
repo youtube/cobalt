@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,14 +41,14 @@ public class JavaSwitchesTest {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
     clearConfigFiles();
     JavaSwitches.setOverrideForTesting(null);
-    DeviceUtil.resetForTesting();
+    JavaSwitches.takeNativeKeyValues();
   }
 
   @After
   public void tearDown() {
     JavaSwitches.setOverrideForTesting(null);
-    clearConfigFiles();
     DeviceUtil.resetForTesting();
+    clearConfigFiles();
   }
 
   private void clearConfigFiles() {
@@ -204,276 +205,172 @@ public class JavaSwitchesTest {
     assertThat(JavaSwitches.shouldApplyExperimentConfigs()).isFalse();
   }
 
-  @Test
-  public void testGetExtraCommandLineArgs_NullSwitches() {
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(null);
-    assertThat(args).contains("--disable-quic");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
+  private static final String LOW_END = "--enable-low-end-device-mode";
+  private static final String DEFAULT_SCALE = "--force-device-scale-factor=1";
+  private static final String UI_720P_SCALE = "--force-device-scale-factor=1.5";
+
+  private static List<String> apply(Map<String, String> switches, boolean shouldApply) {
+    List<String> args = new ArrayList<>();
+    JavaSwitches.apply(switches, shouldApply, args);
+    return args;
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_EmptySwitches() {
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
-    assertThat(args).contains("--disable-quic");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
+  public void testApply_NullSwitches() {
+    assertThat(apply(null, true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+    assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_LowEndDeviceMode_EnabledByDefault() {
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(new HashMap<>());
-    assertThat(args).contains("--enable-low-end-device-mode");
+  public void testApply_EmptySwitches() {
+    assertThat(apply(new HashMap<>(), true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+    assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_LowEndDeviceMode_NotForcedByExperiment() {
+  public void testApply_NativeSwitchesNotOnCommandLine() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "");
+
+    // Switches expanded in C++ are handed over via takeNativeKeyValues(), not the command line.
+    assertThat(apply(switches, true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+  }
+
+  @Test
+  public void testApply_LowEndDeviceMode_NotForcedByExperiment() {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
 
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    List<String> args = apply(switches, true);
 
-    // No switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
+    // No low-end switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
     // physical memory threshold. Devices at or below it stay low-end.
-    assertThat(args).doesNotContain("--enable-low-end-device-mode");
+    assertThat(args).containsExactly(DEFAULT_SCALE);
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_ExperimentsAllowed_AppliesAllConfigs() {
+  public void testApply_LowEndDeviceMode_SafeModeKeepsLowEnd() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_QUIC, "1");
-    switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
-    switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
-    switches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
-    switches.put(JavaSwitches.V8_DISABLE_SPARKPLUG, "1");
-    switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "1024");
-    switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, "256");
-    switches.put(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES, "1");
-    switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, "500");
-    switches.put(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB, "32");
-    switches.put(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES, "1000000");
-    switches.put(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES, "1");
-    switches.put(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING, "1");
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE, "1024");
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, "2048");
-    switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
-    switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
-    switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
-    switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
-    switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
-    switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
-    switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
-    switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
-    switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
+    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
 
-    JavaSwitches.setOverrideForTesting(true);
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-
-    assertThat(args).doesNotContain("--disable-quic");
-    assertThat(args).contains("--disable-gpu-memory-buffer-compositor-resources");
-    assertThat(args).contains("--force-gpu-mem-available-mb=256");
-    assertThat(args).contains("--cc-image-cache-limit-items=500");
-    assertThat(args).contains("--cc-image-cache-limit-mbs=32");
-    assertThat(args).contains("--decoded-image-working-set-budget-bytes=1000000");
-    assertThat(args).contains("--enable-scaling-clipped-images");
-    assertThat(args)
-        .contains(
-            "--enable-features=CobaltDynamicMojoPipeSizing:subresource_size/1024/media_size/2048");
-    assertThat(args)
-        .contains("--enable-features=SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5");
-    assertThat(args).contains("--defer-v8-code-cache-write");
-    assertThat(args).contains("--avoid-cc-reuse-resource");
-    assertThat(args).contains("--enable-features=CobaltBypassResourceLoadScheduler");
-    assertThat(args).contains("--enable-features=CobaltBypassHTMLPreloadScanner");
-    assertThat(args).contains("--enable-features=CobaltMmapFontCache");
-    assertThat(args).contains("--enable-features=AreaBasedVideoBufferBudget");
-    assertThat(args).contains("--allow-critical-memory-pressure-handling-in-foreground");
-    assertThat(args).contains("--enable-features=EvictMemoryCacheOnCriticalMemoryPressure");
-    assertThat(args).contains("--disable-features=LessAggressiveParkableString");
-
-    // Check js-flags
-    boolean foundJsFlags = false;
-    for (String arg : args) {
-      if (arg.startsWith("--js-flags=")) {
-        foundJsFlags = true;
-        assertThat(arg).contains("--minor-ms");
-        assertThat(arg).contains("--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=0");
-        assertThat(arg).contains("--flush-bytecode");
-        assertThat(arg).contains("--bytecode-old-time=10");
-        assertThat(arg).contains("--initial-old-space-size=128");
-        assertThat(arg).contains("--no-sparkplug");
-        assertThat(arg).contains("--max-old-space-size=1024");
-      }
-    }
-    assertThat(foundJsFlags).isTrue();
-  }
-
-  @Test
-  public void testGetExtraCommandLineArgs_ExperimentsNotAllowed_DisablesAllExperiments() {
-    Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.ENABLE_QUIC, "1");
-    switches.put(JavaSwitches.USE_MINOR_MS_FOR_MINOR_GC, "1");
-    switches.put(JavaSwitches.V8_SET_BYTECODE_OLD_TIME, "10");
-    switches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "128");
-    switches.put(JavaSwitches.V8_DISABLE_SPARKPLUG, "1");
-    switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "1024");
-    switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, "256");
-    switches.put(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES, "1");
-    switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, "500");
-    switches.put(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB, "32");
-    switches.put(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES, "1000000");
-    switches.put(JavaSwitches.ENABLE_SCALING_CLIPPED_IMAGES, "1");
-    switches.put(JavaSwitches.ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING, "1");
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE, "1024");
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, "2048");
-    switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, "400");
-    switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, "5");
-    switches.put(JavaSwitches.DEFER_V8_CODE_CACHE_WRITE, "1");
-    switches.put(JavaSwitches.AVOID_CC_REUSE_RESOURCE, "1");
-    switches.put(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER, "1");
-    switches.put(JavaSwitches.COBALT_BYPASS_HTML_PRELOAD_SCANNER, "1");
-    switches.put(JavaSwitches.ENABLE_COBALT_MMAP_FONT_CACHE, "1");
-    switches.put(JavaSwitches.AREA_BASED_VIDEO_BUFFER_BUDGET, "1");
-    switches.put(JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND, "1");
-    switches.put(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE, "1");
-    switches.put(JavaSwitches.DISABLE_LESS_AGGRESSIVE_PARKABLE_STRING, "1");
-
-    JavaSwitches.setOverrideForTesting(false);
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-
-    // Default QUIC is disabled when experiments are not allowed
-    assertThat(args).contains("--disable-quic");
-
-    // None of the experiment features or switches should be present
-    assertThat(args).doesNotContain("--disable-gpu-memory-buffer-compositor-resources");
-    assertThat(args).doesNotContain("--force-gpu-mem-available-mb=256");
-    assertThat(args).doesNotContain("--cc-image-cache-limit-items=500");
-    assertThat(args).doesNotContain("--cc-image-cache-limit-mbs=32");
-    assertThat(args).doesNotContain("--decoded-image-working-set-budget-bytes=1000000");
-    assertThat(args).doesNotContain("--enable-scaling-clipped-images");
-    assertThat(args).doesNotContain("--defer-v8-code-cache-write");
-    assertThat(args).doesNotContain("--avoid-cc-reuse-resource");
-    assertThat(args).doesNotContain("--allow-critical-memory-pressure-handling-in-foreground");
-
-    for (String arg : args) {
-      assertThat(arg).doesNotContain("CobaltDynamicMojoPipeSizing");
-      assertThat(arg).doesNotContain("SmallerInterestArea");
-      assertThat(arg).doesNotContain("CobaltBypassResourceLoadScheduler");
-      assertThat(arg).doesNotContain("CobaltBypassHTMLPreloadScanner");
-      assertThat(arg).doesNotContain("CobaltMmapFontCache");
-      assertThat(arg).doesNotContain("AreaBasedVideoBufferBudget");
-      assertThat(arg).doesNotContain("EvictMemoryCacheOnCriticalMemoryPressure");
-      assertThat(arg).doesNotContain("LessAggressiveParkableString");
-    }
-
-    // Default JS flags should still be present
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
-    assertThat(args).contains("--force-device-scale-factor=1");
-  }
-
-  @Test
-  public void testGetDefaultCommandLineArgs() {
-    List<String> args = JavaSwitches.getDefaultCommandLineArgs();
-    assertThat(args).contains("--disable-quic");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
-    assertThat(args).contains("--force-device-scale-factor=1");
     // Safe mode / no experiment config must not silently flip low-end mode off.
-    assertThat(args).contains("--enable-low-end-device-mode");
+    assertThat(apply(switches, false)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_NullValuesInMap() {
+  public void testApply_AppendsToExistingArgs() {
+    List<String> args = new ArrayList<>();
+    args.add("--enable-features=MetadataFeature");
+    JavaSwitches.apply(new HashMap<>(), true, args);
+    assertThat(args)
+        .containsExactly("--enable-features=MetadataFeature", LOW_END, DEFAULT_SCALE)
+        .inOrder();
+  }
+
+  @Test
+  public void testTakeNativeKeyValues_SortedKeysAndNumericValues() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, null);
-    switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, null);
-    switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, null);
-    switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, null);
-    switches.put(JavaSwitches.LIMIT_IMAGE_DECODE_CACHE_SIZE_MB, null);
-    switches.put(JavaSwitches.DECODED_IMAGE_WORKING_SET_BUDGET_BYTES, null);
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_SUBRESOURCE_SIZE, null);
-    switches.put(JavaSwitches.COBALT_DYNAMIC_MOJO_PIPE_MEDIA_SIZE, null);
-    switches.put(JavaSwitches.INTEREST_AREA_SIZE_IN_PIXELS, null);
-    switches.put(JavaSwitches.RECLAIM_DELAY_IN_SECONDS, null);
+    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "");
+    switches.put(AndroidTvFlags.AVOID_CC_REUSE_RESOURCE, "true");
 
-    JavaSwitches.setOverrideForTesting(true);
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
+    apply(switches, true);
 
-    assertThat(args).contains("--disable-quic");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
+    assertThat(JavaSwitches.takeNativeKeyValues())
+        .asList()
+        .containsExactly("AvoidCCReuseResource", "", "EnableQUIC", "", "V8MaxOldSpaceSize", "1024")
+        .inOrder();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_NonNumericValuesInMap() {
+  public void testTakeNativeKeyValues_TakeClears() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE, "invalid_non_numeric");
-    switches.put(JavaSwitches.V8_MAX_OLD_SPACE_SIZE, "abc");
-    switches.put(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB, "none");
-    switches.put(JavaSwitches.GPU_IMAGE_CACHE_LIMIT_ITEMS, "xyz");
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "1");
+    apply(switches, true);
 
-    JavaSwitches.setOverrideForTesting(true);
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-
-    assertThat(args).contains("--disable-quic");
-    assertThat(args).contains("--js-flags=--initial-old-space-size=64;--max-old-space-size=512");
-    assertThat(args).doesNotContain("--force-gpu-mem-available-mb=");
-    assertThat(args).doesNotContain("--cc-image-cache-limit-items=");
+    assertThat(JavaSwitches.takeNativeKeyValues()).hasLength(2);
+    assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_DefaultScaleFactor() {
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(null);
-    assertThat(args).contains("--force-device-scale-factor=1");
-    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
-  }
-
-  @Test
-  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_1GbAnd1080p() {
+  public void testTakeNativeKeyValues_ExperimentsNotAllowed_Empty() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "1");
+    switches.put(AndroidTvFlags.V8_MAX_OLD_SPACE_SIZE, "1024");
 
-    DeviceUtil.setIs1GbDeviceForTesting(true);
-    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
+    apply(switches, false);
 
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-    assertThat(args).contains("--force-device-scale-factor=1.5");
-    assertThat(args).doesNotContain("--force-device-scale-factor=1");
+    assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_1GbAnd720p() {
-    Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
-
-    DeviceUtil.setIs1GbDeviceForTesting(true);
-    DeviceUtil.setIsDisplayAtLeast1080pForTesting(false);
-
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-    assertThat(args).contains("--force-device-scale-factor=1");
-    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+  public void testTakeNativeKeyValues_NeverSet_Empty() {
+    JavaSwitches.takeNativeKeyValues();
+    assertThat(JavaSwitches.takeNativeKeyValues()).isEmpty();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_2GbAnd1080p() {
+  public void testToNativeKeyValues_SanitizesValues() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "1");
+    switches.put(AndroidTvFlags.V8_INITIAL_OLD_SPACE_SIZE, "invalid_non_numeric");
+    switches.put(AndroidTvFlags.FORCE_GPU_MEM_AVAILABLE_MB, null);
+    switches.put(AndroidTvFlags.GPU_IMAGE_CACHE_LIMIT_ITEMS, "5,0=0");
 
-    DeviceUtil.setIs1GbDeviceForTesting(false);
-    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
-
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-    assertThat(args).contains("--force-device-scale-factor=1");
-    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+    assertThat(JavaSwitches.toNativeKeyValues(switches))
+        .asList()
+        .containsExactly(
+            "ForceGpuMemAvailableMb", "",
+            "GpuImageCacheLimitItems", "500",
+            "V8InitialOldSpaceSize", "")
+        .inOrder();
   }
 
   @Test
-  public void testGetExtraCommandLineArgs_Force720pUiOn1GbDevices_SwitchAbsent() {
+  public void testToNativeKeyValues_DropsNullAndEmptyKeys() {
     Map<String, String> switches = new HashMap<>();
+    switches.put(null, "1");
+    switches.put("", "1");
+    switches.put(AndroidTvFlags.ENABLE_QUIC, "1");
 
-    DeviceUtil.setIs1GbDeviceForTesting(true);
-    DeviceUtil.setIsDisplayAtLeast1080pForTesting(true);
+    assertThat(JavaSwitches.toNativeKeyValues(switches))
+        .asList()
+        .containsExactly("EnableQUIC", "1")
+        .inOrder();
+  }
 
-    List<String> args = JavaSwitches.getExtraCommandLineArgs(switches);
-    assertThat(args).contains("--force-device-scale-factor=1");
-    assertThat(args).doesNotContain("--force-device-scale-factor=1.5");
+  private static List<String> applyForce720pUi(
+      boolean hasKey, boolean is1GbDevice, boolean isDisplayAtLeast1080p, boolean shouldApply) {
+    DeviceUtil.setIs1GbDeviceForTesting(is1GbDevice);
+    DeviceUtil.setIsDisplayAtLeast1080pForTesting(isDisplayAtLeast1080p);
+    Map<String, String> switches = new HashMap<>();
+    if (hasKey) {
+      switches.put(JavaSwitches.FORCE_720P_UI_ON_1GB_DEVICES, "");
+    }
+    return apply(switches, shouldApply);
+  }
+
+  @Test
+  public void testApply_Force720pUi_EligibleDevice() {
+    assertThat(applyForce720pUi(true, true, true, true))
+        .containsExactly(LOW_END, UI_720P_SCALE)
+        .inOrder();
+  }
+
+  @Test
+  public void testApply_Force720pUi_IneligibleDevices() {
+    assertThat(applyForce720pUi(true, true, false, true)).contains(DEFAULT_SCALE); // 720p display.
+    assertThat(applyForce720pUi(true, false, true, true)).contains(DEFAULT_SCALE); // > 1 GB RAM.
+    assertThat(applyForce720pUi(true, false, false, true)).contains(DEFAULT_SCALE); // Neither.
+  }
+
+  @Test
+  public void testApply_Force720pUi_NotInExperiment() {
+    assertThat(applyForce720pUi(false, true, true, true)).contains(DEFAULT_SCALE);
+  }
+
+  @Test
+  public void testApply_Force720pUi_SafeModeUsesDefault() {
+    assertThat(applyForce720pUi(true, true, true, false)).contains(DEFAULT_SCALE);
   }
 }

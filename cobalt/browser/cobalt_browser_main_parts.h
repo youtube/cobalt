@@ -42,6 +42,10 @@ class MultiSourceMemoryPressureMonitor;
 }  // namespace memory_pressure
 #endif
 
+namespace base {
+class FilePath;
+}  // namespace base
+
 namespace cobalt {
 
 #if BUILDFLAG(IS_ANDROID)
@@ -53,6 +57,13 @@ class AndroidOsSignalEvaluator;
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
+
+// Cleans up legacy/orphaned cache directories ("Cache", "Code Cache",
+// "ShaderCache", "GrShaderCache") under |user_data_dir| using
+// disk_cache::CleanupDirectorySync() when
+// |user_data_dir| is distinct from |cache_dir|.
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir);
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.

@@ -6,11 +6,6 @@
     "*SbMediaSetAudioWriteDuration*",
     "*SbPlayer*",
     "*VerticalVideoTest*",
-    "PosixFileGetInfoTest.ReportsHardLinkCount",
-    "PosixLinkTest.SuccessfulCreation",
-    "PosixSetPriorityTests.ErrorOnPermissionDenied",
-    "SbAudioSinkTest.ContinuousAppend",
-    "SbDrmSessionTest.*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
+    "SbDrmSessionTest.InvalidSessionUpdateRequestParams"
   ]
 }

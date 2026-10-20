@@ -122,6 +122,24 @@ BASE_FEATURE(kForceVideoSplashScreen,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
+BASE_FEATURE(kSplashScreenConfig,
+             "SplashScreenConfig",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenTimeoutParam,
+                   &kSplashScreenConfig,
+                   "timeout",
+                   base::Milliseconds(1500));
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+BASE_FEATURE_PARAM(std::string,
+                   kSplashScreenUrlParam,
+                   &kSplashScreenConfig,
+                   "url",
+                   "");
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
@@ -176,6 +194,27 @@ const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
 BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltFreezeOnBackground,
+             "CobaltFreezeOnBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
+    &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltProcessStateSummary,
+             "CobaltProcessStateSummary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kProcessStateSummaryMinFlushIntervalParam,
+                   &kCobaltProcessStateSummary,
+                   "min_flush_interval",
+                   base::Seconds(15));
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features
 }  // namespace cobalt

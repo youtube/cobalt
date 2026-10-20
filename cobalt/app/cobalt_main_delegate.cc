@@ -24,11 +24,13 @@
 #include "base/feature_list.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
+#include "base/time/time.h"
 #include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/browser/content_browser_client.h"
@@ -51,6 +53,9 @@
 #include "gpu/command_buffer/service/gpu_switches.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/crashpad_wrapper/native_stability_reader.h"  // nogncheck
+#include "starboard/extension/native_stability.h"
+#include "starboard/system.h"
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
@@ -66,6 +71,23 @@
 
 namespace cobalt {
 
+#if BUILDFLAG(IS_ANDROIDTV)
+namespace {
+
+int ReadNativeStabilityReports(SbNativeStabilityReport* reports,
+                               int max_num_reports) {
+  std::optional<base::FilePath> database_path =
+      crash_reporter::GetCrashpadDatabasePath();
+  if (!database_path.has_value()) {
+    return -1;
+  }
+  return crashpad::ReadReportsFromDatabase(*database_path, reports,
+                                           max_num_reports);
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
 CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
                                        const char* initial_deep_link,
                                        bool is_content_browsertests,
@@ -74,6 +96,10 @@ CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
       startup_timestamp_(startup_timestamp),
       is_visible_(is_visible),
       deep_link_(initial_deep_link ? initial_deep_link : "") {
+  // The startup timeline is measured from here, the earliest point in native
+  // code that all platforms share. `startup_timestamp` isn't used, as it's
+  // unset on Android and taken at different points on other platforms.
+  content::SplashScreenMetrics::SetAppStartTime(base::TimeTicks::Now());
   is_content_browsertests_ = is_content_browsertests;
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
@@ -221,6 +247,21 @@ void CobaltMainDelegate::PreSandboxStartup() {
     if (process_type != switches::kZygoteProcess) {
       crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
       crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_ANDROIDTV)
+      // On 3P (Evergreen), the callback is registered by the Starboard-only
+      // Crashpad wrapper module (//starboard/crashpad_wrapper).
+      if (process_type.empty()) {
+        auto* native_stability_extension =
+            static_cast<const StarboardExtensionNativeStabilityApi*>(
+                SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
+        if (native_stability_extension &&
+            native_stability_extension->version >= 1 &&
+            native_stability_extension->RegisterReadReportsCallback) {
+          native_stability_extension->RegisterReadReportsCallback(
+              &ReadNativeStabilityReports);
+        }
+      }
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 #if BUILDFLAG(IS_LINUX)
       crash_reporter::SetFirstChanceExceptionHandler(
           v8::TryHandleWebAssemblyTrapPosix);

@@ -73,10 +73,18 @@ execute_js "window.event_log = [];
               console.log('JS_EVENT: freeze');
               window.event_log.push({type: 'freeze'});
             });
+            document.onfreeze = () => {
+              console.log('JS_EVENT: onfreeze');
+              window.event_log.push({type: 'onfreeze'});
+            };
             document.addEventListener('resume', () => {
               console.log('JS_EVENT: resume');
               window.event_log.push({type: 'resume'});
             });
+            document.onresume = () => {
+              console.log('JS_EVENT: onresume');
+              window.event_log.push({type: 'onresume'});
+            };
             window.focus();"
 
 wait_and_pop_event() {
@@ -116,13 +124,42 @@ kill -SIGTSTP $COBALT_PID
 echo "[TEST] Sleeping to ensure app freezes..."
 sleep 2
 
+echo "[TEST] Verifying freeze and onfreeze events fired BEFORE resume (while frozen)..."
+if ! grep -q "JS_EVENT: freeze" $LOG_FILE; then
+  echo "FAILURE: freeze event not found in logs before SIGCONT (fired too late or not at all)"
+  kill -9 $COBALT_PID 2>/dev/null || true
+  exit 1
+fi
+if ! grep -q "JS_EVENT: onfreeze" $LOG_FILE; then
+  echo "FAILURE: document.onfreeze event not found in logs before SIGCONT (fired too late or not at all)"
+  kill -9 $COBALT_PID 2>/dev/null || true
+  exit 1
+fi
+if grep -q "JS_EVENT: resume" $LOG_FILE; then
+  echo "FAILURE: unexpected resume event in logs while frozen"
+  kill -9 $COBALT_PID 2>/dev/null || true
+  exit 1
+fi
+
 echo "[TEST] Sending SIGCONT (RESUME & REVEAL & FOCUS)..."
 kill -SIGCONT $COBALT_PID
-sleep 2
+
+bash cobalt/tools/wait_for_state.sh "document.visibilityState" "visible" $PORT 10 $HOST || exit 1
+bash cobalt/tools/wait_for_state.sh "document.hasFocus()" "True" $PORT 10 $HOST || exit 1
+
+echo "[TEST] Verifying strict FIFO event sequence across freeze and resume..."
+wait_and_pop_event '{"type":"freeze"}'
+wait_and_pop_event '{"type":"onfreeze"}'
+wait_and_pop_event '{"type":"resume"}'
+wait_and_pop_event '{"type":"onresume"}'
+wait_and_pop_event '{"type":"visibilitychange","visibility":"visible"}'
+wait_and_pop_event '{"type":"focus"}'
 
 echo "[TEST] Verifying freeze and resume events in logs..."
 grep -q "JS_EVENT: freeze" $LOG_FILE || { echo "FAILURE: freeze event not found in logs"; exit 1; }
+grep -q "JS_EVENT: onfreeze" $LOG_FILE || { echo "FAILURE: onfreeze event not found in logs"; exit 1; }
 grep -q "JS_EVENT: resume" $LOG_FILE || { echo "FAILURE: resume event not found in logs"; exit 1; }
+grep -q "JS_EVENT: onresume" $LOG_FILE || { echo "FAILURE: onresume event not found in logs"; exit 1; }
 grep -q "JS_EVENT: visibilitychange visible" $LOG_FILE || { echo "FAILURE: visible event not found in logs"; exit 1; }
 [ $(grep -c "JS_EVENT: focus" $LOG_FILE) -ge 2 ] || { echo "FAILURE: expected at least 2 focus events in logs"; exit 1; }
 

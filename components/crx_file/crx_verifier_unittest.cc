@@ -3,8 +3,13 @@
 // found in the LICENSE file.
 
 #include "components/crx_file/crx_verifier.h"
+
+#include <string>
+#include <vector>
+
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -261,5 +266,84 @@ TEST_F(CrxVerifierTest, ChecksCompressedVerifiedContentsEmpty) {
   EXPECT_EQ(std::string(kJlnKey), public_key);
   EXPECT_TRUE(compressed_verified_contents.empty());
 }
+
+#if defined(IN_MEMORY_UPDATES)
+TEST_F(CrxVerifierTest, ValidFullCrx3FromString) {
+  const std::vector<std::vector<uint8_t>> keys;
+  const std::vector<uint8_t> hash;
+  std::string crx_str;
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str));
+  std::string public_key = "UNSET";
+  std::string crx_id = "UNSET";
+
+  EXPECT_EQ(VerifierResult::OK_FULL,
+            Verify(crx_str, VerifierFormat::CRX3, keys, hash, &public_key,
+                   &crx_id, /*compressed_verified_contents=*/nullptr));
+  EXPECT_EQ(std::string(kOjjHash), crx_id);
+  EXPECT_EQ(std::string(kOjjKey), public_key);
+}
+
+TEST_F(CrxVerifierTest, TruncatedCrx3FromStringFails) {
+  const std::vector<std::vector<uint8_t>> keys;
+  const std::vector<uint8_t> hash;
+  std::string crx_str;
+  ASSERT_TRUE(
+      base::ReadFileToString(TestFile("valid_no_publisher.crx3"), &crx_str));
+  ASSERT_GT(crx_str.size(), 1u);
+  crx_str.resize(crx_str.size() - 1);
+  std::string public_key = "UNSET";
+  std::string crx_id = "UNSET";
+
+  EXPECT_EQ(VerifierResult::ERROR_SIGNATURE_VERIFICATION_FAILED,
+            Verify(crx_str, VerifierFormat::CRX3, keys, hash, &public_key,
+                   &crx_id, /*compressed_verified_contents=*/nullptr));
+  EXPECT_EQ("UNSET", crx_id);
+  EXPECT_EQ("UNSET", public_key);
+}
+
+// Verifies that malformed or truncated in-memory CRX headers are rejected
+// without reading past the end of the input string.
+TEST_F(CrxVerifierTest, MalformedHeaderFromStringFails) {
+  const std::vector<std::vector<uint8_t>> keys;
+  const std::vector<uint8_t> hash;
+  const std::string kMagic("Cr24", 4);
+  const std::string kVersion3("\x03\x00\x00\x00", 4);
+  const std::vector<std::string> inputs = {
+      // Empty input.
+      std::string(),
+      // Truncated magic number.
+      std::string("Cr", 2),
+      // Magic number only.
+      kMagic,
+      // Truncated version number.
+      kMagic + std::string("\x03\x00", 2),
+      // Missing header size.
+      kMagic + kVersion3,
+      // Truncated header size.
+      kMagic + kVersion3 + std::string("\x10\x00", 2),
+      // Header size (1 MiB) larger than the remaining input.
+      kMagic + kVersion3 + std::string("\x00\x00\x10\x00", 4),
+      // Header size larger than the remaining input by a single byte.
+      kMagic + kVersion3 + std::string("\x05\x00\x00\x00", 4) +
+          std::string(4, '\0'),
+      // Header size that does not fit in an int.
+      kMagic + kVersion3 + std::string("\x00\x00\x00\x80", 4),
+      // Header size of UINT32_MAX - 1.
+      kMagic + kVersion3 + std::string("\xfe\xff\xff\xff", 4),
+  };
+
+  for (const auto& input : inputs) {
+    SCOPED_TRACE(base::HexEncode(input));
+    std::string public_key = "UNSET";
+    std::string crx_id = "UNSET";
+    EXPECT_EQ(VerifierResult::ERROR_HEADER_INVALID,
+              Verify(input, VerifierFormat::CRX3, keys, hash, &public_key,
+                     &crx_id, /*compressed_verified_contents=*/nullptr));
+    EXPECT_EQ("UNSET", crx_id);
+    EXPECT_EQ("UNSET", public_key);
+  }
+}
+#endif  // defined(IN_MEMORY_UPDATES)
 
 }  // namespace crx_file

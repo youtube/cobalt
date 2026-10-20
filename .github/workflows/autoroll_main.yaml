@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: [
-          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10, mode: label},
+          {source: main, target: 27.lts, autoroll: .github/AUTOROLL, max_commits: 10, mode: full},
           {source: main, target: staging, autoroll: .github/AUTOROLL, max_commits: 50, mode: full},
         ]
     steps:
@@ -39,6 +39,9 @@ jobs:
           path: src
           ref: ${{ matrix.branch.target }}
           fetch-depth: 1000
+          filter: blob:none
+          sparse-checkout: |
+            .github
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
 
       - name: Prepare Cherry Pick Branch
@@ -150,14 +153,6 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
-            echo ""
-            echo "To merge these changes, run the autoroll script:"
-            echo ""
-            echo '```bash'
-            echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
-            echo "  --source-branch ${SOURCE_BRANCH} \\"
-            echo "  --target-branch ${TARGET_BRANCH}"
-            echo '```'
           } > "${PR_BODY_FILE}"
 
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
@@ -177,6 +172,17 @@ jobs:
               echo "git commit -c <conflicted_sha>"
               echo ""
               echo "git push origin autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+              echo '```'
+            } >> "${PR_BODY_FILE}"
+          else
+            {
+              echo ""
+              echo "To merge these changes, run the autoroll script:"
+              echo ""
+              echo '```bash'
+              echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY} python3 cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+              echo "  --source-branch ${SOURCE_BRANCH} \\"
+              echo "  --target-branch ${TARGET_BRANCH}"
               echo '```'
             } >> "${PR_BODY_FILE}"
           fi
