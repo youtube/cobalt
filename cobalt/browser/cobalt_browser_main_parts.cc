@@ -293,6 +293,8 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
+
 void CleanupOrphanedUserDataCacheDirectories() {
   base::FilePath user_data_dir;
   base::FilePath cache_dir;
@@ -455,12 +457,13 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
   if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
-    base::ThreadPool::PostTask(
+    base::ThreadPool::PostDelayedTask(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::ThreadPolicy::PREFER_BACKGROUND,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories));
+        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories),
+        kStorageCleanupDelay);
   }
 
 #if BUILDFLAG(IS_ANDROID)
