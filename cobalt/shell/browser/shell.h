@@ -308,8 +308,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Starts the splash screen's minimum duration, once, and schedules the
   // switch to the main WebContents if it has loaded.
   void StartSplashScreenTimer();
-  // Called when the video of the splash screen starts playing, which is once
-  // it has its first frame.
+  // Called when the video of the splash screen starts playing, i.e., once
+  // SbPlayer has prerolled it.
   void OnSplashScreenVideoStarted();
   // Called with whether splash.html plays its video rather than its image.
   void OnSplashScreenVideoSupportChecked(bool can_play_video);
@@ -328,8 +328,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Startup timing metrics of the launch. Null for windows other than the
   // first one.
   std::unique_ptr<SplashScreenMetrics> splash_screen_metrics_;
-  // Whether the splash screen waits for the first frame of its video to start
-  // its minimum duration.
+  // Whether the splash screen's minimum duration waits for its video to start
+  // playing.
   bool awaiting_splash_video_first_frame_ = false;
   // Whether the page of the splash screen has loaded.
   bool is_splash_screen_loaded_ = false;

@@ -49,7 +49,7 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void DidFirstVisuallyNonEmptyPaint() override;
 
   // Runs `on_video_started` whenever a video starts playing in the splash
-  // screen, which is once it has its first frame.
+  // screen, i.e., once SbPlayer has prerolled it.
   void set_on_video_started(base::RepeatingClosure on_video_started) {
     on_video_started_ = std::move(on_video_started);
   }

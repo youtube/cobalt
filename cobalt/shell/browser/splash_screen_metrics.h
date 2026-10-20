@@ -47,7 +47,7 @@ class SplashScreenMetrics {
     // Shell started loading the splash screen.
     kSplashStart,
     // The splash screen finished loading. The minimum splash screen duration
-    // starts here or, for a video, with its first frame, within 2s.
+    // starts here or, for a video, when it starts playing, within 2s.
     kSplashLoaded,
     // The splash screen's first visually non-empty paint. For the image splash
     // screen, this is when the image is shown.

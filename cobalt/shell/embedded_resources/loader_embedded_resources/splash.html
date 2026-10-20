@@ -41,8 +41,8 @@
           return;
         }
 
-        // When the video starts playing, i.e., with its first frame: the
-        // timeout of a video counts from there, as in Shell.
+        // When the video starts playing: the timeout of a video counts from
+        // there, as in Shell.
         let videoStartMs = 0;
         videoEl.addEventListener('playing', () => {
           videoStartMs = performance.now();

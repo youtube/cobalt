@@ -231,7 +231,7 @@ GURL GetSplashScreenURL() {
   return GURL(switches::kSplashScreenURL);
 }
 
-// How long the splash screen waits for the first frame of its video before its
+// How long the splash screen waits for its video to start playing before its
 // duration starts anyway, e.g., if the video can't play.
 constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
 
@@ -747,7 +747,7 @@ void Shell::LoadSplashScreenWebContents() {
           net::AppendQueryParameter(splash_screen_url, "force_image", "true");
     } else {
       // The page loads before its video shows anything, so the splash screen
-      // starts with the video's first frame instead (see
+      // starts when the video starts playing instead (see
       // OnSplashScreenLoadComplete()), if it's observed.
       if (splash_screen_web_contents_observer_) {
         awaiting_splash_video_first_frame_ = true;
@@ -1310,7 +1310,7 @@ Shell::GetPlatformOnScreenKeyboard() {
 
 void Shell::ScheduleSwitchToMainWebContents() {
   if (splash_screen_start_time_.is_null()) {
-    // Its page hasn't loaded yet, or its video hasn't shown its first frame.
+    // Its page hasn't loaded yet, or its video hasn't started playing.
     LOG(INFO) << "NativeSplash: The splash screen hasn't started, waiting.";
     return;
   }
@@ -1392,7 +1392,7 @@ void Shell::OnSplashScreenLoadComplete() {
   is_splash_screen_loaded_ = true;
   if (awaiting_splash_video_first_frame_) {
     // The page of a video loads before the video shows anything, so the splash
-    // screen starts with the video's first frame instead (see
+    // screen starts when the video starts playing instead (see
     // OnSplashScreenVideoStarted()), within a limit.
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
@@ -1419,7 +1419,7 @@ void Shell::OnSplashScreenVideoStarted() {
   if (!awaiting_splash_video_first_frame_) {
     return;
   }
-  VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
+  VLOG(1) << "NativeSplash: The splash screen video starts playing.";
   awaiting_splash_video_first_frame_ = false;
   StartSplashScreenTimer();
 }
