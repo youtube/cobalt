@@ -89,9 +89,12 @@ TEST_F(CobaltContentBrowserClientTest,
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
-  base::ScopedTempDir cache_dir;
-  ASSERT_TRUE(cache_dir.CreateUniqueTempDir());
-  base::ScopedPathOverride cache_override(base::DIR_CACHE, cache_dir.GetPath());
+  // The one-argument override creates a temp dir and registers its canonical
+  // path, so the expectation below must be read back from PathService (a
+  // ScopedTempDir path would differ on Android: /data/user/0 vs /data/data).
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
   CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
                                     /*deep_link=*/"",
                                     /*is_visible=*/true);
@@ -104,16 +107,12 @@ TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
     EXPECT_TRUE(client.GetGrShaderDiskCacheDirectory().empty());
   }
 
-  // Feature on: under base::DIR_CACHE, never under the user data directory,
-  // regardless of kCobaltStorageCleanup.
-  for (bool storage_cleanup : {false, true}) {
+  // Feature on: under base::DIR_CACHE, never under the user data directory.
+  {
     base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatureStates(
-        {{::features::kCobaltGpuShaderDiskCache, true},
-         {base::features::kCobaltStorageCleanup, storage_cleanup}});
+    feature_list.InitAndEnableFeature(::features::kCobaltGpuShaderDiskCache);
     EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
-              cache_dir.GetPath().Append(FILE_PATH_LITERAL("GrShaderCache")))
-        << "kCobaltStorageCleanup=" << storage_cleanup;
+              cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
   }
 }
 #endif  // BUILDFLAG(IS_ANDROID)

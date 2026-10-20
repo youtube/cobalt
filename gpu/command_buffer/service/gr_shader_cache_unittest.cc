@@ -9,7 +9,6 @@
 
 #include "gpu/command_buffer/service/gr_shader_cache.h"
 
-#include <optional>
 #include <thread>
 
 #include "base/base64.h"
@@ -17,6 +16,10 @@
 #include "base/test/scoped_feature_list.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#include <optional>
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 namespace gpu {
 namespace raster {

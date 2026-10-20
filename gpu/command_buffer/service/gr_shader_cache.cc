@@ -234,15 +234,14 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   if (!data->pending_disk_write)
     return;
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Only cache the shader on disk if this client id is permitted.
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID)
   // Keep the entry pending; FlushPendingDiskWrites() writes it later.
   if (defer_disk_writes_) {
     return;
   }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-
-  // Only cache the shader on disk if this client id is permitted.
-#if BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(IS_ANDROID)
   // In Cobalt, we bypass this restriction and allow caching unless
   // the process explicitly specifies the 'incognito' flag.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
