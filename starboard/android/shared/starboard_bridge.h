@@ -116,6 +116,7 @@ class StarboardBridge {
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
+  void OnPrimaryMainFrameNavigationStarted(JNIEnv* env) const;
 
   void SetStartupMilestone(jint milestone) const;
   void SetStartupDiagnosisInfo(const char* key, const char* value) const;
