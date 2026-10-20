@@ -7,6 +7,10 @@
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/task_environment.h"
+#endif
+
 namespace quic::test {
 
 TEST(QuicChromiumClockTest, Now) {
@@ -33,5 +37,82 @@ TEST(QuicChromiumClockTest, WallNow) {
     EXPECT_LE(now.ToUNIXSeconds(), static_cast<uint64_t>(end.ToTimeT()));
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST(QuicChromiumClockTest, ApproximateNowIsNowOutsideScope) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  QuicChromiumClock clock;
+
+  QuicTime start = clock.Now();
+  task_environment.FastForwardBy(base::Seconds(8));
+
+  EXPECT_EQ(clock.ApproximateNow(), start + QuicTime::Delta::FromSeconds(8));
+}
+
+TEST(QuicChromiumClockTest, ApproximateNowIsCachedInsideScope) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  QuicChromiumClock clock;
+
+  QuicTime start = QuicTime::Zero();
+  {
+    QuicChromiumClock::ScopedApproximateNow scope;
+    start = clock.Now();
+    task_environment.FastForwardBy(base::Milliseconds(1));
+    EXPECT_EQ(clock.ApproximateNow(), start);
+  }
+
+  task_environment.FastForwardBy(base::Seconds(8));
+
+  // The cached time doesn't outlive the scope.
+  EXPECT_EQ(clock.ApproximateNow(),
+            start + QuicTime::Delta::FromMilliseconds(8001));
+}
+
+TEST(QuicChromiumClockTest, ScopeStartsWithoutCachedTime) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  QuicChromiumClock clock;
+
+  QuicTime start = clock.Now();
+  task_environment.FastForwardBy(base::Seconds(8));
+
+  QuicChromiumClock::ScopedApproximateNow scope;
+  EXPECT_EQ(clock.ApproximateNow(), start + QuicTime::Delta::FromSeconds(8));
+}
+
+TEST(QuicChromiumClockTest, NowRefreshesCachedTimeInsideScope) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  QuicChromiumClock clock;
+
+  QuicChromiumClock::ScopedApproximateNow scope;
+  clock.Now();
+  task_environment.FastForwardBy(base::Seconds(8));
+  QuicTime later = clock.Now();
+  task_environment.FastForwardBy(base::Milliseconds(1));
+
+  EXPECT_EQ(clock.ApproximateNow(), later);
+}
+
+TEST(QuicChromiumClockTest, InnerScopeKeepsOuterCachedTime) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+  QuicChromiumClock clock;
+
+  QuicChromiumClock::ScopedApproximateNow outer_scope;
+  QuicTime start = clock.Now();
+  {
+    QuicChromiumClock::ScopedApproximateNow inner_scope;
+    task_environment.FastForwardBy(base::Milliseconds(1));
+    EXPECT_EQ(clock.ApproximateNow(), start);
+  }
+  task_environment.FastForwardBy(base::Milliseconds(1));
+
+  // Only the outermost scope clears the cached time.
+  EXPECT_EQ(clock.ApproximateNow(), start);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace quic::test
