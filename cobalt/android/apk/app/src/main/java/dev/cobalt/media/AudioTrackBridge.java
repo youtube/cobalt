@@ -24,6 +24,7 @@ import android.media.PlaybackParams;
 import android.os.Build;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -54,6 +55,13 @@ public class AudioTrackBridge {
   private final AudioTimestamp mAudioTimestamp = new AudioTimestamp(0, 0);
 
   private final Object mPositionLock = new Object();
+
+  // The following variables are used to determine the playback position.
+  @GuardedBy("mPositionLock")
+  private long mWrapCount = 0;
+
+  @GuardedBy("mPositionLock")
+  private long mLastRawFramePosition = 0;
 
   @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
@@ -376,8 +384,9 @@ public class AudioTrackBridge {
     }
   }
 
+  @VisibleForTesting
   @CalledByNative
-  private void flush() {
+  void flush() {
     try {
       if (mAudioTrack == null) {
         Log.e(TAG, "Unable to flush with NULL audio track.");
@@ -389,6 +398,8 @@ public class AudioTrackBridge {
       mAvSyncHeader = null;
       mAvSyncPacketBytesRemaining = 0;
       synchronized (mPositionLock) {
+        mWrapCount = 0;
+        mLastRawFramePosition = 0;
         mMaxFramePositionSoFar = 0;
       }
     } catch (Throwable t) {
@@ -487,15 +498,17 @@ public class AudioTrackBridge {
     return mAudioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
   }
 
+  @VisibleForTesting
   @CalledByNative
-  private AudioTimestamp getAudioTimestamp() {
+  AudioTimestamp getAudioTimestamp() {
     // TODO: Consider calling with TIMEBASE_MONOTONIC and returning that
     // information to the starboard audio sink.
     if (mAudioTrack == null) {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
       return mAudioTimestamp;
     }
-    // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
+    // The `synchronized` is required as `mMaxFramePositionSoFar` can also be modified in
+    // flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
       boolean success = false;
@@ -506,25 +519,37 @@ public class AudioTrackBridge {
       }
 
       if (success) {
-        // This conversion is safe, as only the lower bits will be set, since we
-        // called |getTimestamp| without a timebase.
+        // Only the low-order 32 bits of AudioTrack.getTimestamp() are valid.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        mAudioTimestamp.mFramePosition = mRawAudioTimestamp.framePosition & 0x7FFFFFFF;
+        long rawFramePosition = mRawAudioTimestamp.framePosition & 0xFFFFFFFFL;
+
+        // A drop of more than 2^31 frames indicates a 32-bit rollover.
+        // Smaller drops are assumed to be micro-jitter and do not increment the wrap count.
+        if (mLastRawFramePosition > rawFramePosition) {
+          if ((mLastRawFramePosition - rawFramePosition) > 0x7FFFFFFFL) {
+            mWrapCount++;
+          }
+        } else if (rawFramePosition > mLastRawFramePosition) {
+          // A jump of more than 2^31 frames indicates a backward jitter across the rollover
+          // boundary. As the raw position is now behind the rollover boundary, decrement the wrap
+          // count.
+          if ((rawFramePosition - mLastRawFramePosition) > 0x7FFFFFFFL && mWrapCount > 0) {
+            mWrapCount--;
+          }
+        }
+        mLastRawFramePosition = rawFramePosition;
+
+        long continuousPosition = (mWrapCount << 32) | rawFramePosition;
+        if (continuousPosition > mMaxFramePositionSoFar) {
+          mMaxFramePositionSoFar = continuousPosition;
+        }
+        mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
         mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
       } else {
-        // Time stamps haven't been updated yet, assume playback hasn't started.
-        mAudioTimestamp.mFramePosition = 0;
-        mAudioTimestamp.mNanoTime = System.nanoTime();
-      }
-
-      if (mAudioTimestamp.getFramePosition() > mMaxFramePositionSoFar) {
-        mMaxFramePositionSoFar = mAudioTimestamp.getFramePosition();
-      } else {
-        // The returned |audioTimestamp.mFramePosition| is not monotonically
-        // increasing, and a monotonically increastion frame position is
-        // required to calculate the playback time correctly, because otherwise
-        // we would be going back in time.
+        // Time stamps haven't been updated yet, or transient failure; return last known
+        // continuous frame position (or 0 if playback hasn't started).
         mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
+        mAudioTimestamp.mNanoTime = System.nanoTime();
       }
     }
 
@@ -549,7 +574,8 @@ public class AudioTrackBridge {
   }
 
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
-  private static class AudioTimestamp {
+  @VisibleForTesting
+  static class AudioTimestamp {
     private long mFramePosition;
     private long mNanoTime;
 
