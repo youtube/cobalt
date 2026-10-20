@@ -353,6 +353,46 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_EQ("Dimensions: 724x138", EvalJs(shell(), CheckImageDimension()));
 }
 
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SplashTimeoutCountsFromVideoStart \
+  DISABLED_SplashTimeoutCountsFromVideoStart
+#else
+#define MAYBE_SplashTimeoutCountsFromVideoStart \
+  SplashTimeoutCountsFromVideoStart
+#endif
+// splash.html's timeout counts from when its video starts, as Shell's does.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       MAYBE_SplashTimeoutCountsFromVideoStart) {
+  // The image keeps a real video from starting, while the page still handles
+  // the events of its video element, which the test sends itself.
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true&timeout=1000");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns how long after its video started the page closed itself.
+  constexpr char kScript[] = R"(
+    (async () => {
+      let closedMs = 0;
+      window.close = () => { closedMs = closedMs || performance.now(); };
+      // The video starts 500 ms after the page has loaded, and ends at once.
+      const loadEndMs =
+          performance.getEntriesByType('navigation')[0].loadEventEnd;
+      await new Promise((resolve) => setTimeout(
+          resolve, Math.max(0, loadEndMs + 500 - performance.now())));
+      const videoEl = document.getElementById('video');
+      const startMs = performance.now();
+      videoEl.dispatchEvent(new Event('playing'));
+      videoEl.dispatchEvent(new Event('ended'));
+      while (!closedMs) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      return closedMs - startMs;
+    })();
+  )";
+  // Counted from the page's load instead, the page would close 500 ms sooner.
+  EXPECT_GE(EvalJs(shell(), kScript).ExtractDouble(), 990);
+}
+
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoNoCache) {
   VerifySplashVideoFromCacheWithContent(
