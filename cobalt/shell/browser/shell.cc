@@ -1307,7 +1307,8 @@ Shell::GetPlatformOnScreenKeyboard() {
 
 void Shell::ScheduleSwitchToMainWebContents() {
   if (splash_screen_start_time_.is_null()) {
-    LOG(INFO) << "NativeSplash: Splash screen not loaded yet, waiting.";
+    // Its page hasn't loaded yet, or its video hasn't shown its first frame.
+    LOG(INFO) << "NativeSplash: The splash screen hasn't started, waiting.";
     return;
   }
   base::TimeDelta splash_screen_elapsed =
