@@ -243,8 +243,7 @@ public class StartupGuard {
         RecordHistogram.recordTimesHistogram(
             METRIC_MILESTONE_DURATION_PREFIX + MILESTONE_NAMES[milestone], durationMs);
       }
-      RecordHistogram.recordEnumeratedHistogram(
-          METRIC_MILESTONE_REACHED, milestone, MAX_LOGGED_MILESTONE + 1);
+      RecordHistogram.recordSparseHistogram(METRIC_MILESTONE_REACHED, milestone);
     }
   }
 
