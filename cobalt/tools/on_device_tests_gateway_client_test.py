@@ -65,7 +65,7 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 
-  def test_yts_test_uses_build_apk_and_uploader_plugin(self):
+  def test_yts_test_uses_build_apk(self):
     args = self._make_args(test_type='yts_test')
     requests = on_device_tests_gateway_client._process_test_requests(args)
     self.assertEqual(len(requests), 1)
@@ -74,10 +74,8 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
     self.assertIn(
         'build_apk=/bigstore/cobalt-artifacts/main/1/android-arm/Cobalt.apk',
         req['files'])
-    self.assertIn(
-        ('client_plugin_jar='
-         f'{on_device_tests_gateway_client._GCS_UPLOADER_PLUGIN_JAR}'),
-        req['files'])
+    self.assertFalse(
+        any(f.startswith('client_plugin_jar=') for f in req['files']))
     self.assertIn('app=dev.cobalt.coat', req['params'])
     self.assertIn('gcs_log_filename=yts_dom_test_log.txt', req['params'])
 

@@ -36,6 +36,10 @@ inputs:
     description: "Whether to retry all tests instead of analyzing previous results."
     required: false
     default: "false"
+  required:
+    description: "Whether missing results or failures should fail the job."
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -139,6 +143,7 @@ runs:
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
+        REQUIRED: ${{ inputs.required }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -188,19 +193,36 @@ runs:
               "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
               "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
             )
+            has_logs=0
             for log_file in "${log_files[@]}"; do
               if [ -f "${log_file}" ]; then
+                has_logs=1
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" || true
+                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
+                  --fallback-suite "${test_target}" || true
                 break
               fi
             done
             xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+
+            # If there are log files but still no xml, mark the whole suite as crashed.
+            if [[ "${#xml_files[@]}" -eq 0 && "${has_logs}" -eq 1 ]]; then
+              echo "Logs exist for ${test_target} but no XML produced. Marking whole suite as crashed."
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
+                --fallback-suite "${test_target}" || true
+              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            fi
           fi
 
+          target_required=$(echo "${TEST_TARGETS_JSON:-[]}" | jq -r --arg t "${test_target_with_path}" '.[] | select((if type == "object" then .target else . end) == $t) | if type == "object" and has("required") then .required else true end')
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            echo "::error::Test result xml is missing for ${test_target}."
-            target_failed=1
+            if [[ "${target_required}" == "false" || "${REQUIRED:-true}" == "false" ]]; then
+              echo "Test result xml is missing for non-required target ${test_target}; ignoring."
+            else
+              echo "::error::Test result xml is missing for ${test_target}."
+              target_failed=1
+            fi
           elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
             echo "::error::Found failures in the test xml."
             target_failed=1
