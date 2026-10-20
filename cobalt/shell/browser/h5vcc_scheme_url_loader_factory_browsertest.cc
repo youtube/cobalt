@@ -353,16 +353,12 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_EQ("Dimensions: 724x138", EvalJs(shell(), CheckImageDimension()));
 }
 
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SplashTimeoutCountsFromVideoStart \
-  DISABLED_SplashTimeoutCountsFromVideoStart
-#else  // BUILDFLAG(IS_ANDROID)
-#define MAYBE_SplashTimeoutCountsFromVideoStart \
-  SplashTimeoutCountsFromVideoStart
-#endif  // BUILDFLAG(IS_ANDROID)
 // splash.html's timeout counts from when its video starts, as Shell's does.
+// Unlike the splash.html tests above, it runs on Android too: with the image
+// forced, the page doesn't use MediaSource, which Android's browser tests don't
+// support yet.
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
-                       MAYBE_SplashTimeoutCountsFromVideoStart) {
+                       SplashTimeoutCountsFromVideoStart) {
   // The image keeps a real video from starting, while the page still handles
   // the events of its video element, which the test sends itself.
   GURL splash_url(std::string(kH5vccEmbeddedScheme) +
