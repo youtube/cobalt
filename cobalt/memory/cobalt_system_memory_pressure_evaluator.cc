@@ -236,9 +236,9 @@ void CobaltSystemMemoryPressureEvaluator::UpdateMemoryPressureLevel(
     base::MemoryPressureListener::MemoryPressureLevel new_level) {
   if (new_level != current_vote() ||
       new_level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
-    LOG(INFO)
-        << "CobaltSystemMemoryPressureEvaluator: Resolved memory pressure level="
-        << new_level;
+    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator: Resolved memory "
+                 "pressure level="
+              << new_level;
   }
   SetCurrentVote(new_level);
   bool notify = current_vote() !=

@@ -26,14 +26,14 @@ namespace memory {
 AndroidOsSignalEvaluator::AndroidOsSignalEvaluator(
     std::unique_ptr<::memory_pressure::MemoryPressureVoter> voter)
     : ::memory_pressure::SystemMemoryPressureEvaluator(std::move(voter)) {
-  base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
-      base::BindRepeating(&AndroidOsSignalEvaluator::OnMemoryPressure,
-                          base::Unretained(this)));
+  base::android::MemoryPressureListenerAndroid::
+      SetMemoryPressureForwarderCallback(base::BindRepeating(
+          &AndroidOsSignalEvaluator::OnMemoryPressure, base::Unretained(this)));
 }
 
 AndroidOsSignalEvaluator::~AndroidOsSignalEvaluator() {
-  base::android::MemoryPressureListenerAndroid::SetMemoryPressureForwarderCallback(
-      base::NullCallback());
+  base::android::MemoryPressureListenerAndroid::
+      SetMemoryPressureForwarderCallback(base::NullCallback());
 }
 
 void AndroidOsSignalEvaluator::OnMemoryPressure(MemoryPressureLevel level) {

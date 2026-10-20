@@ -25,9 +25,7 @@ source_set("memory") {
     ]
   }
 
-  public_deps = [
-    "//components/memory_pressure",
-  ]
+  public_deps = [ "//components/memory_pressure" ]
 
   deps = [
     "//base",
@@ -44,19 +42,13 @@ source_set("memory") {
   }
 
   if (is_starboard) {
-    deps += [
-      "//starboard:starboard_headers_only",
-    ]
+    deps += [ "//starboard:starboard_headers_only" ]
   }
 }
 
 source_set("unit_tests") {
   testonly = true
-  sources = [
-    "//components/memory_pressure/memory_pressure_voter_unittest.cc",
-    "//components/memory_pressure/multi_source_memory_pressure_monitor_unittest.cc",
-    "cobalt_memory_attribution_manager_unittest.cc",
-  ]
+  sources = [ "cobalt_memory_attribution_manager_unittest.cc" ]
 
   if (is_android) {
     sources += [ "android_os_signal_evaluator_unittest.cc" ]
