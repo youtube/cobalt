@@ -1,2 +1,0 @@
-in sampler x[1];
-void main() {}
