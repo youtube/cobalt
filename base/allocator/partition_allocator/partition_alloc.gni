@@ -558,3 +558,4 @@ declare_args() {
 }
 # Activates bounds checks for two-arg constructor of `base::span`.
 use_checked_span = use_partition_alloc && false
+}

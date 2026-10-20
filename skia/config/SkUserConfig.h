@@ -159,4 +159,11 @@ SK_API void SkLog_FileLine(const char* file,
 // glGetError() forces a sync with gpu process on chrome
 #define GR_GL_CHECK_ERROR_START 0
 
+#if defined(SKGPU_GRAPHITE_PRIVATE_BUILD)
+#define fGlyphEntryKey(id, format) \
+    fGlyphEntryKey(id, format) {} \
+    const ::skgpu::graphite::GlyphEntryKey fGlyphEntryKey; \
+    [[maybe_unused]] void __cobalt_dummy()
+#endif
+
 #endif  // SKIA_CONFIG_SKUSERCONFIG_H_

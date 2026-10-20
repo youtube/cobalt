@@ -55,8 +55,11 @@ std::unique_ptr<blink::WebAudioBus> DecodeAudioFileData(
   // Allocate and configure the output audio channel data and then
   // copy the decoded data to the destination.
   auto out = std::make_unique<blink::WebAudioBus>();
-  out->Initialize(handler->GetNumChannels(), number_of_frames,
-                  handler->GetSampleRate());
+  if (!out->TryInitialize(handler->GetNumChannels(), number_of_frames,
+                          handler->GetSampleRate())) {
+    LOG(ERROR) << "Failed to initialize WebAudioBus.";
+    return nullptr;
+  }
 
   DCHECK_EQ(static_cast<int>(out->NumberOfChannels()),
             handler->GetNumChannels());

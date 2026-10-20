@@ -1056,6 +1056,7 @@ if (skia_support_gpu) {
   # If a source set contains only sources and no public files, then dependents can
   # include any file from sources.
   skia_source_set("skia_graphite_private") {
+    defines = [ "SKGPU_GRAPHITE_PRIVATE_BUILD" ]
     sources = skia_graphite_sources + skia_graphite_precompile_sources +
               skia_sksl_graphite_modules_sources
     if (skia_use_dawn) {

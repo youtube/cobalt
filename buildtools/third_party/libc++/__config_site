@@ -32,8 +32,6 @@
 #define _LIBCPP_HAS_MUSL_LIBC 0
 #endif
 #endif
-#define _LIBCPP_HAS_MUSL_LIBC 0
-#endif
 
 #ifdef _WIN32
 #define _LIBCPP_HAS_THREAD_API_PTHREAD 0
