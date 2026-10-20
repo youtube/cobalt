@@ -158,6 +158,9 @@ int InstallationManager::GetMaxNumberInstallations() {
 }
 
 int InstallationManager::Reset() {
+  // Clean existing slot directories before CreateInstallationStore() overwrites
+  // |installation_store_| so any obsolete slot directories from a previous
+  // configuration are also removed.
   if (!CleanInstallationDirs()) {
     SB_LOG(ERROR) << "Reset: Unable to clean installations dirs";
     return IM_ERROR;
@@ -169,6 +172,8 @@ int InstallationManager::Reset() {
                   << current_installation_;
     return IM_ERROR;
   }
+  // Recreate the active slot directories (1..max_num_installations_ - 1) after
+  // CleanInstallationDirs() removed them (or on initial store creation).
   if (!CreateInstallationDirs()) {
     SB_LOG(ERROR) << "Reset: Unable to create installations dirs";
     return IM_ERROR;
@@ -680,6 +685,11 @@ bool InstallationManager::LoadInstallationStore() {
 bool InstallationManager::GetInstallationPathInternal(int installation_index,
                                                       char* path,
                                                       int path_length) {
+  // Only check for negative indices here rather than IsValidIndex()
+  // (installation_index < max_num_installations_) so CleanInstallationDirs()
+  // can resolve paths for obsolete slot directories >= max_num_installations_
+  // when transitioning from a 3-slot to a 2-slot configuration. Public callers
+  // go through GetInstallationPath(), which enforces IsValidIndex().
   if (installation_index < 0) {
     SB_LOG(ERROR) << "GetInstallationPath: invalid index" << installation_index;
     return false;
@@ -724,8 +734,16 @@ bool InstallationManager::CreateInstallationDirs() {
 
 bool InstallationManager::CleanInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
+  // Use |installation_store_.installations_size()| when populated so that
+  // obsolete slot directories (e.g., installation_2 when transitioning from a
+  // 3-slot to a 2-slot configuration) are also deleted. If
+  // |installation_store_| is empty (e.g., no existing store on disk), fall back
+  // to |max_num_installations_|.
+  const int num_installations = installation_store_.installations_size() > 0
+                                    ? installation_store_.installations_size()
+                                    : max_num_installations_;
   // The index 0 slot is under the content directory.
-  for (int i = 1; i < installation_store_.installations_size(); i++) {
+  for (int i = 1; i < num_installations; i++) {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
