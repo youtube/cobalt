@@ -325,6 +325,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     // A video hole, through which the splash screen video played natively
     // shows.
     kNativeVideoHole,
+    // The image, e.g., when the video can't be played natively.
+    kImage,
   };
   // Loads the splash screen page into the splash screen WebContents.
   void LoadSplashScreenURL(SplashScreenPage page);
@@ -350,10 +352,14 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // and switches to the main WebContents, even if it hasn't loaded yet: the
   // surface of the video may not survive.
   void StopNativeSplashVideo();
+  // Shows the image splash screen instead of the video played natively, when
+  // the platform can't play it natively, e.g., without VP9, as splash.html
+  // shows the image without VP9.
+  void ShowImageSplashScreen();
   // Stops the splash screen video played natively, if any, and switches to the
-  // main WebContents, even if it hasn't loaded yet, e.g., when the video can't
-  // be played natively: there's no other splash screen to fall back to. The
-  // startup timings of the launch aren't recorded.
+  // main WebContents, even if it hasn't loaded yet, e.g., when the video fails
+  // to play: there's no other splash screen to fall back to. The startup
+  // timings of the launch aren't recorded.
   void SwitchFromNativeSplashVideo();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;

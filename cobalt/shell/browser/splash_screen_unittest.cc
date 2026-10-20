@@ -129,6 +129,12 @@ class SplashScreenTest : public ShellTestBase {
     shell->StopNativeSplashVideo();
   }
 
+  // As when the splash screen's page reports its load progress.
+  void CallSplashScreenLoadProgressChanged(Shell* shell, double progress) {
+    static_cast<WebContentsObserver*>(GetSplashScreenWebContentsObserver(shell))
+        ->LoadProgressChanged(progress);
+  }
+
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
 
   bool IsMainFrameLoaded(Shell* shell) { return shell->is_main_frame_loaded_; }
@@ -797,6 +803,36 @@ TEST_F(SplashScreenTest, NativeVideoErrorAfterFirstFrameKeepsTheVideo) {
   shell->Close();
 }
 
+// Like splash.html when the platform doesn't play VP9: the image shows instead
+// of the video, and its duration counts from when its page has loaded.
+TEST_F(SplashScreenTest, NativeVideoUnsupportedShowsTheImage) {
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kUnsupported);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
+
+  CallSplashScreenLoadProgressChanged(shell, 1.0);
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
 TEST_F(SplashScreenTest, ConcealSwitchesFromTheNativeVideoToTheMainFrame) {
   Shell* shell = CreateShellWithSplashScreen();
 
@@ -1351,6 +1387,36 @@ TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterNativeVideoError) {
   EXPECT_TRUE(
       histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
           .empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// When the platform doesn't play the video natively, the image shows instead,
+// and the launch is recorded as an image launch, as with splash.html without
+// VP9.
+TEST_F(SplashScreenTest, StartupMetricsForUnsupportedNativeVideo) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kUnsupported);
+  CallSplashScreenLoadProgressChanged(shell, 1.0);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Image",
+      SplashScreenMetrics::SwitchTrigger::kTimer, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.SplashScreen.SwitchTrigger.Video",
+                                    0);
+  histogram_tester.ExpectTotalCount("Cobalt.Startup.Timeline.MainVisible.Image",
+                                    1);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));

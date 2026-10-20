@@ -805,7 +805,7 @@ void Shell::LoadSplashScreenURL(SplashScreenPage page) {
   if (shows_native_splash_video_hole_) {
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "native_video", "true");
-  } else if (!is_video_splash_screen_) {
+  } else if (page == SplashScreenPage::kImage || !is_video_splash_screen_) {
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "force_image", "true");
   } else {
@@ -972,7 +972,8 @@ void Shell::OnNativeSplashVideoError(NativeSplashVideoPlayer::Error error) {
   switch (error) {
     case NativeSplashVideoPlayer::Error::kUnsupported:
       RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kUnsupported);
-      break;
+      ShowImageSplashScreen();
+      return;
     case NativeSplashVideoPlayer::Error::kCreateFailed:
       RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kCreateFailed);
       break;
@@ -1007,6 +1008,22 @@ void Shell::StopNativeSplashVideo() {
   // Without its video, the page's video hole would show the cleared video
   // surface once the app is revealed.
   SwitchFromNativeSplashVideo();
+}
+
+void Shell::ShowImageSplashScreen() {
+  if (has_switched_to_main_frame_ || !splash_screen_web_contents_) {
+    return;
+  }
+  native_splash_video_player_.reset();
+  // As with the image splash screen, its duration counts from when its page
+  // has loaded. The launch's startup timings are an image launch's, as with
+  // splash.html without VP9.
+  awaiting_splash_video_first_frame_ = false;
+  if (splash_screen_web_contents_observer_) {
+    splash_screen_web_contents_observer_->set_on_load_complete(base::BindOnce(
+        &Shell::OnSplashScreenLoadComplete, weak_factory_.GetWeakPtr()));
+  }
+  LoadSplashScreenURL(SplashScreenPage::kImage);
 }
 
 void Shell::SwitchFromNativeSplashVideo() {
