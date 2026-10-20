@@ -1455,14 +1455,10 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // Either both buffers should be empty or only one should be filled.
   CHECK(frame_buf.empty() || heap_frame_buf.empty());
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const size_t original_scratch_capacity = scratch_frame_buf_.capacity();
 #endif
 
-  const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
->>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   scoped_refptr<StreamParserBuffer> stream_buf;
 
   if (auto* media_client = GetMediaClient()) {
