@@ -55,10 +55,11 @@ void UrlPlayerDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
 // initialization. The URL player handles audio decoding natively;
 // this config is not used for actual decoding.
 AudioDecoderConfig UrlPlayerDemuxerStream::audio_decoder_config() {
-  return AudioDecoderConfig(AudioCodec::kAAC, kSampleFormatS16,
-                            CHANNEL_LAYOUT_STEREO,
-                            /*samples_per_second=*/44100, /*extra_data=*/{},
-                            EncryptionScheme::kUnencrypted);
+  return AudioDecoderConfig(
+      AudioCodec::kAAC, kSampleFormatS16,
+      ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_STEREO>(),
+      /*samples_per_second=*/44100, /*extra_data=*/{},
+      EncryptionScheme::kUnencrypted);
 }
 
 // Returns a placeholder video config to satisfy Mojo IPC stream
