@@ -115,8 +115,12 @@ int InstallationManager::Initialize() {
     return IM_ERROR;
   }
 
-  // If there is no existing store, create one.
-  if (!LoadInstallationStore()) {
+  // If there is no existing store, or if the on-disk store has a different
+  // slot count than |max_num_installations_| (e.g., upgrading from a 3-slot
+  // Cobalt <= 25 configuration to a 2-slot Cobalt >= 26 configuration), create
+  // a fresh store with the system image (slot 0) active.
+  if (!LoadInstallationStore() ||
+      installation_store_.installations_size() != max_num_installations_) {
     CreateInstallationStore();
     current_installation_ = FindCurrentInstallationIndex();
     if (!IsValidIndex(current_installation_)) {
