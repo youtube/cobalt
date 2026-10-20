@@ -275,7 +275,7 @@ void MojoRendererService::UpdateMediaTime(bool force) {
   base::TimeDelta max_time = media_time;
   // Allow some slop to account for delays in scheduling time update tasks.
   if (time_update_timer_.IsRunning() && (playback_rate_ > 0))
-    max_time += 2 * kTimeUpdateInterval;
+    max_time += 2 * playback_rate_ * kTimeUpdateInterval;
 
   client_->OnTimeUpdate(media_time, max_time, base::TimeTicks::Now());
   last_media_time_ = media_time;

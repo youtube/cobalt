@@ -21,6 +21,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
@@ -535,6 +536,74 @@ TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
   // Resume and Flush.
   EXPECT_CALL(*mock_renderer_, SetPlaybackRate(1.0));
   renderer_wrapper_->SetPlaybackRate(1.0);
+  base::MockOnceClosure flush_cb;
+  EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
+  EXPECT_CALL(flush_cb, Run());
+  renderer_wrapper_->Flush(flush_cb.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest,
+       PollMediaTimeScalesMaxTimeWithPlaybackRate) {
+  base::RunLoop time_update_loop;
+  base::TimeDelta reported_time;
+  base::TimeDelta reported_max_time;
+  auto bypass_bridge = base::MakeRefCounted<MojoRendererBypassBridge>(
+      task_environment_.GetMainThreadTaskRunner(),
+      base::BindRepeating(
+          [](base::RunLoop* loop, base::TimeDelta* out_time,
+             base::TimeDelta* out_max_time, base::TimeDelta time,
+             base::TimeDelta max_time, base::TimeTicks /*capture_time*/) {
+            *out_time = time;
+            *out_max_time = max_time;
+            loop->Quit();
+          },
+          &time_update_loop, &reported_time, &reported_max_time),
+      base::DoNothing());
+  AddStream(DemuxerStream::AUDIO, false);
+  AddStream(DemuxerStream::VIDEO, false);
+  AudioDecoderConfig audio_config = streams_[0]->audio_decoder_config();
+  audio_config.set_mime_type("audio/mp4");
+  streams_[0]->set_audio_decoder_config(audio_config);
+
+  VideoDecoderConfig video_config = streams_[1]->video_decoder_config();
+  video_config.set_mime_type("video/mp4");
+  streams_[1]->set_video_decoder_config(video_config);
+  bypass_bridge->SetStreams(streams_[0].get(), streams_[1].get());
+
+  uint32_t bridge_id = 12346;
+  BypassBridgeRegistry::Register(bridge_id, bypass_bridge);
+  base::ScopedClosureRunner unregister_runner(
+      base::BindOnce(&BypassBridgeRegistry::Unregister, bridge_id));
+
+  base::MockOnceCallback<void(bool)> bypass_init_cb;
+  EXPECT_CALL(bypass_init_cb, Run(true));
+  renderer_wrapper_->InitializeWithBypassBridge(bridge_id,
+                                                bypass_init_cb.Get());
+
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
+                                renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+
+  const base::TimeDelta kCurrentMediaTime = base::Seconds(2);
+  const double kPlaybackRate = 4.0;
+  EXPECT_CALL(*mock_renderer_, GetMediaTime())
+      .WillRepeatedly(Return(kCurrentMediaTime));
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(kPlaybackRate));
+  renderer_wrapper_->SetPlaybackRate(kPlaybackRate);
+  EXPECT_CALL(*mock_renderer_, StartPlayingFrom(kCurrentMediaTime));
+  renderer_wrapper_->StartPlayingFrom(kCurrentMediaTime);
+
+  time_update_loop.Run();
+
+  EXPECT_EQ(reported_time, kCurrentMediaTime);
+  // At 4x playback rate with a 125ms update interval, max_time should allow
+  // 2 * 4.0 * 125ms = 1000ms ahead of media_time.
+  EXPECT_EQ(reported_max_time, kCurrentMediaTime + base::Milliseconds(1000));
+
   base::MockOnceClosure flush_cb;
   EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
   EXPECT_CALL(flush_cb, Run());
