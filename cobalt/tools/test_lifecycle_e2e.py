@@ -151,11 +151,9 @@ def run_lifecycle_test(executable: str,
     # Clean user storage/caches to prevent database locks in CI
     if os.environ.get('CI') == 'true' or os.environ.get(
         'GITHUB_ACTIONS') == 'true':
-      for storage_dir in [
-          os.path.expanduser('~/.cobalt_storage'),
-          os.path.expanduser('~/.cobalt'),
-          os.path.expanduser('~/.config/cobalt'),
-      ]:
+      home_dir = os.path.expanduser('~')
+      for rel_dir in ['.cobalt_storage', '.cobalt', '.config/cobalt']:
+        storage_dir = os.path.join(home_dir, rel_dir)
         if os.path.exists(storage_dir):
           shutil.rmtree(storage_dir, ignore_errors=True)
 
@@ -199,10 +197,18 @@ def run_lifecycle_test(executable: str,
       console.log('JS_EVENT: freeze');
       window.event_log.push({type: 'freeze'});
     });
+    document.onfreeze = () => {
+      console.log('JS_EVENT: onfreeze');
+      window.event_log.push({type: 'onfreeze'});
+    };
     document.addEventListener('resume', () => {
       console.log('JS_EVENT: resume');
       window.event_log.push({type: 'resume'});
     });
+    document.onresume = () => {
+      console.log('JS_EVENT: onresume');
+      window.event_log.push({type: 'onresume'});
+    };
     window.focus();
     """
     cdp.evaluate(injection_script)
@@ -232,36 +238,47 @@ def run_lifecycle_test(executable: str,
     controller.freeze()
     time.sleep(2)
 
+    logger.info(
+        'Verifying freeze and onfreeze events fired BEFORE resume (while'
+        ' frozen)...')
+    frozen_logs = runner.get_log_content()
+    if 'JS_EVENT: freeze' not in frozen_logs:
+      raise AssertionError(
+          'freeze event not found in logs before resume (fired too late or not'
+          ' at all)')
+    if 'JS_EVENT: onfreeze' not in frozen_logs:
+      raise AssertionError(
+          'document.onfreeze event not found in logs before resume (fired too'
+          ' late or not at all)')
+    if 'JS_EVENT: resume' in frozen_logs:
+      raise AssertionError('Unexpected resume event in logs while frozen')
+
     # 5. Resume & Reveal & Focus
     logger.info('Step 5: Resuming and revealing application...')
     controller.resume()
     cdp.wait_for_state('document.visibilityState', 'visible', timeout=20.0)
     cdp.wait_for_state('document.hasFocus()', True, timeout=20.0)
 
-    # Pop remaining queued events: freeze, resume, visibilitychange (visible),
-    # and focus.
+    logger.info(
+        'Verifying strict FIFO event sequence across freeze and resume...')
     cdp.pop_event({'type': 'freeze'})
+    cdp.pop_event({'type': 'onfreeze'})
     cdp.pop_event({'type': 'resume'})
-
-    ev3 = cdp.pop_event({})
-    ev4 = cdp.pop_event({})
-    remaining_types = {ev3.get('type'), ev4.get('type')}
-    if remaining_types != {'visibilitychange', 'focus'}:
-      raise AssertionError(
-          f'Expected visibilitychange and focus, got: {remaining_types}')
-    for ev in (ev3, ev4):
-      if ev.get('type') == 'visibilitychange' and ev.get(
-          'visibility') != 'visible':
-        raise AssertionError(
-            f'Expected visibilitychange visibility="visible", got: {ev}')
+    cdp.pop_event({'type': 'onresume'})
+    cdp.pop_event({'type': 'visibilitychange', 'visibility': 'visible'})
+    cdp.pop_event({'type': 'focus'})
 
     # Cross-verify stdout/stderr console logs
     logger.info('Verifying console log events...')
     logs = runner.get_log_content()
     if 'JS_EVENT: freeze' not in logs:
       raise AssertionError('Missing "JS_EVENT: freeze" in stdout/stderr log')
+    if 'JS_EVENT: onfreeze' not in logs:
+      raise AssertionError('Missing "JS_EVENT: onfreeze" in stdout/stderr log')
     if 'JS_EVENT: resume' not in logs:
       raise AssertionError('Missing "JS_EVENT: resume" in stdout/stderr log')
+    if 'JS_EVENT: onresume' not in logs:
+      raise AssertionError('Missing "JS_EVENT: onresume" in stdout/stderr log')
     if 'JS_EVENT: visibilitychange visible' not in logs:
       raise AssertionError(
           'Missing "JS_EVENT: visibilitychange visible" in stdout/stderr log')

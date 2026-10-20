@@ -46,7 +46,7 @@ class CobaltRunner:
   def cleanup_existing(self) -> None:
     """Kills orphaned cobalt processes to prevent port/resource conflicts."""
     logger.info('Cleaning up any orphaned Cobalt processes...')
-    for proc_name in ['cobalt_loader', 'loader_app', 'wait_for_state.sh']:
+    for proc_name in ['cobalt_loader', 'loader_app']:
       subprocess.run(
           ['pkill', '-9', '-f', proc_name],
           stdout=subprocess.DEVNULL,

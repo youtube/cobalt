@@ -83,8 +83,12 @@ Validates that the Starboard lifecycle state machine dispatches the expected W3C
 Upon connection, the test runner injects an event queue into the page:
 ```javascript
 window.event_log = [];
-['focus', 'blur', 'freeze', 'resume'].forEach(name => {
+['focus', 'blur'].forEach(name => {
   window.addEventListener(name, () => window.event_log.push({type: name}));
+});
+['freeze', 'resume'].forEach(name => {
+  document.addEventListener(name, () => window.event_log.push({type: name}));
+  document['on' + name] = () => window.event_log.push({type: 'on' + name});
 });
 document.addEventListener('visibilitychange', () => {
   window.event_log.push({type: 'visibilitychange', visibility: document.visibilityState});
@@ -94,14 +98,14 @@ document.addEventListener('visibilitychange', () => {
 #### Transition Sequence & Signal Mapping (via `suspend_signals.cc`)
 Signal mappings implemented in [`starboard/shared/signal/suspend_signals.cc`](https://github.com/youtube/cobalt/blob/main/starboard/shared/signal/suspend_signals.cc):
 
-| Step | Controller Method | Linux Signal (`suspend_signals.cc`) | Expected Starboard State | DOM Assertions | Events Popped from Queue |
+| Step | Controller Method | Linux Signal (`suspend_signals.cc`) | Expected Starboard State | DOM / Log Assertions | Events Popped from Queue |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **0. Initial** | Launch | App Launch | `kSbLifecycleStateStarted` | `visibilityState == 'visible'`, `hasFocus() == true` | Initial render |
 | **1. Blur** | `controller.blur()` | `SIGWINCH` | `kSbLifecycleStateBlurred` | `document.hasFocus() == false` | `{'type': 'blur'}` |
 | **2. Focus** | `controller.focus()` | `SIGCONT` | `kSbLifecycleStateStarted` | `document.hasFocus() == true` | `{'type': 'focus'}` |
 | **3. Conceal** | `controller.conceal()` | `SIGUSR1` | `kSbLifecycleStateConcealed` | `visibilityState == 'hidden'`, `hasFocus() == false` | `{'type': 'blur'}`, `{'type': 'visibilitychange', 'visibility': 'hidden'}` |
-| **4. Freeze** | `controller.freeze()` | `SIGTSTP` | `kSbLifecycleStateFrozen` | Process suspended | `{'type': 'freeze'}` |
-| **5. Resume & Reveal** | `controller.resume()` | `SIGCONT` | `kSbLifecycleStateStarted` | `visibilityState == 'visible'`, `hasFocus() == true` | `{'type': 'resume'}`, `{'type': 'visibilitychange', 'visibility': 'visible'}`, `{'type': 'focus'}` |
+| **4. Freeze** | `controller.freeze()` | `SIGTSTP` | `kSbLifecycleStateFrozen` | Process suspended; `JS_EVENT: freeze` & `JS_EVENT: onfreeze` logged before resume | `{'type': 'freeze'}`, `{'type': 'onfreeze'}` |
+| **5. Resume & Reveal** | `controller.resume()` | `SIGCONT` | `kSbLifecycleStateStarted` | `visibilityState == 'visible'`, `hasFocus() == true` | `{'type': 'resume'}`, `{'type': 'onresume'}`, `{'type': 'visibilitychange', 'visibility': 'visible'}`, `{'type': 'focus'}` |
 | **6. Stop** | `controller.stop()` | `SIGPWR` | `kSbLifecycleStateStopped` | Process exits | Clean exit (Code 0) |
 
 
