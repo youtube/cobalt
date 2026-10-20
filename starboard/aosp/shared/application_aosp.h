@@ -55,6 +55,10 @@ class ApplicationAOSP : public QueueApplication {
     return static_cast<ApplicationAOSP*>(Application::Get());
   }
 
+  // Starts the app if Start was deferred because there was no surface yet.
+  // Called when Android provides a surface, from any thread.
+  void OnSurfaceCreated();
+
   // proxies for SbWindowCreate/SbWindowDestroy
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
@@ -91,6 +95,12 @@ class ApplicationAOSP : public QueueApplication {
   // CobaltActivity, which AOSP doesn't have.
   void Initialize() override;
 
+  // Start only when there's a surface for SbWindowCreate(). Otherwise the app
+  // went to the background while Cobalt was loading, and OnSurfaceCreated()
+  // starts it when the app comes back. Until then RunLoop() keeps reading the
+  // event queue, so a Stop can still end it.
+  bool IsStartImmediate() override;
+
   // AOSP has no native event queue for the to poll, Android delivers
   // key events to the Activity and MainActivity forwards them over JNI
   // to Inject()
@@ -106,6 +116,10 @@ class ApplicationAOSP : public QueueApplication {
   void WakeSystemEventWait() override {}
 
  private:
+  // Dispatches the deferred Start if there's a surface and the app hasn't
+  // started yet. Scheduled on the Starboard thread by OnSurfaceCreated().
+  static void StartIfDeferred(void* context);
+
   // The live instance, or nullptr when there is none.
   static inline std::atomic<ApplicationAOSP*> g_instance{nullptr};
 

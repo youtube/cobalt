@@ -16,13 +16,11 @@
 
 #include <android/native_window.h>
 
-#include <condition_variable>
 #include <mutex>
 
 namespace {
 
 std::mutex g_window_mutex;
-std::condition_variable g_window_cv;
 ANativeWindow* g_native_window = nullptr;
 
 }  // namespace
@@ -35,9 +33,6 @@ void SetWindowSurface(ANativeWindow* window) {
     ANativeWindow_release(g_native_window);
   }
   g_native_window = window;
-  if (window != nullptr) {
-    g_window_cv.notify_all();
-  }
 }
 
 ANativeWindow* AcquireWindowSurface() {
@@ -48,11 +43,6 @@ ANativeWindow* AcquireWindowSurface() {
     ANativeWindow_acquire(g_native_window);
   }
   return g_native_window;
-}
-
-void WaitForWindowSurface() {
-  std::unique_lock<std::mutex> lock(g_window_mutex);
-  g_window_cv.wait(lock, [] { return g_native_window != nullptr; });
 }
 
 bool HasWindowSurface() {
