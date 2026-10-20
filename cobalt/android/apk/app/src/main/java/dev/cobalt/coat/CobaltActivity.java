@@ -717,6 +717,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     unregisterNetworkRecoveryObserver();
   }
 
+  public void onPrimaryMainFrameNavigationStarted() {
+    mHasHiddenSplashScreen = false;
+    maybeRegisterNetworkRecoveryObserver();
+  }
+
   private void maybeRegisterNetworkRecoveryObserver() {
     if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
