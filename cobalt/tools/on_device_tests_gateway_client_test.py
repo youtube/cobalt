@@ -95,8 +95,8 @@ class OnDeviceTestsGatewayClientTest(unittest.TestCase):
     self.assertFalse(
         any(f.startswith('client_plugin_jar=') for f in req['files']))
     self.assertIn(
-        'gcs_result_filename=yts_wpt_test_ci_android_arm_devices_testoutput.xml',
-        req['params'])
+        'gcs_result_filename='
+        'yts_wpt_test_ci_android_arm_devices_testoutput.xml', req['params'])
     self.assertIn(
         'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_cobalt.log',
         req['params'])

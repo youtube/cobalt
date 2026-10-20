@@ -24,9 +24,8 @@ def _sanitize_xml_string(s):
   if not s:
     return ''
   # Remove invalid XML 1.0 characters
-  return re.sub(
-      r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f\ud800-\udfff\ufffe\uffff]',
-      '', str(s))
+  return re.sub((r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x84\x86-\x9f'
+                 r'\ud800-\udfff\ufffe\uffff]'), '', str(s))
 
 
 def convert(json_path, xml_path):

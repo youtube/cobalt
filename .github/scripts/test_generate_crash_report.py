@@ -15,6 +15,7 @@
 """Tests for generate_crash_report."""
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -104,7 +105,6 @@ class GenerateCrashReportTest(unittest.TestCase):
       self.assertIn('<![CDATA[ Some error log ]]>', content)
 
   def test_main_with_fallback_suite_when_no_gtest_crash_detected(self):
-    import subprocess
     with tempfile.TemporaryDirectory() as temp_dir:
       log_path = pathlib.Path(temp_dir) / 'log.txt'
       xml_path = pathlib.Path(temp_dir) / 'out.xml'

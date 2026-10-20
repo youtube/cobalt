@@ -104,7 +104,8 @@ if __name__ == '__main__':
         dest='fallback_suite',
         type=str,
         default=None,
-        help='Fallback suite name to mark as crashed if no specific test crash is detected in log.'
+        help=('Fallback suite name to mark as crashed if no specific test crash'
+              ' is detected in log.'),
     )
     args = parser.parse_args()
 
