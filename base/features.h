@@ -94,6 +94,14 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);
 
+// When enabled, gates Cobalt persistent storage cleanup and unused database
+// removal optimizations (disabling BTM/DIPS, relocating GPU shader caches to
+// DIR_CACHE and purging orphaned USER_DATA cache directories, disabling unused
+// Chromium databases, and running SessionStorage and VideoDecodeStats in
+// memory). Disabled by default to allow controlled Finch/Mendel A/B
+// experimentation (--enable-features=CobaltStorageCleanup).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.
