@@ -56,7 +56,13 @@ declare_args() {
       !is_high_end_android && (is_android || is_castos || is_fuchsia)
 }
 
-<<<<<<< HEAD
+# Cobalt needs to handle use_cxx17, which does not exist upstream.
+if (is_cobalt) {
+  if (use_cxx17) {
+    use_cxx23 = false
+  }
+}
+
 if (is_mac && use_lld) {
   declare_args() {
     # Enables the `--read-workers` flag for LLD.
@@ -67,12 +73,6 @@ if (is_mac && use_lld) {
   if (enable_lld_read_workers) {
     lld_read_workers =
         exec_script("//build/toolchain/get_lld_read_workers.py", [], "value")
-=======
-# Cobalt needs to handle use_cxx17, which does not exist upstream.
-if (is_cobalt) {
-  if (use_cxx17) {
-    use_cxx23 = false
->>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 

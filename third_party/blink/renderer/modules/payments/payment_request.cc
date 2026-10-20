@@ -941,9 +941,6 @@ PaymentRequest::securePaymentConfirmationAvailability(
 ScriptPromise<IDLRecord<IDLString, IDLBoolean>>
 PaymentRequest::getSecurePaymentConfirmationCapabilities(
     ScriptState* script_state) {
-<<<<<<< HEAD
-  auto* execution_context = ExecutionContext::From(script_state);
-=======
 #if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
       RejectWithDOMException(script_state,
@@ -951,7 +948,7 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                                  DOMExceptionCode::kNotSupportedError,
                                  "The feature is not enabled."));
 #else
->>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  auto* execution_context = ExecutionContext::From(script_state);
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLRecord<IDLString, IDLBoolean>>>(script_state);
   ScriptPromise promise = resolver->Promise();
