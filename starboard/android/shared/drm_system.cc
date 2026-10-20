@@ -217,21 +217,27 @@ void DrmSystem::OnKeyStatusChange(
     eme_session_id = session_id_mapper_.GetEmeSessionId(session_id);
   }
 
+  bool reported_as_restricted = false;
   {
     std::lock_guard scoped_lock(mutex_);
     if (cached_drm_key_ids_[eme_session_id] != drm_key_ids) {
       cached_drm_key_ids_[eme_session_id] = drm_key_ids;
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
-        return;
+        reported_as_restricted = true;
       }
     }
   }
 
-  callbacks_.key_statuses_changed(this, context_, eme_session_id.data(),
-                                  eme_session_id.size(),
-                                  static_cast<int>(drm_key_ids.size()),
-                                  drm_key_ids.data(), drm_key_statuses.data());
+  if (!reported_as_restricted) {
+    callbacks_.key_statuses_changed(
+        this, context_, eme_session_id.data(), eme_session_id.size(),
+        static_cast<int>(drm_key_ids.size()), drm_key_ids.data(),
+        drm_key_statuses.data());
+  }
+  // Notify on every path, including the HDCP-lost one above: the key set still
+  // changed, and a decoder in output-protection backoff may want to retry.
+  NotifyKeyStateChanged();
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
@@ -247,6 +253,33 @@ void DrmSystem::OnInsufficientOutputProtection() {
 
 bool DrmSystem::IsReady() {
   return created_media_crypto_session_.load();
+}
+
+void DrmSystem::RegisterKeyStateChangedCallback(
+    const void* observer,
+    KeyStateChangedCallback callback) {
+  SB_DCHECK(observer);
+  SB_DCHECK(callback);
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  key_state_callbacks_[observer] = std::move(callback);
+}
+
+void DrmSystem::UnregisterKeyStateChangedCallback(const void* observer) {
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  key_state_callbacks_.erase(observer);
+}
+
+void DrmSystem::NotifyKeyStateChanged() {
+  key_state_generation_.fetch_add(1, std::memory_order_release);
+  // Invoke the callbacks while holding |key_state_callbacks_mutex_| so that
+  // UnregisterKeyStateChangedCallback() blocks until any in-flight callback
+  // returns.  This guarantees that an observer is never invoked after it has
+  // been unregistered, which allows observers to unregister from their
+  // destructors.
+  std::lock_guard lock(key_state_callbacks_mutex_);
+  for (const auto& entry : key_state_callbacks_) {
+    entry.second();
+  }
 }
 
 void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
@@ -296,6 +329,8 @@ void DrmSystem::GenerateSessionUpdateRequest(
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
       created_media_crypto_session_ = true;
+      // IsReady() just became true; decoders waiting for it may proceed.
+      NotifyKeyStateChanged();
       return;
     case DRM_OPERATION_STATUS_NOT_PROVISIONED:
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
@@ -362,6 +397,11 @@ void DrmSystem::UpdateSession(int ticket,
 
   if (provisioning_ok) {
     HandlePendingRequests();
+  }
+  // A license (or provisioning response) was accepted: decoders that failed
+  // with MEDIA_CODEC_NO_KEY should retry now rather than on their timeout.
+  if (result.ok()) {
+    NotifyKeyStateChanged();
   }
 }
 

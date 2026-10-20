@@ -343,6 +343,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_trivial_optimizations_(
           pipeline_config.experimental_features.GetBool(
               kMediaEnableTrivialOptimizations)),
+      enable_codec_thread_improvements_(
+          pipeline_config.experimental_features.GetBool(
+              kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
@@ -751,6 +754,7 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 }
 
 void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
+  playback_paused_.store(playback_rate == 0.0, std::memory_order_relaxed);
   if (playback_rate_ == playback_rate) {
     return;
   }
@@ -887,7 +891,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
       skip_video_frames_over_60_fps_, enable_ndk_video_,
-      enable_trivial_optimizations_);
+      enable_trivial_optimizations_, enable_codec_thread_improvements_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1097,6 +1101,10 @@ bool MediaCodecVideoDecoder::Tick(MediaCodec* media_codec_bridge) {
   // here.
   SB_DCHECK(!tunnel_mode_audio_session_id_);
   return sink_->Render();
+}
+
+int64_t MediaCodecVideoDecoder::GetNextTickWaitDurationUs() const {
+  return next_tick_wait_duration_us_.load(std::memory_order_relaxed);
 }
 
 void MediaCodecVideoDecoder::OnFlushing() {

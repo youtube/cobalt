@@ -20,6 +20,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "cobalt/android/jni_headers/VideoFrameReleaseTimeHelper_jni.h"
+#include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -36,6 +37,39 @@ namespace {
 
 const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
 const int64_t kBufferReadyThreshold = 50'000;     // 50ms
+
+// Scheduling of the video output thread (Media.EnableCodecThreadImprovements)
+// ----------------------------------------------------------------------------
+// Render() is called from MediaCodecDecoder's video output thread via
+// Host::Tick().  With the codec thread improvements enabled, that thread no
+// longer polls every 8ms; instead Render() tells it, through
+// MediaCodecVideoDecoder::SetNextTickWaitDurationUs(), how long it may sleep
+// before the next call unless a new output buffer wakes it up earlier.  The
+// duration is chosen so that:
+//
+//  * a frame that isn't ready yet (|early_us| >= kBufferReadyThreshold) is
+//    revisited when it is about kTargetReleaseEarlyThresholdUs from its
+//    release time, i.e. one wakeup per frame at any frame rate;
+//  * while playback is paused the thread sleeps the maximum, since media time
+//    doesn't advance (MediaCodecDecoder::SetPlaybackRate() wakes it on
+//    resume);
+//  * while audio hasn't started (seek/preroll) it keeps the legacy 8ms cadence
+//    so the first frames are released promptly once audio plays;
+//  * it never sleeps longer than kMaxWaitForNextFrameIntervalUs, so a wakeup
+//    is guaranteed even if the state changes without a notification.
+//
+// The thresholds below are only used for this scheduling.
+//
+// A frame is released this early, which matches the lower bound of the legacy
+// 8ms polling (frames were released 42ms-50ms early) and MediaCodec's
+// recommendation of about two VSYNCs ahead on 50Hz/60Hz displays.
+const int64_t kTargetReleaseEarlyThresholdUs = 42'000;  // 42ms
+const int64_t kMinWaitForNextFrameIntervalUs =
+    MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs;  // 8ms
+// Kept below VideoRendererImpl's kMaxRenderIntervalBeforeWarning (66ms) and
+// well below the 82ms a frame can be early and still be dropped
+// (kBufferReadyThreshold - kBufferTooLateThreshold).
+const int64_t kMaxWaitForNextFrameIntervalUs = 50'000;  // 50ms
 
 jlong GetSystemNanoTime() {
   timespec now;
@@ -68,6 +102,13 @@ void VideoRenderAlgorithmAndroid::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
+  // How long the output thread may wait before calling Render() again (see
+  // the scheduling comment at the top).  Defaults to the maximum, which is
+  // what every exit of the loop below that doesn't leave a frame pending
+  // wants: no frames, end of stream reached, or audio EOS played.  A new
+  // output buffer always wakes the thread up regardless.
+  int64_t next_wait_duration_us = kMaxWaitForNextFrameIntervalUs;
+
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -82,6 +123,12 @@ void VideoRenderAlgorithmAndroid::Render(
     double playback_rate;
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+    // While paused the media time doesn't advance, so there is no point in
+    // waking up the output thread early; it is explicitly woken up when the
+    // playback rate changes.  |playback_rate| alone can't detect a pause: with
+    // audio it reports the rate of the audio already written to the sink.
+    const bool is_paused =
+        playback_rate == 0 || video_decoder_->is_playback_paused();
 
     if (release_frames_after_audio_starts_) {
       // After the first frame, stop rendering if audio isn't playing, or if
@@ -90,10 +137,14 @@ void VideoRenderAlgorithmAndroid::Render(
       // stalled or hasn't consumed frames yet.
       if (first_frame_released_ &&
           (!is_audio_playing || playback_time == seek_to_time_)) {
+        next_wait_duration_us = is_paused ? kMaxWaitForNextFrameIntervalUs
+                                          : kMinWaitForNextFrameIntervalUs;
         break;
       }
     } else {
       if (!is_audio_playing) {
+        next_wait_duration_us = is_paused ? kMaxWaitForNextFrameIntervalUs
+                                          : kMinWaitForNextFrameIntervalUs;
         break;
       }
     }
@@ -143,8 +194,26 @@ void VideoRenderAlgorithmAndroid::Render(
       frames->pop_front();
       first_frame_released_ = true;
     } else {
+      // The frame isn't ready to be released yet.  Schedule the next Tick()
+      // for when it is about kTargetReleaseEarlyThresholdUs early (based on
+      // the VSYNC-adjusted release time, like the readiness test above),
+      // unless playback is paused (see above).  Frames that are between 50ms
+      // and 58ms early get the minimum wait and are released 42ms-50ms early,
+      // exactly like the legacy polling.
+      next_wait_duration_us =
+          is_paused
+              ? kMaxWaitForNextFrameIntervalUs
+              : std::clamp<int64_t>(early_us - kTargetReleaseEarlyThresholdUs,
+                                    kMinWaitForNextFrameIntervalUs,
+                                    kMaxWaitForNextFrameIntervalUs);
       break;
     }
+  }
+
+  // Only consumed by MediaCodecDecoder::OutputThreadFuncV2(); the legacy
+  // output thread ignores it and keeps polling.
+  if (video_decoder_->enable_codec_thread_improvements()) {
+    video_decoder_->SetNextTickWaitDurationUs(next_wait_duration_us);
   }
 }
 

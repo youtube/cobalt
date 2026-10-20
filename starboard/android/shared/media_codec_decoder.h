@@ -40,11 +40,46 @@ namespace starboard {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
+//
+// Threading model
+// ---------------
+// The decoder runs the MediaCodec interaction off the player worker thread.
+// Depending on the configuration it uses one of the following:
+//
+//  * A single "audio_decoder" / "video_decoder" thread
+//    (AudioDecoderThreadFunc() / VideoDecoderThreadFunc()), which both feeds
+//    input buffers to the codec and processes its output.
+//  * Two threads for video when |use_dual_threads_| is true: "VidDecIn" feeds
+//    input buffers and "VidDecOut" processes output buffers and drives the
+//    renderer through Host::Tick().
+//
+// For the dual-thread case there are two implementations of each thread
+// function, selected by |enable_codec_thread_improvements_| (the h5vcc setting
+// "Media.EnableCodecThreadImprovements"):
+//
+//  * InputThreadFunc() / OutputThreadFunc(): the original implementation.  The
+//    output thread polls Host::Tick() every 8ms and the input thread may be
+//    woken up by producers even when it has nothing to do.
+//  * InputThreadFuncV2() / OutputThreadFuncV2(): the output thread is driven by
+//    output buffer callbacks and by the deadline of the next frame to render
+//    (Host::GetNextTickWaitDurationUs()), the input thread is only signaled
+//    when it has a complete (input, input buffer index) pair to work on, and
+//    DRM key waits are event-driven instead of polled.
+//
+// All shared state between the player worker thread, the MediaCodec callback
+// thread (OnMediaCodec*() below) and the decoder threads is guarded by
+// |mutex_|; see the comments on the individual members.
 class MediaCodecDecoder final : private MediaCodec::Handler,
                                 protected JobQueue::JobOwner {
  public:
   using FrameRenderedCB = std::function<void(int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
+
+  // How long the video output thread waits for new output buffers before it
+  // calls Host::Tick() again when the host doesn't request otherwise.  This is
+  // the polling interval of the original implementation and the lower bound of
+  // the deadline-driven wait of OutputThreadFuncV2().
+  static constexpr int64_t kDefaultWaitForNextFrameIntervalUs = 8'000;
 
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
 
@@ -64,6 +99,16 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodec* media_codec) = 0;
+    // Returns how long the video output thread may wait, in microseconds,
+    // before calling Tick() again when no new output buffer arrives in the
+    // meantime.  It is queried right after each Tick() on the same thread, so
+    // the host can derive it from the work it just did (e.g. the release time
+    // of the next frame it holds).  Only used by OutputThreadFuncV2(), i.e.
+    // when the codec thread improvements are enabled; other hosts can keep the
+    // default.
+    virtual int64_t GetNextTickWaitDurationUs() const {
+      return kDefaultWaitForNextFrameIntervalUs;
+    }
     // This function gets called before calling Flush() on the contained
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
@@ -105,7 +150,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
       bool enable_ndk_video,
-      bool enable_trivial_optimizations);
+      bool enable_trivial_optimizations,
+      bool enable_codec_thread_improvements);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     MediaCodec::Factory& media_codec_factory,
@@ -139,6 +185,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool skip_video_frames_over_60_fps,
       bool enable_ndk_video,
       bool enable_trivial_optimizations,
+      bool enable_codec_thread_improvements,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -146,6 +193,10 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   void WriteInputBuffers(const InputBuffers& input_buffers);
   void WriteEndOfStream();
 
+  // Forwards the playback rate to the MediaCodec and, when the codec thread
+  // improvements are enabled, wakes up the video output thread so that it
+  // re-evaluates its frame release schedule right away (e.g. on resume from
+  // pause, where it may otherwise be in a long wait).
   void SetPlaybackRate(double playback_rate);
 
   size_t GetNumberOfPendingInputs() const {
@@ -196,12 +247,21 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // TODO(b/329686979): Consider turning MediaDecoder into a class hierarchy to
   // simplify the handling of threading, including the difference of a/v
   // threading in the original implementation in DecoderThreadFunc() above.
+  //
+  // Thread functions of the dual-thread video configuration.  The "V2"
+  // variants are used when |enable_codec_thread_improvements_| is true; see
+  // the class comment and the definitions for details.
   void InputThreadFunc();
+  void InputThreadFuncV2();
 
   void OutputThreadFunc();
+  void OutputThreadFuncV2();
 
   void TerminateDecoderThread();
 
+  // Move the pending inputs/input buffer indices/output results from the
+  // shared queues into the thread-local queues owned by the decoder threads.
+  // Must be called with |mutex_| held.
   void CollectPendingData_Locked(
       std::deque<PendingInput>* pending_inputs,
       std::vector<int>* input_buffer_indices,
@@ -210,10 +270,20 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
                                       std::vector<int>* input_buffer_indices);
   void CollectPendingOutputData_Locked(
       std::vector<DequeueOutputResult>* dequeue_output_results);
+  // Queues the front of |pending_inputs| into the codec using the front of
+  // |input_buffer_indices| (or retries |pending_input_to_retry_| if set).
+  // Returns false when the input couldn't be queued, in which case it has
+  // either been returned to |pending_inputs| (unusable buffer index) or
+  // stored in |pending_input_to_retry_| (queue(Secure)InputBuffer() failure,
+  // e.g. MEDIA_CODEC_NO_KEY while waiting for a DRM license).
   bool ProcessOneInputBuffer(std::deque<PendingInput>* pending_inputs,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  // Called by |drm_system_| (on arbitrary threads) whenever its key state
+  // changes, to wake up InputThreadFuncV2() from a DRM key wait.  Only
+  // registered when the codec thread improvements are enabled.
+  void OnDrmKeyStateChanged();
 
   // MediaCodec::Handler methods
   void OnMediaCodecError(bool is_recoverable,
@@ -241,6 +311,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   const int64_t video_decoder_poll_interval_us_;
   const bool use_dual_threads_ = false;
   const bool enable_trivial_optimizations_ = false;
+  // Selects InputThreadFuncV2()/OutputThreadFuncV2() and the event-driven DRM
+  // key wait.  Has no effect unless |use_dual_threads_| is also true.
+  const bool enable_codec_thread_improvements_ = false;
 
   ErrorCB error_cb_;
 
@@ -260,13 +333,33 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   std::condition_variable condition_variable_;
   // TODO(b/329686979): Consider guarding input and output logic using two
   // mutexes.
-  // Only used when |use_dual_threads_| is true.
+  // Only used when |use_dual_threads_| is true.  Signaled by the producers of
+  // |pending_inputs_| and |input_buffer_indices_|, by OnDrmKeyStateChanged()
+  // and by TerminateDecoderThread().
   std::condition_variable video_input_condition_variable_;
-  // Only used when |use_dual_threads_| is true.
+  // Only used when |use_dual_threads_| is true.  Signaled by the producers of
+  // |dequeue_output_results_|, by SetPlaybackRate() and by
+  // TerminateDecoderThread().
   std::condition_variable video_output_condition_variable_;
+  // Shared queues filled by the player worker thread (|pending_inputs_|) and
+  // the MediaCodec callback thread (|input_buffer_indices_|,
+  // |dequeue_output_results_|), and drained by the decoder threads.  Guarded
+  // by |mutex_|.
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+  // The number of pending inputs and input buffer indices held by the video
+  // input thread that are waiting for their counterpart while the thread is
+  // blocked on |video_input_condition_variable_|.  Producers use them to only
+  // signal when a new item completes an (input, input buffer index) pair.
+  // Guarded by |mutex_|.  Only used when |use_dual_threads_| and
+  // |enable_codec_thread_improvements_| are true.
+  size_t unmatched_input_thread_inputs_ = 0;
+  size_t unmatched_input_thread_indices_ = 0;
+  // Set to request an extra Tick() from the video output thread, e.g. when the
+  // playback rate changes.  Guarded by |mutex_|.  Only used when
+  // |use_dual_threads_| and |enable_codec_thread_improvements_| are true.
+  bool output_wakeup_requested_ = false;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

@@ -138,6 +138,28 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
+  // Accessors used by VideoRenderAlgorithmAndroid to schedule the video output
+  // thread when Media.EnableCodecThreadImprovements is on.  All of them may be
+  // called from the output thread while SetPlaybackRate() runs on the player
+  // thread, hence the atomics.
+  bool enable_codec_thread_improvements() const {
+    return enable_codec_thread_improvements_;
+  }
+  // Returns true when the most recently requested playback rate is 0, i.e.
+  // playback is paused.  Note that the rate reported by the media time
+  // provider stays at the rate of the audio already written while paused, so
+  // it cannot be used to detect a pause.
+  bool is_playback_paused() const {
+    return playback_paused_.load(std::memory_order_relaxed);
+  }
+  // Stores the answer for the next MediaCodecDecoder::Host::
+  // GetNextTickWaitDurationUs() call; VideoRenderAlgorithmAndroid::Render()
+  // sets it at the end of every Tick().
+  void SetNextTickWaitDurationUs(int64_t wait_duration_us) {
+    next_tick_wait_duration_us_.store(wait_duration_us,
+                                      std::memory_order_relaxed);
+  }
+
   void OnFrameAvailable() override;
 
  private:
@@ -152,6 +174,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override;
+  int64_t GetNextTickWaitDurationUs() const override;
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
@@ -215,7 +238,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
+  const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  // Only used when |enable_codec_thread_improvements_| is true; see the
+  // accessors above.
+  std::atomic<int64_t> next_tick_wait_duration_us_{
+      MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs};
+  std::atomic<bool> playback_paused_{false};
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

@@ -22,6 +22,7 @@
 #include <jni.h>
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -98,6 +99,24 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady();
 
+  // Observers of DRM key state changes, i.e. when IsReady() becomes true, when
+  // a license is provided, or when key statuses change.  The callback is
+  // invoked on arbitrary threads while an internal lock is held, so it must be
+  // lightweight (e.g. signaling a condition variable) and must not call back
+  // into DrmSystem.  UnregisterKeyStateChangedCallback() blocks until any
+  // in-flight invocation of the callback returns, so it is safe to destroy the
+  // observer once it has been unregistered.
+  using KeyStateChangedCallback = std::function<void()>;
+  void RegisterKeyStateChangedCallback(const void* observer,
+                                       KeyStateChangedCallback callback);
+  void UnregisterKeyStateChangedCallback(const void* observer);
+  // Returns a counter that is incremented on every key state change.  Callers
+  // can snapshot it before an operation and compare it afterwards to detect
+  // whether any key state change happened in between.
+  uint64_t GetKeyStateGeneration() const {
+    return key_state_generation_.load(std::memory_order_acquire);
+  }
+
  private:
   class SessionUpdateRequest {
    public:
@@ -124,12 +143,25 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   void HandlePendingRequests();
   void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
+  // Bumps |key_state_generation_| and runs the registered key state callbacks.
+  // Must not be called with |mutex_| held (the callbacks may take other
+  // locks).
+  void NotifyKeyStateChanged();
 
   const std::string key_system_;
   const raw_ptr<void> context_;
   const Callbacks callbacks_;
 
   std::mutex mutex_;
+  // Guards |key_state_callbacks_| and is held while the callbacks run.  Never
+  // acquired while |mutex_| is held.
+  std::mutex key_state_callbacks_mutex_;
+  // Keyed by the observer pointer passed to RegisterKeyStateChangedCallback().
+  std::map<const void*, KeyStateChangedCallback> key_state_callbacks_;
+  // Incremented by NotifyKeyStateChanged() *before* the callbacks run, so an
+  // observer that snapshots it, fails an operation, and then checks it again
+  // (or waits for it to change) can never miss an update in between.
+  std::atomic<uint64_t> key_state_generation_{0};
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;  // Guarded by |mutex_|.
