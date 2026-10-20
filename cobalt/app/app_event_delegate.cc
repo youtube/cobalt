@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,22 @@
 namespace cobalt {
 
 namespace {
+
+// True for a kSbEventTypeStart whose argv carries "launch=preload".
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  if (!event || event->type != kSbEventTypeStart || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    const char* arg = data->argument_values[i];
+    if (arg && std::string_view(arg).find("launch=preload") !=
+                   std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -193,11 +210,19 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
   if (application_state_ == ApplicationState::kInitial) {
     switch (event->type) {
       case kSbEventTypeStart:
-      case kSbEventTypePreload:
+      case kSbEventTypePreload: {
+        // A Start with launch=preload is a boot-time preload: start concealed.
+        SbEvent preload_event;
+        if (HasPreloadLaunchParam(event)) {
+          awaiting_first_reveal_from_rewritten_start_ = true;
+          preload_event = {kSbEventTypePreload, event->timestamp, event->data};
+          event = &preload_event;
+        }
         runner_->OnStart(event);
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
         return;
+      }
       default:
         // Robustly handle events received before the application has started or
         // preloaded. This ensures that any early events are preceded by a
@@ -254,6 +279,10 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      // After a rewritten start the user's first launch arrives as a bare link.
+      if (awaiting_first_reveal_from_rewritten_start_) {
+        TransitionToLifeCycleState(ApplicationState::kStarted);
+      }
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:
@@ -468,6 +497,9 @@ void AppEventDelegate::SetApplicationState(ApplicationState state) {
     return;
   }
   application_state_ = state;
+  if (state == ApplicationState::kStarted) {
+    awaiting_first_reveal_from_rewritten_start_ = false;
+  }
   SetApplicationStateAnnotation(state);
 }
 
