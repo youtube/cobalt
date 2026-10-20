@@ -38,7 +38,9 @@ from repo_guards import (
     patch_target_rejection,
     resolve_repo_file_path,
 )
-from run_rebase_pipeline import get_chromium_milestone, write_rebase_report
+from run_rebase_pipeline import (get_chromium_milestone,
+                                 restore_files_outside_build,
+                                 write_rebase_report)
 from tools import (
     execute_local_tool,
     extract_line_anchored_tool_commands,
@@ -2401,6 +2403,70 @@ class PipelineFlagsTest(unittest.TestCase):
     parser.parse_args(["--model", "m", "--expert-model", "e"])
     with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
       parser.parse_args(["--model", "m"])
+
+
+class RestoreFilesOutsideBuildTest(unittest.TestCase):
+  """restore_files_outside_build with a real git repo and a fake gn."""
+
+  # Fake `gn gen <dir> --ide=json`: cobalt_apk depends on :lib (a.cc and the
+  # public header b.h); :other (c.cc) is not in its closure.
+  _FAKE_GN = """#!/usr/bin/env python3
+import json, os, sys
+targets = {
+    "//cobalt/android:cobalt_apk": {"deps": ["//lib:lib"]},
+    "//cobalt/android:cobalt_apk(//build/toolchain/linux:clang_x64)": {},
+    "//lib:lib": {"sources": ["//a.cc"], "public": ["//b.h"]},
+    "//other:other": {"sources": ["//c.cc"], "public": "*"},
+}
+with open(os.path.join(sys.argv[2], "project.json"), "w") as f:
+  json.dump({"targets": targets}, f)
+"""
+
+  def test_restores_only_unbuilt_files(self):
+    with tempfile.TemporaryDirectory() as repo, \
+         tempfile.TemporaryDirectory() as bin_dir:
+      gn = os.path.join(bin_dir, "gn")
+      with open(gn, "w", encoding="utf-8") as f:
+        f.write(self._FAKE_GN)
+      os.chmod(gn, 0o755)
+
+      def git(*args):
+        subprocess.run(["git", *args],
+                       cwd=repo,
+                       check=True,
+                       capture_output=True)
+
+      def write(rel, text):
+        os.makedirs(os.path.dirname(os.path.join(repo, rel)), exist_ok=True)
+        with open(os.path.join(repo, rel), "w", encoding="utf-8") as f:
+          f.write(text)
+
+      files = ("a.cc", "b.h", "c.cc", "TestExpectations", "DEPS", "BUILD.gn")
+      git("init", "-q")
+      for rel in files:
+        write(rel, "old\n")
+      git("add", "-A")
+      git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "s")
+      start_sha = subprocess.run(["git", "rev-parse", "HEAD"],
+                                 cwd=repo,
+                                 capture_output=True,
+                                 text=True,
+                                 check=True).stdout.strip()
+      for rel in files:
+        write(rel, "new\n")
+      write("out/android-arm_devel/args.gn", "target_os = \"android\"\n")
+
+      path = bin_dir + os.pathsep + os.environ["PATH"]
+      with mock.patch.dict(os.environ, {"PATH": path}):
+        restored = restore_files_outside_build(repo, start_sha,
+                                               "android-arm_devel",
+                                               "cobalt_apk")
+
+      self.assertEqual(restored, ["TestExpectations", "c.cc"])
+      for rel in files:
+        with open(os.path.join(repo, rel), encoding="utf-8") as f:
+          expected = "old\n" if rel in restored else "new\n"
+          self.assertEqual(f.read(), expected, rel)
 
 
 class RepoPathSafetyTest(unittest.TestCase):
