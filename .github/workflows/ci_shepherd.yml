@@ -517,8 +517,8 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event.action || inputs.action) == 'completed' &&
-      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch\) &&
-      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox\)
+      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
     permissions:
       contents: write
       actions: read
