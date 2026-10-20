@@ -240,7 +240,10 @@ def has_cobalt_git_history(rel_path: str, repo_path: str) -> bool:
   return False
 
 
-_FORKED_THIRD_PARTY_PREFIXES = ("third_party/jni_zero/",)
+_FORKED_THIRD_PARTY_PREFIXES = (
+    "third_party/blink/",
+    "third_party/jni_zero/",
+)
 
 # Repository metadata is never a valid patch target, anywhere in the repo.
 _METADATA_BASENAMES = (

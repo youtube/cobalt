@@ -623,6 +623,11 @@ class BaseResolver(abc.ABC):
         if not tool_cmds or expert_round == 3:
           break
         investigation_history += "\n\n" + self._run_expert_tools(tool_cmds)
+        if expert_round == 2:
+          investigation_history += (
+              "\n\n=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* "
+              "commands. Synthesize the findings above and provide your "
+              "final architectural diagnosis and repair plan now. ===")
       except Exception as e:  # pylint: disable=broad-exception-caught
         log.info("  [%s] Notice: Pre-flight expert guidance query: %s",
                  self.name, e)
