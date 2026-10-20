@@ -176,6 +176,8 @@
         // are default splash screen.
         const splashTopic = (topicName === 'music') ? 'music_' : '';
 
+        // Shell asks Starboard the same (kSplashVideoType), so both agree on
+        // whether the video plays.
         if (forceImage === 'true' || !MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
           return handleStaticImageFallback(params, splashTopic, afterImageLoad);
         }

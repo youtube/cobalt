@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -232,6 +233,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static void MaybeHideSystemSplashScreen();
   static void ResetSystemSplashScreenForTesting();
+  // Makes the splash screen behave as if splash.html could, or couldn't, play
+  // its video, or asks Starboard again if `can_play_video` is unset.
+  static void SetCanSplashScreenPlayVideoForTesting(
+      std::optional<bool> can_play_video);
 
  private:
   class DevToolsWebContentsObserver;
@@ -306,6 +311,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Called when the video of the splash screen starts playing, which is once
   // it has its first frame.
   void OnSplashScreenVideoStarted();
+  // Called with whether splash.html plays its video rather than its image.
+  void OnSplashScreenVideoSupportChecked(bool can_play_video);
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -324,6 +331,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Whether the splash screen waits for the first frame of its video to start
   // its minimum duration.
   bool awaiting_splash_video_first_frame_ = false;
+  // Whether the page of the splash screen has loaded.
+  bool is_splash_screen_loaded_ = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 

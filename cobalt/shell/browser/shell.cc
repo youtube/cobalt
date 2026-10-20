@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -35,6 +36,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
@@ -100,6 +102,9 @@ using ::starboard::StarboardBridge;
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/system.h"
 
 namespace content {
@@ -230,6 +235,28 @@ GURL GetSplashScreenURL() {
 // duration starts anyway, e.g., if the video can't play.
 constexpr base::TimeDelta kMaxSplashVideoFirstFrameDelay = base::Seconds(2);
 
+// splash.html plays its video only if MediaSource.isTypeSupported() accepts
+// this type, and shows its image otherwise.
+constexpr char kSplashVideoType[] = "video/webm; codecs=\"vp9\";";
+
+// Overrides CanSplashScreenPlayVideo() in tests, if set.
+std::optional<bool> g_can_splash_screen_play_video_for_testing;
+
+// Whether splash.html plays its video rather than its image.
+// MediaSource.isTypeSupported() passes the type to Starboard as is, so this
+// asks Starboard the same. May block.
+bool CanSplashScreenPlayVideo() {
+  if (g_can_splash_screen_play_video_for_testing.has_value()) {
+    return *g_can_splash_screen_play_video_for_testing;
+  }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return SbMediaCanPlayMimeAndKeySystem(kSplashVideoType, "") !=
+         kSbMediaSupportTypeNotSupported;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  return true;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
@@ -248,6 +275,12 @@ void Shell::MaybeHideSystemSplashScreen() {
 
 void Shell::ResetSystemSplashScreenForTesting() {
   has_hidden_system_splash_screen_.store(false);
+}
+
+// static
+void Shell::SetCanSplashScreenPlayVideoForTesting(
+    std::optional<bool> can_play_video) {
+  g_can_splash_screen_play_video_for_testing = can_play_video;
 }
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
@@ -719,6 +752,13 @@ void Shell::LoadSplashScreenWebContents() {
         splash_screen_web_contents_observer_->set_on_video_started(
             base::BindRepeating(&Shell::OnSplashScreenVideoStarted,
                                 weak_factory_.GetWeakPtr()));
+        // Unless the page shows its image instead, e.g., without VP9. Asked
+        // off the UI thread, as that may block.
+        base::ThreadPool::PostTaskAndReplyWithResult(
+            FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+            base::BindOnce(&CanSplashScreenPlayVideo),
+            base::BindOnce(&Shell::OnSplashScreenVideoSupportChecked,
+                           weak_factory_.GetWeakPtr()));
       }
     }
     if (!splash_topic_.empty()) {
@@ -1345,6 +1385,7 @@ void Shell::SwitchToMainWebContents(
 
 void Shell::OnSplashScreenLoadComplete() {
   MarkStartupEvent(SplashScreenMetrics::Event::kSplashLoaded);
+  is_splash_screen_loaded_ = true;
   if (awaiting_splash_video_first_frame_) {
     // The page of a video loads before the video shows anything, so the splash
     // screen starts with the video's first frame instead (see
@@ -1377,6 +1418,20 @@ void Shell::OnSplashScreenVideoStarted() {
   VLOG(1) << "NativeSplash: The splash screen video presents its first frame.";
   awaiting_splash_video_first_frame_ = false;
   StartSplashScreenTimer();
+}
+
+void Shell::OnSplashScreenVideoSupportChecked(bool can_play_video) {
+  if (can_play_video || !awaiting_splash_video_first_frame_) {
+    return;
+  }
+  VLOG(1) << "NativeSplash: The splash screen shows its image, as it can't "
+             "play its video.";
+  // Like the image splash screen, it starts when its page has loaded, which
+  // is usually after this.
+  awaiting_splash_video_first_frame_ = false;
+  if (is_splash_screen_loaded_) {
+    StartSplashScreenTimer();
+  }
 }
 
 void Shell::ClosingSplashScreenWebContents() {

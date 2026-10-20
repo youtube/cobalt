@@ -54,6 +54,8 @@ class SplashScreenTest : public ShellTestBase {
 
   void SetUp() override {
     ShellTestBase::SetUp();
+    // splash.html plays its video, unless a test says otherwise.
+    Shell::SetCanSplashScreenPlayVideoForTesting(true);
     InitializeShell(true /* is_visible */);
     // Each test is a new launch that starts at t=0.
     SplashScreenMetrics::ResetForTesting();
@@ -62,6 +64,7 @@ class SplashScreenTest : public ShellTestBase {
 
   void TearDown() override {
     SplashScreenMetrics::ResetForTesting();
+    Shell::SetCanSplashScreenPlayVideoForTesting(std::nullopt);
     ShellTestBase::TearDown();
   }
 
@@ -90,6 +93,11 @@ class SplashScreenTest : public ShellTestBase {
 
   void CallOnSplashScreenVideoStarted(Shell* shell) {
     shell->OnSplashScreenVideoStarted();
+  }
+
+  void CallOnSplashScreenVideoSupportChecked(Shell* shell,
+                                             bool can_play_video) {
+    shell->OnSplashScreenVideoSupportChecked(can_play_video);
   }
 
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
@@ -644,6 +652,64 @@ TEST_F(SplashScreenTest, VideoFirstFrameWaitIsBounded) {
   // Without a first frame, the timeout starts 2 s after the page loaded.
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   task_environment()->FastForwardBy(base::Milliseconds(4900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kForceVideoSplashScreen, {}},
+       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+      {});
+  // E.g., without VP9, splash.html shows its image instead.
+  Shell::SetCanSplashScreenPlayVideoForTesting(false);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  task_environment()->RunUntilIdle();
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+
+  // As for the image, the timeout counts from the page's load.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(2900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kForceVideoSplashScreen, {}},
+       {cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
+      {});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  // Shell only learns that the page shows its image after the page loaded.
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnSplashScreenVideoSupportChecked(shell, false);
+
+  // The timeout counts from then, rather than 2 s after the page loaded.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(2900));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
