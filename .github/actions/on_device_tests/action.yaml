@@ -21,7 +21,7 @@ inputs:
     required: false
     default: ""
   test_type:
-    description: "Test type (unit_test, e2e_test, yts_test, yts_wpt_test)."
+    description: "Test type (unit_test, browser_test, e2e_test, yts_test)."
     required: false
     default: "unit_test"
   artifact_name:

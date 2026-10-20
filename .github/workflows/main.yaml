@@ -733,7 +733,7 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_type: 'yts_playback_test'
+          test_type: 'yts_test'
           test_targets_json: ${{ steps.parse-yts-playback-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
@@ -813,7 +813,7 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_type: 'yts_wpt_test'
+          test_type: 'e2e_test'
           test_targets_json: ${{ steps.parse-yts-wpt-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
@@ -861,7 +861,7 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_type: 'yts_finch_test'
+          test_type: 'yts_test'
           test_targets_json: ${{ steps.parse-yts-finch-targets.outputs.test_targets_json }}
           artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
