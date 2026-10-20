@@ -262,22 +262,10 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   client_ = client;
   init_cb_ = std::move(init_cb);
 
-  // If the application is concealed, abort initialization immediately so
-  // SbPlayerCreate is not invoked on a destroyed native window.
-  if (IsApplicationConcealed()) {
-    state_ = STATE_ERROR;
-    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
-    return;
-  }
-
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
     state_ = STATE_INITIALIZING;
-    if (get_sb_window_handle_cb_) {
-      get_sb_window_handle_cb_.Run();
-      return;
-    }
-    CreatePlayerBridge();
+    StartOrDeferPlayerBridgeCreation();
     return;
   }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -324,30 +312,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
-
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
-      IsSecondaryVideoProtected()) {
-    CHECK(request_overlay_info_cb_);
-    CHECK(android_overlay_factory_cb_);
-    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
-    // enabled or if secondary video requires DRM (L1).
-    // Set |restart_for_transitions| to false due to devices are
-    // isSetOutputSurfaceSupported() in
-    // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
-    LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
-    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
-    return;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  if (get_sb_window_handle_cb_) {
-    // Get SbWindow from CobaltRenderContentClient.
-    get_sb_window_handle_cb_.Run();
-    return;
-  }
-
-  CreatePlayerBridge();
+  StartOrDeferPlayerBridgeCreation();
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -380,28 +345,7 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
 
   DCHECK(init_cb_);
   state_ = STATE_INITIALIZING;
-
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
-      IsSecondaryVideoProtected()) {
-    CHECK(request_overlay_info_cb_);
-    CHECK(android_overlay_factory_cb_);
-    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
-    // enabled or if secondary video requires DRM (L1).
-    LOG(INFO)
-        << "Requesting AndroidOverlay for Video SurfaceView after CDM set.";
-    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
-    return;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  if (get_sb_window_handle_cb_) {
-    // Get SbWindow from CobaltRenderContentClient.
-    get_sb_window_handle_cb_.Run();
-    return;
-  }
-
-  CreatePlayerBridge();
+  StartOrDeferPlayerBridgeCreation();
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -644,6 +588,16 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
 
 void StarboardRenderer::OnSbWindowHandleReady(const uint64_t sb_window_handle) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (pending_sb_window_handle_callbacks_ > 0) {
+    --pending_sb_window_handle_callbacks_;
+    if (pending_sb_window_handle_callbacks_ > 0) {
+      return;
+    }
+  }
+  if (init_deferred_for_conceal_ || IsApplicationConcealed()) {
+    init_deferred_for_conceal_ = true;
+    return;
+  }
   if (sb_window_handle != 0) {
     sb_window_ = reinterpret_cast<SbWindow>(sb_window_handle);
     if (!SbWindowIsValid(sb_window_)) {
@@ -777,15 +731,59 @@ void StarboardRenderer::UpdateAudioWriteDuration() {
             << ", max_video_capabilities_ at " << max_video_capabilities_;
 }
 
+void StarboardRenderer::StartOrDeferPlayerBridgeCreation() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(init_cb_);
+  DCHECK_EQ(state_, STATE_INITIALIZING);
+  if (IsApplicationConcealed()) {
+    init_deferred_for_conceal_ = true;
+    return;
+  }
+  init_deferred_for_conceal_ = false;
+
+#if BUILDFLAG(IS_ANDROID)
+  if ((
+#if BUILDFLAG(IS_IOS_TVOS)
+          !IsUrlPlayer() &&
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+          base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) ||
+      IsSecondaryVideoProtected()) {
+    CHECK(request_overlay_info_cb_);
+    CHECK(android_overlay_factory_cb_);
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled or if secondary video requires DRM (L1).
+    // Set |restart_for_transitions| to false due to devices are
+    // isSetOutputSurfaceSupported() in
+    // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+    LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
+    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (get_sb_window_handle_cb_) {
+    // Get SbWindow from CobaltRenderContentClient.
+    ++pending_sb_window_handle_callbacks_;
+    get_sb_window_handle_cb_.Run();
+    return;
+  }
+
+  CreatePlayerBridge();
+}
+
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  // If concealed while waiting for an asynchronous window handle or overlay,
-  // abort before constructing SbPlayerBridge on a destroyed native window.
-  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
-    state_ = STATE_ERROR;
+  if (state_ == STATE_ERROR) {
     if (init_cb_) {
       std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
     }
+    return;
+  }
+  // If concealed while waiting for an asynchronous window handle or overlay,
+  // defer constructing SbPlayerBridge until reveal rather than aborting
+  // initialization or creating an SbPlayer on a destroyed native window.
+  if (IsApplicationConcealed()) {
+    init_deferred_for_conceal_ = true;
     return;
   }
   DCHECK(init_cb_);
@@ -1333,13 +1331,37 @@ void StarboardRenderer::FlushAndSuspendActiveRenderers(
 
 // static
 void StarboardRenderer::ResumeActiveRenderers() {
-  auto& registry = GetConcealRegistry();
-  base::AutoLock auto_lock(registry.lock);
-  registry.is_concealed = false;
+  std::vector<ActiveRendererEntry> entries;
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.is_concealed = false;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
+  }
+  for (auto& entry : entries) {
+    entry.task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnRevealResume,
+                                  std::move(entry.weak_this)));
+  }
 }
 
 void StarboardRenderer::OnConcealFallbackSuspend() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (init_cb_) {
+    player_bridge_.reset();
+    sb_window_ = kSbWindowInvalid;
+    audio_read_in_progress_ = false;
+    video_read_in_progress_ = false;
+    audio_read_delayed_ = false;
+    if (state_ != STATE_INIT_PENDING_CDM && state_ != STATE_ERROR) {
+      state_ = STATE_INITIALIZING;
+      init_deferred_for_conceal_ = true;
+    }
+    return;
+  }
   if (player_bridge_) {
     player_bridge_->Suspend();
   }
@@ -1348,6 +1370,17 @@ void StarboardRenderer::OnConcealFallbackSuspend() {
   }
   state_ = STATE_ERROR;
   NotifyError(PIPELINE_ERROR_ABORT);
+}
+
+void StarboardRenderer::OnRevealResume() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!init_deferred_for_conceal_ || !init_cb_ || IsApplicationConcealed() ||
+      state_ == STATE_ERROR || state_ == STATE_INIT_PENDING_CDM) {
+    return;
+  }
+  init_deferred_for_conceal_ = false;
+  state_ = STATE_INITIALIZING;
+  StartOrDeferPlayerBridgeCreation();
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {

@@ -491,6 +491,185 @@ TEST_F(StarboardRendererTest,
   task_environment_.RunUntilIdle();
 }
 
+TEST_F(StarboardRendererTest, InitializeWhileConcealedDefersUntilReveal) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  base::MockOnceClosure conceal_done_cb;
+  EXPECT_CALL(conceal_done_cb, Run());
+  StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_sbplayer_interface_);
+  mock_sbplayer_interface_.SetupDefaultExpectations();
+  testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_);
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
+
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(
+    StarboardRendererTest,
+    ConcealDuringInFlightInitializationDefersAndResumesWithUpdatedWindowOnReveal) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  constexpr uint64_t kWindowHandle1 = 0x1111;
+  constexpr uint64_t kWindowHandle2 = 0x2222;
+  uint64_t current_window_handle = kWindowHandle1;
+
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      base::BindRepeating(
+          [](StarboardRenderer* renderer, uint64_t* handle_ptr) {
+            renderer->OnSbWindowHandleReady(*handle_ptr);
+          },
+          base::Unretained(renderer_.get()),
+          base::Unretained(&current_window_handle))
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  SbPlayer player_1 = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbWindow created_window_1 = kSbWindowInvalid;
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(
+          DoAll(SaveArg<0>(&created_window_1), SaveArg<3>(&decoder_status_cb_),
+                SaveArg<4>(&player_status_cb_), SaveArg<5>(&player_error_cb_),
+                SaveArg<6>(&context_), Return(player_1)));
+
+  // Start initialization while visible, but do not fire
+  // kSbPlayerStateInitialized yet so init_cb_ remains in flight.
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(created_window_1, reinterpret_cast<SbWindow>(kWindowHandle1));
+
+  // Conceal while initialization is still in flight. The in-flight SbPlayer
+  // must be destroyed before the conceal barrier completes, and init_cb_ must
+  // stay pending (not aborted).
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(player_1))
+      .WillOnce(Invoke([](SbPlayer player) {
+        delete reinterpret_cast<MockSbPlayer*>(player);
+      }));
+  EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
+  EXPECT_CALL(renderer_client_, OnError(_)).Times(0);
+
+  base::MockOnceClosure conceal_done_cb;
+  EXPECT_CALL(conceal_done_cb, Run());
+  StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_sbplayer_interface_);
+  mock_sbplayer_interface_.SetupDefaultExpectations();
+  testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_);
+
+  // Reveal with a newly created SbWindow handle.
+  current_window_handle = kWindowHandle2;
+  SbPlayer player_2 = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbWindow created_window_2 = kSbWindowInvalid;
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(
+          DoAll(SaveArg<0>(&created_window_2), SaveArg<3>(&decoder_status_cb_),
+                SaveArg<4>(&player_status_cb_), SaveArg<5>(&player_error_cb_),
+                SaveArg<6>(&context_), Return(player_2)));
+
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(created_window_2, reinterpret_cast<SbWindow>(kWindowHandle2));
+
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player_2, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(
+    StarboardRendererTest,
+    ConcealWhileWaitingForAsyncSbWindowHandleIgnoresStaleCallbackAndUsesNewWindowOnReveal) {
+  AddStream(DemuxerStream::AUDIO, /*encrypted=*/false);
+  AddStream(DemuxerStream::VIDEO, /*encrypted=*/false);
+
+  int window_handle_requests = 0;
+  renderer_->SetStarboardRendererCallbacks(
+      /*paint_video_hole_frame_cb=*/base::DoNothing(),
+      /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+      base::BindRepeating([](int* count) { ++(*count); },
+                          base::Unretained(&window_handle_requests))
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
+  renderer_->Initialize(&media_resource_, &renderer_client_,
+                        renderer_init_cb_.Get());
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(window_handle_requests, 1);
+
+  base::MockOnceClosure conceal_done_cb;
+  EXPECT_CALL(conceal_done_cb, Run());
+  StarboardRenderer::FlushAndSuspendActiveRenderers(conceal_done_cb.Get());
+  task_environment_.RunUntilIdle();
+
+  StarboardRenderer::ResumeActiveRenderers();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(window_handle_requests, 2);
+
+  // Stale response from the pre-conceal request arrives first and must be
+  // ignored while the post-reveal request is still pending.
+  constexpr uint64_t kStaleWindowHandle = 0x1111;
+  constexpr uint64_t kNewWindowHandle = 0x2222;
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .Times(0);
+  renderer_->OnSbWindowHandleReady(kStaleWindowHandle);
+  task_environment_.RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_sbplayer_interface_);
+  mock_sbplayer_interface_.SetupDefaultExpectations();
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbWindow created_window = kSbWindowInvalid;
+  EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(
+          DoAll(SaveArg<0>(&created_window), SaveArg<3>(&decoder_status_cb_),
+                SaveArg<4>(&player_status_cb_), SaveArg<5>(&player_error_cb_),
+                SaveArg<6>(&context_), Return(player)));
+
+  renderer_->OnSbWindowHandleReady(kNewWindowHandle);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(created_window, reinterpret_cast<SbWindow>(kNewWindowHandle));
+
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+}
+
 }  // namespace
 
 }  // namespace media

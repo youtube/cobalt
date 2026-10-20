@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
+#include <utility>
+
 #include "base/command_line.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/renderer/render_frame.h"
@@ -28,8 +30,12 @@
 namespace cobalt {
 
 CobaltRenderFrameObserver::CobaltRenderFrameObserver(
-    content::RenderFrame* render_frame)
-    : content::RenderFrameObserver(render_frame) {
+    content::RenderFrame* render_frame,
+    base::RepeatingClosure on_was_hidden_cb,
+    base::RepeatingClosure on_was_shown_cb)
+    : content::RenderFrameObserver(render_frame),
+      on_was_hidden_cb_(std::move(on_was_hidden_cb)),
+      on_was_shown_cb_(std::move(on_was_shown_cb)) {
   if (render_frame && render_frame->GetWebFrame()) {
     render_frame->GetWebFrame()->SetContentSettingsClient(this);
   }
@@ -39,6 +45,18 @@ CobaltRenderFrameObserver::~CobaltRenderFrameObserver() = default;
 
 void CobaltRenderFrameObserver::OnDestruct() {
   delete this;
+}
+
+void CobaltRenderFrameObserver::WasHidden() {
+  if (render_frame() && render_frame()->IsMainFrame() && on_was_hidden_cb_) {
+    on_was_hidden_cb_.Run();
+  }
+}
+
+void CobaltRenderFrameObserver::WasShown() {
+  if (render_frame() && render_frame()->IsMainFrame() && on_was_shown_cb_) {
+    on_was_shown_cb_.Run();
+  }
 }
 
 void CobaltRenderFrameObserver::DidMeaningfulLayout(

@@ -3045,6 +3045,17 @@ media::PipelineStatus WebMediaPlayerImpl::OnDemuxerCreated(
 void WebMediaPlayerImpl::StartPipeline() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
+#if BUILDFLAG(IS_COBALT)
+  if (defer_load_cb_ &&
+      (was_suspended_for_frame_closed_ || delegate_->IsFrameHidden() ||
+       delegate_->IsPageHidden())) {
+    if (defer_load_cb_.Run(
+            WTF::BindOnce(&WebMediaPlayerImpl::StartPipeline, weak_this_))) {
+      return;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   PostCrossThreadTask(
       *vfc_task_runner_, FROM_HERE,
       CrossThreadBindOnce(
