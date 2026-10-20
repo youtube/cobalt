@@ -38,7 +38,12 @@ namespace cobalt {
 
 namespace {
 
-constexpr base::TimeDelta kPostStartupStorageMetricsDelay = base::Seconds(30);
+// Delay after browser startup before recording directory footprints and
+// startup I/O counters. Sampled at +10s so startup metrics land inside
+// Android's Initial UMA Log (+15s) and before background storage cleanup
+// tasks (+30s).
+constexpr base::TimeDelta kPostStartupStorageMetricsDelay = base::Seconds(10);
+
 // Matches Cobalt's default 5-minute UMA upload interval so that each uploaded
 // log carries roughly one write-rate sample.
 constexpr base::TimeDelta kPeriodicWriteRateSampleInterval = base::Minutes(5);
