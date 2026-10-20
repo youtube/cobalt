@@ -128,7 +128,8 @@ constexpr angle::PackedEnumMap<gl::PrimitiveMode, gl::PrimitiveMode> kPrimitiveT
 }};
 
 constexpr VkBufferUsageFlags kVertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-constexpr size_t kDynamicVertexDataSize         = 16 * 1024;
+constexpr size_t kDynamicVertexDataSizeLarge    = 128 * 1024;
+constexpr size_t kDynamicVertexDataSizeSmall    = 16 * 1024;
 
 bool CanMultiDrawIndirectUseCmd(ContextVk *contextVk,
                                 VertexArrayVk *vertexArray,
@@ -1299,10 +1300,14 @@ angle::Result ContextVk::initialize(const angle::ImageLoadContext &imageLoadCont
                                         pipelineRobustness(), pipelineProtectedAccess());
 
     // Initialize current value/default attribute buffers.
+    const size_t vertexBufferInitSize =
+        (getFeatures().useLargeSizeForDynamicBuffers.enabled && mState.isGLES1())
+            ? kDynamicVertexDataSizeLarge
+            : kDynamicVertexDataSizeSmall;
     for (vk::DynamicBuffer &buffer : mStreamedVertexBuffers)
     {
-        buffer.init(mRenderer, kVertexBufferUsage, vk::kVertexBufferAlignment,
-                    kDynamicVertexDataSize, true);
+        buffer.init(mRenderer, kVertexBufferUsage, vk::kVertexBufferAlignment, vertexBufferInitSize,
+                    true);
     }
 
     // Assign initial command buffers from queue
@@ -1367,6 +1372,16 @@ angle::Result ContextVk::initialize(const angle::ImageLoadContext &imageLoadCont
 bool ContextVk::isSingleBufferedWindowCurrent() const
 {
     return (mCurrentWindowSurface != nullptr && mCurrentWindowSurface->isSharedPresentMode());
+}
+
+angle::Result ContextVk::onBindTexImage()
+{
+    // EGL 1.5 spec, 3.6.1: Binding a Surface to a OpenGL ES Texture
+    //     If dpy and surface are the display and surface for the calling thread's
+    //     current context, eglBindTexImage performs an implicit glFlush.
+    //
+    // To ensure the flush doesn't get deferred, explicitly submit any outstanding commands
+    return flushAndSubmitCommands(nullptr, nullptr, QueueSubmitReason::EGLBindTexImage);
 }
 
 bool ContextVk::hasSomethingToFlush() const
@@ -1550,7 +1565,7 @@ angle::Result ContextVk::setupDraw(const gl::Context *context,
 
         transformFeedbackVk->getBufferOffsets(this, firstVertexOrInvalid, bufferOffsets.data(),
                                               bufferOffsets.size());
-        invalidateGraphicsDriverUniforms();
+        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
     }
 
     DirtyBits dirtyBits = mGraphicsDirtyBits & dirtyBitMask;
@@ -4827,7 +4842,7 @@ void ContextVk::updateDepthRange(float nearPlane, float farPlane)
     mViewport.maxDepth = farPlane;
 
     mGraphicsDriverUniforms.updateDepthRange(nearPlane, farPlane);
-    invalidateGraphicsDriverUniforms();
+    mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
     mGraphicsDirtyBits.set(DIRTY_BIT_DYNAMIC_VIEWPORT);
 }
 
@@ -5031,7 +5046,7 @@ void ContextVk::updateAdvancedBlendEquations(const gl::ProgramExecutable *execut
             }
         }
         mGraphicsDriverUniforms.updateAdvancedBlendEquation(advancedBlendEquation);
-        invalidateGraphicsDriverUniforms();
+        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
     }
 }
 
@@ -5130,7 +5145,7 @@ void ContextVk::updateDither()
         mGraphicsPipelineDesc->updateEmulatedDitherControl(&mGraphicsPipelineTransition,
                                                            ditherControl);
         mGraphicsDriverUniforms.updateEmulatedDitherControl(ditherControl);
-        invalidateGraphicsDriverUniforms();
+        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
         invalidateCurrentGraphicsPipeline();
     }
 }
@@ -5594,15 +5609,19 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                 if (mState.getDrawFramebuffer()->isDefault() && programExecutable != nullptr &&
                     programExecutable->hasFragCoord())
                 {
-                    mGraphicsDriverUniforms.updateRenderArea(
-                        drawFramebufferVk->getState().getDimensions().width,
-                        drawFramebufferVk->getState().getDimensions().height);
-                    invalidateGraphicsDriverUniforms();
+                    if (mGraphicsDriverUniforms.updateRenderArea(
+                            drawFramebufferVk->getState().getDimensions().width,
+                            drawFramebufferVk->getState().getDimensions().height))
+                    {
+                        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
+                    }
                 }
-                mGraphicsDriverUniforms.updateflipXY(
-                    mCurrentRotationDrawFramebuffer, isViewportFlipEnabledForDrawFBO(),
-                    drawFramebufferVk->getSamples(), drawFramebufferVk->getLayerCount() > 1);
-                invalidateGraphicsDriverUniforms();
+                if (mGraphicsDriverUniforms.updateflipXY(
+                        mCurrentRotationDrawFramebuffer, isViewportFlipEnabledForDrawFBO(),
+                        drawFramebufferVk->getSamples(), drawFramebufferVk->getLayerCount() > 1))
+                {
+                    mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
+                }
                 break;
             }
             case gl::state::DIRTY_BIT_RENDERBUFFER_BINDING:
@@ -5659,10 +5678,12 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                     if (mState.getDrawFramebuffer()->isDefault() &&
                         programExecutable->hasFragCoord())
                     {
-                        mGraphicsDriverUniforms.updateRenderArea(
-                            drawFramebufferVk->getState().getDimensions().width,
-                            drawFramebufferVk->getState().getDimensions().height);
-                        invalidateGraphicsDriverUniforms();
+                        if (mGraphicsDriverUniforms.updateRenderArea(
+                                drawFramebufferVk->getState().getDimensions().width,
+                                drawFramebufferVk->getState().getDimensions().height))
+                        {
+                            mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
+                        }
                     }
                 }
 
@@ -5800,13 +5821,13 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                             {
                                 const uint32_t transformDepth = !mState.isClipDepthModeZeroToOne();
                                 mGraphicsDriverUniforms.updateTransformDepth(transformDepth);
-                                invalidateGraphicsDriverUniforms();
+                                mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
                             }
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_CLIP_DISTANCES:
                             mGraphicsDriverUniforms.updateEnabledClipDistances(
                                 mState.getEnabledClipDistances().bits());
-                            invalidateGraphicsDriverUniforms();
+                            mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_DEPTH_CLAMP_ENABLED:
                             // TODO(https://anglebug.com/42266182): Use EDS3
@@ -6374,7 +6395,7 @@ void ContextVk::onTransformFeedbackStateChanged()
     }
     else if (getFeatures().emulateTransformFeedback.enabled)
     {
-        invalidateGraphicsDriverUniforms();
+        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
         invalidateCurrentTransformFeedbackBuffers();
 
         // Invalidate the graphics pipeline too.  On transform feedback state change, the current

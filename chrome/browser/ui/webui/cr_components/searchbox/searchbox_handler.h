@@ -37,7 +37,7 @@ class WebUIDataSource;
 namespace searchbox_internal {
 // Internal constants for icon resource paths shared by SearchboxHandler and its
 // subclasses.
-extern const char* kSearchIconResourceName;
+extern const char* kSearchSparkIconResourceName;
 }  // namespace searchbox_internal
 
 // Base class for browser-side handlers that handle bi-directional communication
@@ -104,7 +104,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                        const GURL& url,
                        base::TimeTicks match_selection_timestamp,
                        bool is_mouse_event) override;
-  void ShowContextMenu(const gfx::Point& point) override;
   void ExecuteAction(uint8_t line,
                      uint8_t action_index,
                      const GURL& url,

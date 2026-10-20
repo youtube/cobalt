@@ -4872,8 +4872,9 @@ IN_PROC_BROWSER_TEST_P(SubresourceWebBundlesWebRequestApiTest,
         self.numScriptRequests = 0;
         self.numUUIDInPackageScriptRequests = 0;
         chrome.webRequest.onBeforeRequest.addListener(function(details) {
-          if (details.url.includes('test.html'))
+          if (details.url.includes('test.html')) {
             self.numMainResourceRequests++;
+          }
           else if (details.url.includes('web_bundle.wbn'))
             self.numWebBundleRequests++;
           else if (details.url.includes('test.js'))
@@ -5462,8 +5463,9 @@ IN_PROC_BROWSER_TEST_P(SubresourceWebBundlesWebRequestApiTest,
   test_dir.WriteFile(FILE_PATH_LITERAL("background.js"),
                      base::StringPrintf(R"(
         chrome.webRequest.onBeforeRequest.addListener(function(details) {
-          if (!details.url.includes('redirect.wbn'))
+          if (!details.url.includes('redirect.wbn')) {
             return;
+          }
           const redirectUrl =
               details.url.replace('redirect.wbn', 'redirected.wbn');
           return {redirectUrl};
@@ -7054,8 +7056,9 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
          // test.
          async function flushStorage() {
            console.assert(!storageComplete);
-           if (!isUsingStorage)
+           if (!isUsingStorage) {
              return;
+           }
            await new Promise((resolve) => {
              storageComplete = resolve;
            });
@@ -7070,8 +7073,9 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
                requestCount++;
                await chrome.storage.local.set({requestCount});
                isUsingStorage = false;
-               if (storageComplete)
+               if (storageComplete) {
                  storageComplete();
+               }
                chrome.test.sendMessage('event received');
              },
              {urls: ['<all_urls>'], types: ['main_frame']});)";
@@ -7141,23 +7145,23 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
   EXPECT_EQ(2, get_request_count());
 }
 
-class ManifestV3WebRequestApiTestWithAlternativeAddListener
+class ManifestV3WebRequestApiTestWithEventRouterPersistence
     : public ManifestV3WebRequestApiTest {
  public:
-  ManifestV3WebRequestApiTestWithAlternativeAddListener() {
+  ManifestV3WebRequestApiTestWithEventRouterPersistence() {
     scoped_feature_list_.InitAndEnableFeature(
-        extensions_features::kWebRequestAlternativeAddListener);
+        extensions_features::kWebRequestPersistFilteredEventsViaEventRouter);
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// Test that, when the `WebRequestAlternativeAddListener` feature flag is
-// enabled, adding a listener right after an extension has been unloaded, but
-// before its renderer has been shut down, doesn't cause a CHECK failure in
-// WebRequestAPI. Regression test for https://crbug.com/479841044.
-IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTestWithAlternativeAddListener,
+// Test that, when the `kWebRequestPersistFilteredEventsViaEventRouter` feature
+// flag is enabled, adding a listener right after an extension has been
+// unloaded, but before its renderer has been shut down, doesn't cause a CHECK
+// failure in WebRequestAPI. Regression test for https://crbug.com/479841044.
+IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTestWithEventRouterPersistence,
                        DontCrashOnExtensionUnload) {
   ASSERT_TRUE(StartEmbeddedTestServer());
   static constexpr char kManifest[] =
@@ -8510,35 +8514,17 @@ class URLLoaderFactoriesResetWaiter : public WebRequestAPI::TestObserver {
   base::RunLoop url_loader_factory_reset_runloop_;
 };
 
-class ManifestV3WebRequestApiTestWithSkipResetServiceWorkerURLLoaderFactories
-    : public ManifestV3WebRequestApiTest,
-      public testing::WithParamInterface<bool> {
- public:
-  ManifestV3WebRequestApiTestWithSkipResetServiceWorkerURLLoaderFactories() {
-    feature_list_.InitWithFeatureState(
-        extensions_features::kSkipResetServiceWorkerURLLoaderFactories,
-        GetParam());
-  }
-  ~ManifestV3WebRequestApiTestWithSkipResetServiceWorkerURLLoaderFactories()
-      override = default;
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
 // Tests that the call to `ResetURLLoaderFactories()` performed by WebRequestAPI
 // doesn't break the registration process of other extensions.
 // Regression test for https://crbug.com/394523691.
-IN_PROC_BROWSER_TEST_P(
-    ManifestV3WebRequestApiTestWithSkipResetServiceWorkerURLLoaderFactories,
-    ResetURLLoaderFactoryDoesntBreakRegistration) {
+IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
+                       ResetURLLoaderFactoryDoesntBreakRegistration) {
   // Skip if the proxy is forced since factories will not be reset in that case.
   if (base::FeatureList::IsEnabled(
           extensions_features::kForceWebRequestProxyForTest)) {
     return;
   }
 
-  bool feature_enabled = GetParam();
   ASSERT_TRUE(StartEmbeddedTestServer());
 
   // A simple extension that sends a message and waits for a response in its
@@ -8574,9 +8560,8 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_TRUE(web_request_api);
 
   // Listen to "will_receive" message from the extension.
-  ExtensionTestMessageListener will_receive_listener(
-      "will_receive",
-      feature_enabled ? ReplyBehavior::kWillReply : ReplyBehavior::kWontReply);
+  ExtensionTestMessageListener will_receive_listener("will_receive",
+                                                     ReplyBehavior::kWillReply);
   // Listen to the completion of the registration storage.
   service_worker_test_utils::TestServiceWorkerContextObserver
       registration_observer(profile());
@@ -8611,34 +8596,19 @@ IN_PROC_BROWSER_TEST_P(
   // long and won't trigger the bug in all cases.
   web_request_api->ForceProxyForTesting();
 
-  if (feature_enabled) {
-    // SkipResetServiceWorkerURLLoaderFactories feature enabled: expect
-    // successful execution. Check that the worker is still running and
-    // functional.
-    registration_observer.WaitForWorkerStarted();
-    std::optional<WorkerId> worker_id = GetWorkerIdForExtension(extension_id);
-    EXPECT_TRUE(worker_id);
-    SCOPED_TRACE(
-        "Waiting for extension background to signal that it can send messages");
-    ASSERT_TRUE(will_receive_listener.WaitUntilSatisfied());
-    will_receive_listener.Reply("go");
-    url_loader_factories_reset_waiter.WaitForResetURLLoaderFactoriesCalled();
-    registration_observer.WaitForRegistrationStored();
-  } else {
-    // SkipResetServiceWorkerURLLoaderFactories feature disabled: expect worker
-    // registration to fail. We have observed that the registration can fail
-    // with either `kErrorStartWorkerFailed` or `kErrorNetwork` depending on
-    // when exactly it's interrupted.
-    auto status_code =
-        worker_failure_observer.WaitForWorkerRegistrationFailure();
-    EXPECT_NE(status_code, blink::ServiceWorkerStatusCode::kOk);
-  }
+  // SkipResetServiceWorkerURLLoaderFactories is now default behavior: expect
+  // successful execution. Check that the worker is still running and
+  // functional.
+  registration_observer.WaitForWorkerStarted();
+  std::optional<WorkerId> worker_id = GetWorkerIdForExtension(extension_id);
+  EXPECT_TRUE(worker_id);
+  SCOPED_TRACE(
+      "Waiting for extension background to signal that it can send messages");
+  ASSERT_TRUE(will_receive_listener.WaitUntilSatisfied());
+  will_receive_listener.Reply("go");
+  url_loader_factories_reset_waiter.WaitForResetURLLoaderFactoriesCalled();
+  registration_observer.WaitForRegistrationStored();
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    ManifestV3WebRequestApiTestWithSkipResetServiceWorkerURLLoaderFactories,
-    testing::Bool());
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 

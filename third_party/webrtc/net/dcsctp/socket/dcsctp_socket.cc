@@ -678,6 +678,7 @@ std::optional<Metrics> DcSctpSocket::GetMetrics() const {
     return std::nullopt;
   }
 
+  // Note: `metrics_` has some pre-calculated (negotiated) values set already.
   Metrics metrics = metrics_;
   metrics.cwnd_bytes = tcb_->cwnd();
   metrics.srtt_ms = tcb_->current_srtt().ms();
@@ -688,10 +689,6 @@ std::optional<Metrics> DcSctpSocket::GetMetrics() const {
       (send_queue_.total_buffered_amount() + packet_payload_size - 1) /
           packet_payload_size;
   metrics.peer_rwnd_bytes = tcb_->retransmission_queue().rwnd();
-  metrics.negotiated_maximum_incoming_streams =
-      tcb_->capabilities().negotiated_maximum_incoming_streams;
-  metrics.negotiated_maximum_incoming_streams =
-      tcb_->capabilities().negotiated_maximum_incoming_streams;
   metrics.rtx_packets_count = tcb_->retransmission_queue().rtx_packets_count();
   metrics.rtx_bytes_count = tcb_->retransmission_queue().rtx_bytes_count();
 

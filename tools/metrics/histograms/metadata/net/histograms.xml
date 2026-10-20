@@ -87,6 +87,13 @@ chromium-metrics-reviews@google.com.
   <variant name=".GoogleHost" summary="Google Host"/>
 </variants>
 
+<variants name="HttpConnectionProtocol">
+  <variant name="Http1" summary="HTTP/1.1"/>
+  <variant name="Http2" summary="HTTP/2"/>
+  <variant name="Http3" summary="HTTP/3"/>
+  <variant name="Other" summary="Other protocols"/>
+</variants>
+
 <variants name="NegotiatedProtocolCoalesced">
   <variant name="H1"/>
   <variant name="H2"/>
@@ -737,6 +744,16 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="HttpCache.CreateBackendEarly" enum="Boolean"
+    expires_after="2026-07-26">
+  <owner>yoichio@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Logged wether or not CreateBackend is called when HttpCache is created. This
+    is valid when HttpCacheInitializeDiskCacheBackendEarly is enabled.
+  </summary>
+</histogram>
+
 <histogram name="HttpCache.CreateDiskEntry" units="ms"
     expires_after="2026-07-26">
   <owner>yhirano@chromium.org</owner>
@@ -822,6 +839,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Max file size allowed to be cached in the http cache. This is logged at the
     time the backend is created.
+  </summary>
+</histogram>
+
+<histogram name="HttpCache.NoVarySearch.CacheStorage.CreateAndLoadTime"
+    units="ms" expires_after="2026-06-28">
+  <owner>yoichio@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    The time it takes to instantiate and synchronously execute the Load method
+    of NoVarySearchCacheStorage::Loader on a worker pool thread. This is logged
+    at the time the NVS backend is created.
   </summary>
 </histogram>
 
@@ -2367,6 +2395,16 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Net.DNS.CanaryDomainService.SecureDns.Result"
+    enum="CanaryDomainResult" expires_after="2027-01-31">
+  <owner>bcb@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the result of a canary domain probe used to determine whether Secure
+    DNS is allowed.
+  </summary>
+</histogram>
+
 <histogram name="Net.DNS.DnsConfig.AdditionalDnsQueryTypesEnabled"
     enum="BooleanEnabled" expires_after="2025-02-10">
   <owner>horo@chromium.org</owner>
@@ -2613,30 +2651,6 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Net.DNS.DnsTransaction.SecureNotValidated.{DohProviderId}FailureTime"
-    units="ms" expires_after="2024-07-22">
-  <owner>awillia@chromium.org</owner>
-  <owner>src/net/dns/OWNERS</owner>
-  <summary>
-    Duration of time taken by a secure DnsTransaction to a DoH server that is
-    unavailable or has unknown availability to fail. These transactions may be
-    probe queries or queries issued in the secure DNS mode. {DohProviderId}
-  </summary>
-</histogram>
-
-<histogram
-    name="Net.DNS.DnsTransaction.SecureNotValidated.{DohProviderId}SuccessTime"
-    units="ms" expires_after="2024-07-22">
-  <owner>awillia@chromium.org</owner>
-  <owner>src/net/dns/OWNERS</owner>
-  <summary>
-    Duration of time taken by a secure DnsTransaction to a DoH server that is
-    unavailable or has unknown availability to succeed. These transactions may
-    be probe queries or queries issued in the secure DNS mode. {DohProviderId}
-  </summary>
-</histogram>
-
-<histogram
     name="Net.DNS.DnsTransaction.SecureValidated.{DohProviderId}FailureError"
     enum="NetErrorCodes" expires_after="2026-07-26">
   <owner>awillia@chromium.org</owner>
@@ -2685,6 +2699,54 @@ chromium-metrics-reviews@google.com.
     Enumerated status of the reason why the built-in DNS resolver has detected a
     &quot;low entropy&quot; situation for DNS over UDP and has switched to DNS
     over TCP.
+  </summary>
+</histogram>
+
+<histogram
+    name="Net.DNS.DnsTransaction.{DohProviderId}{Protocol}.SessionSource"
+    enum="NetworkSessionSource" expires_after="2026-05-16">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Measures whether a DoH request used a new or an existing session. Recorded
+    when a non-probe, auto-upgrade mode DoH transaction completes.
+  </summary>
+  <token key="DohProviderId" variants="DohProviderId"/>
+  <token key="Protocol" variants="HttpConnectionProtocol"/>
+</histogram>
+
+<histogram
+    name="Net.DNS.DnsTransaction.{DohProviderId}{Protocol}.{SessionSource}.{Outcome}Time"
+    units="ms" expires_after="2026-05-16">
+  <owner>bashi@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    Duration of time taken by a DoH transaction to {Outcome}. Recorded when a
+    non-probe, auto-upgrade mode DoH transaction completes.
+  </summary>
+  <token key="DohProviderId" variants="DohProviderId"/>
+  <token key="Protocol" variants="HttpConnectionProtocol"/>
+  <token key="SessionSource">
+    <variant name="Existing"/>
+    <variant name="New"/>
+  </token>
+  <token key="Outcome">
+    <variant name="Failure"/>
+    <variant name="Success"/>
+  </token>
+</histogram>
+
+<histogram name="Net.DNS.FallbackFromSecureTransactionPreferred"
+    enum="FallbackFromSecureTransactionPreferredReason"
+    expires_after="2027-01-31">
+  <owner>bcb@chromium.org</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Records the reason for falling back from a secure DNS transaction to an
+    insecure one. This is recorded every time HostResolverManager::PushDnsTasks
+    is called while in AUTOMATIC secure DNS mode. A preferred reason indicates
+    that the SECURE_DNS task was prevented from being included to resolve a host
+    request.
   </summary>
 </histogram>
 
@@ -5013,7 +5075,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.QuicSession.CertVerificationResult.{Condition}"
+<histogram
+    name="Net.QuicSession.CertVerificationResult.{Condition}{IsResumption}"
     enum="NetErrorCodes" expires_after="2026-08-23">
   <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
@@ -5022,11 +5085,18 @@ chromium-metrics-reviews@google.com.
     The network error code returned to a QUIC session from the CertVerifier when
     a certification verification is attempted.
 
-    This metric is only recorded when {Condition}.
+    This metric is only recorded when {Condition} {IsResumption}.
   </summary>
   <token key="Condition">
     <variant name="MTCAdvertised" summary="server advertised MTC support"/>
     <variant name="MTCReceived" summary="server sent an MTC"/>
+  </token>
+  <token key="IsResumption">
+    <variant name=""
+        summary="aggregated across new connections and resumption"/>
+    <variant name=".NewConnection" summary="on a new connection"/>
+    <variant name=".Resumption"
+        summary="on a connection that Chrome is attempting to resume"/>
   </token>
 </histogram>
 
@@ -5562,7 +5632,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.QuicSession.HandshakeConfirmedTime.MTC"
+<histogram name="Net.QuicSession.HandshakeConfirmedTime.MTC{IsResumption}"
     units="Milliseconds" expires_after="2026-08-23">
   <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
@@ -5571,11 +5641,20 @@ chromium-metrics-reviews@google.com.
     The elapsed time between starting the crypto handshake, and receiving
     confirmation from the server, measured only for servers that sent a Trust
     Anchor ID corresponding to a Merkle Tree Certificate
-    (https://datatracker.ietf.org/doc/draft-davidben-tls-merkle-tree-certs/) CA.
+    (https://datatracker.ietf.org/doc/draft-davidben-tls-merkle-tree-certs/) CA,
+    {IsResumption}.
   </summary>
+  <token key="IsResumption">
+    <variant name=""
+        summary="aggregated across new connections and resumption"/>
+    <variant name=".NewConnection" summary="on a new connection"/>
+    <variant name=".Resumption"
+        summary="on a connection that Chrome is attempting to resume"/>
+  </token>
 </histogram>
 
-<histogram name="Net.QuicSession.HandshakeConfirmedTime.TrustAnchorIDs"
+<histogram
+    name="Net.QuicSession.HandshakeConfirmedTime.TrustAnchorIDs{IsResumption}"
     units="Milliseconds" expires_after="2026-08-02">
   <owner>estark@chromium.org</owner>
   <owner>davidben@chromium.org</owner>
@@ -5583,11 +5662,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     The elapsed time between starting the crypto handshake, and receiving
     confirmation from the server, measured only for servers that advertise TLS
-    Trust Anchor IDs in DNS.
+    Trust Anchor IDs in DNS, {IsResumption}.
 
     Warning: this histogram was expired from 2025-10-26 to 2026-02-12; data may
     be missing.
   </summary>
+  <token key="IsResumption">
+    <variant name=""
+        summary="aggregated across new connections and resumption"/>
+    <variant name=".NewConnection" summary="on a new connection"/>
+    <variant name=".Resumption"
+        summary="on a connection that Chrome is attempting to resume"/>
+  </token>
 </histogram>
 
 <histogram
@@ -6800,8 +6886,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.QuicSession.TLSHandshakeBytes.MTC" units="bytes"
-    expires_after="2026-08-23">
+<histogram name="Net.QuicSession.TLSHandshakeBytes.MTC{IsResumption}"
+    units="bytes" expires_after="2026-08-23">
   <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
@@ -6809,8 +6895,16 @@ chromium-metrics-reviews@google.com.
     The number of bytes sent and received in the TLS handshake. This metric is
     only recorded for servers that sent a Trust Anchor ID corresponding to a
     Merkle Tree Certificate
-    (https://datatracker.ietf.org/doc/draft-davidben-tls-merkle-tree-certs/) CA.
+    (https://datatracker.ietf.org/doc/draft-davidben-tls-merkle-tree-certs/) CA,
+    {IsResumption}.
   </summary>
+  <token key="IsResumption">
+    <variant name=""
+        summary="aggregated across new connections and resumption"/>
+    <variant name=".NewConnection" summary="on a new connection"/>
+    <variant name=".Resumption"
+        summary="on a connection that Chrome is attempting to resume"/>
+  </token>
 </histogram>
 
 <histogram name="Net.QuicSession.TooManyOpenStreams" enum="BooleanTooMany"

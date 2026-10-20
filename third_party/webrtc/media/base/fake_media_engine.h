@@ -211,7 +211,7 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
       const MediaChannelParameters::RtcpParameters& params) {
     recv_rtcp_parameters_ = params;
   }
-  void OnPacketReceived(const RtpPacketReceived& packet) override {
+  void OnPacketReceived(RtpPacketReceived packet) override {
     rtp_packets_.push_back(
         std::string(packet.Buffer().cdata<char>(), packet.size()));
   }

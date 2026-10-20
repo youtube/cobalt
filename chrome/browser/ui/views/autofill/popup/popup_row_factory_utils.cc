@@ -355,6 +355,38 @@ std::unique_ptr<PopupRowContentView> CreateFooterPopupRowContentView(
   return view;
 }
 
+std::unique_ptr<PopupRowContentView> CreateSaveAndFillRowContentView(
+    const Suggestion& suggestion) {
+  auto view = std::make_unique<PopupRowContentView>();
+
+  view->AddChildView(popup_cell_utils::GetIconImageView(suggestion));
+  popup_cell_utils::AddSpacerWithSize(
+      *view, PopupBaseView::ArrowHorizontalMargin(), /*resize=*/false);
+
+  auto* text_container =
+      view->AddChildView(std::make_unique<views::BoxLayoutView>());
+  text_container->SetOrientation(views::BoxLayout::Orientation::kVertical);
+  text_container->SetCrossAxisAlignment(
+      views::BoxLayout::CrossAxisAlignment::kStart);
+  text_container->SetInsideBorderInsets(
+      gfx::Insets(view->GetInsideBorderInsets())
+          .set_top_bottom(
+              kAutofillMultilineSuggestionAdditionalVerticalMargin,
+              kAutofillMultilineSuggestionAdditionalVerticalMargin));
+
+  text_container->AddChildView(
+      CreateMainTextLabel(suggestion, /*show_new_badge=*/std::nullopt));
+
+  auto* description_label =
+      text_container->AddChildView(std::make_unique<views::Label>(
+          suggestion.labels[0][0].value, views::style::CONTEXT_DIALOG_BODY_TEXT,
+          kMinorTextStyle));
+  description_label->SetMultiLine(true);
+  description_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  description_label->SetEnabledColor(ui::kColorLabelForegroundSecondary);
+  return view;
+}
+
 std::unique_ptr<views::Label> CreatePasswordDescriptionLabel(
     const Suggestion& suggestion) {
   if (suggestion.additional_label.empty()) {
@@ -529,34 +561,6 @@ CreateAlternativePaymentMethodPopupRowContentView(
   return view;
 }
 
-// Creates the content view for regular address and regular credit card
-// suggestions. views for suggestions of other types and special
-// suggestions are created by corresponding `Create*PopupRowContentView()`
-// methods.
-std::unique_ptr<PopupRowContentView> CreatePopupRowContentView(
-    const Suggestion& suggestion,
-    std::optional<user_education::DisplayNewBadge> show_new_badge,
-    FillingProduct main_filling_product,
-    std::optional<AutofillPopupController::SuggestionFilterMatch>
-        filter_match) {
-  auto view = std::make_unique<PopupRowContentView>();
-  std::unique_ptr<views::Label> main_text_label =
-      CreateMainTextLabel(suggestion, show_new_badge);
-  if (filter_match) {
-    main_text_label->SetTextStyleRange(kMainTextStyleHighlighted,
-                                       filter_match->main_text_match);
-  }
-
-  FormatLabel(*main_text_label, suggestion.main_text, main_filling_product,
-              kAutofillSuggestionMaxWidth);
-  popup_cell_utils::AddSuggestionContentToView(
-      suggestion, std::move(main_text_label), CreateMinorTextLabels(suggestion),
-      /*description_label=*/nullptr,
-      CreateSubtextViews(*view, suggestion, main_filling_product),
-      popup_cell_utils::GetIconImageView(suggestion), *view);
-  return view;
-}
-
 // Creates the row for an Autocomplete entry with a delete button.
 std::unique_ptr<PopupRowWithButtonView> CreateAutocompleteRowWithDeleteButton(
     base::WeakPtr<AutofillPopupController> controller,
@@ -615,6 +619,30 @@ std::unique_ptr<PopupRowWithButtonView> CreateAutocompleteRowWithDeleteButton(
 
 }  // namespace
 
+std::unique_ptr<PopupRowContentView> CreatePopupRowContentView(
+    const Suggestion& suggestion,
+    std::optional<user_education::DisplayNewBadge> show_new_badge,
+    FillingProduct main_filling_product,
+    std::optional<AutofillPopupController::SuggestionFilterMatch>
+        filter_match) {
+  auto view = std::make_unique<PopupRowContentView>();
+  std::unique_ptr<views::Label> main_text_label =
+      CreateMainTextLabel(suggestion, show_new_badge);
+  if (filter_match) {
+    main_text_label->SetTextStyleRange(kMainTextStyleHighlighted,
+                                       filter_match->main_text_match);
+  }
+
+  FormatLabel(*main_text_label, suggestion.main_text, main_filling_product,
+              kAutofillSuggestionMaxWidth);
+  popup_cell_utils::AddSuggestionContentToView(
+      suggestion, std::move(main_text_label), CreateMinorTextLabels(suggestion),
+      /*description_label=*/nullptr,
+      CreateSubtextViews(*view, suggestion, main_filling_product),
+      popup_cell_utils::GetIconImageView(suggestion), *view);
+  return view;
+}
+
 std::unique_ptr<PopupRowView> CreatePopupRowView(
     base::WeakPtr<AutofillPopupController> controller,
     PopupRowView::AccessibilitySelectionDelegate& a11y_selection_delegate,
@@ -662,6 +690,11 @@ std::unique_ptr<PopupRowView> CreatePopupRowView(
           CreatePasswordPopupRowContentView(suggestion, show_new_badge,
                                             std::move(filter_match),
                                             favicon_loader));
+    case SuggestionType::kSaveAndFillCreditCardEntry: {
+      return std::make_unique<PopupRowView>(
+          a11y_selection_delegate, selection_delegate, controller, line_number,
+          CreateSaveAndFillRowContentView(suggestion));
+    }
     case SuggestionType::kComposeResumeNudge:
     case SuggestionType::kComposeSavedStateNotification: {
       return std::make_unique<PopupRowView>(

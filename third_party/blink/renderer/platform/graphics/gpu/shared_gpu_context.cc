@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 
+#include "base/command_line.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -15,6 +16,7 @@
 #include "gpu/ipc/client/client_shared_image_interface.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
 #include "third_party/blink/public/platform/web_url.h"
@@ -24,6 +26,26 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
 namespace blink {
+
+namespace {
+
+namespace {
+
+std::optional<bool>
+    g_native_mappable_shared_images_supported_for_canvas_2d_for_testing;
+std::optional<bool> g_low_latency_usage_supported_for_canvas_2d_for_testing;
+}
+
+#if BUILDFLAG(IS_APPLE)
+bool Canvas2DSharedImagesBackedByIOSurface() {
+  static const bool backed_by_io_surface =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableGpuMemoryBufferCompositorResources);
+  return backed_by_io_surface;
+}
+#endif
+
+}  // namespace
 
 SharedGpuContext* SharedGpuContext::GetInstanceForCurrentThread() {
   DEFINE_THREAD_SAFE_STATIC_LOCAL(ThreadSpecific<SharedGpuContext>,
@@ -231,6 +253,8 @@ void SharedGpuContext::Reset() {
   this_ptr->shared_image_interface_provider_.reset();
   this_ptr->context_provider_wrapper_.reset();
   this_ptr->context_provider_factory_.Reset();
+  g_native_mappable_shared_images_supported_for_canvas_2d_for_testing.reset();
+  g_low_latency_usage_supported_for_canvas_2d_for_testing.reset();
 }
 
 bool SharedGpuContext::IsValidWithoutRestoringForTesting() {
@@ -263,14 +287,76 @@ bool SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade() {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-bool SharedGpuContext::MaySupportImageChromium() {
-  SharedGpuContext* this_ptr = GetInstanceForCurrentThread();
-  if (this_ptr->context_provider_factory_) {
-    // In unit tests, enable support.
-    return true;
-  }
+bool SharedGpuContext::MaySupportWebGLImageChromium() {
   return ::features::IsAndroidSurfaceControlEnabled();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+bool SharedGpuContext::NativeMappableSharedImagesSupportedForCanvas2D() {
+  if (g_native_mappable_shared_images_supported_for_canvas_2d_for_testing) {
+    return g_native_mappable_shared_images_supported_for_canvas_2d_for_testing
+        .value();
+  }
+
+#if BUILDFLAG(IS_APPLE)
+  // Native mappable SIs are supported if canvas2D SIs are backed by IOSurfaces.
+  return Canvas2DSharedImagesBackedByIOSurface();
+#else
+  return false;
+#endif
+}
+
+void SharedGpuContext::
+    SetNativeMappableSharedImagesSupportedForCanvas2DForTesting(bool enable) {
+  g_native_mappable_shared_images_supported_for_canvas_2d_for_testing = enable;
+}
+
+bool SharedGpuContext::OverlaysSupportedForCanvas2D() {
+#if BUILDFLAG(IS_APPLE)
+  // If canvas2D SIs will be backed by IOSurfaces, we want them to go into
+  // overlays to exploit delegated compositing.
+  return Canvas2DSharedImagesBackedByIOSurface();
+#else
+  return false;
+#endif
+}
+
+void SharedGpuContext::SetLowLatencyUsageSupportedForCanvas2DForTesting(
+    bool enable) {
+  g_low_latency_usage_supported_for_canvas_2d_for_testing = enable;
+}
+
+bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D() {
+  if (g_low_latency_usage_supported_for_canvas_2d_for_testing) {
+    return g_low_latency_usage_supported_for_canvas_2d_for_testing.value();
+  }
+
+  // Swapchain-backed SharedImages always support low-latency usages.
+  bool can_use_swapchain = ContextProviderWrapper()
+                               ->ContextProvider()
+                               .SharedImageInterface()
+                               ->GetCapabilities()
+                               .shared_image_swap_chain;
+  if (can_use_swapchain) {
+    return true;
+  }
+
+#if BUILDFLAG(IS_APPLE)
+  // IOSurface-backed SharedImages always support low-latency usages.
+  if (Canvas2DSharedImagesBackedByIOSurface()) {
+    return true;
+  }
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+  // Low-latency usage on Android is possible only with SurfaceControl.
+  if (!::features::IsAndroidSurfaceControlEnabled()) {
+    return false;
+  }
+#endif
+
+  return base::FeatureList::IsEnabled(
+      features::kLowLatencyCanvas2dImageChromium);
+}
 
 }  // namespace blink

@@ -50,19 +50,20 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ListSet(
     const JavaRef<jobject>& list,
     int32_t idx,
     const JavaRef<jobject>& value);
-// Use ToJniType on the value.
+// Helper that calls ToJniType on the value before calling ListSet.
 #if BUILDFLAG(IS_COBALT)
 template <typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!internal::IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-  requires(!internal::IsJavaRef<V>)
+  requires(!IsJavaRef<V>)
 #endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
 #else   // BUILDFLAG(IS_COBALT)
 template <typename V>
-  requires(!internal::IsJavaRef<V>)
+  requires(!IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject> ListSet(JNIEnv* env,
                                            const JavaRef<jobject>& list,
@@ -78,19 +79,20 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionAdd(
     JNIEnv* env,
     const JavaRef<jobject>& collection,
     const JavaRef<jobject>& value);
-// Use ToJniType on the value.
+// Helper that calls ToJniType on the value before calling CollectionAdd.
 #if BUILDFLAG(IS_COBALT)
 template <typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!internal::IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-  requires(!internal::IsJavaRef<V>)
+  requires(!IsJavaRef<V>)
 #endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
 #else   // BUILDFLAG(IS_COBALT)
 template <typename V>
-  requires(!internal::IsJavaRef<V>)
+  requires(!IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject>
 CollectionAdd(JNIEnv* env, const JavaRef<jobject>& collection, const V& value) {
@@ -127,19 +129,21 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> MapPut(
     const JavaRef<jobject>& key,
     const JavaRef<jobject>& value);
 
-// Use ToJniType on the key/value.
+// Helper that calls ToJniType on the key and value before calling MapPut.
 #if BUILDFLAG(IS_COBALT)
-template <typename K, typename V
+template <typename K,
+          typename V
 #if !defined(__cpp_concepts) || __cpp_concepts < 201907L
-          , std::enable_if_t<!internal::IsJavaRef<K> && !internal::IsJavaRef<V>, int> = 0
+          ,
+          std::enable_if_t<!IsJavaRef<K> || !IsJavaRef<V>, int> = 0
 #endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
           >
 #if defined(__cpp_concepts) && __cpp_concepts >= 201907L
-  requires(!internal::IsJavaRef<K> && !internal::IsJavaRef<V>)
+  requires(!IsJavaRef<K> || !IsJavaRef<V>)
 #endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
 #else   // BUILDFLAG(IS_COBALT)
 template <typename K, typename V>
-  requires(!internal::IsJavaRef<K> && !internal::IsJavaRef<V>)
+  requires(!IsJavaRef<K> || !IsJavaRef<V>)
 #endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject> MapPut(JNIEnv* env,
                                           const JavaRef<jobject>& map,

@@ -16,6 +16,8 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/prefs/mock_pref_change_callback.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
@@ -2020,6 +2022,74 @@ TEST_F(CrossDevicePrefTrackerTest,
   ChangeSyncState(true);
 
   tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that syncing a default pref does not cause unnecessary writes to the
+// cross-device dictionary (preventing Sync traffic spikes).
+TEST_F(CrossDevicePrefTrackerTest, DoesNotWriteToDictionaryForDefaultValues) {
+  // Listen for internal changes to the cross-device dictionary pref.
+  MockPrefChangeCallback observer(&profile_prefs_);
+  PrefChangeRegistrar registrar;
+  registrar.Init(&profile_prefs_);
+  registrar.Add(kCrossDeviceProfilePref, observer.GetCallback());
+
+  // The tracked pref is at its default value, and the cross-device dictionary
+  // is empty. NO writes should occur because there is nothing to remove.
+  EXPECT_CALL(observer, OnPreferenceChanged(kCrossDeviceProfilePref)).Times(0);
+  CreateTracker();
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Change the tracked pref to a non-default value. (This must trigger a write
+  // to add the new value.)
+  EXPECT_CALL(observer, OnPreferenceChanged(kCrossDeviceProfilePref)).Times(1);
+  profile_prefs_.SetInteger(kTrackedProfilePref, 50);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Clear the pref back to default. (This must trigger a write to remove the
+  // cache GUID from the dictionary.)
+  EXPECT_CALL(observer, OnPreferenceChanged(kCrossDeviceProfilePref)).Times(1);
+  profile_prefs_.ClearPref(kTrackedProfilePref);
+  testing::Mock::VerifyAndClearExpectations(&observer);
+
+  // Simulate a refresh (e.g., Sync toggled off and on, or restart) while the
+  // pref remains at its default value.
+  tracker_->Shutdown();
+
+  // The dictionary does not contain the Cache GUID, so the optimization should
+  // bypass the `ScopedDictPrefUpdate` entirely.
+  EXPECT_CALL(observer, OnPreferenceChanged(kCrossDeviceProfilePref)).Times(0);
+  CreateTracker();
+}
+
+// Verifies that cached cross-device prefs are not prematurely garbage
+// collected during startup before the `DeviceInfoTracker` has finished
+// its initial sync.
+TEST_F(CrossDevicePrefTrackerTest, DoesNotPrematurelyGarbageCollectAtStartup) {
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kNow = base::Time::Now();
+
+  // Inject a valid pref entry to simulate data loaded from disk at startup.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(100), kNow, std::nullopt);
+
+  // Simulate the tracker not being ready yet (initial sync incomplete).
+  GetTracker()->SetIsSyncingOverride(false);
+
+  // Initialize the tracker. It should skip garbage collection because
+  // `IsSyncing()` is false.
+  CreateTracker();
+
+  // Verify the cached entry was NOT prematurely wiped.
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid),
+            nullptr);
+
+  // Simulate initial sync completing.
+  GetTracker()->SetIsSyncingOverride(true);
+
+  // Now the stale entry should be garbage collected because the remote device
+  // isn't actively in the tracker.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid),
+            nullptr);
 }
 
 }  // namespace

@@ -483,6 +483,10 @@ void WriteParamCaptureReplay(std::ostream &os, const CallCapture &call, const Pa
             WriteParamValueReplay<ParamType::TSamplerIDPointer>(os, call,
                                                                 param.value.SamplerIDPointerVal);
             break;
+        case ParamType::TSamplerParameter:
+            WriteParamValueReplay<ParamType::TSamplerParameter>(os, call,
+                                                                param.value.SamplerParameterVal);
+            break;
         case ParamType::TSemaphoreID:
             WriteParamValueReplay<ParamType::TSemaphoreID>(os, call, param.value.SemaphoreIDVal);
             break;
@@ -493,6 +497,10 @@ void WriteParamCaptureReplay(std::ostream &os, const CallCapture &call, const Pa
         case ParamType::TSemaphoreIDPointer:
             WriteParamValueReplay<ParamType::TSemaphoreIDPointer>(
                 os, call, param.value.SemaphoreIDPointerVal);
+            break;
+        case ParamType::TShaderParameter:
+            WriteParamValueReplay<ParamType::TShaderParameter>(os, call,
+                                                               param.value.ShaderParameterVal);
             break;
         case ParamType::TShaderProgramID:
             WriteParamValueReplay<ParamType::TShaderProgramID>(os, call,
@@ -565,6 +573,10 @@ void WriteParamCaptureReplay(std::ostream &os, const CallCapture &call, const Pa
         case ParamType::TUniformBlockIndex:
             WriteParamValueReplay<ParamType::TUniformBlockIndex>(os, call,
                                                                  param.value.UniformBlockIndexVal);
+            break;
+        case ParamType::TUniformBlockParameter:
+            WriteParamValueReplay<ParamType::TUniformBlockParameter>(
+                os, call, param.value.UniformBlockParameterVal);
             break;
         case ParamType::TUniformLocation:
             WriteParamValueReplay<ParamType::TUniformLocation>(os, call,
@@ -1160,12 +1172,16 @@ const char *ParamTypeToString(ParamType paramType)
             return "const GLuint *";
         case ParamType::TSamplerIDPointer:
             return "GLuint *";
+        case ParamType::TSamplerParameter:
+            return "GLenum";
         case ParamType::TSemaphoreID:
             return "GLuint";
         case ParamType::TSemaphoreIDConstPointer:
             return "const GLuint *";
         case ParamType::TSemaphoreIDPointer:
             return "GLuint *";
+        case ParamType::TShaderParameter:
+            return "GLenum";
         case ParamType::TShaderProgramID:
             return "GLuint";
         case ParamType::TShaderProgramIDConstPointer:
@@ -1205,6 +1221,8 @@ const char *ParamTypeToString(ParamType paramType)
         case ParamType::TTransformFeedbackIDPointer:
             return "GLuint *";
         case ParamType::TUniformBlockIndex:
+            return "GLenum";
+        case ParamType::TUniformBlockParameter:
             return "GLenum";
         case ParamType::TUniformLocation:
             return "GLenum";

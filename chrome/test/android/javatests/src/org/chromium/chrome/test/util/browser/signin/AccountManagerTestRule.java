@@ -103,20 +103,13 @@ public class AccountManagerTestRule implements TestRule {
     }
 
     /**
-     * @deprecated Please use {@link #blockGetAccountsUpdate()} or {@link
-     *     #blockGetAccountsAndPopulateCache()} below.
-     */
-    @Deprecated
-    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
-        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
-    }
-
-    /**
      * Block updates from {@link FakeAccountManagerFacade}. See {@link
      * FakeAccountManagerFacade#blockGetAccounts()}.
      */
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate() {
-        return mFakeAccountManagerFacade.blockGetAccounts();
+        mFakeIdentityManager.setAreRefreshTokensLoaded(false);
+        return mFakeAccountManagerFacade.blockGetAccounts(
+                () -> mFakeIdentityManager.setAreRefreshTokensLoaded(true));
     }
 
     /**
@@ -125,7 +118,9 @@ public class AccountManagerTestRule implements TestRule {
      * FakeAccountManagerFacade#blockGetAccountsAndPopulateCache()}.
      */
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdateAndPopulateCache() {
-        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache();
+        mFakeIdentityManager.setAreRefreshTokensLoaded(false);
+        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache(
+                () -> mFakeIdentityManager.setAreRefreshTokensLoaded(true));
     }
 
     /**

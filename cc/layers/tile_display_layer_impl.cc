@@ -5,7 +5,6 @@
 #include "cc/layers/tile_display_layer_impl.h"
 
 #include <algorithm>
-#include <limits>
 #include <memory>
 #include <utility>
 #include <variant>
@@ -195,29 +194,13 @@ bool TileDisplayLayerImpl::AppendQuadForTile(
     AppendQuadsData* append_quads_data,
     viz::SharedQuadState* shared_quad_state,
     const Occlusion& scaled_occlusion,
-    const gfx::Vector2d& quad_offset,
+    const gfx::Rect& offset_geometry_rect,
+    const gfx::Rect& offset_visible_geometry_rect,
+    const gfx::Rect& visible_geometry_rect,
+    bool needs_blending,
     const std::optional<gfx::Rect>& scaled_cull_rect,
     float max_contents_scale,
     AppendQuadsCustomSharedData* custom_data) {
-  const gfx::Rect scaled_recorded_bounds =
-      gfx::ScaleToEnclosingRect(recorded_bounds_, max_contents_scale);
-  const gfx::Rect geometry_rect = iter.geometry_rect();
-  gfx::Rect visible_geometry_rect;
-  if (ShouldSkipTile(geometry_rect, scaled_recorded_bounds, scaled_occlusion,
-                     visible_geometry_rect)) {
-    return true;
-  }
-
-  gfx::Rect offset_geometry_rect = geometry_rect;
-  offset_geometry_rect.Offset(quad_offset);
-  gfx::Rect offset_visible_geometry_rect = visible_geometry_rect;
-  offset_visible_geometry_rect.Offset(quad_offset);
-
-  bool needs_blending = !contents_opaque();
-
-  uint64_t visible_geometry_area = visible_geometry_rect.size().Area64();
-  append_quads_data->visible_layer_area += visible_geometry_area;
-
   bool has_draw_quad = false;
   if (*iter) {
     if (auto resource = iter->resource()) {
@@ -230,14 +213,8 @@ bool TileDisplayLayerImpl::AppendQuadForTile(
       has_draw_quad = true;
     } else if (auto color = iter->solid_color()) {
       has_draw_quad = true;
-      const float alpha = color->fA * shared_quad_state->opacity;
-      if (alpha >= std::numeric_limits<float>::epsilon()) {
-        auto* quad =
-            render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-        quad->SetNew(shared_quad_state, offset_geometry_rect,
-                     offset_visible_geometry_rect, *color,
-                     !layer_tree_impl()->settings().enable_edge_anti_aliasing);
-      }
+      AppendSolidColorQuad(render_pass, shared_quad_state, offset_geometry_rect,
+                           offset_visible_geometry_rect, *color);
     } else if (iter->is_oom()) {
       // Keep `has_draw_quad` false to end up checkerboarding below.
     }
@@ -267,6 +244,10 @@ float TileDisplayLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() const {
 
 bool TileDisplayLayerImpl::IsDirectlyCompositedImage() const {
   return is_directly_composited_image_;
+}
+
+gfx::Rect TileDisplayLayerImpl::RecordedBounds() const {
+  return recorded_bounds_;
 }
 
 void TileDisplayLayerImpl::GetContentsResourceId(

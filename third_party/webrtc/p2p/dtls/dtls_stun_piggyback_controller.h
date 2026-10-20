@@ -38,7 +38,8 @@ class DtlsStunPiggybackController {
   // piggybacked.
   DtlsStunPiggybackController(
       absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback,
-      absl::AnyInvocable<void()> complete_callback);
+      // NOLINTNEXTLINE(readability/casting) - not a cast; false positive!
+      absl::AnyInvocable<void(bool) &&> piggyback_complete_callback);
 
   ~DtlsStunPiggybackController();
 
@@ -68,10 +69,10 @@ class DtlsStunPiggybackController {
   // that peer can decode them).
   void SetDtlsHandshakeComplete(bool is_dtls_client, bool is_dtls13);
 
-  // Called by DtlsTransport when a packet has been received and decoded.
-  // This means that dtls is writable for the peer and that we have enough
-  // information to decode their packets.
-  void DecryptedPacketReceived(const ReceivedIpPacket& packet);
+  // Called by DtlsTransport when a packet has been received and passed
+  // to layers above us. This means that dtls is writable for the peer,
+  // and maybe we are complete.
+  void ApplicationPacketReceived(const ReceivedIpPacket& packet);
 
   // Called by DtlsTransport when DTLS failed.
   void SetDtlsFailed();
@@ -110,7 +111,8 @@ class DtlsStunPiggybackController {
   PacketStash pending_packets_ RTC_GUARDED_BY(sequence_checker_);
   absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback_
       RTC_GUARDED_BY(sequence_checker_);
-  absl::AnyInvocable<void() &&> complete_callback_
+  // NOLINTNEXTLINE(readability/casting) - not a cast; false positive!
+  absl::AnyInvocable<void(bool) &&> piggyback_complete_callback_
       RTC_GUARDED_BY(sequence_checker_);
 
   std::vector<uint32_t> handshake_messages_received_
@@ -119,7 +121,7 @@ class DtlsStunPiggybackController {
   // Count of embedded data attributes received.
   int data_recv_count_ = 0;
 
-  void CallCompleteCallback();
+  void CallCompleteCallback(bool success);
 
   // In practice this will be the network thread.
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_;

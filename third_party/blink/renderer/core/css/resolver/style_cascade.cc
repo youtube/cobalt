@@ -100,10 +100,8 @@ AtomicString ConsumeAndComputeVariableName(CSSParserTokenStream& stream,
   }
   // ident()
   DCHECK_EQ(stream.Peek().FunctionId(), CSSValueID::kIdent);
-  CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
   CSSFunctionValue* ident_function =
-      css_parsing_utils::ConsumeIdentFunction(stream, context, local_context);
+      css_parsing_utils::ConsumeIdentFunction(stream, context);
   DCHECK(ident_function);
   AtomicString computed_ident = CSSCustomIdentValue::ComputeIdent(
       *ident_function, state.CssToLengthConversionData());
@@ -1942,9 +1940,11 @@ bool StyleCascade::ResolveFunctionInto(StringView function_name,
     return false;
   }
 
+  CSSPropertyName context_property_name =
+      GetCSSPropertyResult().GetCSSPropertyName();
   CSSVariableData* ret_data = ResolveTypedExpression(
       *unresolved_result, function_tree_scope, &function->GetReturnType(),
-      resolver, context, &local_function_context);
+      resolver, context, &local_function_context, &context_property_name);
   if (ret_data == nullptr) {
     return false;
   }
@@ -1977,8 +1977,10 @@ void StyleCascade::ResolveFunctionParameter(
     // the same), we will effectively do type parsing of exactly the
     // same data twice. This is wasteful, and it's possible that we
     // should do something about it if it proves to be a common case.
+    CSSPropertyName context_property_name((AtomicString(name)));
     argument_data = ResolveTypedExpression(*argument_data, tree_scope, &type,
-                                           resolver, context, function_context);
+                                           resolver, context, function_context,
+                                           &context_property_name);
   }
 
   // An argument generally "captures" a failed resolution, without
@@ -2071,6 +2073,26 @@ bool StyleCascade::AppendDataWithFallback(CSSVariableData* data,
   return false;
 }
 
+CSSParserLocalContext StyleCascade::GetCSSParserLocalContext(
+    FunctionContext* function_context,
+    const CSSPropertyName* property_name) {
+  // TODO(crbug.com/413385732): Ideally we should always have some parser
+  // context, but since we currently disallow random() inside if() style()
+  // condition, we are using nullptr property_name for that case.
+  if (!property_name) {
+    return CSSParserLocalContext::CreateWithoutPropertyForAtRules();
+  }
+  // TODO(crbug.com/413385732): We might have the same function name between
+  // different tree scopes, then we need to make CSSParserLocalContext aware of
+  // tree scope name.
+  const AtomicString& function_name =
+      function_context && function_context->function
+          ? function_context->function->Name()
+          : g_null_atom;
+  return CSSParserLocalContext(*property_name, CSSPropertyID::kInvalid,
+                               function_name);
+}
+
 // Resolves a typed expression; in practice, either a function
 // argument or its return value. In practice, this is about taking a string
 // and coercing it into the given type -- and then the caller will convert it
@@ -2085,7 +2107,8 @@ CSSVariableData* StyleCascade::ResolveTypedExpression(
     const CSSSyntaxDefinition* type,
     CascadeResolver& resolver,
     const CSSParserContext& context,
-    FunctionContext* function_context) {
+    FunctionContext* function_context,
+    const CSSPropertyName* property_name) {
   CSSVariableData* data = &unresolved;
   if (data->NeedsVariableResolution()) {
     data = ResolveVariableData(data, tree_scope, context, function_context,
@@ -2100,10 +2123,10 @@ CSSVariableData* StyleCascade::ResolveTypedExpression(
   if (!type || type->IsUniversal()) {
     return data;
   }
-  CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
+  CSSParserLocalContext parser_local_context =
+      GetCSSParserLocalContext(function_context, property_name);
   const CSSValue* value =
-      type->Parse(data->OriginalText(), context, local_context,
+      type->Parse(data->OriginalText(), context, parser_local_context,
                   /*is_animation_tainted=*/false);
   if (!value) {
     return nullptr;
@@ -2193,10 +2216,11 @@ CSSVariableData* StyleCascade::ResolveLocalVariable(
     return nullptr;
   }
   CascadeResolver::AutoLock lock(cycle_node, resolver);
+  CSSPropertyName context_property_name((AtomicString(name)));
   // See comment about mixin_parameter_bindings in ResolveFunctionInto().
-  CSSVariableData* resolved =
-      ResolveTypedExpression(unresolved, function_context.tree_scope, type,
-                             resolver, context, &function_context);
+  CSSVariableData* resolved = ResolveTypedExpression(
+      unresolved, function_context.tree_scope, type, resolver, context,
+      &function_context, &context_property_name);
 
   if (!resolved) {
     return nullptr;
@@ -2380,7 +2404,7 @@ bool StyleCascade::ResolveAttrInto(CSSParserTokenStream& stream,
   // the CSSParserLocalContext here, since it's only needed for computing
   // random() values, not during parsing.
   CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
+      CSSParserLocalContext::CreateWithoutPropertyForSyntaxParsing();
   // Parse value according to the attribute type.
   // https://drafts.csswg.org/css-values-5/#typedef-attr-type
   const CSSValue* substitution_value =
@@ -2559,14 +2583,22 @@ const CSSValue* StyleCascade::CoerceIntoNumericValueInternal(
 
   CSSSyntaxDefinition syntax_definition =
       CSSSyntaxDefinition::CreateNumericSyntax();
+  // TODO(crbug.com/413385732): We call this function only for evaluating
+  // style() inside @container query or if() function. Since random() is
+  // disallowed outside of an element context (including all at-rules), we use
+  // CSSParserLocalContext without a property name for now. Ideally, this
+  // constructor should be removed once random() is supported within style()
+  // queries.
   CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
+      CSSParserLocalContext::CreateWithoutPropertyForAtRules();
   const CSSValue* parsed_value = syntax_definition.Parse(
       data->OriginalText(), context, local_context,
       /* is_animation_tainted= */ data->IsAnimationTainted(),
       /* is_attr_tainted= */ data->IsAttrTainted());
 
-  if (!parsed_value) {
+  // TODO(crbug.com/475808971): We use this function only when evaluating
+  // style() query in @container or if(). We disallow random() there for now.
+  if (!parsed_value || parsed_value->HasRandomFunctions()) {
     return nullptr;
   }
 
@@ -2704,9 +2736,11 @@ KleeneValue StyleCascade::EvalIfStyleFeature(
     const auto& decl_value = To<CSSUnparsedDeclarationValue>(query_specified);
     const CSSSyntaxDefinition* type =
         FindVariableType(property_name, function_context);
-    computed_query_data =
-        ResolveTypedExpression(*decl_value.VariableDataValue(), tree_scope,
-                               type, resolver, context, function_context);
+    // TODO(crbug.com/475808971): We don't allow random() in if() condition for
+    // now, so we don't need property_name to resolve values in the condition.
+    computed_query_data = ResolveTypedExpression(
+        *decl_value.VariableDataValue(), tree_scope, type, resolver, context,
+        function_context, /*property_name=*/nullptr);
   }
 
   if (!computed_data || !computed_query_data) {

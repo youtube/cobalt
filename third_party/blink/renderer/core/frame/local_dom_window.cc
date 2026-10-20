@@ -58,6 +58,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_to_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_void_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/window_proxy.h"
@@ -199,7 +200,7 @@ int RequestAnimationFrame(Document* document,
 
 // TODO(https://crbug.com/41406914): Ad-hoc method until we hook up with scroll
 // animation end.
-ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
+ScriptPromise<ScrollResult> CreateScrollResolvedPromise(
     ScriptState* script_state) {
   // Internal scroll calls sometimes pass a null `script_state`.
   if (!script_state ||
@@ -208,8 +209,8 @@ ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
   }
 
   auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
-  resolver->Resolve();
+      MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
+  resolver->Resolve(ScrollResult::Create());
   return resolver->Promise();
 }
 
@@ -996,13 +997,6 @@ void LocalDOMWindow::DispatchPersistedPageshowEvent(
 
 void LocalDOMWindow::DispatchPagehideEvent(
     PageTransitionEventPersistence persistence) {
-  if (!base::FeatureList::IsEnabled(features::kPageHideEventForPrerender2)) {
-    if (document_->IsPrerendering()) {
-      // Do not dispatch the event while prerendering.
-      return;
-    }
-  }
-
   if (document_->UnloadStarted()) {
     // We've already dispatched pagehide (since it's the first thing we do when
     // starting unload) and shouldn't dispatch it again. We might get here on
@@ -1026,12 +1020,8 @@ void LocalDOMWindow::EnqueueHashchangeEvent(const String& old_url,
 
 void LocalDOMWindow::DispatchPopstateEvent(
     scoped_refptr<SerializedScriptValue> state_object,
-    scheduler::TaskAttributionInfo* task_state,
     bool has_ua_visual_transition) {
   DCHECK(GetFrame());
-  std::optional<scheduler::TaskAttributionTracker::TaskScope>
-      task_attribution_scope(SetCurrentTaskStateIfTopLevel(
-          task_state, this, TaskScopeType::kPopState));
   DispatchEvent(*PopStateEvent::Create(std::move(state_object), history(),
                                        has_ua_visual_transition));
 }
@@ -1825,7 +1815,7 @@ double LocalDOMWindow::devicePixelRatio() const {
   return GetFrame()->DevicePixelRatio();
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(ScriptState* script_state,
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollBy(ScriptState* script_state,
                                                      double x,
                                                      double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
@@ -1834,7 +1824,7 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(ScriptState* script_state,
   return scrollBy(script_state, options);
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollBy(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) const {
   if (!IsCurrentlyDisplayedInFrame()) {
@@ -1889,7 +1879,7 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
   return CreateScrollResolvedPromise(script_state);
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(ScriptState* script_state,
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollTo(ScriptState* script_state,
                                                      double x,
                                                      double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
@@ -1898,7 +1888,7 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(ScriptState* script_state,
   return scrollTo(script_state, options);
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollTo(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) const {
   if (!IsCurrentlyDisplayedInFrame()) {

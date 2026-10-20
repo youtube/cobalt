@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <string>
@@ -27,6 +28,7 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/video/resolution.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "rtc_base/strings/str_join.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
@@ -227,6 +229,30 @@ struct RTC_EXPORT RtpCodec {
   bool operator!=(const RtpCodec& o) const { return !(*this == o); }
   bool IsResiliencyCodec() const;
   bool IsMediaCodec() const;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtpCodec& c) {
+    absl::Format(&sink, "{mime_type: %s", c.mime_type());
+    if (c.clock_rate) {
+      absl::Format(&sink, ", clock_rate: %d", *c.clock_rate);
+    }
+    if (c.num_channels) {
+      absl::Format(&sink, ", num_channels: %d", *c.num_channels);
+    }
+    if (!c.parameters.empty()) {
+      sink.Append(", parameters: {");
+      bool first = true;
+      for (const auto& kv : c.parameters) {
+        if (!first) {
+          sink.Append(", ");
+        }
+        absl::Format(&sink, "%s: %s", kv.first, kv.second);
+        first = false;
+      }
+      sink.Append("}");
+    }
+    sink.Append("}");
+  }
 };
 
 // RtpCodecCapability is to RtpCodecParameters as RtpCapabilities is to
@@ -642,6 +668,44 @@ struct RTC_EXPORT RtpEncodingParameters {
   bool operator!=(const RtpEncodingParameters& o) const {
     return !(*this == o);
   }
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtpEncodingParameters& p) {
+    sink.Append("{");
+    if (p.ssrc)
+      absl::Format(&sink, "ssrc: %u, ", *p.ssrc);
+    absl::Format(&sink, "active: %s, ", p.active ? "true" : "false");
+    absl::Format(&sink, "rid: '%s', ", p.rid);
+    if (p.max_bitrate_bps) {
+      absl::Format(&sink, "max_bitrate_bps: %d, ", *p.max_bitrate_bps);
+    }
+    if (p.min_bitrate_bps) {
+      absl::Format(&sink, "min_bitrate_bps: %d, ", *p.min_bitrate_bps);
+    }
+    if (p.max_framerate) {
+      absl::Format(&sink, "max_framerate: %.2f, ", *p.max_framerate);
+    }
+    if (p.num_temporal_layers) {
+      absl::Format(&sink, "num_temporal_layers: %d, ", *p.num_temporal_layers);
+    }
+    if (p.scale_resolution_down_by) {
+      absl::Format(&sink, "scale_resolution_down_by: %.2f, ",
+                   *p.scale_resolution_down_by);
+    }
+    if (p.scale_resolution_down_to) {
+      absl::Format(&sink, "scale_resolution_down_to: %dx%d, ",
+                   p.scale_resolution_down_to->width,
+                   p.scale_resolution_down_to->height);
+    }
+    if (p.scalability_mode) {
+      absl::Format(&sink, "scalability_mode: '%s', ", *p.scalability_mode);
+    }
+    if (p.codec) {
+      absl::Format(&sink, "codec: %v, ", *p.codec);
+    }
+    absl::Format(&sink, "adaptive_ptime: %s}",
+                 p.adaptive_ptime ? "true" : "false");
+  }
 };
 
 struct RTC_EXPORT RtpCodecParameters : public RtpCodec {
@@ -660,7 +724,8 @@ struct RTC_EXPORT RtpCodecParameters : public RtpCodec {
   bool operator!=(const RtpCodecParameters& o) const { return !(*this == o); }
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const RtpCodecParameters& p) {
-    absl::Format(&sink, "[%d: %s]", p.payload_type, p.mime_type());
+    absl::Format(&sink, "{payload_type: %d, codec: %v}", p.payload_type,
+                 static_cast<const RtpCodec&>(p));
   }
 };
 
@@ -721,6 +786,17 @@ struct RtcpParameters final {
            reduced_size == o.reduced_size && mux == o.mux;
   }
   bool operator!=(const RtcpParameters& o) const { return !(*this == o); }
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtcpParameters& p) {
+    sink.Append("{");
+    if (p.ssrc)
+      absl::Format(&sink, "ssrc: %u, ", *p.ssrc);
+    absl::Format(&sink, "cname: '%s', ", p.cname);
+    absl::Format(&sink, "reduced_size: %s, ",
+                 p.reduced_size ? "true" : "false");
+    absl::Format(&sink, "mux: %s}", p.mux ? "true" : "false");
+  }
 };
 
 struct RTC_EXPORT RtpParameters {
@@ -767,6 +843,23 @@ struct RTC_EXPORT RtpParameters {
   // If at least two active encodings have different codec values
   // (including one being unset and another set), this is considered mixed.
   bool IsMixedCodec() const;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RtpParameters& p) {
+    sink.Append("{");
+    absl::Format(&sink, "transaction_id: '%s', ", p.transaction_id);
+    absl::Format(&sink, "mid: '%s', ", p.mid);
+    absl::Format(&sink, "codecs: [%v], ", StrJoin(p.codecs, ", "));
+    absl::Format(&sink, "header_extensions: [%v], ",
+                 StrJoin(p.header_extensions, ", "));
+    absl::Format(&sink, "encodings: [%v], ", StrJoin(p.encodings, ", "));
+    absl::Format(&sink, "rtcp: %v", p.rtcp);
+    if (p.degradation_preference) {
+      absl::Format(&sink, ", degradation_preference: %s",
+                   DegradationPreferenceToString(*p.degradation_preference));
+    }
+    sink.Append("}");
+  }
 };
 
 }  // namespace webrtc

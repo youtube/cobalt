@@ -33,6 +33,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/util.h"
 #include "components/search_provider_logos/switches.h"
+#include "components/url_formatter/url_fixer.h"
 #include "net/base/url_util.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "third_party/omnibox_proto/model_mode.pb.h"
@@ -487,6 +488,66 @@ bool TemplateUrlServiceAndroid::EditSearchEngine(
   return true;
 }
 
+bool TemplateUrlServiceAndroid::AddSearchEngine(
+    JNIEnv* env,
+    const std::u16string& short_name,
+    const std::u16string& keyword,
+    const std::string& search_url) {
+  if (template_url_service_->GetTemplateURLForKeyword(keyword)) {
+    return false;
+  }
+
+  TemplateURLData data;
+  data.SetShortName(short_name);
+  data.SetKeyword(keyword);
+  data.SetURL(search_url);
+  data.safe_for_autoreplace = false;
+  if (!template_url_service_->Add(std::make_unique<TemplateURL>(data))) {
+    return false;
+  }
+  return true;
+}
+
+bool TemplateUrlServiceAndroid::IsSearchEngineNameValid(
+    JNIEnv* env,
+    const std::u16string& name) {
+  return IsSearchEngineNameValidToUse(name);
+}
+
+bool TemplateUrlServiceAndroid::IsSearchEngineKeywordValidToAdd(
+    JNIEnv* env,
+    const std::u16string& new_keyword) {
+  return IsSearchEngineKeywordValidToUse(new_keyword, template_url_service_,
+                                         /*existing_url=*/nullptr);
+}
+
+bool TemplateUrlServiceAndroid::IsSearchEngineKeywordValidToEdit(
+    JNIEnv* env,
+    const std::u16string& new_keyword,
+    const std::u16string& current_keyword) {
+  const TemplateURL* existing_url =
+      template_url_service_->GetTemplateURLForKeyword(current_keyword);
+  return IsSearchEngineKeywordValidToUse(new_keyword, template_url_service_,
+                                         existing_url);
+}
+
+bool TemplateUrlServiceAndroid::IsSearchEngineUrlValidToAdd(
+    JNIEnv* env,
+    const std::string& new_url) {
+  return IsSearchEngineURLValidToUse(new_url, template_url_service_,
+                                     /*existing_url=*/nullptr);
+}
+
+bool TemplateUrlServiceAndroid::IsSearchEngineUrlValidToEdit(
+    JNIEnv* env,
+    const std::string& new_url,
+    const std::u16string& current_keyword) {
+  const TemplateURL* existing_url =
+      template_url_service_->GetTemplateURLForKeyword(current_keyword);
+  return IsSearchEngineURLValidToUse(new_url, template_url_service_,
+                                     existing_url);
+}
+
 base::android::ScopedJavaLocalRef<jstring>
 TemplateUrlServiceAndroid::AddSearchEngineForTesting(
     JNIEnv* env,
@@ -631,6 +692,24 @@ TemplateUrlServiceAndroid::GetImageUrlAndPostContent(JNIEnv* env) {
   output.push_back(result.spec());
   output.push_back(post_content.first);
   return base::android::ToJavaArrayOfStrings(env, output);
+}
+
+void TemplateUrlServiceAndroid::ActivateSearchEngine(
+    JNIEnv* env,
+    const std::u16string& keyword) {
+  TemplateURL* turl = template_url_service_->GetTemplateURLForKeyword(keyword);
+  if (turl) {
+    template_url_service_->SetIsActiveTemplateURL(turl, true);
+  }
+}
+
+void TemplateUrlServiceAndroid::DeactivateSearchEngine(
+    JNIEnv* env,
+    const std::u16string& keyword) {
+  TemplateURL* turl = template_url_service_->GetTemplateURLForKeyword(keyword);
+  if (turl) {
+    template_url_service_->SetIsActiveTemplateURL(turl, false);
+  }
 }
 
 DEFINE_JNI(TemplateUrlService)

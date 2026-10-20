@@ -261,8 +261,6 @@ void RecordEnterpriseScan(
   const std::string result_info = base::StrCat(
       {"Skipped - ",
        enterprise_connectors::ScanRequestUploadResultToString(result)});
-// TODO(b/428696481): Enable debug info on Clank
-#if !BUILDFLAG(IS_ANDROID)
   safe_browsing::WebUIContentInfoSingleton::GetInstance()
       ->AddToDeepScanRequests(
           request->per_profile_request(), /*access_token*/ "",
@@ -272,7 +270,6 @@ void RecordEnterpriseScan(
       ->AddToDeepScanResponses(
           /*token=*/"", result_info,
           enterprise_connectors::ContentAnalysisResponse());
-#endif
 }
 
 }  // namespace
@@ -492,7 +489,8 @@ void DeepScanningRequest::StartSingleFileScan() {
       /* delay_opening_file */ false,
       base::BindOnce(&DeepScanningRequest::OnScanComplete,
                      weak_ptr_factory_.GetWeakPtr(), metadata_->GetFullPath()),
-      base::DoNothing(), metadata_->IsObfuscated());
+      base::DoNothing(), metadata_->IsObfuscated(),
+      /* force_sync_hash_computation */ false);
 
   request->set_filename(metadata_->GetTargetFilePath().AsUTF8Unsafe());
 

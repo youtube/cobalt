@@ -13,6 +13,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
@@ -168,6 +169,9 @@ IN_PROC_BROWSER_TEST_F(ContextMenuUiTest,
   std::unique_ptr<content::WebContentsViewDelegate> view_delegate =
       CreateWebContentsViewDelegate(web_contents);
   view_delegate->ShowContextMenu(*subframe, params);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return view_delegate->IsContextMenuShowingForTesting();
+  }));
 
   // Simulate using the context menu to "Open link in new tab".
   content::WebContents* new_web_contents = nullptr;
@@ -1476,8 +1480,6 @@ class GlicInteractiveContextMenuPolicyTest
 
     // These overrides make the overall tests faster as the content analysis
     // dialog won't stay in each state for mandatory minimum times.
-    enterprise_connectors::ContentAnalysisDialogController::
-        SetMinimumPendingDialogTimeForTesting(base::Milliseconds(0));
     enterprise_connectors::ContentAnalysisDialogController::
         SetShowDialogDelayForTesting(base::Milliseconds(0));
     enterprise_connectors::ContentAnalysisDialogController::

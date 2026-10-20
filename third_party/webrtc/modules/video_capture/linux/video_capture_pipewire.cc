@@ -254,11 +254,15 @@ int32_t VideoCaptureModulePipeWire::StopCapture() {
   RTC_DCHECK_RUN_ON(&api_checker_);
 
   PipeWireThreadLoopLock thread_loop_lock(session_->pw_main_loop_);
+
   // PipeWireSession is guarded by API checker so just make sure we do
   // race detection when the PipeWire loop is locked/stopped to not run
   // any callback at this point.
   RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   if (stream_) {
+    // Removing the listener first guarantees no callbacks will fire after this
+    // point.
+    spa_hook_remove(&stream_listener_);
     pw_stream_destroy(stream_);
     stream_ = nullptr;
   }

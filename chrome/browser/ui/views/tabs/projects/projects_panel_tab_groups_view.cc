@@ -38,11 +38,10 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 namespace {
 constexpr gfx::Insets kNoTabsInteriorMargins = gfx::Insets::VH(0, 8);
-constexpr int kSpacingBetweenChildren = 2;
-constexpr float kHighlightOpacity = 1.0f;
 
 class ProjectsPanelNewTabGroupButton : public views::LabelButton {
   METADATA_HEADER(ProjectsPanelNewTabGroupButton, views::LabelButton)
@@ -52,23 +51,11 @@ class ProjectsPanelNewTabGroupButton : public views::LabelButton {
       : views::LabelButton(
             std::move(callback),
             l10n_util::GetStringUTF16(IDS_CREATE_NEW_TAB_GROUP)) {
-    SetImageModel(
-        views::Button::STATE_NORMAL,
-        ui::ImageModel::FromVectorIcon(kCreateNewTabGroupIcon, ui::kColorIcon));
+    SetImageModel(views::Button::STATE_NORMAL,
+                  ui::ImageModel::FromVectorIcon(
+                      kCreateNewTabGroupIcon, kColorProjectsPanelButtonIcon));
     SetHorizontalAlignment(gfx::ALIGN_LEFT);
-
-    auto* ink_drop = views::InkDrop::Get(this);
-    ink_drop->SetMode(views::InkDropHost::InkDropMode::ON);
-    ink_drop->SetLayerRegion(views::LayerRegion::kBelow);
-    ink_drop->SetBaseColor(ui::kColorSysStateHoverOnSubtle);
-    ink_drop->SetHighlightOpacity(kHighlightOpacity);
-    views::HighlightPathGenerator::Install(
-        this, projects_panel::GetListItemHighlightPathGenerator());
-
-    views::FocusRing::Get(this)->SetPathGenerator(
-        projects_panel::GetListItemHighlightPathGenerator());
-    views::FocusRing::Get(this)->SetHaloInset(
-        projects_panel::kListItemFocusRingHaloInset);
+    projects_panel::ConfigureInkDropForButton(this);
   }
   ProjectsPanelNewTabGroupButton(const ProjectsPanelNewTabGroupButton&) =
       delete;
@@ -79,6 +66,9 @@ class ProjectsPanelNewTabGroupButton : public views::LabelButton {
 
 BEGIN_METADATA(ProjectsPanelNewTabGroupButton)
 END_METADATA
+
+// Whether animations should be disabled.
+static bool disable_animations_for_testing_ = false;
 
 }  // namespace
 
@@ -96,7 +86,6 @@ ProjectsPanelTabGroupsView::ProjectsPanelTabGroupsView(
       tab_group_moved_callback_(std::move(tab_group_moved_callback)) {
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>());
   layout->SetOrientation(views::LayoutOrientation::kVertical);
-  layout->set_between_child_spacing(kSpacingBetweenChildren);
 
   create_new_tab_group_button_ =
       AddChildView(std::make_unique<ProjectsPanelNewTabGroupButton>(
@@ -134,6 +123,9 @@ void ProjectsPanelTabGroupsView::SetTabGroups(
           AddChildView(std::make_unique<ProjectsPanelTabGroupsItemView>(
               group, tab_group_button_callback_, more_button_callback_));
       item->set_drag_controller(this);
+      if (disable_animations_for_testing_) {
+        item->disable_animations_for_testing();  // IN-TEST
+      }
       item_views_.push_back(item);
     }
   }
@@ -256,8 +248,9 @@ void ProjectsPanelTabGroupsView::PaintChildren(
   auto indicator_bounds = GetDropIndicatorBounds();
   if (indicator_bounds.has_value()) {
     ui::PaintRecorder recorder(paint_info.context(), size());
-    recorder.canvas()->FillRect(
-        *indicator_bounds, GetColorProvider()->GetColor(ui::kColorSysOutline));
+    recorder.canvas()->FillRect(*indicator_bounds,
+                                GetColorProvider()->GetColor(
+                                    kColorProjectsPanelTabGroupsDropIndicator));
   }
 }
 
@@ -265,7 +258,11 @@ void ProjectsPanelTabGroupsView::WriteDragDataForView(
     views::View* sender,
     const gfx::Point& press_pt,
     ui::OSExchangeData* data) {
-  auto* item = static_cast<ProjectsPanelTabGroupsItemView*>(sender);
+  auto* item = views::AsViewClass<ProjectsPanelTabGroupsItemView>(sender);
+  gfx::ImageSkia drag_image = item->GetDragImage();
+  if (!drag_image.isNull() && !drag_image.size().IsEmpty()) {
+    data->provider().SetDragImage(drag_image, press_pt.OffsetFromOrigin());
+  }
   item->SetIsDragging(true);
 
   base::Pickle data_pickle;
@@ -288,6 +285,11 @@ bool ProjectsPanelTabGroupsView::CanStartDragForView(views::View* sender,
 std::optional<gfx::Rect>
 ProjectsPanelTabGroupsView::GetDropIndicatorBoundsForTesting() const {
   return GetDropIndicatorBounds();
+}
+
+// static
+void ProjectsPanelTabGroupsView::disable_animations_for_testing() {
+  disable_animations_for_testing_ = true;
 }
 
 void ProjectsPanelTabGroupsView::CalculateDropLocation(
@@ -343,9 +345,9 @@ std::optional<gfx::Rect> ProjectsPanelTabGroupsView::GetDropIndicatorBounds()
     if (item_views_.empty()) {
       y = 0;
     } else if (index < item_views_.size()) {
-      y = item_views_[index]->y() - kSpacingBetweenChildren / 2;
+      y = item_views_[index]->y();
     } else {
-      y = item_views_.back()->bounds().bottom() + kSpacingBetweenChildren / 2;
+      y = item_views_.back()->bounds().bottom();
     }
 
     constexpr int kDropIndicatorHeight = 2;

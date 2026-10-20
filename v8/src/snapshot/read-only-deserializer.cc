@@ -10,6 +10,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/counters-scopes.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
@@ -175,7 +176,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
 #endif
 
   if (should_rehash()) {
-    isolate()->heap()->InitializeHashSeed();
+    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 
@@ -320,15 +321,24 @@ class ObjectPostProcessor final {
   void PostProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
 
-#define PROCESS_FIELD(Name, name)                            \
-  DecodeLazilyInitializedExternalPointerSlot(                \
-      o, o->RawExternalPointerField(                         \
-             InterceptorInfo::k##Name##Offset,               \
-             is_named ? kApiNamedProperty##Name##CallbackTag \
-                      : kApiIndexedProperty##Name##CallbackTag));
+#define PROCESS_NAMED_FIELD(Name, name)                               \
+  DecodeLazilyInitializedExternalPointerSlot(                         \
+      o, o->RawExternalPointerField(InterceptorInfo::k##Name##Offset, \
+                                    kApiNamedProperty##Name##CallbackTag));
 
-    INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
-#undef PROCESS_FIELD
+#define PROCESS_INDEXED_FIELD(Name, name)                             \
+  DecodeLazilyInitializedExternalPointerSlot(                         \
+      o, o->RawExternalPointerField(InterceptorInfo::k##Name##Offset, \
+                                    kApiIndexedProperty##Name##CallbackTag));
+
+    if (is_named) {
+      NAMED_INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_NAMED_FIELD)
+    } else {
+      INDEXED_INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_INDEXED_FIELD)
+    }
+#undef PROCESS_NAMED_FIELD
+#undef PROCESS_INDEXED_FIELD
+
     if (USE_SIMULATOR_BOOL) {
       o->RestoreCallbackRedirectionAfterDeserialization(isolate_);
     }

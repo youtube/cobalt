@@ -2200,6 +2200,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputFloat32Register(1));
       break;
     }
+    case kArm64Float32Move:
+      __ Fmov(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
+    case kArm64Float32MoveU32:
+      __ Fmov(i.OutputFloat32Register(), i.InputRegister32(0));
+      break;
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputFloat64OrFPZeroRegister(0), i.InputDoubleRegister(1));
@@ -2227,9 +2233,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputDoubleRegister(1));
       break;
     case kArm64Float64Mod: {
-      // TODO(marja): We can generate better code for constant inputs and for
-      // inputs which are guaranteed to be integers.
-      __ Float64Mod(d0, d0, d1);
+      // TODO(turbofan): implement directly.
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      DCHECK_EQ(d0, i.InputDoubleRegister(0));
+      DCHECK_EQ(d1, i.InputDoubleRegister(1));
+      DCHECK_EQ(d0, i.OutputDoubleRegister());
+      // TODO(turbofan): make sure this saves all relevant registers.
+      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       break;
     }
     case kArm64Float32Max: {
@@ -2415,6 +2425,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64InsertHighWord32:
       DCHECK_EQ(i.OutputFloat64Register(), i.InputFloat64Register(0));
       __ Ins(i.OutputFloat64Register().V2S(), 1, i.InputRegister32(1));
+      break;
+    case kArm64Float64Move:
+      __ Fmov(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Float64MoveU64:
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));

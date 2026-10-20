@@ -26,6 +26,7 @@
 #include "base/command_line.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
@@ -39,7 +40,6 @@
 #include "content/public/browser/web_contents.h"
 #include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
-#include "starboard/common/time.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 static int g_argc = 0;
@@ -201,10 +201,12 @@ static const char** g_argv = nullptr;
   std::ranges::transform(processed_argv, std::back_inserter(char_argv),
                          [](const std::string& arg) { return arg.c_str(); });
 
-  // This is similar to base::TimeTicks::Now() and a call to ToInternalValue()
-  // and follows what Starboard platforms measure in
-  // starboard::Application::RunLoop().
-  const int64_t startup_time_in_us = starboard::CurrentMonotonicTime();
+  // This is read back as a base::TimeTicks (see
+  // PerformanceExtensions::getAppStartupTimeStamp()), so it must be on the
+  // same clock. starboard::CurrentMonotonicTime() isn't on Apple platforms:
+  // it keeps counting while the device sleeps, but base::TimeTicks doesn't.
+  const int64_t startup_time_in_us =
+      base::TimeTicks::Now().since_origin().InMicroseconds();
 
   _mainDelegate =
       std::make_unique<cobalt::CobaltMainDelegate>(startup_time_in_us);

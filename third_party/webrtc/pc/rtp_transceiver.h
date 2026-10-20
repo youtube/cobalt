@@ -223,8 +223,9 @@ class RtpTransceiver : public RtpTransceiverInterface {
   PLAN_B_ONLY bool RemoveSenderPlanB(RtpSenderInterface* sender);
 
   // Returns a vector of the senders owned by this transceiver.
-  std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
-  senders() const {
+  PLAN_B_ONLY const
+      std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>&
+      senders() const {
     return senders_;
   }
 
@@ -239,7 +240,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   PLAN_B_ONLY bool RemoveReceiverPlanB(RtpReceiverInterface* receiver);
 
   // Returns a vector of the receivers owned by this transceiver.
-  std::vector<scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>>
+  PLAN_B_ONLY const std::vector<
+      scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>>&
   receivers() const {
     return receivers_;
   }
@@ -327,8 +329,9 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // RtpTransceiverInterface implementation.
   MediaType media_type() const override;
   std::optional<std::string> mid() const override;
-  scoped_refptr<RtpSenderInterface> sender() const override;
-  scoped_refptr<RtpReceiverInterface> receiver() const override;
+  absl_nonnull scoped_refptr<RtpSenderInterface> sender() const override;
+  absl_nonnull scoped_refptr<RtpReceiverInterface> receiver() const override;
+
   bool stopped() const override;
   bool stopping() const override;
   RtpTransceiverDirection direction() const override;

@@ -21,25 +21,25 @@ import android.os.Bundle;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ChildBindingState;
 import org.chromium.base.process_launcher.ChildConnectionAllocator;
 import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.TestChildProcessConnection;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Feature;
 
 /** Unit tests for the SpareChildConnection class. */
 @Config(manifest = Config.NONE)
 @RunWith(BaseRobolectricTestRunner.class)
-@LooperMode(LooperMode.Mode.LEGACY)
 public class SpareChildConnectionTest {
     @Mock private ChildProcessConnection.ServiceCallback mServiceCallback;
 
@@ -83,14 +83,17 @@ public class SpareChildConnectionTest {
 
         public void simulateConnectionBindingSuccessfully() {
             mConnection.getServiceCallback().onChildStarted();
+            RobolectricUtil.runAllBackgroundAndUi();
         }
 
         public void simulateConnectionFailingToBind() {
             mConnection.getServiceCallback().onChildStartFailed(mConnection);
+            RobolectricUtil.runAllBackgroundAndUi();
         }
 
         public void simulateConnectionDied() {
             mConnection.getServiceCallback().onChildProcessDied(mConnection);
+            RobolectricUtil.runAllBackgroundAndUi();
         }
 
         public void reset() {
@@ -103,9 +106,10 @@ public class SpareChildConnectionTest {
 
     private SpareChildConnection mSpareConnection;
 
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         // The tests run on only one thread. Pretend that is the launcher thread so LauncherThread
         // asserts are not triggered.
@@ -165,7 +169,7 @@ public class SpareChildConnectionTest {
                 mSpareConnection.getConnection(
                         mWrongConnectionAllocator, mServiceCallback, ChildBindingState.VISIBLE);
         assertNull(connection);
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mServiceCallback, times(0)).onChildStarted();
         verify(mServiceCallback, times(0)).onChildStartFailed(any());
         verify(mServiceCallback, times(0)).onChildProcessDied(any());
@@ -187,7 +191,7 @@ public class SpareChildConnectionTest {
         // No more connections are available.
         assertTrue(mSpareConnection.isEmpty());
 
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mServiceCallback, times(1)).onChildStarted();
         verify(mServiceCallback, times(0)).onChildStartFailed(any());
     }
@@ -202,7 +206,7 @@ public class SpareChildConnectionTest {
                 mSpareConnection.getConnection(
                         mConnectionAllocator, mServiceCallback, ChildBindingState.VISIBLE);
         assertNotNull(connection);
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         // No callbacks are called.
         verify(mServiceCallback, times(0)).onChildStarted();
         verify(mServiceCallback, times(0)).onChildStartFailed(any());

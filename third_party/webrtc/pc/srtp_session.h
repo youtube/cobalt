@@ -71,23 +71,7 @@ class SrtpSession {
   bool UnprotectRtp(CopyOnWriteBuffer& buffer);
   bool UnprotectRtcp(CopyOnWriteBuffer& buffer);
 
-  // Helper method to get authentication params.
-  bool GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len);
-
   int GetSrtpOverhead() const;
-
-  // If external auth is enabled, SRTP will write a dummy auth tag that then
-  // later must get replaced before the packet is sent out. Only supported for
-  // non-GCM cipher suites and can be checked through "IsExternalAuthActive"
-  // if it is actually used. This method is only valid before the RTP params
-  // have been set.
-  void EnableExternalAuth();
-  bool IsExternalAuthEnabled() const;
-
-  // A SRTP session supports external creation of the auth tag if a non-GCM
-  // cipher is used. This method is only valid after the RTP params have
-  // been set.
-  bool IsExternalAuthActive() const;
 
   // Removes a SSRC from the underlying libSRTP session.
   // Note: this should only be done for SSRCs that are received.
@@ -132,8 +116,6 @@ class SrtpSession {
 
   bool inited_ = false;
   int last_send_seq_num_ = -1;
-  bool external_auth_active_ = false;
-  bool external_auth_enabled_ = false;
   int decryption_failure_count_ = 0;
   bool dump_plain_rtp_ = false;
 };

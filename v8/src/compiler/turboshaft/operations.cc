@@ -34,12 +34,6 @@
 #include "src/objects/objects-inl.h"
 #endif
 
-namespace v8::internal {
-std::ostream& operator<<(std::ostream& os, AbortReason reason) {
-  return os << GetAbortReason(reason);
-}
-}  // namespace v8::internal
-
 namespace v8::internal::compiler::turboshaft {
 
 void Operation::Print() const { std::cout << *this << "\n"; }
@@ -2371,6 +2365,7 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
             1);
   if (value.saturated_use_count.IsOne()) return true;
+  if (value.saturated_use_count.IsSaturated()) return false;
   return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
          value.saturated_use_count.Get();
 }

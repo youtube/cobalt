@@ -23,8 +23,8 @@ bool AITestUtils::TestStreamingResponder::WaitForCompletion() {
   return !error_status_.has_value();
 }
 
-void AITestUtils::TestStreamingResponder::WaitForQuotaOverflow() {
-  quota_overflow_run_loop_.Run();
+void AITestUtils::TestStreamingResponder::WaitForContextOverflow() {
+  context_overflow_run_loop_.Run();
 }
 
 void AITestUtils::TestStreamingResponder::OnError(
@@ -47,8 +47,13 @@ void AITestUtils::TestStreamingResponder::OnCompletion(
   run_loop_.Quit();
 }
 
-void AITestUtils::TestStreamingResponder::OnQuotaOverflow() {
-  quota_overflow_run_loop_.Quit();
+void AITestUtils::TestStreamingResponder::OnContextOverflow() {
+  context_overflow_run_loop_.Quit();
+}
+
+void AITestUtils::TestStreamingResponder::OnToolCalls(
+    std::vector<blink::mojom::ToolCallPtr> tool_calls) {
+  NOTREACHED() << "OnToolCalls not implemented in browser-side test helper yet";
 }
 
 AITestUtils::AITestBase::AITestBase()

@@ -723,7 +723,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
-  uint8_t* GetGlobalStorage(const wasm::WasmGlobal&);
+  Address GetGlobalStorage(const wasm::WasmGlobal&,
+                           const DisallowGarbageCollection&);
 
   // Get the FixedArray and the index in that FixedArray for the given global,
   // which must be a reference type.
@@ -1632,12 +1633,20 @@ class WasmContinuationObject
     : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
                                                    HeapObject> {
  public:
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmContinuationObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  using BodyDescriptor = FixedBodyDescriptorFor<WasmContinuationObject>;
   DECL_PRINTER(WasmContinuationObject)
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+};
+
+class WasmStackObject
+    : public TorqueGeneratedWasmStackObject<WasmStackObject, HeapObject> {
+ public:
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmStackObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PRINTER(WasmStackObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmStackObject)
 };
 
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {

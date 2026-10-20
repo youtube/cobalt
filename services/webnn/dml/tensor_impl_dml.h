@@ -25,12 +25,12 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) TensorImplDml final
  public:
   TensorImplDml(mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
                 Microsoft::WRL::ComPtr<ID3D12Resource> buffer,
-                base::WeakPtr<WebNNContextImpl> context,
+                WebNNContextImpl& context,
                 mojom::TensorInfoPtr tensor_info);
 
   TensorImplDml(mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
                 RepresentationPtr representation,
-                base::WeakPtr<WebNNContextImpl> context,
+                WebNNContextImpl& context,
                 mojom::TensorInfoPtr tensor_info);
 
   TensorImplDml(const TensorImplDml&) = delete;
@@ -62,6 +62,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) TensorImplDml final
   // completes. If successful, BeginAccessWebNN() must be called to restore
   // access to WebNN and to EndAccessWebNN() again.
   scoped_refptr<gfx::D3DSharedFence> EndAccessWebNN();
+
+  base::WeakPtr<const TensorImplDml> GetWeakPtr() const {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   ~TensorImplDml() override;

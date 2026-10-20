@@ -544,7 +544,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   bool SetSink(uint32_t ssrc, VideoSinkInterface<VideoFrame>* sink) override;
   void SetDefaultSink(VideoSinkInterface<VideoFrame>* sink) override;
   bool GetStats(VideoMediaReceiveInfo* info) override;
-  void OnPacketReceived(const RtpPacketReceived& packet) override;
+  void OnPacketReceived(RtpPacketReceived packet) override;
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
 
   std::optional<int> GetBaseMinimumPlayoutDelayMs(uint32_t ssrc) const override;
@@ -584,8 +584,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   WebRtcVideoReceiveStream* FindReceiveStream(uint32_t ssrc)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(thread_checker_);
 
-  void ProcessReceivedPacket(RtpPacketReceived packet)
-      RTC_RUN_ON(thread_checker_);
 
   // Expected to be invoked once per packet that belongs to this channel that
   // can not be demuxed.
@@ -720,7 +718,7 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
   // Variables.
   const Environment env_;
   TaskQueueBase* const worker_thread_;
-  ScopedTaskSafety task_safety_;
+  scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker network_thread_checker_{
       SequenceChecker::kDetached};
   RTC_NO_UNIQUE_ADDRESS SequenceChecker thread_checker_;
@@ -757,7 +755,8 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
 
   VideoDecoderFactory* const decoder_factory_ RTC_GUARDED_BY(thread_checker_);
   std::vector<VideoCodecSettings> recv_codecs_ RTC_GUARDED_BY(thread_checker_);
-  RtpHeaderExtensionMap recv_rtp_extension_map_ RTC_GUARDED_BY(thread_checker_);
+  RtpHeaderExtensionMap recv_rtp_extension_map_
+      RTC_GUARDED_BY(network_thread_checker_);
   std::vector<RtpExtension> recv_rtp_extensions_
       RTC_GUARDED_BY(thread_checker_);
   // See reason for keeping track of the FlexFEC payload type separately in

@@ -90,6 +90,7 @@
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/pointer_lock_controller.h"
+#include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/scroll/scroll_animator_base.h"
@@ -162,8 +163,7 @@ void WebPluginContainerImpl::UpdateAllLifecyclePhases() {
   web_plugin_->UpdateAllLifecyclePhases(DocumentUpdateReason::kPlugin);
 }
 
-void WebPluginContainerImpl::Paint(GraphicsContext& context,
-                                   PaintFlags,
+void WebPluginContainerImpl::Paint(const PaintInfo& paint_info,
                                    const CullRect& cull_rect,
                                    const gfx::Vector2d& paint_offset) const {
   // Don't paint anything if the plugin doesn't intersect.
@@ -172,6 +172,8 @@ void WebPluginContainerImpl::Paint(GraphicsContext& context,
 
   gfx::Rect visual_rect = FrameRect();
   visual_rect.Offset(paint_offset);
+
+  GraphicsContext& context = paint_info.context;
 
   if (WantsWheelEvents()) {
     context.GetPaintController().RecordHitTestData(
@@ -464,7 +466,7 @@ void WebPluginContainerImpl::Copy() {
 
   LocalFrame* frame = element_->GetDocument().GetFrame();
   frame->GetSystemClipboard()->WriteHTML(web_plugin_->SelectionAsMarkup(),
-                                         KURL());
+                                         NullUrl());
   String text = web_plugin_->SelectionAsText();
   ReplaceNBSPWithSpace(text);
   frame->GetSystemClipboard()->WritePlainText(text);

@@ -77,6 +77,7 @@
 #include "ash/webui/shortcut_customization_ui/mojom/shortcut_customization.mojom.h"
 #include "ash/webui/shortcut_customization_ui/shortcut_customization_app_ui.h"
 #include "ash/webui/vc_background_ui/vc_background_ui.h"
+#include "chrome/browser/ash/borealis/borealis_motd_ui_impl.h"
 #include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision.mojom.h"
@@ -284,8 +285,8 @@ void PopulateChromeWebUIFrameBindersPartsCros(
       ash::BorealisInstallerUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
-      ash::borealis_motd::mojom::PageHandlerFactory, borealis::BorealisMOTDUI>(
-      map);
+      ash::borealis_motd::mojom::PageHandlerFactory,
+      borealis::BorealisMotdUiImpl>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       ash::crostini_installer::mojom::PageHandlerFactory,
@@ -606,7 +607,6 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsCros(
   registry.ForWebUI<ash::file_manager::FileManagerUI>();
   registry.ForWebUI<ash::smb_dialog::SmbShareDialogUI>();
   registry.ForWebUI<ash::smb_dialog::SmbCredentialsDialogUI>();
-  registry.ForWebUI<FeedbackUI>();
   registry.ForWebUI<ash::MallUI>().Add<ash::mall::mojom::PageHandler>();
 
 #if !defined(OFFICIAL_BUILD)

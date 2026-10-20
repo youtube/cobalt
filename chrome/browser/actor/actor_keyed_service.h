@@ -27,6 +27,7 @@
 #include "chrome/common/buildflags.h"
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/sessions/core/session_id.h"
 #include "components/tabs/public/tab_interface.h"
 
@@ -68,6 +69,8 @@ class ActorKeyedService : public KeyedService,
       std::unique_ptr<ui::ActorUiStateManagerInterface> ausm);
 
   const std::map<TaskId, const ActorTask*> GetActiveTasks() const;
+
+  size_t GetActiveTasksCount() const;
 
   std::vector<TaskId> FindTaskIdsInActive(
       base::FunctionRef<bool(const ActorTask&)> predicate) const;
@@ -118,9 +121,9 @@ class ActorKeyedService : public KeyedService,
   // in the given `tab`.
   bool IsActiveOnTab(const tabs::TabInterface& tab) const;
 
-  // Returns the id of an ActorTask which has the given tab in its set. Returns
-  // a null TaskId if no task has `tab`. Note: a returned task may be paused.
-  TaskId GetTaskFromTab(const tabs::TabInterface& tab) const;
+  // Returns an ActorTask which has the given tab in its set. Returns null if no
+  // task has `tab`. Note: a returned task may be paused.
+  ActorTask* GetTaskFromTab(const tabs::TabInterface& tab) const;
 
   Profile* GetProfile();
 
@@ -130,6 +133,9 @@ class ActorKeyedService : public KeyedService,
   void RequestTabObservation(
       tabs::TabInterface& tab,
       TaskId task_id,
+      std::optional<page_content_annotations::ScreenshotOptions::
+                        ScreenshotCollectionOptions>
+          screenshot_collection_options,
       base::OnceCallback<void(TabObservationResult)> callback);
 
   // A TabObservationResult may return the successful side of the base::expected

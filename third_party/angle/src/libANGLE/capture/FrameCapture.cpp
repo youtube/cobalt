@@ -4411,47 +4411,49 @@ void CaptureShareGroupMidExecutionSetup(
         gl::SamplerState defaultSamplerState;
         if (sampler->getMinFilter() != defaultSamplerState.getMinFilter())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_MIN_FILTER,
-                                         sampler->getMinFilter()));
+            cap(CaptureSamplerParameteri(replayState, true, samplerID,
+                                         gl::SamplerParameter::MinFilter, sampler->getMinFilter()));
         }
         if (sampler->getMagFilter() != defaultSamplerState.getMagFilter())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_MAG_FILTER,
-                                         sampler->getMagFilter()));
+            cap(CaptureSamplerParameteri(replayState, true, samplerID,
+                                         gl::SamplerParameter::MagFilter, sampler->getMagFilter()));
         }
         if (sampler->getWrapS() != defaultSamplerState.getWrapS())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_WRAP_S,
+            cap(CaptureSamplerParameteri(replayState, true, samplerID, gl::SamplerParameter::WrapS,
                                          sampler->getWrapS()));
         }
         if (sampler->getWrapR() != defaultSamplerState.getWrapR())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_WRAP_R,
+            cap(CaptureSamplerParameteri(replayState, true, samplerID, gl::SamplerParameter::WrapR,
                                          sampler->getWrapR()));
         }
         if (sampler->getWrapT() != defaultSamplerState.getWrapT())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_WRAP_T,
+            cap(CaptureSamplerParameteri(replayState, true, samplerID, gl::SamplerParameter::WrapT,
                                          sampler->getWrapT()));
         }
         if (sampler->getMinLod() != defaultSamplerState.getMinLod())
         {
-            cap(CaptureSamplerParameterf(replayState, true, samplerID, GL_TEXTURE_MIN_LOD,
+            cap(CaptureSamplerParameterf(replayState, true, samplerID, gl::SamplerParameter::MinLod,
                                          sampler->getMinLod()));
         }
         if (sampler->getMaxLod() != defaultSamplerState.getMaxLod())
         {
-            cap(CaptureSamplerParameterf(replayState, true, samplerID, GL_TEXTURE_MAX_LOD,
+            cap(CaptureSamplerParameterf(replayState, true, samplerID, gl::SamplerParameter::MaxLod,
                                          sampler->getMaxLod()));
         }
         if (sampler->getCompareMode() != defaultSamplerState.getCompareMode())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_COMPARE_MODE,
+            cap(CaptureSamplerParameteri(replayState, true, samplerID,
+                                         gl::SamplerParameter::CompareMode,
                                          sampler->getCompareMode()));
         }
         if (sampler->getCompareFunc() != defaultSamplerState.getCompareFunc())
         {
-            cap(CaptureSamplerParameteri(replayState, true, samplerID, GL_TEXTURE_COMPARE_FUNC,
+            cap(CaptureSamplerParameteri(replayState, true, samplerID,
+                                         gl::SamplerParameter::CompareFunc,
                                          sampler->getCompareFunc()));
         }
     }
@@ -9445,9 +9447,9 @@ gl::Program *GetProgramForCapture(const gl::State &glState, gl::ShaderProgramID 
 }
 
 void CaptureGetActiveUniformBlockivParameters(const gl::State &glState,
-                                              gl::ShaderProgramID handle,
-                                              gl::UniformBlockIndex uniformBlockIndex,
-                                              GLenum pname,
+                                              gl::ShaderProgramID programPacked,
+                                              gl::UniformBlockIndex uniformBlockIndexPacked,
+                                              gl::UniformBlockParameter pnamePacked,
                                               ParamCapture *paramCapture)
 {
     int numParams = 1;
@@ -9457,13 +9459,14 @@ void CaptureGetActiveUniformBlockivParameters(const gl::State &glState,
     // active uniform indices for the uniform block identified by uniformBlockIndex is
     // returned. The number of elements that will be written to params is the value of
     // UNIFORM_BLOCK_ACTIVE_UNIFORMS for uniformBlockIndex
-    if (pname == GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)
+    if (pnamePacked == gl::UniformBlockParameter::ActiveUniformIndices)
     {
-        gl::Program *program = GetProgramForCapture(glState, handle);
-        if (program)
+        gl::Program *programObject = GetProgramForCapture(glState, programPacked);
+        if (programObject != nullptr)
         {
-            gl::QueryActiveUniformBlockiv(program, uniformBlockIndex,
-                                          GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &numParams);
+            gl::QueryActiveUniformBlockiv(programObject, uniformBlockIndexPacked,
+                                          gl::UniformBlockParameter::ActiveUniforms, nullptr,
+                                          &numParams);
         }
     }
 

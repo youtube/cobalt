@@ -654,6 +654,9 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_InnerTextFailure) {
                       test_server_.GetURL(kMainPagePath), web_state());
 
   // Use a fake web state to cause inner text extraction to fail.
+  fake_web_state()->SetVisibleURL(GURL("http://example.com/"));
+  fake_web_state()->SetContentsMimeType("text/html");
+
   PageContextWrapperCallbackResponse captured_response =
       RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
         wrapper.shouldGetInnerText = YES;
@@ -746,6 +749,9 @@ TEST_P(PageContextWrapperTest, TimeoutVerification) {
 
 // Tests that the wrapper correctly handles a failure in PDF generation.
 TEST_P(PageContextWrapperTest, PopulatePageContext_PDFGenerationFailure) {
+  fake_web_state()->SetVisibleURL(GURL("http://example.com/"));
+  fake_web_state()->SetContentsMimeType("text/html");
+
   PageContextWrapperCallbackResponse captured_response =
       RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
         wrapper.shouldGetFullPagePDF = YES;
@@ -758,6 +764,9 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_PDFGenerationFailure) {
 
 // Tests that the wrapper correctly handles a failure in APC generation.
 TEST_P(PageContextWrapperTest, PopulatePageContext_APCGenerationFailure) {
+  fake_web_state()->SetVisibleURL(GURL("http://example.com/"));
+  fake_web_state()->SetContentsMimeType("text/html");
+
   PageContextWrapperCallbackResponse captured_response =
       RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
         wrapper.shouldGetAnnotatedPageContent = YES;
@@ -768,8 +777,44 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_APCGenerationFailure) {
   EXPECT_EQ(captured_response.error(), PageContextWrapperError::kAPCError);
 }
 
+// Tests that the wrapper correctly handles an unextractable page.
+TEST_P(PageContextWrapperTest, PopulatePageContext_NotExtractable) {
+  fake_web_state()->SetVisibleURL(GURL("chrome://version"));
+  fake_web_state()->SetContentsMimeType("text/html");
+
+  PageContextWrapperCallbackResponse captured_response =
+      RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  // Verify that the callback was called with a NotExtractable error.
+  ASSERT_FALSE(captured_response.has_value());
+  EXPECT_EQ(captured_response.error(),
+            PageContextWrapperError::kPageNotExtractableError);
+}
+
+// Tests that the wrapper correctly handles an unextractable page due to MIME
+// type (PDF).
+TEST_P(PageContextWrapperTest, PopulatePageContext_NotExtractable_PDF) {
+  fake_web_state()->SetVisibleURL(GURL("https://example.com/file.pdf"));
+  fake_web_state()->SetContentsMimeType("application/pdf");
+
+  PageContextWrapperCallbackResponse captured_response =
+      RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  // Verify that the callback was called with a NotExtractable error.
+  ASSERT_FALSE(captured_response.has_value());
+  EXPECT_EQ(captured_response.error(),
+            PageContextWrapperError::kPageNotExtractableError);
+}
+
 // Tests that the wrapper correctly handles a failure in inner text generation.
 TEST_P(PageContextWrapperTest, PopulatePageContext_InnerTextGenerationFailure) {
+  fake_web_state()->SetVisibleURL(GURL("http://example.com/"));
+  fake_web_state()->SetContentsMimeType("text/html");
+
   PageContextWrapperCallbackResponse captured_response =
       RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
         wrapper.shouldGetInnerText = YES;
@@ -1064,6 +1109,9 @@ TEST_P(PageContextWrapperTest,
 // snapshot update.
 TEST_P(PageContextWrapperTest,
        PopulatePageContext_WebStateDestroyedDuringForcedSnapshot) {
+  web::test::LoadHtml(@"<html></html>", GURL("http://example.com/"),
+                      web_state());
+
   // Capture pointer to web_state_ to allow binding in the block.
   auto* web_state_ptr = &web_state_;
   PageContextWrapperCallbackResponse captured_response =
@@ -1113,10 +1161,16 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_WebStateDestroyed) {
   EXPECT_EQ(captured_response.error(), PageContextWrapperError::kGenericError);
 }
 
-// Tests that the page context correctly handles data URLs by truncating them.
+// Tests that the page context correctly handles data URL iframes by truncating
+// them.
 TEST_P(PageContextWrapperTest, PopulatePageContext_DataURL) {
   const std::string data_url = "data:text/html,<p>Hello Data</p>";
-  web::test::LoadHtml(@"<p>Hello Data</p>", GURL(data_url), web_state());
+  auto page_structure =
+      HtmlPage("Main", Paragraph("Hello Main"), Iframe(data_url));
+  std::string main_html = page_helper_->Build(page_structure);
+  GURL main_url = test_server_.GetURL(kMainPagePath);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html), main_url,
+                      web_state());
 
   PageContextWrapperCallbackResponse response =
       RunPageContextWrapper(web_state(), ^(PageContextWrapper* wrapper) {
@@ -1128,11 +1182,23 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_DataURL) {
       std::move(response.value());
 
   ASSERT_TRUE(page_context);
-  EXPECT_EQ(page_context->url(), "data:");
+  EXPECT_EQ(page_context->url(), main_url.spec());
   ASSERT_TRUE(page_context->has_annotated_page_content());
-  const auto& main_frame_data =
-      page_context->annotated_page_content().main_frame_data();
-  EXPECT_EQ(main_frame_data.url(), "data:");
+
+  const optimization_guide::proto::ContentNode* iframe_node = nullptr;
+  for (const auto& node :
+       page_context->annotated_page_content().root_node().children_nodes()) {
+    if (node.content_attributes().attribute_type() ==
+        optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME) {
+      iframe_node = &node;
+      break;
+    }
+  }
+  ASSERT_TRUE(iframe_node);
+
+  const auto& iframe_frame_data =
+      iframe_node->content_attributes().iframe_data().frame_data();
+  EXPECT_EQ(iframe_frame_data.url(), "data:");
 }
 
 // Tests that an iframe with a data URL is treated as cross-origin (opaque
@@ -2440,14 +2506,22 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Visibility) {
   EXPECT_EQ(child2.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IMAGE);
 
-  // Verify Child 3: P
+  // Verify Child 3: Container (section)
   const auto& child3 = root_node.children_nodes(2);
   EXPECT_EQ(child3.content_attributes().attribute_type(),
-            optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
   ASSERT_EQ(child3.children_nodes_size(), 1);
-  EXPECT_EQ(
-      child3.children_nodes(0).content_attributes().text_data().text_content(),
-      "Deep Visible Paragraph");
+
+  // Verify Child 3's child: P
+  const auto& child3_p = child3.children_nodes(0);
+  EXPECT_EQ(child3_p.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+  ASSERT_EQ(child3_p.children_nodes_size(), 1);
+  EXPECT_EQ(child3_p.children_nodes(0)
+                .content_attributes()
+                .text_data()
+                .text_content(),
+            "Deep Visible Paragraph");
 
   // Verify Child 4: DIV
   const auto& child4 = root_node.children_nodes(3);
@@ -3262,6 +3336,55 @@ TEST_P(
             "Target");
 }
 
+// Tests that tags with annotated roles (e.g. <main>, <header>, <article>)
+// are correctly identified as generic containers.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_GenericContainer_AnnotatedRoles) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  // A generic div is usually flattened. But <main> has an annotated role
+  // (kMain) so it should be preserved as a container.
+  auto page_structure =
+      HtmlPage("Main", RawHtml("<main id='target'>Target</main>"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& apc = response.value()->annotated_page_content();
+  const auto& root_node = apc.root_node();
+
+  // Root should contain the <main> node as a container
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& main_node = root_node.children_nodes(0);
+
+  EXPECT_EQ(main_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+
+  // Verify the annotated role is attached
+  ASSERT_EQ(main_node.content_attributes().annotated_roles_size(), 1);
+  EXPECT_EQ(main_node.content_attributes().annotated_roles(0),
+            optimization_guide::proto::ANNOTATED_ROLE_MAIN);
+
+  // The container should have the text node as a child
+  ASSERT_EQ(main_node.children_nodes_size(), 1);
+  const auto& text_node = main_node.children_nodes(0);
+  EXPECT_EQ(text_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_EQ(text_node.content_attributes().text_data().text_content(),
+            "Target");
+}
+
 TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Size) {
   if (!IsRefactored()) {
     return;
@@ -3323,6 +3446,430 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Size) {
                                    .text_style()
                                    .text_size()));
   }
+}
+
+// Tests that Table Row data is extracted correctly.
+TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_TableRow) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure =
+      HtmlPage("RichExtraction_TableRow", RawHtml("<table>"
+                                                  "  <thead>"
+                                                  "    <tr><td>Header</td></tr>"
+                                                  "  </thead>"
+                                                  "  <tbody>"
+                                                  "    <tr><td>Body 1</td></tr>"
+                                                  "    <tr><td>Body 2</td></tr>"
+                                                  "  </tbody>"
+                                                  "  <tfoot>"
+                                                  "    <tr><td>Footer</td></tr>"
+                                                  "  </tfoot>"
+                                                  "</table>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& page_context = *response.value();
+  const auto& root_node = page_context.annotated_page_content().root_node();
+
+  // Root -> Table -> TRs
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& table_node = root_node.children_nodes(0);
+  EXPECT_EQ(table_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE);
+
+  // We have 4 TRs (Header, Body 1, Body 2, Footer) under the Table if
+  // thead/tbody/tfoot are pruned. We need to test the row_type.
+  ASSERT_EQ(table_node.children_nodes_size(), 4);
+
+  // TR 0 (Header)
+  const auto& tr1 = table_node.children_nodes(0);
+  EXPECT_EQ(tr1.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(tr1.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TableRowType::TABLE_ROW_TYPE_HEADER);
+
+  // TR 1 (Body 1)
+  const auto& tr2 = table_node.children_nodes(1);
+  EXPECT_EQ(tr2.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(tr2.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TableRowType::TABLE_ROW_TYPE_BODY);
+
+  // TR 2 (Body 2)
+  const auto& tr3 = table_node.children_nodes(2);
+  EXPECT_EQ(tr3.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(tr3.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TableRowType::TABLE_ROW_TYPE_BODY);
+
+  // TR 3 (Footer)
+  const auto& tr4 = table_node.children_nodes(3);
+  EXPECT_EQ(tr4.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(tr4.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TableRowType::TABLE_ROW_TYPE_FOOTER);
+}
+
+// Tests that table rows are correctly classified as header, body, or footer.
+TEST_P(PageContextWrapperTest, PopulatePageContext_TableRow_Sections) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  // Load the page with standard HTML structure.
+  web::test::LoadHtml(@"<html><body>"
+                       "<table>"
+                       "  <thead><tr><th>Header</th></tr></thead>"
+                       "  <tbody><tr><td>Body</td></tr></tbody>"
+                       "  <tfoot><tr><td>Footer</td></tr></tfoot>"
+                       "</table>"
+                       "</body></html>",
+                      web_state());
+
+  PageContextWrapperConfigBuilder builder;
+  builder.SetUseRefactoredExtractor(IsRefactored());
+  builder.SetUseRichExtraction(true);
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), builder.Build(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& root_node = page_context->annotated_page_content().root_node();
+  ASSERT_EQ(root_node.children_nodes_size(), 1);  // The table
+
+  const auto& table_node = root_node.children_nodes(0);
+  EXPECT_EQ(table_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE);
+
+  // Expecting 3 rows.
+  ASSERT_EQ(table_node.children_nodes_size(), 3);
+
+  // Row 1: Header
+  const auto& row1 = table_node.children_nodes(0);
+  EXPECT_EQ(row1.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(row1.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TABLE_ROW_TYPE_HEADER);
+
+  // Row 2: Body
+  const auto& row2 = table_node.children_nodes(1);
+  EXPECT_EQ(row2.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(row2.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TABLE_ROW_TYPE_BODY);
+
+  // Row 3: Footer
+  const auto& row3 = table_node.children_nodes(2);
+  EXPECT_EQ(row3.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW);
+  EXPECT_EQ(row3.content_attributes().table_row_data().type(),
+            optimization_guide::proto::TABLE_ROW_TYPE_FOOTER);
+}
+
+// Tests that table rows are correctly classified even if nested within generic
+// containers inside sections. This simulates the case where TR is not a direct
+// child of THEAD/TFOOT/TBODY.
+TEST_P(PageContextWrapperTest, PopulatePageContext_TableRow_NestedSections) {
+  if (!IsRefactored()) {
+    return;  // Only relevant for the TS implementation.
+  }
+
+  // Use JavaScript to construct the nested structure.
+  // Use HtmlPage to set up a valid page state (URL, title, etc).
+
+  // Load a blank page to initialize the WebView.
+  web::test::LoadHtml(@"<html><body></body></html>", web_state());
+
+  // Use JavaScript to construct the nested structure.
+  // The HTML parser would normally "fix" invalid table structures (foster
+  // parenting), moving TRs out of DIVs. By creating nodes programmatically, we
+  // can force the nesting we want to test.
+  //
+  // DOM Structure created:
+  // TABLE
+  //   THEAD
+  //     DIV
+  //       DIV
+  //         TR
+  //           TD: Header Cell Nested
+  //   TBODY
+  //     DIV
+  //       TR
+  //         TD: Body Cell Nested
+  //
+  // This verifies that `closest` works even if the hierarchy is
+  // deeper/unconventional.
+  web::test::ExecuteJavaScript(base::SysUTF8ToNSString(
+                                   R"(
+      (function() {
+        var table = document.createElement('table');
+        var thead = document.createElement('thead');
+        var tbody = document.createElement('tbody');
+        var div1 = document.createElement('div');
+        var div2 = document.createElement('div');
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.innerText = 'Header Cell Nested';
+        tr.appendChild(td);
+        div2.appendChild(tr);
+        div1.appendChild(div2);
+        thead.appendChild(div1);
+        table.appendChild(thead);
+        var div_body = document.createElement('div');
+        var tr2 = document.createElement('tr');
+        var td2 = document.createElement('td');
+        td2.innerText = 'Body Cell Nested';
+        tr2.appendChild(td2);
+        div_body.appendChild(tr2);
+        tbody.appendChild(div_body);
+        table.appendChild(tbody);
+        document.body.appendChild(table);
+        return true;
+      })();
+      )"),
+                               web_state());
+
+  PageContextWrapperConfigBuilder builder;
+  builder.SetUseRefactoredExtractor(IsRefactored());
+  builder.SetUseRichExtraction(true);
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), builder.Build(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  const auto& root_node = page_context->annotated_page_content().root_node();
+
+  // We look for rows traversing the tree.
+  bool found_header_row = false;
+  bool found_body_row = false;
+
+  // Helper to traverse and find rows.
+  std::vector<const optimization_guide::proto::ContentNode*> stack;
+  stack.push_back(&root_node);
+
+  while (!stack.empty()) {
+    const auto* node = stack.back();
+    stack.pop_back();
+
+    if (node->content_attributes().attribute_type() ==
+        optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW) {
+      if (node->content_attributes().table_row_data().type() ==
+          optimization_guide::proto::TABLE_ROW_TYPE_HEADER) {
+        found_header_row = true;
+      } else if (node->content_attributes().table_row_data().type() ==
+                 optimization_guide::proto::TABLE_ROW_TYPE_BODY) {
+        found_body_row = true;
+      }
+    }
+
+    for (const auto& child : node->children_nodes()) {
+      stack.push_back(&child);
+    }
+  }
+  EXPECT_TRUE(found_header_row);
+  EXPECT_TRUE(found_body_row);
+}
+
+// Tests the extraction of form control attributes (input, textarea, select,
+// button).
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_FormControlData) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  auto page_structure = HtmlPage(
+      "Forms", RawHtml("<html><body><form name=\"f1\" action='/submit'>"
+                       "  <input type=\"text\" name=\"t1\" value=\"v1\" "
+                       "required placeholder=\"p1\">"
+                       "  <input type=\"text\" name=\"t2\" value=\"v2\" "
+                       "readonly>"
+                       "  <input type=\"checkbox\" checked>"
+                       "  <select name=\"s1\">"
+                       "    <option value=\"o1\" selected>O1</option>"
+                       "    <option disabled>O2</option>"
+                       "  </select>"
+                       "  <button type=\"submit\">Submit</button>"
+                       "  <textarea name=\"texta\">text contents</textarea>"
+                       "</form></body></html>"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root_node = annotated_page_content.root_node();
+
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& form_node = root_node.children_nodes(0);
+
+  EXPECT_TRUE(form_node.content_attributes().has_form_data());
+  EXPECT_EQ(form_node.content_attributes().form_data().form_name(), "f1");
+  // The full URL depends on the test server port, so we check the suffix.
+  EXPECT_TRUE(base::EndsWith(
+      form_node.content_attributes().form_data().action_url(), "/submit"));
+
+  ASSERT_EQ(form_node.children_nodes_size(), 6);
+  const auto* input_text_node = &form_node.children_nodes(0);
+  const auto* input_readonly_node = &form_node.children_nodes(1);
+  const auto* input_checkbox_node = &form_node.children_nodes(2);
+  const auto* select_node = &form_node.children_nodes(3);
+  const auto* button_node = &form_node.children_nodes(4);
+  const auto* textarea_node = &form_node.children_nodes(5);
+
+  ASSERT_TRUE(input_text_node);
+  const auto& fc_text =
+      input_text_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_text.field_name(), "t1");
+  EXPECT_EQ(fc_text.field_value(), "v1");
+  EXPECT_TRUE(fc_text.is_required());
+  EXPECT_FALSE(
+      input_text_node->content_attributes().interaction_info().is_disabled());
+  EXPECT_EQ(fc_text.placeholder(), "p1");
+
+  ASSERT_TRUE(input_readonly_node);
+  const auto& fc_readonly =
+      input_readonly_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_readonly.field_name(), "t2");
+  EXPECT_EQ(fc_readonly.field_value(), "v2");
+  EXPECT_FALSE(fc_readonly.is_required());
+  EXPECT_TRUE(input_readonly_node->content_attributes().has_interaction_info());
+  EXPECT_TRUE(input_readonly_node->content_attributes()
+                  .interaction_info()
+                  .is_disabled());
+
+  ASSERT_TRUE(input_checkbox_node);
+  const auto& fc_checkbox =
+      input_checkbox_node->content_attributes().form_control_data();
+  EXPECT_TRUE(fc_checkbox.is_checked());
+
+  ASSERT_TRUE(select_node);
+  const auto& fc_select = select_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_select.field_name(), "s1");
+  ASSERT_EQ(fc_select.select_options_size(), 2);
+  EXPECT_EQ(fc_select.select_options(0).value(), "o1");
+  EXPECT_EQ(fc_select.select_options(0).text(), "O1");
+  EXPECT_TRUE(fc_select.select_options(0).is_selected());
+  EXPECT_EQ(fc_select.select_options(1).value(), "O2");
+  EXPECT_EQ(fc_select.select_options(1).text(), "O2");
+  EXPECT_TRUE(fc_select.select_options(1).is_disabled());
+
+  ASSERT_TRUE(button_node);
+
+  ASSERT_TRUE(textarea_node);
+  const auto& fc_textarea =
+      textarea_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_textarea.field_name(), "texta");
+}
+
+// Tests that Canvas Metadata is extracted correctly.
+TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Canvas) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure =
+      HtmlPage("RichExtraction_Canvas",
+               RawHtml("<canvas width=\"200\" height=\"100\"></canvas>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& page_context = *response.value();
+  const auto& root_node = page_context.annotated_page_content().root_node();
+
+  // Root -> Canvas
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& canvas_node = root_node.children_nodes(0);
+  EXPECT_EQ(canvas_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CANVAS);
+  EXPECT_EQ(canvas_node.content_attributes().canvas_data().layout_width(), 200);
+  EXPECT_EQ(canvas_node.content_attributes().canvas_data().layout_height(),
+            100);
+}
+
+// Tests that Video Metadata is extracted correctly.
+TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Video) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage(
+      "RichExtraction_Video",
+      RawHtml("<video src=\"https://example.com/video.mp4\"></video>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& page_context = *response.value();
+  const auto& root_node = page_context.annotated_page_content().root_node();
+
+  // Root -> Video
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& video_node = root_node.children_nodes(0);
+  EXPECT_EQ(video_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_VIDEO);
+  EXPECT_EQ(video_node.content_attributes().video_data().url(),
+            "https://example.com/video.mp4");
 }
 
 // Tests that attempting to trigger two extractions on one wrapper fails.

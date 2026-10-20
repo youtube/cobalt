@@ -30,30 +30,20 @@ namespace {
 // complete faster.
 
 // The number of dialogs shown from browser start that use prolonged latency.
-size_t prolonged_latency_dialog_count = 5;
+size_t prolonged_latency_dialog_count = 1;
 size_t dialog_shown_count = 0;
 
 // These latencies will be used for the initial dialogs.
-base::TimeDelta minimum_pending_dialog_time_ = base::Seconds(2);
-base::TimeDelta success_dialog_timeout_ = base::Seconds(1);
+base::TimeDelta success_dialog_timeout_ = base::Seconds(2);
 
 // Shortened latencies to be used for subsequent dialogs.
-base::TimeDelta short_minimum_pending_dialog_time_ = base::Seconds(0.4);
-base::TimeDelta short_success_dialog_timeout_ = base::Seconds(0.2);
+base::TimeDelta short_success_dialog_timeout_ = base::Seconds(0);
 
 base::TimeDelta show_dialog_delay_ = base::Seconds(1);
 
 ContentAnalysisDialogController::TestObserver* observer_for_testing = nullptr;
 
 }  // namespace
-
-// static
-base::TimeDelta ContentAnalysisDialogController::GetMinimumPendingDialogTime() {
-  if (dialog_shown_count <= prolonged_latency_dialog_count) {
-    return minimum_pending_dialog_time_;
-  }
-  return short_minimum_pending_dialog_time_;
-}
 
 // static
 base::TimeDelta ContentAnalysisDialogController::GetSuccessDialogTimeout() {
@@ -108,8 +98,8 @@ ContentAnalysisDialogController::ContentAnalysisDialogController(
       constrained_window::GetTopLevelWebContents(web_contents())->GetWeakPtr();
 
   top_level_contents_->StoreFocus();
-  scoped_ignore_input_events_ =
-      top_level_contents_->IgnoreInputEvents(std::nullopt);
+  scoped_ignore_input_events_ = top_level_contents_->IgnoreInputEvents(
+      std::nullopt, /*should_ignore_a11y_input=*/true);
 
   if (ShowDialogDelay().is_zero() || !dialog_delegate_->is_pending()) {
     DVLOG(1) << __func__ << ": Showing in ctor";
@@ -208,18 +198,7 @@ void ContentAnalysisDialogController::ShowResult(
 
   dialog_delegate_->UpdateStateFromFinalResult(result);
 
-  // Update the pending dialog only after it has been shown for a minimum amount
-  // of time.
-  base::TimeDelta time_shown = base::TimeTicks::Now() - first_shown_timestamp_;
-  if (time_shown >= GetMinimumPendingDialogTime()) {
-    UpdateDialog();
-  } else {
-    content::GetUIThreadTaskRunner({})->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&ContentAnalysisDialogController::UpdateDialog,
-                       weak_ptr_factory_.GetWeakPtr()),
-        GetMinimumPendingDialogTime() - time_shown);
-  }
+  UpdateDialog();
 }
 
 ContentAnalysisDialogController::~ContentAnalysisDialogController() {
@@ -264,11 +243,18 @@ void ContentAnalysisDialogController::UpdateDialog() {
 
   // Schedule the dialog to close itself in the success case.
   if (dialog_delegate_->is_success()) {
-    content::GetUIThreadTaskRunner({})->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&ContentAnalysisDialogDelegate::CancelDialog,
-                       dialog_delegate_->GetWeakPtr()),
-        GetSuccessDialogTimeout());
+    if (GetSuccessDialogTimeout() == base::Seconds(0)) {
+      content::GetUIThreadTaskRunner({})->PostTask(
+          FROM_HERE,
+          base::BindOnce(&ContentAnalysisDialogDelegate::CancelDialog,
+                         dialog_delegate_->GetWeakPtr()));
+    } else {
+      content::GetUIThreadTaskRunner({})->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&ContentAnalysisDialogDelegate::CancelDialog,
+                         dialog_delegate_->GetWeakPtr()),
+          GetSuccessDialogTimeout());
+    }
   }
 
   if (observer_for_testing) {
@@ -318,11 +304,6 @@ ContentAnalysisDialogController::dialog_delegate_for_testing() {
   return dialog_delegate_.get();
 }
 
-// static
-void ContentAnalysisDialogController::SetMinimumPendingDialogTimeForTesting(
-    base::TimeDelta delta) {
-  minimum_pending_dialog_time_ = delta;
-}
 
 // static
 void ContentAnalysisDialogController::SetSuccessDialogTimeoutForTesting(

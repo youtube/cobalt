@@ -191,9 +191,7 @@
   },
   "contentSettings": {
     "channel": "stable",
-    "extension_types": ["extension", "legacy_packaged_app"],
-    // "desktop_android" is not supported.
-    "platforms": ["chromeos", "linux", "mac", "win"]
+    "extension_types": ["extension", "legacy_packaged_app"]
   },
   "contextMenus": {
     "channel": "stable",
@@ -372,22 +370,23 @@
     // "desktop_android" is not supported.
     "platforms": ["chromeos", "linux", "mac", "win"],
     "allowlist" : [
-      "86D63D90308742AA65B8B29AE2D39FED2D6DC310",  // https://crbug.com/882461 SecureConnect
       "031E5E4A54C39E4F46E11CE643584E9187915908",  // https://crbug.com/882461 SecureConnect
       "349E89FE0296161007623C0B4096B617D7CECD54",  // https://crbug.com/882461 SecureConnect
       "18B761AA5B58FA89E596EB7996B4C92C86775C7F",  // https://crbug.com/882461 SecureConnect
       "2012C0122892D332325339998251D1CC3CAE396A",  // https://crbug.com/882461 SecureConnect
       "C8F4673FC69965390BC376C0761EC341492F9D87",  // Contact Center Insights
-      "31367E6C4D69B90D866289492A307C205AF8A32F", // b/361094242 Secure Enterprise Browser Extension
-      "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC" // b/361094242 Beyondcorp Enterprise Extension
+      "31367E6C4D69B90D866289492A307C205AF8A32F", // b/361094242 Prod SEB Extension
+      "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC", // b/361094242 Canary SEB Extension
+      "86D63D90308742AA65B8B29AE2D39FED2D6DC310"  // b/361094242 Dev SEB Extension
     ]
   },
   "enterprise.reportingPrivate.onDataMaskingRulesTriggered": {
     "channel": "stable",
     "extension_types": ["extension"],
     "allowlist" : [
-      "31367E6C4D69B90D866289492A307C205AF8A32F", // crbug.com/361094242 Secure Enterprise Browser Extension
-      "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC" // crbug.com/361094242 Beyondcorp Enterprise Extension
+      "31367E6C4D69B90D866289492A307C205AF8A32F", // b/361094242 Prod SEB Extension
+      "50B8ECD18A36937668D1FCA9CEEE668BC25C39CC", // b/361094242 Canary SEB Extension
+      "86D63D90308742AA65B8B29AE2D39FED2D6DC310"  // b/361094242 Dev SEB Extension
     ]
   },
   "experimental": {
@@ -592,7 +591,9 @@
     "allowlist": [
       "93B7178E8C275515C38D4F43D9DF4648F0EA9B03", // Identity Card Connector
       // https://crbug.com/433867146
-      "4B7E9789426EBD1BB3F99D72690DAE303FC042DF"  // AuthX Secure for ChromeOS
+      "4B7E9789426EBD1BB3F99D72690DAE303FC042DF", // AuthX Secure for ChromeOS
+      // https://crbug.com/485245112
+      "36F5326E7683E204CE9CE1532093D8BB9CD5D280"  // AuthX in-session extension
     ]
   }],
   "loginScreenUi": [{

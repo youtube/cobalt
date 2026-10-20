@@ -744,9 +744,6 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
   config.transport_observer = this;
   config.rtcp_handler = InitializeRtcpCallback();
   config.un_demuxable_packet_handler = InitializeUnDemuxablePacketHandler();
-#if defined(ENABLE_EXTERNAL_AUTH)
-  config.enable_external_auth = true;
-#endif
 
   // DTLS has to be enabled to use SCTP.
   if (dtls_enabled_) {
@@ -1383,6 +1380,7 @@ void PeerConnection::GetStats(
   if (selector) {
     for (const auto& proxy_transceiver :
          rtp_manager()->transceivers()->List()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& proxy_sender :
            proxy_transceiver->internal()->senders()) {
         if (proxy_sender == selector) {
@@ -1390,6 +1388,7 @@ void PeerConnection::GetStats(
           break;
         }
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       if (internal_sender)
         break;
     }
@@ -1413,6 +1412,7 @@ void PeerConnection::GetStats(
   if (selector) {
     for (const auto& proxy_transceiver :
          rtp_manager()->transceivers()->List()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& proxy_receiver :
            proxy_transceiver->internal()->receivers()) {
         if (proxy_receiver == selector) {
@@ -1420,6 +1420,7 @@ void PeerConnection::GetStats(
           break;
         }
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       if (internal_receiver)
         break;
     }

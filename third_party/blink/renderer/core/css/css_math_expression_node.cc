@@ -721,6 +721,12 @@ bool CanEagerlySimplify(const CSSMathExpressionOperation::Operands& operands) {
   return true;
 }
 
+bool IsNoneKeywordLiteral(const CSSMathExpressionNode* exp_node) {
+  return exp_node->IsKeywordLiteral() &&
+         DynamicTo<CSSMathExpressionKeywordLiteral>(exp_node)->GetValue() ==
+             CSSValueID::kNone;
+}
+
 std::optional<CSSMathExpressionNode*> MaybeSimplifyComparisonFunction(
     const CSSMathExpressionOperation::Operands& operands) {
   DCHECK_EQ(operands.size(), 3u);
@@ -728,20 +734,20 @@ std::optional<CSSMathExpressionNode*> MaybeSimplifyComparisonFunction(
   const CSSMathExpressionNode* val = operands[1];
   const CSSMathExpressionNode* max = operands[2];
   // clamp(MIN, none, MAX) is not allowed
-  if (val->IsKeywordLiteral()) {
+  if (IsNoneKeywordLiteral(val)) {
     return nullptr;
   }
   // clamp(none, VAL, none) is equivalent to just calc(VAL)
-  if (min->IsKeywordLiteral() && max->IsKeywordLiteral()) {
+  if (IsNoneKeywordLiteral(min) && IsNoneKeywordLiteral(max)) {
     return val->Copy();
   }
   // clamp(none, VAL, MAX) is equivalent to min(VAL, MAX)
-  if (min->IsKeywordLiteral()) {
+  if (IsNoneKeywordLiteral(min)) {
     return CSSMathExpressionOperation::CreateComparisonFunction(
         {val->Copy(), max->Copy()}, CSSMathOperator::kMin);
   }
   // clamp(MIN, VAL, none) is equivalent to max(MIN, VAL)
-  if (max->IsKeywordLiteral()) {
+  if (IsNoneKeywordLiteral(max)) {
     return CSSMathExpressionOperation::CreateComparisonFunction(
         {min->Copy(), val->Copy()}, CSSMathOperator::kMax);
   }
@@ -1015,14 +1021,14 @@ UnitsVector CollectSumOrProductInOrder(const CSSMathExpressionOperation* root) {
   // to ret.
   if (auto it = numeric_children.find(CSSPrimitiveValue::UnitType::kNumber);
       it != numeric_children.end()) {
-    ret.AppendVector(*it->value);
+    ret.append_range(*it->value);
     numeric_children.erase(it);
   }
   // From spec: If nodes contains a percentage, remove it from nodes and append
   // it to ret.
   if (auto it = numeric_children.find(CSSPrimitiveValue::UnitType::kPercentage);
       it != numeric_children.end()) {
-    ret.AppendVector(*it->value);
+    ret.append_range(*it->value);
     numeric_children.erase(it);
   }
   // Now, sort the rest numeric values alphabatically.
@@ -1043,10 +1049,10 @@ UnitsVector CollectSumOrProductInOrder(const CSSMathExpressionOperation* root) {
   std::sort(keys.begin(), keys.end(), comp);
   // Now, add those numeric nodes in the sorted order.
   for (const auto& unit_type : keys) {
-    ret.AppendVector(*numeric_children.at(unit_type));
+    ret.append_range(*numeric_children.at(unit_type));
   }
   // Now, add all the complex (non-numerics with double value) values.
-  ret.AppendVector(complex_children);
+  ret.append_range(complex_children);
   return ret;
 }
 
@@ -2243,7 +2249,7 @@ inline bool CanArithmeticOperationBeSimplified(
 }
 
 bool IsClampKeywordLiteral(const CSSMathExpressionNode* exp_node) {
-  return exp_node->IsKeywordLiteral() &&
+  return IsNoneKeywordLiteral(exp_node) &&
          DynamicTo<CSSMathExpressionKeywordLiteral>(exp_node)->GetContext() ==
              CSSMathExpressionKeywordLiteral::Context::kClamp;
 }
@@ -3190,8 +3196,8 @@ bool CSSMathExpressionOperation::MayHaveRelativeUnit() const {
 static void SerializeTopLevelNode(const CSSMathExpressionNode* node,
                                   StringBuilder& result) {
   String text = node->CustomCSSText();
-  if (text.StartsWith('(')) {
-    DCHECK(text.EndsWith(')'));
+  if (text.starts_with('(')) {
+    DCHECK(text.ends_with(')'));
     result.Append(StringView(text, 1, text.length() - 2));
   } else {
     result.Append(text);
@@ -4726,6 +4732,9 @@ class CSSMathExpressionNodeParser {
         DCHECK(RuntimeEnabledFeatures::CSSRandomFunctionEnabled());
         DCHECK_GE(nodes.size(), 2u);
         DCHECK_LE(nodes.size(), 3u);
+        if (!context_.InElementContext()) {
+          return nullptr;
+        }
         local_context_.IncrementRandomValueCount();
         const auto& random_value_sharing =
             std::get<const RandomValueSharing*>(non_expr_argument);

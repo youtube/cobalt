@@ -126,7 +126,7 @@ pub const TEMP_STRUCT_FIELD_PREFIX: &str = "m";
 pub const ANGLE_SYMBOL_PREFIX: &str = "ANGLE";
 
 // An ID that can be referred to by an operand of an instruction.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Id {
     Register(RegisterId),
@@ -164,10 +164,19 @@ impl Id {
         }
     }
 
-    pub fn get_constant(&self) -> Option<ConstantId> {
+    pub fn get_if_constant(&self) -> Option<ConstantId> {
         match self {
             &Id::Constant(id) => Some(id),
             _ => None,
+        }
+    }
+
+    pub fn get_constant(&self) -> ConstantId {
+        match self {
+            &Id::Constant(id) => id,
+            _ => {
+                panic!("Internal error: unexpected non-constant id");
+            }
         }
     }
 
@@ -1021,13 +1030,28 @@ impl Block {
         debug_assert!(self.loop_condition.is_none());
         self.loop_condition = Some(Box::new(block));
     }
+    pub fn get_loop_condition_block(&self) -> &Block {
+        self.loop_condition.as_ref().unwrap()
+    }
 
     pub fn set_loop_body_block(&mut self, block: Block) {
         self.set_sub_block1(block);
     }
+    pub fn get_loop_body_block(&self) -> &Block {
+        self.block1.as_ref().unwrap()
+    }
+    pub fn get_loop_body_block_mut(&mut self) -> &mut Block {
+        self.block1.as_mut().unwrap()
+    }
 
     pub fn set_loop_continue_block(&mut self, block: Block) {
         self.set_sub_block2(block);
+    }
+    pub fn has_loop_continue_block(&self) -> bool {
+        self.block2.is_some()
+    }
+    pub fn get_loop_continue_block(&self) -> &Block {
+        self.block2.as_ref().unwrap()
     }
 
     pub fn set_switch_case_blocks(&mut self, blocks: Vec<Block>) {
@@ -1423,6 +1447,7 @@ impl Name {
 pub enum VariableScope {
     Global,
     Local,
+    ForLoopVariable,
     FunctionParam,
 }
 
@@ -1540,7 +1565,6 @@ pub enum BuiltIn {
     TessLevelInner,
     TessCoord,
     BoundingBoxOES,
-    PixelLocalEXT,
 }
 
 // Whether a function parameter is `in`, `out` or `inout`.
@@ -1721,8 +1745,6 @@ pub enum Decoration {
     PushConstant,
     NonCoherent,
     Yuv,
-    // TODO(http://anglebug.com/349994211): handle __pixel_localEXT, likely in combination with
-    // Input/Output/InputOutput
     // Indicates that a variable (excluding built-ins) is an input to the shader
     Input,
     // Indicates that a variable (excluding built-ins) is an output of the shader
@@ -2912,6 +2934,22 @@ impl IRMeta {
             .find(|&id| matches!(self.get_variable(*id).built_in, Some(value) if value == built_in))
             .copied()
     }
+    pub fn declare_built_in_variable(
+        &mut self,
+        type_id: TypeId,
+        precision: Precision,
+        built_in: BuiltIn,
+    ) -> (VariableId, TypedId) {
+        self.declare_variable(
+            Name::new_exact(""),
+            type_id,
+            precision,
+            Decorations::new_none(),
+            Some(built_in),
+            None,
+            VariableScope::Global,
+        )
+    }
     // If already declared, return a built-in variable, otherwise declare it.  Used by
     // transformations to reference a built-in that the shader might not have originally used.
     //
@@ -2931,15 +2969,7 @@ impl IRMeta {
                 _ => panic!("Internal error: Unexpected built-in declared by transformations"),
             };
 
-            self.declare_variable(
-                Name::new_exact(""),
-                type_id,
-                precision,
-                Decorations::new_none(),
-                Some(built_in),
-                None,
-                VariableScope::Global,
-            )
+            self.declare_built_in_variable(type_id, precision, built_in)
         }
     }
     // Declare a global variable to cache the contents of an interface variable.  The original
@@ -3176,3 +3206,12 @@ impl IR {
         main_entry.append_code(block);
     }
 }
+
+// Helper macro to run validation on the IR
+macro_rules! validate {
+    ($ir:expr) => {
+        #[cfg(debug_assertions)]
+        $crate::validator::validate($ir);
+    };
+}
+pub(crate) use validate;

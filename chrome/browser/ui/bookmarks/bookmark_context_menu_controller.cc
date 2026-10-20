@@ -13,6 +13,7 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -521,9 +522,14 @@ void BookmarkContextMenuController::ExecuteCommand(int id, int event_flags) {
       break;
 
     case IDC_PASTE: {
-      BookmarkUIOperationsHelperMergedSurfaces(bookmark_service_,
-                                               new_nodes_parent_.get())
-          .PasteFromClipboard(GetIndexForNewNodes());
+      auto paste_helper =
+          std::make_unique<BookmarkUIOperationsHelperMergedSurfaces>(
+              bookmark_service_, new_nodes_parent_.get());
+      auto* paste_helper_ptr = paste_helper.get();
+      paste_helper_ptr->PasteFromClipboard(
+          GetIndexForNewNodes(),
+          base::BindOnce(&BookmarkContextMenuController::OnPasteFinished,
+                         weak_factory_.GetWeakPtr(), std::move(paste_helper)));
       break;
     }
 
@@ -585,6 +591,20 @@ bool BookmarkContextMenuController::IsCommandIdChecked(int command_id) const {
 
   DCHECK_EQ(IDC_BOOKMARK_BAR_SHOW_APPS_SHORTCUT, command_id);
   return prefs->GetBoolean(bookmarks::prefs::kShowAppsShortcutInBookmarkBar);
+}
+
+void BookmarkContextMenuController::UpdateCanPaste(base::OnceClosure callback) {
+  BookmarkUIOperationsHelperMergedSurfaces(bookmark_service_,
+                                           new_nodes_parent_.get())
+      .CanPasteFromClipboard(base::BindOnce(
+          [](base::WeakPtr<BookmarkContextMenuController> self,
+             base::OnceClosure callback, bool can_paste) {
+            if (self) {
+              self->can_paste_ = can_paste;
+            }
+            std::move(callback).Run();
+          },
+          weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 bool BookmarkContextMenuController::IsCommandIdEnabled(int command_id) const {
@@ -676,9 +696,7 @@ bool BookmarkContextMenuController::IsCommandIdEnabled(int command_id) const {
              (command_id == IDC_COPY || can_edit);
 
     case IDC_PASTE:
-      return can_edit && BookmarkUIOperationsHelperMergedSurfaces(
-                             bookmark_service_, new_nodes_parent_.get())
-                             .CanPasteFromClipboard();
+      return can_edit && can_paste_;
   }
   return true;
 }
@@ -747,3 +765,6 @@ bool IsSelectionPermanentBookmarkFolder(
   }
   return false;
 }
+
+void BookmarkContextMenuController::OnPasteFinished(
+    std::unique_ptr<BookmarkUIOperationsHelperMergedSurfaces> paste_helper) {}

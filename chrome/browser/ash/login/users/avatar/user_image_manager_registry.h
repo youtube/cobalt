@@ -9,10 +9,16 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "components/user_manager/user_manager.h"
 
 class AccountId;
+class PrefService;
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
 
 namespace user_manager {
 class UserManager;
@@ -32,10 +38,17 @@ class UserImageManagerRegistry : public user_manager::UserManager::Observer {
   static UserImageManagerRegistry* Get();
 
   // Given user_manager's lifetime needs to outlive this instance.
-  explicit UserImageManagerRegistry(user_manager::UserManager* user_manager);
+  // `local_state` must be non-null and must outlive `this`.
+  // `shared_url_loader_factory` may be null in unit tests.
+  UserImageManagerRegistry(
+      PrefService* local_state,
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      user_manager::UserManager* user_manager);
 
   // Constructor to inject a test version of `UserImageLoaderDelegate`.
+  // `local_state` must be non-null and must outlive `this`.
   UserImageManagerRegistry(
+      PrefService* local_state,
       user_manager::UserManager* user_manager,
       std::unique_ptr<UserImageLoaderDelegate> user_image_loader_delegate);
 
@@ -59,6 +72,8 @@ class UserImageManagerRegistry : public user_manager::UserManager::Observer {
   void OnUserProfileCreated(const user_manager::User& user) override;
 
  private:
+  const raw_ref<PrefService> local_state_;
+
   // Owned. Expected to outlive `map_` as it is shared by every
   // `UserImageManagerImpl`.
   const std::unique_ptr<UserImageLoaderDelegate> user_image_loader_delegate_;

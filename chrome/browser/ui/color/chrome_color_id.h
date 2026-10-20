@@ -188,6 +188,7 @@
   E_CPONLY(kColorInfoBarBackground) \
   E_CPONLY(kColorInfoBarButtonIcon) \
   E_CPONLY(kColorInfoBarButtonIconDisabled) \
+  E_CPONLY(kColorInfoBarButtonIconHovered) \
   E_CPONLY(kColorInfoBarContentAreaSeparator) \
   E_CPONLY(kColorInfoBarForeground) \
   /* There is also a kColorInfoBarIcon in /ui/color/color_id.h */ \
@@ -538,6 +539,14 @@
   E_CPONLY(kColorProfileMenuPromoButtonsBackground) \
   /* Profiles colors. */ \
   E_CPONLY(kColorProfilesReauthDialogBorder) \
+  /* Projects Panel colors. */ \
+  E_CPONLY(kColorProjectsPanelBackground) \
+  E_CPONLY(kColorProjectsPanelButtonIcon) \
+  E_CPONLY(kColorProjectsPanelButtonHoverBackground) \
+  E_CPONLY(kColorProjectsPanelListsSeparator) \
+  E_CPONLY(kColorProjectsPanelNoTabGroupsText) \
+  E_CPONLY(kColorProjectsPanelTabGroupsDragPlaceholder) \
+  E_CPONLY(kColorProjectsPanelTabGroupsDropIndicator) \
   /* PWA colors. */ \
   E_CPONLY(kColorPwaBackground) \
   E_CPONLY(kColorPwaMenuButtonIcon) \

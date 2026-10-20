@@ -270,10 +270,15 @@ class MaglevReducer {
     DCHECK(new_nodes_at_end_.empty());
   }
 
-  static enum CheckType GetCheckType(NodeType type) {
-    return NodeTypeIs(type, NodeType::kAnyHeapObject)
-               ? CheckType::kOmitHeapObjectCheck
-               : CheckType::kCheckHeapObject;
+  static enum CheckType GetCheckType(NodeType type, ValueNode* target) {
+    if (NodeTypeIs(type, NodeType::kAnyHeapObject)) {
+      if (target && target->Is<Phi>()) {
+        target->Cast<Phi>()->SetUseRequiresHeapObject();
+      }
+      return CheckType::kOmitHeapObjectCheck;
+    } else {
+      return CheckType::kCheckHeapObject;
+    }
   }
 
   // Add a new node with a dynamic set of inputs which are initialized by the

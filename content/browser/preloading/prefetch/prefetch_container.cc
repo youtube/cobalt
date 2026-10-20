@@ -18,6 +18,7 @@
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/loader/navigation_url_loader_impl.h"
+#include "content/browser/preloading/prefetch/assert_prefetch_container_observer.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/prefetch/prefetch_cookie_listener.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
@@ -261,26 +262,28 @@ std::unique_ptr<PrefetchContainer> PrefetchContainer::CreateForTesting(
 
 PrefetchContainer::PrefetchContainer(
     base::PassKey<PrefetchContainer>,
-    std::unique_ptr<const PrefetchRequest> request)
-    : request_(std::move(request)),
+    std::unique_ptr<const PrefetchRequest> prefetch_request)
+    : request_(std::move(prefetch_request)),
       container_id_for_testing_(base::UnguessableToken::Create().ToString()) {
   CHECK(request_);
 
-  TRACE_EVENT_END("loading", request_->preload_pipeline_info().GetTrack());
+  TRACE_EVENT_END("loading", request().preload_pipeline_info().GetTrack());
   TRACE_EVENT_BEGIN("loading", "PrefetchContainer::LoadState::kNotStarted",
-                    request_->preload_pipeline_info().GetTrack());
+                    request().preload_pipeline_info().GetTrack());
 
   is_likely_ahead_of_prerender_ =
-      CalculateIsLikelyAheadOfPrerender(request_->preload_pipeline_info());
+      CalculateIsLikelyAheadOfPrerender(request().preload_pipeline_info());
 
   AddRedirectHop(GetURL());
 
   // Disallow prefetching ServiceWorker-controlled responses for isolated
   // network contexts.
-  if (!features::IsPrefetchServiceWorkerEnabled(request_->browser_context()) ||
-      IsIsolatedNetworkContextRequiredForCurrentPrefetch()) {
+  if (!features::IsPrefetchServiceWorkerEnabled(request().browser_context()) ||
+      request().IsIsolatedNetworkContextRequired(GetURL())) {
     service_worker_state_ = PrefetchServiceWorkerState::kDisallowed;
   }
+
+  assert_observer_ = std::make_unique<AssertPrefetchContainerObserver>(*this);
 }
 
 PrefetchContainer::~PrefetchContainer() {
@@ -338,6 +341,10 @@ PrefetchContainer::~PrefetchContainer() {
   }
 
   TRACE_EVENT_END("loading", request_->preload_pipeline_info().GetTrack());
+
+  // Destroy `assert_observer_` before `WeakPtr`s are invalidated to allow it
+  // call `RemoveObserver()`.
+  assert_observer_.reset();
 }
 
 void PrefetchContainer::OnWillBeDestroyed() {
@@ -896,8 +903,7 @@ void PrefetchContainer::UpdateResourceRequest(
 
 void PrefetchContainer::AddRedirectHop(const GURL& url) {
   redirect_chain_.push_back(std::make_unique<PrefetchSingleRedirectHop>(
-      *this, url, request().IsCrossSiteRequest(url::Origin::Create(url)),
-      request().preload_pipeline_info().GetFlow()));
+      *this, url, request().preload_pipeline_info().GetFlow()));
 }
 
 void PrefetchContainer::MarkCrossSiteContaminated() {

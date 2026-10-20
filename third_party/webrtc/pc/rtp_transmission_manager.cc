@@ -349,7 +349,9 @@ RtpTransmissionManager::GetSendersInternal() const {
     if (IsUnifiedPlan() && transceiver->internal()->stopped())
       continue;
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     auto senders = transceiver->internal()->senders();
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
     all_senders.insert(all_senders.end(), senders.begin(), senders.end());
   }
   return all_senders;
@@ -364,7 +366,9 @@ RtpTransmissionManager::GetReceiversInternal() const {
     if (IsUnifiedPlan() && transceiver->internal()->stopped())
       continue;
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     auto receivers = transceiver->internal()->receivers();
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
     all_receivers.insert(all_receivers.end(), receivers.begin(),
                          receivers.end());
   }
@@ -656,11 +660,13 @@ RtpTransmissionManager::FindSenderForTrack(
     MediaStreamTrackInterface* track) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   for (const auto& transceiver : transceivers_.List()) {
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     for (auto sender : transceiver->internal()->senders()) {
       if (sender->track() == track) {
         return sender;
       }
     }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
   }
   return nullptr;
 }
@@ -669,16 +675,22 @@ scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>
 RtpTransmissionManager::FindSenderById(absl::string_view sender_id) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   for (const auto& transceiver : transceivers_.List()) {
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
+    // Under Unified Plan, senders() always has exactly one entry,
+    // and one can use sender() not senders().
+    // Since this function is used both in Plan B and Unified, this is
+    // left as-is for now.
     for (auto sender : transceiver->internal()->senders()) {
       if (sender->id() == sender_id) {
         return sender;
       }
     }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END();
   }
   return nullptr;
 }
 
-scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
+PLAN_B_ONLY scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
 RtpTransmissionManager::FindReceiverById(absl::string_view receiver_id) const {
   RTC_DCHECK_RUN_ON(signaling_thread());
   for (const auto& transceiver : transceivers_.List()) {

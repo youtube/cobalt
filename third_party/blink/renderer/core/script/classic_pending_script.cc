@@ -76,8 +76,8 @@ ClassicPendingScript* ClassicPendingScript::Fetch(
 
   ClassicPendingScript* pending_script =
       MakeGarbageCollected<ClassicPendingScript>(
-          element, TextPosition::MinimumPosition(), KURL(), KURL(), String(),
-          ScriptSourceLocationType::kExternalFile, options,
+          element, TextPosition::MinimumPosition(), NullUrl(), NullUrl(),
+          String(), ScriptSourceLocationType::kExternalFile, options,
           /*is_external=*/true, task_state);
 
   // [Intervention]
@@ -628,7 +628,7 @@ bool ClassicPendingScript::WasCanceled() const {
 
 KURL ClassicPendingScript::UrlForTracing() const {
   if (!is_external_ || !GetResource()) {
-    return NullURL();
+    return NullUrl();
   }
 
   return GetResource()->Url();

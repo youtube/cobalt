@@ -43,6 +43,12 @@ GetTipsNotificationsFeatureTypeMap() {
           {TipsNotificationsFeatureType::kCreateTabGroups,
            {IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_TITLE,
             IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_SUBTITLE}},
+          {TipsNotificationsFeatureType::kCustomizeMVT,
+           {IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_TITLE,
+            IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_SUBTITLE}},
+          {TipsNotificationsFeatureType::kRecentTabs,
+           {IDS_TIPS_NOTIFICATIONS_RECENT_TABS_TITLE,
+            IDS_TIPS_NOTIFICATIONS_RECENT_TABS_SUBTITLE}},
       });
   return *kTipsNotificationsFeatureTypeMap;
 }
@@ -86,7 +92,11 @@ std::string GetFeatureTypePref(TipsNotificationsFeatureType feature_type) {
     case TipsNotificationsFeatureType::kSignin:
       return prefs::kAndroidTipNotificationShownSignin;
     case TipsNotificationsFeatureType::kCreateTabGroups:
-      return prefs::kAndroidTipNotificationShownCreateTabGroup;
+      return prefs::kAndroidTipNotificationShownCreateTabGroups;
+    case TipsNotificationsFeatureType::kCustomizeMVT:
+      return prefs::kAndroidTipNotificationShownCustomizeMVT;
+    case TipsNotificationsFeatureType::kRecentTabs:
+      return prefs::kAndroidTipNotificationShownRecentTabs;
     default:
       NOTREACHED();
   }

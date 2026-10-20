@@ -61,6 +61,7 @@ android_library("chrome_test_java_helper") {
     "//base:base_java_test_support",
     "//base:base_java_test_support_uncommon",
     "//base:content_uri_utils_java",
+    "//base:holder_java",
     "//base:service_loader_java",
     "//base/test:public_transit_java",
     "//base/test:test_support_java",
@@ -234,6 +235,7 @@ android_library("chrome_test_java_helper") {
     "//chrome/test/android/test_trusted_web_activity:test_trusted_web_activity_java",
     "//components/android_autofill/browser:features_java",
     "//components/android_autofill/browser/test_support:java",
+    "//components/autofill/android:autofill_ai_test_utils_java",
     "//components/autofill/android:autofill_features_java",
     "//components/autofill/android:autofill_java",
     "//components/autofill/android:payments_interfaces_java",
@@ -454,6 +456,18 @@ android_library("chrome_test_java_helper") {
   }
 }
 
+android_library("chrome_test_java_org.chromium.chrome.browser.actor") {
+  resources_package = "org.chromium.chrome.test"
+
+  sources = [ "src/org/chromium/chrome/browser/actor/ActorOverlayPTTest.java" ]
+
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/actor/android:java",
+    "//chrome/test/android:chrome_java_transit",
+  ]
+}
+
 # Partition tests into one target per-package to keep incremental build times down.
 android_library("chrome_test_java_org.chromium.chrome.browser") {
   resources_package = "org.chromium.chrome.test"
@@ -533,6 +547,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.app") {
     "src/org/chromium/chrome/browser/app/tabmodel/ArchivedTabModelOrchestratorTest.java",
     "src/org/chromium/chrome/browser/app/tabmodel/ArchivedTabsTest.java",
     "src/org/chromium/chrome/browser/app/tabmodel/ChromeNextTabPolicySupplierTest.java",
+    "src/org/chromium/chrome/browser/app/tabmodel/PersistentStoreCleanerTest.java",
   ]
 
   deps = [
@@ -1113,6 +1128,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
     "src/org/chromium/chrome/browser/permissions/NotificationTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionClapperLoudTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionClapperQuietTest.java",
+    "src/org/chromium/chrome/browser/permissions/PermissionGestureGatedTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionNavigationTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionPromptRenderTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionUpdateMessageTest.java",
@@ -1493,6 +1509,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.toolbar") {
     "src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveButtonActionMenuRenderTest.java",
     "src/org/chromium/chrome/browser/toolbar/adaptive/OptionalNewTabButtonControllerPhoneTest.java",
     "src/org/chromium/chrome/browser/toolbar/adaptive/OptionalNewTabButtonControllerTabletTest.java",
+    "src/org/chromium/chrome/browser/toolbar/signin_button/SigninButtonCoordinatorTest.java",
     "src/org/chromium/chrome/browser/toolbar/top/BrandColorTest.java",
     "src/org/chromium/chrome/browser/toolbar/top/NavigationPopupTest.java",
     "src/org/chromium/chrome/browser/toolbar/top/TabSwitcherActionMenuBatchedPTTest.java",

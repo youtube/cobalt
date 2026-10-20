@@ -644,6 +644,13 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
+void FeedbackNexus::ConfigureHomomorphic(
+    DirectHandle<WeakHomomorphicFixedArray> maps,
+    const MaybeObjectDirectHandle& handler) {
+  DisallowGarbageCollection no_gc;
+  SetFeedback(*maps, UPDATE_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
+}
+
 void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegaDOMSentinel();
@@ -728,6 +735,9 @@ InlineCacheState FeedbackNexus::ic_state() const {
           // Determine state purely by our structure, don't check if the maps
           // are cleared.
           return InlineCacheState::POLYMORPHIC;
+        }
+        if (IsWeakHomomorphicFixedArray(heap_object)) {
+          return InlineCacheState::HOMOMORPHIC;
         }
         if (IsName(heap_object)) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
@@ -864,10 +874,12 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
     LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
     // LoadField.
     if (handler_kind == LoadHandler::Kind::kField) {
-      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      int storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
       bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+      return GetLoadICHandlerForStorageOffset(storage_offset, is_inobject,
+                                              is_double);
     }
   } else {
     Tagged<HeapObject> heap_object;
@@ -1172,6 +1184,20 @@ MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
   }
 
   return MaybeObjectHandle();
+}
+
+MaybeObjectDirectHandle FeedbackNexus::ExtractHomomorphicHandler() {
+  DCHECK_EQ(ic_state(), InlineCacheState::HOMOMORPHIC);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  Tagged<MaybeObject> maybe_handler = pair.second;
+  if (!maybe_handler.IsCleared()) {
+    MaybeObjectDirectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectDirectHandle();
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,

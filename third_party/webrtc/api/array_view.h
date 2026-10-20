@@ -100,11 +100,11 @@ class ArrayViewBase {
   static_assert(Size > 0, "ArrayView size must be variable or non-negative");
 
  public:
-  ArrayViewBase(T* data, size_t /* size */) : data_(data) {}
+  constexpr ArrayViewBase(T* data, size_t /* size */) : data_(data) {}
 
   static constexpr size_t size() { return Size; }
   static constexpr bool empty() { return false; }
-  T* data() const { return data_; }
+  constexpr T* data() const { return data_; }
 
  protected:
   static constexpr bool fixed_size() { return true; }
@@ -117,11 +117,11 @@ class ArrayViewBase {
 template <typename T>
 class ArrayViewBase<T, 0> {
  public:
-  explicit ArrayViewBase(T* /* data */, size_t /* size */) {}
+  explicit constexpr ArrayViewBase(T* /* data */, size_t /* size */) {}
 
   static constexpr size_t size() { return 0; }
   static constexpr bool empty() { return true; }
-  T* data() const { return nullptr; }
+  constexpr T* data() const { return nullptr; }
 
  protected:
   static constexpr bool fixed_size() { return true; }
@@ -131,12 +131,12 @@ class ArrayViewBase<T, 0> {
 template <typename T>
 class ArrayViewBase<T, array_view_internal::kArrayViewVarSize> {
  public:
-  ArrayViewBase(T* data, size_t size)
+  constexpr ArrayViewBase(T* data, size_t size)
       : data_(size == 0 ? nullptr : data), size_(size) {}
 
   constexpr size_t size() const { return size_; }
   constexpr bool empty() const { return size_ == 0; }
-  T* data() const { return data_; }
+  constexpr T* data() const { return data_; }
 
  protected:
   static constexpr bool fixed_size() { return false; }
@@ -168,7 +168,7 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
   // Construct an ArrayView from a pointer and a length.
   template <typename U>
   explicit(Size != array_view_internal::kArrayViewVarSize)  //
-      ArrayView(U* data, size_t size)
+      constexpr ArrayView(U* data, size_t size)
       : array_view_internal::ArrayViewBase<T, Size>::ArrayViewBase(data, size) {
     RTC_DCHECK_EQ(size == 0 ? nullptr : data, this->data());
     RTC_DCHECK_EQ(size, this->size());
@@ -178,7 +178,7 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
 
   // Construct an empty ArrayView. Note that fixed-size ArrayViews of size > 0
   // cannot be empty.
-  ArrayView() : ArrayView(static_cast<T*>(nullptr), 0) {}
+  constexpr ArrayView() : ArrayView(static_cast<T*>(nullptr), 0) {}
   ABSL_DEPRECATE_AND_INLINE()
   ArrayView(std::nullptr_t)  // NOLINT
       : ArrayView() {}
@@ -276,7 +276,7 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
   // Indexing and iteration. These allow mutation even if the ArrayView is
   // const, because the ArrayView doesn't own the array. (To prevent mutation,
   // use a const element type.)
-  T& operator[](size_t idx) const {
+  [[nodiscard]] T& operator[](size_t idx) const {
     // RTC_HARDENING_ASSERT is used because this is tunable at compile time
     // to be on or off in production, depending on the choices of the
     // embedder.
@@ -331,8 +331,9 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
     }
   }
 
-  constexpr ArrayView<T> subspan(size_t offset,
-                                 size_t count = std::dynamic_extent) const {
+  [[nodiscard]] constexpr ArrayView<T> subspan(
+      size_t offset,
+      size_t count = std::dynamic_extent) const {
     ABSL_HARDENING_ASSERT(offset <= this->size());
     if (count == std::dynamic_extent) {
       count = this->size() - offset;
@@ -380,7 +381,8 @@ inline ArrayView<T> MakeArrayView(T* data, size_t size) {
 // Template arguments order is (U, T, Size) to allow deduction of the template
 // arguments in client calls: reinterpret_array_view<target_type>(array_view).
 template <typename U, typename T, std::ptrdiff_t Size>
-inline ArrayView<U, Size> reinterpret_array_view(ArrayView<T, Size> view) {
+[[deprecated]] ArrayView<U, Size> reinterpret_array_view(
+    ArrayView<T, Size> view) {
   static_assert(sizeof(U) == sizeof(T) && alignof(U) == alignof(T),
                 "ArrayView reinterpret_cast is only supported for casting "
                 "between views that represent the same chunk of memory.");

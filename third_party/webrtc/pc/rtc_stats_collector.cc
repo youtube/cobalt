@@ -75,6 +75,7 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
@@ -1733,7 +1734,9 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
     const TrackMediaInfoMap& track_media_info_map =
         *transceiver_stats_info.track_media_info_map;
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     for (const auto& sender : refs.transceiver->senders()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       const auto& sender_internal = sender->internal();
       const auto& track = sender_internal->track();
       if (!track)
@@ -1746,7 +1749,7 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
       // levels are moved to the corresponding audio track/source object), don't
       // create separate media source stats objects on a per-attachment basis.
       std::unique_ptr<RTCMediaSourceStats> media_source_stats;
-      if (track->kind() == MediaStreamTrackInterface::kAudioKind) {
+      if (sender_internal->media_type() == MediaType::AUDIO) {
         AudioTrackInterface* audio_track =
             static_cast<AudioTrackInterface*>(track.get());
         auto audio_source_stats = std::make_unique<RTCAudioSourceStats>(
@@ -2293,6 +2296,7 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
     TransceiverReferences refs{.transceiver =
                                    scoped_refptr<RtpTransceiver>(transceiver)};
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     for (const auto& sender : transceiver->senders()) {
       stats.sender_infos.push_back(
           {.ssrc = sender->ssrc(),
@@ -2307,6 +2311,7 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
       refs.receivers.push_back(
           scoped_refptr<RtpReceiverInternal>(receiver->internal()));
     }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
     stats.has_receivers = !refs.receivers.empty();
 
     if (stats.has_channel) {

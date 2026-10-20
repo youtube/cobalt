@@ -27,6 +27,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -57,6 +58,7 @@
 #include "components/contextual_tasks/public/prefs.h"
 #include "components/contextual_tasks/public/utils.h"
 #include "components/lens/lens_features.h"
+#include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/omnibox/common/logger.h"
@@ -203,7 +205,9 @@ void AddZeroStateStrings(content::WebUIDataSource* source, Profile* profile) {
 }
 
 ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui),
+    : ui::MojoWebUIController(web_ui,
+                              /*enable_chrome_send=*/false,
+                              /*enable_chrome_histograms=*/true),
       ui_service_(contextual_tasks::ContextualTasksUiServiceFactory::
                       GetForBrowserContext(
                           web_ui->GetWebContents()->GetBrowserContext())),
@@ -378,6 +382,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "forceBasicModeIfOpeningThreadHistory",
       contextual_tasks::ShouldForceBasicModeIfOpeningThreadHistory());
+  source->AddBoolean("enableBasicMode",
+                     contextual_tasks::GetIsBasicModeEnabled());
   source->AddBoolean("enableBasicModeZOrder",
                      contextual_tasks::ShouldEnableBasicModeZOrder());
   source->AddBoolean(
@@ -412,9 +418,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                        ","));
 
   // Expand button experiment state.
-  source->AddBoolean("expandButtonEnabled",
-                     base::FeatureList::IsEnabled(
-                         contextual_tasks::kContextualTasksExpandButton));
+  source->AddBoolean(
+      "expandButtonEnabled",
+      contextual_tasks::GetExpandButtonOption() ==
+          contextual_tasks::ExpandButtonOption::kSidePanelExpandButton);
 
   // Set up chrome://contextual-tasks/internals debug UI.
   source->AddResourcePath(
@@ -446,7 +453,8 @@ void ContextualTasksUI::CreatePageHandler(
   if (auto* browser = GetBrowser()) {
     if (auto* controller = LensSearchController::FromTabWebContents(
             browser->GetTabStripModel()->GetActiveWebContents())) {
-      OnLensOverlayStateChanged(controller->IsShowingUI());
+      OnLensOverlayStateChanged(controller->IsShowingUI(),
+                                controller->invocation_source());
     }
   }
 }
@@ -470,14 +478,9 @@ void ContextualTasksUI::OnTaskUpdated(
 }
 
 GURL ContextualTasksUI::GetAimUrl() {
-  std::string aim_url_str;
-  if (net::GetValueForKeyInQuery(
-          web_ui()->GetWebContents()->GetLastCommittedURL(), "aim_url",
-          &aim_url_str)) {
-    return GURL(aim_url_str);
-  } else {
-    return GURL();
-  }
+  return contextual_tasks::ContextualTasksUiService::
+      GetAimUrlFromContextualTasksUrl(
+          web_ui()->GetWebContents()->GetLastCommittedURL());
 }
 
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
@@ -541,6 +544,11 @@ void ContextualTasksUI::SetIsAiPage(bool is_ai_page) {
     }
   }
   was_ai_page_ = is_ai_page;
+
+  auto* panel_controller = GetPanelController();
+  if (panel_controller) {
+    panel_controller->NotifyExpandToFullTabStateChanged();
+  }
 }
 
 const GURL& ContextualTasksUI::GetInnerFrameUrl() const {
@@ -589,6 +597,11 @@ bool ContextualTasksUIConfig::IsWebUIEnabled(
   // Check if the user should have landed on the WebUI via an entry point. If
   // not, refuse to load the WebUI to prevent a broken experience.
   return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
+}
+
+bool ContextualTasksUIConfig::ShouldCrashOnJavascriptErrorInDevelopmentBuild()
+    const {
+  return true;
 }
 
 std::unique_ptr<content::WebUIController>
@@ -684,6 +697,17 @@ ContextualTasksUI::GetInputStateModel() {
       web_contents);
 
   return helper->GetInputStateModelForTask(task_id_.value());
+}
+
+void ContextualTasksUI::MoveTaskUiToNewTab() {
+  auto* browser = GetBrowser();
+  if (!task_id_.has_value()) {
+    LOG(ERROR) << "Attempted to open in new tab with no valid task ID.";
+    return;
+  }
+
+  ui_service_->MoveTaskUiToNewTab(task_id_.value(), browser,
+                                  GetInnerFrameUrl());
 }
 
 void ContextualTasksUI::PostMessageToWebview(
@@ -797,10 +821,16 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
   PostMessageToWebview(message);
 }
 
-void ContextualTasksUI::OnLensOverlayStateChanged(bool is_showing) {
+void ContextualTasksUI::OnLensOverlayStateChanged(
+    bool is_showing,
+    std::optional<lens::LensOverlayInvocationSource> invocation_source) {
   is_lens_overlay_showing_ = is_showing;
   if (page_) {
-    page_->OnLensOverlayStateChanged(is_showing);
+    bool maybe_show_overlay_hint_text =
+        is_showing && invocation_source.has_value() &&
+        invocation_source.value() ==
+            lens::LensOverlayInvocationSource::kContextualTasksComposebox;
+    page_->OnLensOverlayStateChanged(is_showing, maybe_show_overlay_hint_text);
   }
 }
 
@@ -874,14 +904,8 @@ void ContextualTasksUI::OnPageContextEligibilityChecked(
   if (is_page_context_eligible) {
     page_->HideErrorPage();
   } else {
-    page_->ShowErrorPage();
-    base::UmaHistogramEnumeration(
-        base::StrCat({"ContextualSearch.ErrorPageShown", ".",
-                      contextual_search::ContextualSearchMetricsRecorder::
-                          ContextualSearchSourceToString(
-                              contextual_search::ContextualSearchSource::
-                                  kContextualTasks)}),
-        contextual_search::ContextualSearchErrorPage::kPageContextNotEligible);
+    contextual_tasks::ShowAndRecordErrorPage(
+        page_, contextual_search::ContextualSearchSource::kContextualTasks);
   }
 }
 
@@ -909,6 +933,10 @@ bool ContextualTasksUI::IsActiveTabContextSuggestionShowing() const {
 void ContextualTasksUI::PushTaskDetailsToPage() {
   page_->SetTaskDetails(task_id_.value_or(base::Uuid()),
                         thread_id_.value_or(""), thread_turn_id_.value_or(""));
+}
+
+bool ContextualTasksUI::CanExpandToFullTab() const {
+  return was_ai_page_;
 }
 
 mojo::Remote<contextual_tasks::mojom::Page>&
@@ -966,9 +994,12 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // accordingly.
   const bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
 
-  if (!base::FeatureList::IsEnabled(
-          contextual_tasks::kEnableNotifyZeroStateRenderedCapability) ||
-      !navigation_handle->IsSameDocument()) {
+  // Check if the zero state status has changed since the last navigation.
+  const bool has_zero_state_changed =
+      is_zero_state !=
+      ContextualTasksUI::IsZeroState(last_committed_url_, ui_service_);
+
+  if (!navigation_handle->IsSameDocument() || has_zero_state_changed) {
     task_info_delegate_->OnZeroStateChange(is_zero_state);
   }
 

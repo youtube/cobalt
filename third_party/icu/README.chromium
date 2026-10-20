@@ -5,6 +5,7 @@ CPEPrefix: cpe:/a:icu-project:international_components_for_unicode:77.1
 License: MIT
 License File: LICENSE
 Security Critical: yes
+Update Mechanism: Manual
 Shipped: yes
 
 Description:
@@ -193,8 +194,9 @@ D. Local Modifications
     upstream bug: https://unicode-org.atlassian.net/browse/ICU-10888
 
 3. Timezone data update
-  Run scripts/update_tz.sh to grab the latest version of the
-  following timezone data files and put them in source/data/misc
+  Run scripts/update_tz.sh
+  to grab the latest version of the following timezone data files
+  and put them in source/data/misc
 
      metaZones.txt
      timezoneTypes.txt
@@ -204,9 +206,11 @@ D. Local Modifications
   - Delete the line containing `Factory{"Etc/Unknown"}` from
     timezoneTypes.txt before regenerating data
     bug: https://crbug.com/381620359
+    (scripts/update_tz.sh offers to perform this patch automatically)
 
-  As of Mar 18, 2025, the latest version is 2025a
+  As of Feb 25, 2026, the latest version is 2025c
   and the above files are available at the ICU github repos.
+  Compare: https://lists.iana.org/hyperkitty/list/tz-announce@iana.org/thread/TAGXKYLMAQRZRFTERQ33CEKOW7KRJVAK/
 
 4. Build-related changes
 

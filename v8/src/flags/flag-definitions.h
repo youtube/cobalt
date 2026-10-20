@@ -686,10 +686,9 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    maglev_truncated_int32_phis,
-    "Enable truncated to int32 representation in the phi selector")
-DEFINE_WEAK_IMPLICATION(turbolev_future, maglev_truncated_int32_phis)
+DEFINE_BOOL(turbolev_truncated_int32_phis, false,
+            "Enable truncated to int32 representation in the phi selector")
+DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_truncated_int32_phis)
 
 DEFINE_EXPERIMENTAL_FEATURE(maglev_range_analysis,
                             "Enable Maglev range value analysis pass")
@@ -1283,7 +1282,8 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
 DEFINE_IMPLICATION(shared_strings, shared_heap)
-DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
+DEFINE_EXPERIMENTAL_FEATURE(shared_string_table,
+                            "internalize strings into shared table")
 DEFINE_IMPLICATION(shared_string_table, shared_strings)
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
@@ -2926,6 +2926,7 @@ DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
 DEFINE_BOOL(test_small_max_function_context_stub_size, false,
             "enable testing the function context size overflow path "
             "by making the maximum size smaller")
+DEFINE_BOOL(fast_api_indexof, false, "enable using indexOf Api callbacks")
 
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 DEFINE_NEG_NEG_IMPLICATION(inline_new, turbo_allocation_folding)
@@ -3154,6 +3155,11 @@ DEFINE_IMPLICATION(sparkplug_plus, short_builtin_calls)
 DEFINE_BOOL(super_ic, true, "use an IC for super property loads")
 
 DEFINE_EXPERIMENTAL_FEATURE(mega_dom_ic, "use MegaDOM IC state for API objects")
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    homomorphic_ic,
+    "use Homomorphic IC state for same-handler highly polymorphic ICs")
+DEFINE_INT(homomorphic_ic_count, 8, "local cache size in homomorphic ICs")
 
 // objects.cc
 DEFINE_BOOL(trace_prototype_users, false,
@@ -4068,9 +4074,14 @@ DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")
 #endif
 
-DEFINE_BOOL(track_array_buffer_views, true,
-            "Track TypedArrays and DataViews attached to array buffers and "
-            "update them in-place when the buffer detaches")
+DEFINE_EXPERIMENTAL_FEATURE(
+    track_array_buffer_views,
+    "Track TypedArrays and DataViews attached to array buffers and "
+    "update them in-place when the buffer detaches")
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    superspreading,
+    "Allow arbitrary length spread arguments on supported builtins")
 
 DEFINE_BOOL(is_standalone_d8_shell, false,
             "Tells V8 it's running as part of the d8. This flag should not be "

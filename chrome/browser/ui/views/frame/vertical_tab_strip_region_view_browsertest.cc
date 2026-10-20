@@ -125,9 +125,6 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeAreaBounds) {
   EXPECT_EQ(region_view()->bounds().height(),
             region_view()->resize_area_for_testing()->bounds().height());
   EXPECT_EQ(0, region_view()->resize_area_for_testing()->bounds().y());
-  // Verify resize area width.
-  EXPECT_EQ(VerticalTabStripRegionView::kResizeAreaWidth,
-            region_view()->resize_area_for_testing()->bounds().width());
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
@@ -211,7 +208,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
 }
 
 // TODO(https://crbug.com/481074869): Re-enable this test
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(IS_WIN)
 #define MAYBE_ResizeViewBigger DISABLED_ResizeViewBigger
 #else
 #define MAYBE_ResizeViewBigger ResizeViewBigger

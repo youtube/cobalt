@@ -29,7 +29,7 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
   return JSSegmenter::GetGranularityString(isolate, granularity());
 }
 
-// ecma402 #sec-createsegmentiterator
+// https://tc39.es/ecma402/#sec-createsegmentiterator
 MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
     Isolate* isolate, DirectHandle<String> input_string,
     const icu::BreakIterator& incoming_break_iterator,
@@ -65,7 +65,7 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
   return segment_iterator;
 }
 
-// ecma402 #sec-%segmentiteratorprototype%.next
+// https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next
 MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, DirectHandle<JSSegmentIterator> segment_iterator) {
   // Sketches of ideas for future performance improvements, roughly in order
@@ -92,9 +92,12 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
   STACK_CHECK(isolate, MaybeDirectHandle<JSReceiver>());
 
   Factory* factory = isolate->factory();
-  IcuBreakIteratorWithText* const iterator_with_text =
-      segment_iterator->icu_iterator_with_text()->raw();
+  // Make sure to keep the wrapper alive throughout the operations below in case
+  // they allocate on the heap.
+  std::shared_ptr<IcuBreakIteratorWithText> iterator_with_text =
+      segment_iterator->icu_iterator_with_text()->get();
   icu::BreakIterator* const icu_break_iterator = iterator_with_text->iterator();
+
   // 5. Let startIndex be iterator.[[IteratedStringNextSegmentCodeUnitIndex]].
   int32_t start_index = icu_break_iterator->current();
   // 6. Let endIndex be ! FindBoundary(segmenter, string, startIndex, after).

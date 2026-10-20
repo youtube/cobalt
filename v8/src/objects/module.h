@@ -29,7 +29,7 @@ class ZoneForwardList;
 
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
-// https://tc39.github.io/ecma262/#sec-abstract-module-records
+// https://tc39.es/ecma262/#sec-abstract-module-records
 class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
   DECL_VERIFIER(Module)
@@ -156,9 +156,10 @@ class JSModuleNamespace
       DirectHandle<Object> key, PropertyDescriptor* desc,
       Maybe<ShouldThrow> should_throw);
 
-  // In-object fields.
+  // In-object fields. These indices represent both the in-object field index,
+  // as well as the descriptor index.
   enum {
-    kToStringTagFieldIndex,
+    kToStringTagIndex,
     kInObjectFieldCount,
   };
 
@@ -175,12 +176,6 @@ class JSDeferredModuleNamespace
                                                       JSModuleNamespace> {
  public:
   DECL_PRINTER(JSDeferredModuleNamespace)
-
-  // In-object fields.
-  enum {
-    kToStringTagFieldIndex,
-    kInObjectFieldCount,
-  };
 
   static void EvaluateModuleSync(
       Isolate* isolate, DirectHandle<JSDeferredModuleNamespace> holder);

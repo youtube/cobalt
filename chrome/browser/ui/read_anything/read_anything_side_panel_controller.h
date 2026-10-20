@@ -15,8 +15,8 @@
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
 #include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
 #include "chrome/browser/ui/views/page_action/page_action_observer.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -68,7 +68,8 @@ class ReadAnythingSidePanelController : public SidePanelEntryObserver,
  public:
   using Observer = ReadAnythingLifecycleObserver;
   ReadAnythingSidePanelController(tabs::TabInterface* tab,
-                                  SidePanelRegistry* side_panel_registry);
+                                  SidePanelRegistry* side_panel_registry,
+                                  content::WebContents* web_contents);
   ReadAnythingSidePanelController(const ReadAnythingSidePanelController&) =
       delete;
   ReadAnythingSidePanelController& operator=(
@@ -77,6 +78,9 @@ class ReadAnythingSidePanelController : public SidePanelEntryObserver,
 
   // TODO(https://crbug.com/347770670): remove this.
   void ResetForTabDiscard();
+
+  // Removes the ReadAnythingControllerGlue from the web contents.
+  void RemoveReadAnythingControllerGlue();
 
   void AddPageHandlerAsObserver(
       base::WeakPtr<ReadAnythingUntrustedPageHandler> page_handler);

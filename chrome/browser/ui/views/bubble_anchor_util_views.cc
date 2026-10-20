@@ -5,13 +5,16 @@
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 
 #include "build/build_config.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/bubble_anchor_util.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/picture_in_picture_browser_frame_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "components/content_settings/core/common/features.h"
+#include "ui/base/interaction/element_highlighter.h"
 #include "ui/views/bubble/bubble_border.h"
 
 // This file contains the bubble_anchor_util implementation for a Views
@@ -36,12 +39,12 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(Browser* browser,
         permission_dashboard_view->GetVisible()) {
       if (permission_dashboard_view->GetIndicatorChip()->GetVisible()) {
         return {permission_dashboard_view->GetIndicatorChip(),
-                permission_dashboard_view->GetIndicatorChip(),
+                PermissionChipView::kIndicatorChipElementId,
                 views::BubbleBorder::TOP_LEFT};
       }
 
       return {permission_dashboard_view->GetRequestChip(),
-              permission_dashboard_view->GetRequestChip(),
+              PermissionChipView::kPermissionRequestChipElementId,
               views::BubbleBorder::TOP_LEFT};
     }
   } else {
@@ -52,7 +55,7 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(Browser* browser,
   }
 
   if (anchor == Anchor::kLocationBar && location_bar_view->IsDrawn()) {
-    return {location_bar_view, location_bar_view->location_icon_view(),
+    return {location_bar_view, kLocationIconElementId,
             views::BubbleBorder::TOP_LEFT};
   }
 
@@ -60,14 +63,13 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(Browser* browser,
       browser_view->GetIsPictureInPictureType()) {
     auto* frame_view = static_cast<PictureInPictureBrowserFrameView*>(
         browser_view->browser_widget()->GetFrameView());
-    return {frame_view->GetLocationIconView(),
-            frame_view->GetLocationIconView(), views::BubbleBorder::TOP_LEFT};
+    return {frame_view->GetLocationIconView(), kLocationIconElementId,
+            views::BubbleBorder::TOP_LEFT};
   }
 
   if (anchor == Anchor::kCustomTabBar &&
       browser_view->toolbar()->custom_tab_bar()) {
-    return {browser_view->toolbar()->custom_tab_bar(),
-            browser_view->toolbar()->custom_tab_bar()->location_icon_view(),
+    return {browser_view->toolbar()->custom_tab_bar(), kLocationIconElementId,
             views::BubbleBorder::TOP_LEFT};
   }
 
@@ -85,7 +87,8 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(Browser* browser,
     return {};
   }
 
-  return {app_menu_button, app_menu_button, views::BubbleBorder::TOP_RIGHT};
+  return {app_menu_button, kToolbarAppMenuButtonElementId,
+          views::BubbleBorder::TOP_RIGHT};
 }
 
 AnchorConfiguration GetPermissionPromptBubbleAnchorConfiguration(
@@ -96,7 +99,7 @@ AnchorConfiguration GetPermissionPromptBubbleAnchorConfiguration(
           ->GetChipController()
           ->IsPermissionPromptChipVisible()) {
     return {browser_view->GetLocationBar()->GetAnchorOrNull(),
-            browser_view->GetLocationBar()->GetChipController()->chip(),
+            PermissionChipView::kPermissionRequestChipElementId,
             views::BubbleBorder::TOP_LEFT};
   }
   return GetPageInfoAnchorConfiguration(browser);
@@ -122,6 +125,19 @@ gfx::Rect GetPageInfoAnchorRect(Browser* browser) {
   gfx::Point browser_view_origin = browser_view->GetBoundsInScreen().origin();
   browser_view_origin += gfx::Vector2d(x_within_browser_view, 0);
   return gfx::Rect(browser_view_origin, gfx::Size());
+}
+
+// Returns true if the given anchor can be used as a highlight.
+bool IsHighlightable(views::BubbleAnchor anchor) {
+  if (auto* view_anchor = std::get_if<views::View*>(&anchor)) {
+    return views::Button::AsButton(*view_anchor);
+  } else if (auto* element_anchor = std::get_if<ui::TrackedElement*>(&anchor)) {
+    return ui::ElementHighlighter::GetElementHighlighter()->CanBeHighlighted(
+        *element_anchor);
+  } else {
+    // nullptr isn't highlightable.
+    return false;
+  }
 }
 
 }  // namespace bubble_anchor_util

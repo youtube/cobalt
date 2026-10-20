@@ -115,25 +115,35 @@ class GraphicsDriverUniforms
         mDirtyBits.set(DIRTY_BIT_DEPTH_RANGE);
     }
 
-    void updateRenderArea(int width, int height)
+    bool updateRenderArea(int width, int height)
     {
         static_assert(gl::IMPLEMENTATION_MAX_FRAMEBUFFER_SIZE <= 0xFFFF,
                       "Not enough bits for render area");
         static_assert(gl::IMPLEMENTATION_MAX_RENDERBUFFER_SIZE <= 0xFFFF,
                       "Not enough bits for render area");
 
+        uint32_t prevRenderArea = mUniformData.renderArea;
         uint16_t renderAreaWidth, renderAreaHeight;
         SetBitField(renderAreaWidth, width);
         SetBitField(renderAreaHeight, height);
         mUniformData.renderArea = renderAreaHeight << 16 | renderAreaWidth;
+
+        if (prevRenderArea == mUniformData.renderArea)
+        {
+            // No change.
+            return false;
+        }
+
         mDirtyBits.set(DIRTY_BIT_RENDER_AREA);
+        return true;
     }
 
-    void updateflipXY(SurfaceRotation rotation,
+    bool updateflipXY(SurfaceRotation rotation,
                       bool viewportFlipped,
                       uint32_t numSamples,
                       uint32_t layeredFramebuffer)
     {
+        bool dirty = false;
         bool flipX = false;
         bool flipY = false;
         // Y-axis flipping only comes into play with the default framebuffer (i.e. a swapchain
@@ -164,14 +174,27 @@ class GraphicsDriverUniforms
                 break;
         }
 
-        mUniformData.flipXY = MakeFlipUniform(flipX, flipY, viewportFlipped);
-        mDirtyBits.set(DIRTY_BIT_FLIP_XY);
+        uint32_t flipXY = MakeFlipUniform(flipX, flipY, viewportFlipped);
+        if (flipXY != mUniformData.flipXY)
+        {
+            mUniformData.flipXY = flipXY;
+            mDirtyBits.set(DIRTY_BIT_FLIP_XY);
+            dirty = true;
+        }
 
+        const uint32_t prevUint32Misc = mUniformData.uint32Misc;
         const uint32_t swapXY = IsRotatedAspectRatio(rotation);
         SetBitField(mUniformData.misc.swapXY, swapXY);
         SetBitField(mUniformData.misc.numSamples, numSamples);
         SetBitField(mUniformData.misc.layeredFramebuffer, layeredFramebuffer);
-        mDirtyBits.set(DIRTY_BIT_MISC);
+
+        if (prevUint32Misc != mUniformData.uint32Misc)
+        {
+            mDirtyBits.set(DIRTY_BIT_MISC);
+            dirty = true;
+        }
+
+        return dirty;
     }
 
     void updateAtomicCounterBufferOffset(vk::Renderer *renderer,

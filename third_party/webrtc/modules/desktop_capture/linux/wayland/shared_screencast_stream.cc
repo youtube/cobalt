@@ -98,6 +98,10 @@ class SharedScreenCastStreamPrivate {
   void SetObserver(SharedScreenCastStream::Observer* observer) {
     observer_ = observer;
   }
+  void SetSharedMemoryFactory(
+      std::unique_ptr<webrtc::SharedMemoryFactory> shared_memory_factory) {
+    shared_memory_factory_ = std::move(shared_memory_factory);
+  }
   void StopScreenCastStream();
   std::unique_ptr<SharedDesktopFrame> CaptureFrame();
   std::unique_ptr<MouseCursor> CaptureCursor();
@@ -129,6 +133,7 @@ class SharedScreenCastStreamPrivate {
 
   int64_t modifier_;
   std::unique_ptr<EglDmaBuf> egl_dmabuf_;
+  std::unique_ptr<SharedMemoryFactory> shared_memory_factory_;
 
   // PipeWire types
   std::unique_ptr<PipeWireInitializer> pw_initializer_;
@@ -891,8 +896,15 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
 
   if (!queue_.current_frame() ||
       !queue_.current_frame()->size().equals(frame_size_)) {
-    std::unique_ptr<DesktopFrame> frame(new BasicDesktopFrame(
-        DesktopSize(frame_size_.width(), frame_size_.height()), FOURCC_ARGB));
+    std::unique_ptr<DesktopFrame> frame;
+    if (shared_memory_factory_) {
+      frame = SharedMemoryDesktopFrame::Create(
+          DesktopSize(frame_size_.width(), frame_size_.height()), FOURCC_ARGB,
+          shared_memory_factory_.get());
+    } else {
+      frame = std::make_unique<BasicDesktopFrame>(
+          DesktopSize(frame_size_.width(), frame_size_.height()), FOURCC_ARGB);
+    }
     queue_.ReplaceCurrentFrame(SharedDesktopFrame::Wrap(std::move(frame)));
   }
 
@@ -1117,6 +1129,11 @@ void SharedScreenCastStream::SetUseDamageRegion(bool use_damage_region) {
 void SharedScreenCastStream::SetObserver(
     SharedScreenCastStream::Observer* observer) {
   private_->SetObserver(observer);
+}
+
+void SharedScreenCastStream::SetSharedMemoryFactory(
+    std::unique_ptr<webrtc::SharedMemoryFactory> shared_memory_factory) {
+  private_->SetSharedMemoryFactory(std::move(shared_memory_factory));
 }
 
 void SharedScreenCastStream::StopScreenCastStream() {

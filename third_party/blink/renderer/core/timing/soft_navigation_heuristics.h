@@ -12,6 +12,7 @@
 #include "base/memory/stack_allocated.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/paint/timing/lcp_objects.h"
@@ -105,10 +106,16 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   void Shutdown();
 
+  // Called by the navigation stack when a same-document navigation has been
+  // committed and the URL has changed. Can be called from a synchronous
+  // navigation, e.g. pushState(), or an async navigation, e.g. a history.back()
+  // continuation. In either case, the appropriate TaskAttribution task state
+  // will be set before this is called.
   void SameDocumentNavigationCommitted(
       const String& url,
-      base::UnguessableToken same_document_metrics_token,
-      SoftNavigationContext*);
+      WebFrameLoadType,
+      base::UnguessableToken same_document_metrics_token);
+
   bool ModifiedDOM(Node* node);
   uint64_t SoftNavigationCount() { return soft_navigation_count_; }
 

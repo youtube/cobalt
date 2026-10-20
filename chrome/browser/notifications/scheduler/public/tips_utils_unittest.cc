@@ -24,7 +24,9 @@ TEST(NotificationTipsUtilsTest, GetTipsNotificationData) {
       TipsNotificationsFeatureType::kBottomOmnibox,
       TipsNotificationsFeatureType::kPasswordAutofill,
       TipsNotificationsFeatureType::kSignin,
-      TipsNotificationsFeatureType::kCreateTabGroups};
+      TipsNotificationsFeatureType::kCreateTabGroups,
+      TipsNotificationsFeatureType::kCustomizeMVT,
+      TipsNotificationsFeatureType::kRecentTabs};
 
   for (const auto type : tips_list) {
     NotificationData data = GetTipsNotificationData(type);
@@ -73,6 +75,18 @@ TEST(NotificationTipsUtilsTest, GetTipsNotificationData) {
             IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_TITLE);
         expected_message = l10n_util::GetStringUTF16(
             IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_SUBTITLE);
+        break;
+      case TipsNotificationsFeatureType::kCustomizeMVT:
+        expected_title = l10n_util::GetStringUTF16(
+            IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_TITLE);
+        expected_message = l10n_util::GetStringUTF16(
+            IDS_TIPS_NOTIFICATIONS_CUSTOMIZE_MVT_SUBTITLE);
+        break;
+      case TipsNotificationsFeatureType::kRecentTabs:
+        expected_title =
+            l10n_util::GetStringUTF16(IDS_TIPS_NOTIFICATIONS_RECENT_TABS_TITLE);
+        expected_message = l10n_util::GetStringUTF16(
+            IDS_TIPS_NOTIFICATIONS_RECENT_TABS_SUBTITLE);
         break;
       default:
         NOTREACHED();

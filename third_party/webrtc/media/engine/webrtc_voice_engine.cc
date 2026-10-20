@@ -2147,6 +2147,9 @@ WebRtcVoiceReceiveChannel::WebRtcVoiceReceiveChannel(
     : MediaChannelUtil(call->network_thread(), config.enable_dscp),
       env_(env),
       worker_thread_(call->worker_thread()),
+      network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          /*alive=*/true,
+          call->network_thread())),
       engine_(engine),
       call_(call),
       audio_config_(config.audio),
@@ -2190,7 +2193,13 @@ bool WebRtcVoiceReceiveChannel::SetReceiverParameters(
                           false, env_.field_trials());
   if (recv_rtp_extensions_ != filtered_extensions) {
     recv_rtp_extensions_.swap(filtered_extensions);
-    recv_rtp_extension_map_ = RtpHeaderExtensionMap(recv_rtp_extensions_);
+    call_->network_thread()->PostTask(SafeTask(
+        network_thread_safety_,
+        [this, recv_rtp_extension_map =
+                   RtpHeaderExtensionMap(recv_rtp_extensions_)]() mutable {
+          RTC_DCHECK_RUN_ON(&network_thread_checker_);
+          recv_rtp_extension_map_ = std::move(recv_rtp_extension_map);
+        }));
   }
   // RTCP mode, NACK, and receive-side RTT are not configured here because they
   // enable send functionality in the receive channels. This functionality is
@@ -2591,8 +2600,7 @@ void WebRtcVoiceReceiveChannel::SetFrameDecryptor(
   }
 }
 
-void WebRtcVoiceReceiveChannel::OnPacketReceived(
-    const RtpPacketReceived& packet) {
+void WebRtcVoiceReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
 
   // TODO(bugs.webrtc.org/11993): This code is very similar to what
@@ -2601,27 +2609,26 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(
   // call_->Receiver() to a common implementation and provide a callback on
   // the worker thread for the exception case (DELIVERY_UNKNOWN_SSRC) and
   // how retry is attempted.
-  worker_thread_->PostTask(
-      SafeTask(task_safety_.flag(), [this, packet = packet]() mutable {
-        RTC_DCHECK_RUN_ON(worker_thread_);
 
-        // TODO(bugs.webrtc.org/7135): extensions in `packet` is currently set
-        // in RtpTransport and does not necessarily include extensions specific
-        // to this channel/MID. Also see comment in
-        // BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w.
-        // It would likely be good if extensions where merged per BUNDLE and
-        // applied directly in RtpTransport::DemuxPacket;
-        packet.IdentifyExtensions(recv_rtp_extension_map_);
-        if (!packet.arrival_time().IsFinite()) {
-          packet.set_arrival_time(env_.clock().CurrentTime());
-        }
+  // TODO(bugs.webrtc.org/7135): The mapping of extension ID (on-packet
+  // representation) to C++ class object (internal representation) is currently
+  // associated with the per-channel object (e.g. WebRtcVoiceReceiveChannel).
+  // However, this mapping is more logically associated with per-media-stream
+  // objects (like ModuleRtpRtcpImpl2), which handle specific streams flowing
+  // in one direction (usually a single SSRC).
+  // This mapping should be moved out of the media engines altogether, storing
+  // it instead at the stream level initialized by the Transport. RTP packets
+  // consumed by media channels would thus have header extensions distinguished
+  // by C++ class rather than negotiated header extension ID.
+  packet.IdentifyExtensions(recv_rtp_extension_map_);
+  if (!packet.arrival_time().IsFinite()) {
+    packet.set_arrival_time(env_.clock().CurrentTime());
+  }
 
-        call_->Receiver()->DeliverRtpPacket(
-            MediaType::AUDIO, std::move(packet),
-            absl::bind_front(
-                &WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream,
-                this));
-      }));
+  call_->Receiver()->DeliverRtpPacket(
+      MediaType::AUDIO, std::move(packet),
+      absl::bind_front(
+          &WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream, this));
 }
 
 bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(

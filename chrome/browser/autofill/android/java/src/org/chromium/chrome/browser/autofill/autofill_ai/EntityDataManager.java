@@ -14,12 +14,14 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.autofill_ai.AutofillAiOptInStatus;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,7 +35,13 @@ import java.util.List;
 @NullMarked
 @JNINamespace("autofill")
 public class EntityDataManager implements Destroyable {
+    /** Observer of EntityDataManager events. */
+    public interface EntityDataManagerObserver {
+        /** Called when the entity instances are changed. */
+        void onEntityInstancesChanged();
+    }
 
+    private final List<EntityDataManagerObserver> mDataObservers = new ArrayList<>();
     private long mNativeEntityDataManagerAndroid;
 
     EntityDataManager(Profile profile) {
@@ -46,6 +54,20 @@ public class EntityDataManager implements Destroyable {
         mNativeEntityDataManagerAndroid = 0;
     }
 
+    /** Registers an EntityDataManagerObserver. */
+    public void registerDataObserver(EntityDataManagerObserver observer) {
+        ThreadUtils.assertOnUiThread();
+        assert !mDataObservers.contains(observer);
+        mDataObservers.add(observer);
+    }
+
+    /** Unregisters the provided observer. */
+    public void unregisterDataObserver(EntityDataManagerObserver observer) {
+        ThreadUtils.assertOnUiThread();
+        assert mDataObservers.contains(observer);
+        mDataObservers.remove(observer);
+    }
+
     /**
      * Removes the entity instance represented by the given GUID.
      *
@@ -54,6 +76,17 @@ public class EntityDataManager implements Destroyable {
     public void removeEntityInstance(String guid) {
         ThreadUtils.assertOnUiThread();
         EntityDataManagerJni.get().removeEntityInstance(mNativeEntityDataManagerAndroid, guid);
+    }
+
+    /**
+     * Returns the entity instance represented by the given GUID.
+     *
+     * @param guid The GUID of the entity instance to return.
+     * @return The entity instance.
+     */
+    public @Nullable EntityInstance getEntityInstance(String guid) {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get().getEntityInstance(mNativeEntityDataManagerAndroid, guid);
     }
 
     /** Saves or update an entity. */
@@ -78,12 +111,19 @@ public class EntityDataManager implements Destroyable {
         return EntityDataManagerJni.get().getWritableEntityTypes(mNativeEntityDataManagerAndroid);
     }
 
+    public List<EntityType> getSortedEntityTypesForListDisplay() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .getSortedEntityTypesForListDisplay(mNativeEntityDataManagerAndroid);
+    }
+
     /** Called by C++ when there is a change in the instances. */
     @CalledByNative
     public void onEntityInstancesChanged() {
         ThreadUtils.assertOnUiThread();
-        // TODO(crbug.com/411324196): Handle entities changes, this should recall
-        // `getEntitiesWithLabels()`.
+        for (EntityDataManagerObserver observer : mDataObservers) {
+            observer.onEntityInstancesChanged();
+        }
     }
 
     /** Returns whether the user is eligible for Autofill AI. */
@@ -128,6 +168,9 @@ public class EntityDataManager implements Destroyable {
         void removeEntityInstance(
                 long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);
 
+        @Nullable EntityInstance getEntityInstance(
+                long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);
+
         void addOrUpdateEntityInstance(long nativeEntityDataManagerAndroid, EntityInstance entity);
 
         @JniType("std::vector<EntityInstanceWithLabels>")
@@ -135,5 +178,8 @@ public class EntityDataManager implements Destroyable {
 
         @JniType("std::vector<autofill::EntityTypeAndroid>")
         List<EntityType> getWritableEntityTypes(long nativeEntityDataManagerAndroid);
+
+        @JniType("std::vector<autofill::EntityTypeAndroid>")
+        List<EntityType> getSortedEntityTypesForListDisplay(long nativeEntityDataManagerAndroid);
     }
 }

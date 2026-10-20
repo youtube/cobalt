@@ -85,10 +85,8 @@ found in the LICENSE file.
         android:key="plus_addresses"
         android:order="15"/>
     <org.chromium.components.browser_ui.settings.ChromeBasePreference
-        android:fragment="org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment"
         android:key="autofill_options"
-        android:order="16"
-        android:title="@string/autofill_options_title" />
+        android:order="16" />
 
     <PreferenceCategory
         android:key="advanced_section"

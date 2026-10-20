@@ -1544,6 +1544,8 @@ Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
   return Float64::FromBits(object()->get_representation(i));
 }
 
+int WeakHomomorphicFixedArrayRef::length() const { return object()->length(); }
+
 IndirectHandle<TrustedByteArray> BytecodeArrayRef::SourcePositionTable(
     JSHeapBroker* broker) const {
   return broker->CanonicalPersistentHandle(object()->SourcePositionTable());
@@ -1688,7 +1690,7 @@ HEAP_ACCESSOR_B(Map, bit_field, has_named_interceptor,
 HEAP_ACCESSOR_B(Map, bit_field, is_constructor, Map::Bits1::IsConstructorBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_undetectable, Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
-HEAP_ACCESSOR_C(Map, int, NextFreePropertyIndex)
+HEAP_ACCESSOR_C(Map, FieldStorageLocation, NextFreeFieldStorageLocation)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 HEAP_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
@@ -1946,7 +1948,7 @@ bool MapRef::CanBeDeprecated() const { return object()->CanBeDeprecated(); }
 
 bool MapRef::CanTransition() const { return object()->CanTransition(); }
 
-int MapRef::GetInObjectPropertiesStartInWords() const {
+uint8_t MapRef::GetInObjectPropertiesStartInWords() const {
   return object()->GetInObjectPropertiesStartInWords();
 }
 

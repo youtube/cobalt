@@ -49,39 +49,8 @@ bool SrtpTransport::SendRtpPacket(CopyOnWriteBuffer* packet,
         << "Failed to send the packet because SRTP transport is inactive.";
     return false;
   }
-  AsyncSocketPacketOptions updated_options = options;
   TRACE_EVENT0("webrtc", "SRTP Encode");
-  // If ENABLE_EXTERNAL_AUTH flag is on then packet authentication is not done
-  // inside libsrtp for a RTP packet. A external HMAC module will be writing
-  // a fake HMAC value. This is ONLY done for a RTP packet.
-  // Socket layer will update rtp sendtime extension header if present in
-  // packet with current time before updating the HMAC.
-  bool res;
-#if !defined(ENABLE_EXTERNAL_AUTH)
-  res = ProtectRtp(*packet);
-#else
-  if (!IsExternalAuthActive()) {
-    res = ProtectRtp(*packet);
-  } else {
-    updated_options.packet_time_params.rtp_sendtime_extension_id =
-        rtp_abs_sendtime_extn_id_;
-    res = ProtectRtp(*packet,
-                     &updated_options.packet_time_params.srtp_packet_index);
-    // If protection succeeds, let's get auth params from srtp.
-    if (res) {
-      uint8_t* auth_key = nullptr;
-      int key_len = 0;
-      res = GetRtpAuthParams(
-          &auth_key, &key_len,
-          &updated_options.packet_time_params.srtp_auth_tag_len);
-      if (res) {
-        updated_options.packet_time_params.srtp_auth_key.resize(key_len);
-        updated_options.packet_time_params.srtp_auth_key.assign(
-            auth_key, auth_key + key_len);
-      }
-    }
-  }
-#endif
+  bool res = ProtectRtp(*packet);
   if (!res) {
     uint16_t seq_num = ParseRtpSequenceNumber(*packet);
     uint32_t ssrc = ParseRtpSsrc(*packet);
@@ -90,7 +59,7 @@ bool SrtpTransport::SendRtpPacket(CopyOnWriteBuffer* packet,
     return false;
   }
 
-  return RtpTransport::SendRtpPacket(packet, updated_options, flags);
+  return RtpTransport::SendRtpPacket(packet, options, flags);
 }
 
 bool SrtpTransport::SendRtcpPacket(CopyOnWriteBuffer* packet,
@@ -276,9 +245,6 @@ void SrtpTransport::ResetParams() {
 void SrtpTransport::CreateSrtpSessions() {
   send_session_.reset(new SrtpSession(field_trials_));
   recv_session_.reset(new SrtpSession(field_trials_));
-  if (external_auth_enabled_) {
-    send_session_->EnableExternalAuth();
-  }
 }
 
 bool SrtpTransport::ProtectRtp(CopyOnWriteBuffer& buffer) {
@@ -334,18 +300,6 @@ bool SrtpTransport::UnprotectRtcp(CopyOnWriteBuffer& buffer) {
   }
 }
 
-bool SrtpTransport::GetRtpAuthParams(uint8_t** key,
-                                     int* key_len,
-                                     int* tag_len) {
-  if (!IsSrtpActive()) {
-    RTC_LOG(LS_WARNING) << "Failed to GetRtpAuthParams: SRTP not active";
-    return false;
-  }
-
-  RTC_CHECK(send_session_);
-  return send_session_->GetRtpAuthParams(key, key_len, tag_len);
-}
-
 bool SrtpTransport::GetSrtpOverhead(int* srtp_overhead) const {
   if (!IsSrtpActive()) {
     RTC_LOG(LS_WARNING) << "Failed to GetSrtpOverhead: SRTP not active";
@@ -355,26 +309,6 @@ bool SrtpTransport::GetSrtpOverhead(int* srtp_overhead) const {
   RTC_CHECK(send_session_);
   *srtp_overhead = send_session_->GetSrtpOverhead();
   return true;
-}
-
-void SrtpTransport::EnableExternalAuth() {
-  RTC_DCHECK(!IsSrtpActive());
-  external_auth_enabled_ = true;
-}
-
-bool SrtpTransport::IsExternalAuthEnabled() const {
-  return external_auth_enabled_;
-}
-
-bool SrtpTransport::IsExternalAuthActive() const {
-  if (!IsSrtpActive()) {
-    RTC_LOG(LS_WARNING)
-        << "Failed to check IsExternalAuthActive: SRTP not active";
-    return false;
-  }
-
-  RTC_CHECK(send_session_);
-  return send_session_->IsExternalAuthActive();
 }
 
 void SrtpTransport::MaybeUpdateWritableState() {

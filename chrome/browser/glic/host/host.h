@@ -231,6 +231,9 @@ class Host : public GlicSharingManagerProvider {
   // Reload the web contents.
   void Reload();
 
+  // Called when the WebUI web contents has navigated.
+  void OnWebContentsNavigated();
+
   // Creates the web contents that will own the Glic WebUI.
   // `initially_hidden` value is only relevant when
   // `kGlicGuestContentsVisibilityState` flag is enabled, otherwise the default
@@ -239,6 +242,9 @@ class Host : public GlicSharingManagerProvider {
 
   // Signals the glic WebUI that the glic window will be shown soon.
   void NotifyWindowIntentToShow();
+
+  // Signals the glic WebUI to adjust the zoom level of its hosted webview.
+  void Zoom(mojom::ZoomAction zoom_action);
 
   // GlicSharingManagerProvider Implementation.
   GlicSharingManager& sharing_manager() override;

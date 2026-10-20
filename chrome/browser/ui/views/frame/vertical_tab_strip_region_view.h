@@ -48,7 +48,6 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   METADATA_HEADER(VerticalTabStripRegionView, TabStripRegionView)
 
  public:
-  static constexpr int kResizeAreaWidth = 6;
   // TODO(crbug.com/465833741): Replace constant with derived value based on
   // caption buttons.
   static constexpr int kUncollapsedMinWidth = 126;
@@ -169,6 +168,10 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
 
   bool IsFrameActive() const;
 
+  // Returns the bounds within which tabs can be dragged in the vertical tab
+  // strip.
+  gfx::Rect GetTabStripDraggableBounds() const;
+
   void RecordNewTabButtonPressed();
   void OnChildrenAdded();
 
@@ -183,6 +186,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;
   raw_ptr<views::View> gemini_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+  int resize_area_width_;
   raw_ptr<views::FlexLayout> flex_layout_ = nullptr;
 
   // The drag handler is a view (required for capturing mouse inputs during

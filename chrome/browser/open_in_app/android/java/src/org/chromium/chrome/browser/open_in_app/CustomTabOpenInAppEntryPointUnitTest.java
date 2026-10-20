@@ -37,11 +37,12 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.UserDataHost;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
-import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.Page;
 import org.chromium.content_public.browser.WebContents;
@@ -51,7 +52,7 @@ import org.chromium.url.JUnitTestGURLs;
 
 /** Unit tests for {@link CustomTabOpenInAppEntryPoint}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(shadows = {ShadowPostTask.class})
+@Config(manifest = Config.NONE)
 public class CustomTabOpenInAppEntryPointUnitTest {
     private static final String LABEL = "Label";
     private static final String PACKAGE = "com.example.package";
@@ -70,19 +71,21 @@ public class CustomTabOpenInAppEntryPointUnitTest {
     @Mock private ActivityInfo mActivityInfo;
     @Mock private PackageManager mPackageManager;
     @Spy private Context mContext;
+    @Mock private TabModelSelector mTabModelSelector;
 
     private SettableNullableObservableSupplier<Tab> mTabSupplier;
     private CustomTabOpenInAppEntryPoint mEntryPoint;
     private UserDataHost mUserDataHost;
     private final GURL mUrl = JUnitTestGURLs.EXAMPLE_URL;
     private NavigationHandle mNavigationHandle;
+    private MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
 
     @Before
     public void setUp() throws PackageManager.NameNotFoundException {
-        ShadowPostTask.setTestImpl((taskTraits, task, delay) -> {});
         mContext = spy(Robolectric.buildActivity(Activity.class).setup().get());
         mTabSupplier = ObservableSuppliers.createNullable();
         mUserDataHost = new UserDataHost();
+        mTabModelSelectorSupplier = ObservableSuppliers.createMonotonic(mTabModelSelector);
         when(mTab.getUserDataHost()).thenReturn(mUserDataHost);
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mPackageManager.getApplicationInfo(any(), anyInt())).thenReturn(new ApplicationInfo());
@@ -111,7 +114,8 @@ public class CustomTabOpenInAppEntryPointUnitTest {
                 /* mimeType= */ "",
                 Page.createForTesting());
 
-        mEntryPoint = new CustomTabOpenInAppEntryPoint(mTabSupplier, mContext);
+        mEntryPoint =
+                new CustomTabOpenInAppEntryPoint(mTabSupplier, mContext, mTabModelSelectorSupplier);
         mTabSupplier.set(mTab);
     }
 

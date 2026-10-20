@@ -6584,6 +6584,26 @@ TEST_P(GLSLTest, EmptyForLoopWithSideEffect)
     EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0, 0, 127, 255), 1);
 }
 
+// Test that for loops with vec variable work
+TEST_P(GLSLTest_ES3, ForLoopWithVecVariable)
+{
+    constexpr char kFS1[] = R"(#version 300 es
+precision mediump float;
+out vec4 color;
+void main()
+{
+    color = vec4(0, 0, 0, 1);
+    for (vec4 i = vec4(0); i != vec4(3); i += vec4(1))
+    {
+        color.x += 0.25;
+    }
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS1);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(191, 0, 0, 255), 1);
+}
+
 // Test that uninitialized local variables are initialized to 0.
 TEST_P(WebGL2GLSLTest, InitUninitializedLocals)
 {
@@ -7188,9 +7208,7 @@ TEST_P(GLSLTest, InactiveVaryingInVertexActiveInFragment)
 // might have flipped viewport orientation.
 TEST_P(GLSLTest, ScreenFlipCauseStandardDerivativesWrong)
 {
-    constexpr char kFS[] =
-        R"(
-#extension GL_OES_standard_derivatives : enable
+    constexpr char kFS[] = R"(#extension GL_OES_standard_derivatives : enable
 precision mediump float;
 
 void main()
@@ -7200,8 +7218,7 @@ void main()
         dFdy(gl_FragCoord.y),
         0.0, 1.0
     );
-}
-        )";
+})";
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -7211,6 +7228,34 @@ void main()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::yellow);
+}
+
+// Test that derivative works in a loop that ends in continue or break.
+TEST_P(GLSLTest_ES3, DerivativeInLoopWithUniformBranch)
+{
+    constexpr char kFS[] = R"(#version 300 es
+precision mediump float;
+out vec4 color;
+
+void main()
+{
+    color = vec4(0, 0, 0, 1);
+    for (int i = 0; i < 1; ++i)
+    {
+        color.x += dFdx(gl_FragCoord.x);
+        continue;
+    }
+    for (int i = 0; i < 10; ++i)
+    {
+        color.y += dFdy(gl_FragCoord.y);
+        break;
+    }
+})";
+
+    ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFS);
+    drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f);
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::yellow);
 }
@@ -22460,6 +22505,50 @@ void main(){
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
     EXPECT_GL_NO_ERROR();
 }
+
+// Test that a for loop initializer can be a variable with a struct declaration.
+TEST_P(GLSLTest_ES31, StructDeclarationInForLoop)
+{
+    constexpr char kFS[] = R"(#version 310 es
+precision mediump float;
+out vec4 color;
+void main()
+{
+    color = vec4(0, 1, 0, 1);
+    for (struct S { int i; } i = S(0); i.i < 1; i.i++)
+    {
+        color = vec4(1, 0, 0, 1);
+    }
+})";
+    ANGLE_GL_PROGRAM(program, essl31_shaders::vs::Simple(), kFS);
+    glUseProgram(program);
+    drawQuad(program, essl31_shaders::PositionAttrib(), 0.0);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Test that a for loop initializer can be a struct declaration.
+TEST_P(GLSLTest_ES31, StructDeclarationInForLoop2)
+{
+    constexpr char kFS[] = R"(#version 310 es
+precision mediump float;
+out vec4 color;
+void main()
+{
+    color = vec4(0, 1, 0, 1);
+    for (struct S { int i; }; color.y < 0.5; color.x = 1.0)
+    {
+        S s = S(0);
+        color = vec4(1, 0, s.i, 1);
+    }
+})";
+    ANGLE_GL_PROGRAM(program, essl31_shaders::vs::Simple(), kFS);
+    glUseProgram(program);
+    drawQuad(program, essl31_shaders::PositionAttrib(), 0.0);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    EXPECT_GL_NO_ERROR();
+}
+
 }  // anonymous namespace
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND_ES31_AND_ES32(

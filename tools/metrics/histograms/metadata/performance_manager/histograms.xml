@@ -164,77 +164,6 @@ each histogram.
   </token>
 </histogram>
 
-<histogram name="PerformanceManager.ChildScenarioMappingResult"
-    enum="ChildScenarioMappingResult" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The result of an attempt to map the shared memory for performance scenarios
-    in a child process. Recorded when a child process receives a shared memory
-    region from the browser process to map. If the result is kSystemError,
-    PerformanceManager.ChildScenarioMappingSystemError is also logged.
-  </summary>
-</histogram>
-
-<histogram name="PerformanceManager.ChildScenarioMappingSystemError"
-    units="system error code" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The system error code when PerformanceManager.ChildScenarioMappingResult is
-    kSystemError.
-  </summary>
-</histogram>
-
-<histogram
-    name="PerformanceManager.CPUMonitorMemoryUse.{ResourceContextType}.{ResourceContextState}"
-    units="KB" expires_after="2025-09-07">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The estimated size of CPUMeasurementMonitor's result cache. Recorded at the
-    same time as the Memory.Browser.PrivateMemoryFootprint. This slice is the
-    memory used to store {ResourceContextType} that are {ResourceContextState}.
-  </summary>
-  <token key="ResourceContextType">
-    <variant name="AllContexts" summary="all ResourceContexts"/>
-    <variant name="FrameContexts"/>
-    <variant name="OriginInBrowsingInstanceContext"/>
-    <variant name="PageContexts"/>
-    <variant name="ProcessContexts"/>
-    <variant name="WorkerContexts"/>
-  </token>
-  <token key="ResourceContextState">
-    <variant name="Dead"
-        summary="associated with a resource that no longer exists"/>
-    <variant name="Live" summary="associated with an existing resource"/>
-    <variant name="Total" summary="in any state"/>
-  </token>
-</histogram>
-
-<histogram name="PerformanceManager.CreateScenarioMemoryResult"
-    enum="CreateScenarioMemoryResult" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The result of an attempt to create the shared memory for performance
-    scenarios in the browser process. Recorded when a PerformanceScenarioData is
-    created for a process, shortly after the process starts. If the result is
-    kSystemError, PerformanceManager.CreateScenarioMemorySystemError is also
-    logged.
-  </summary>
-</histogram>
-
-<histogram name="PerformanceManager.CreateScenarioMemorySystemError"
-    units="system error code" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The system error code when PerformanceManager.CreateScenarioMemoryResult is
-    kSystemError.
-  </summary>
-</histogram>
-
 <histogram name="PerformanceManager.Discarding.DecisionResult{Trigger}"
     enum="CanDiscardResult" expires_after="2027-01-21">
   <owner>aattar@google.com</owner>
@@ -343,31 +272,6 @@ each histogram.
   <summary>
     Whether any accessibility mode flags are set. Recorded with every UMA report
     to attempt to slice other metrics based on whether a11y is active.
-  </summary>
-</histogram>
-
-<histogram
-    name="PerformanceManager.InitializeChildProcessCoordination.RequestCount"
-    units="count" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The number of times a child process has requested to initialize its
-    coordination with the browser process. Logged just after the process starts.
-  </summary>
-</histogram>
-
-<histogram
-    name="PerformanceManager.InitializeChildProcessCoordination.ResponseCount"
-    units="count" expires_after="2025-12-31">
-  <owner>joenotcharles@google.com</owner>
-  <owner>chrome-catan@google.com</owner>
-  <summary>
-    The number of times a child process has received a response from the browser
-    process after requesting to initialize its coordination. The difference
-    between this and
-    PerformanceManager.InitializeChildProcessCoordination.RequestCount is the
-    number of requests that did not receive a response.
   </summary>
 </histogram>
 

@@ -17,6 +17,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
@@ -100,7 +101,6 @@
 #include "components/collaboration/public/messaging/empty_messaging_backend_service.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
-#include "components/memory_pressure/fake_memory_pressure_monitor.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -378,16 +378,8 @@ class SessionRestoreTest : public InProcessBrowserTest {
 
     // Stop loading anything more if we are running out of space.
     if (!no_memory_pressure) {
-      fake_memory_pressure_monitor_.SetAndNotifyMemoryPressure(
+      base::MemoryPressureListenerRegistry::SimulatePressureNotification(
           base::MEMORY_PRESSURE_LEVEL_CRITICAL);
-      // Wait for async memory notifications to be delivered to Performance
-      // Manager on the main thread.
-      // TODO(crbug.com/436324601): Remove once memory pressure notifications
-      // are synchronous.
-      base::RunLoop run_loop;
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, run_loop.QuitClosure());
-      run_loop.Run();
     }
     restore_observer.Wait();
 
@@ -458,9 +450,6 @@ class SessionRestoreTest : public InProcessBrowserTest {
 #if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
   base::test::ScopedFeatureList scoped_feature_list_;
 #endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-  memory_pressure::test::FakeMemoryPressureMonitor
-      fake_memory_pressure_monitor_;
 
   base::CallbackListSubscription dependency_manager_subscription_;
 };
@@ -3193,9 +3182,9 @@ class SessionRestoreWithIncompleteFileTest : public InProcessBrowserTest {
     base::FilePath user_data_dir;
     EXPECT_TRUE(base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir));
     base::FilePath sessions_dir =
-        user_data_dir.AppendASCII(TestingProfile::kTestUserProfileDir);
-    if (!base::DeletePathRecursively(
-            sessions_dir.Append(sessions::kSessionsDirectory))) {
+        user_data_dir.AppendASCII(TestingProfile::kTestUserProfileDir)
+            .Append(sessions::kSessionsDirectory);
+    if (!base::DeletePathRecursively(sessions_dir)) {
       ADD_FAILURE() << "Unable to delete sessions directory";
       return false;
     }
@@ -3203,8 +3192,7 @@ class SessionRestoreWithIncompleteFileTest : public InProcessBrowserTest {
       ADD_FAILURE() << "Unable to create sessions directory";
       return false;
     }
-    base::FilePath session_file_path = sessions_dir.Append(
-        base::FilePath(sessions::kLegacyCurrentSessionFileName));
+    base::FilePath session_file_path = sessions_dir.AppendUTF8("Session_1234");
     base::FilePath data_dir;
     if (!base::PathService::Get(chrome::DIR_TEST_DATA, &data_dir)) {
       ADD_FAILURE() << "Unable to get data dir";

@@ -47,6 +47,7 @@ class Origin;
 
 namespace content {
 
+class AssertPrefetchContainerObserver;
 class PrefetchIsolatedNetworkContext;
 class PrefetchKey;
 class PrefetchMatchResolverAction;
@@ -353,9 +354,6 @@ class CONTENT_EXPORT PrefetchContainer {
   // Performs the actual modification to `resource_request_` upon redirect.
   void UpdateResourceRequest(const net::RedirectInfo& redirect_info,
                              PrefetchUpdateHeadersParams params);
-
-  // The length of the redirect chain for this prefetch.
-  size_t GetRedirectChainSize() const { return redirect_chain_.size(); }
 
   // Whether this prefetch is a decoy. Decoy prefetches will not store the
   // response, and not serve any prefetched resources.
@@ -868,6 +866,8 @@ class CONTENT_EXPORT PrefetchContainer {
   std::optional<base::TimeTicks> time_prefetch_match_missed_;
 
   PrefetchContainerMetrics prefetch_container_metrics_;
+
+  std::unique_ptr<AssertPrefetchContainerObserver> assert_observer_;
 
   base::WeakPtrFactory<PrefetchContainer> weak_method_factory_{this};
 };
