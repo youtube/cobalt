@@ -72,7 +72,7 @@ if (is_mac && use_lld) {
 if (is_cobalt) {
   if (use_cxx17) {
     use_cxx23 = false
->>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2f41215db12 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 

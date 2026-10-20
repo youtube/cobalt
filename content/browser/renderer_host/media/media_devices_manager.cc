@@ -664,7 +664,7 @@ void MediaDevicesManager::EnumerateAndRankDevices(
 =======
 // Starboard doesn't support video input.
 #if !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 2f41215db12 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DCHECK(request_video_input_capabilities &&
              requested_types[static_cast<size_t>(
                  MediaDeviceType::kMediaVideoInput)] ||
