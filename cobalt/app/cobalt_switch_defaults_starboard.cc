@@ -70,11 +70,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kForceDarkMode,
       // Hide scrollbars to avoid memory allocation.
       ::switches::kHideScrollbars,
-#if BUILDFLAG(IS_ANDROID)
-      // AOSP: turn QUIC off by default, as on Android TV. With QUIC on,
-      // downloads that pause mid-transfer get dropped (b/532158865).
-      ::switches::kDisableQuic,
-#endif  // BUILDFLAG(IS_ANDROID)
   };
   return kCobaltToggleSwitches;
 }

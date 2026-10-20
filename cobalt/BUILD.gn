@@ -481,7 +481,6 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
-    "//components/network_session_configurator/common",
     "//content/browser:for_content_tests",
     "//content/public/common:switches",
     "//content/test:test_support",

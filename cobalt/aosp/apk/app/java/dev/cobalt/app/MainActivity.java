@@ -33,6 +33,9 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -44,6 +47,9 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class MainActivity extends BaseCobaltActivity {
+  // With QUIC on, downloads that pause mid-transfer get dropped (b/532158865).
+  private static final String DEFAULT_DISABLE_QUIC = "--disable-quic";
+
   static {
     // Each aosp apk ships exactly one app loader under its natural name
     // via android_apk shared_libraries: libloader_app.so for the production
@@ -105,7 +111,8 @@ public class MainActivity extends BaseCobaltActivity {
     if (coldStart) {
       // Cold start - Instantiate the singleton BaseStarboardBridge.
       BaseStarboardBridge starboardBridge =
-          createStarboardBridge(getArgsWithDeepLink(getArgs(), startDeepLink), startDeepLink);
+          createStarboardBridge(
+              getArgsWithDeepLink(getArgsWithDefaults(getArgs()), startDeepLink), startDeepLink);
       ((BaseStarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else if (savedInstanceState == null) {
       // Warm start - Pass the deep link to the running Starboard app.
@@ -175,6 +182,16 @@ public class MainActivity extends BaseCobaltActivity {
 
     mVideoSurfaceView = new VideoSurfaceView(this);
     setContentView(mVideoSurfaceView);
+  }
+
+  /** Returns {@code args} with the default switches added in front. */
+  private static String[] getArgsWithDefaults(String[] args) {
+    List<String> argsWithDefaults = new ArrayList<>();
+    argsWithDefaults.add(DEFAULT_DISABLE_QUIC);
+    if (args != null) {
+      Collections.addAll(argsWithDefaults, args);
+    }
+    return argsWithDefaults.toArray(new String[0]);
   }
 
   /**
