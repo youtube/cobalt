@@ -48,6 +48,10 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -178,6 +182,9 @@ class PlayerComponentsPassthrough
 //       into .cc file.
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
+  typedef starboard::shared::libiamf::IamfAudioDecoder IamfAudioDecoder;
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
   typedef starboard::shared::starboard::media::MimeType MimeType;
   typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
@@ -444,6 +451,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
           }
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf &&
+                   !SbDrmSystemIsValid(drm_system)) {
+          std::unique_ptr<IamfAudioDecoder> audio_decoder_impl(
+              new IamfAudioDecoder(audio_stream_info));
+          if (audio_decoder_impl->is_valid()) {
+            return std::unique_ptr<AudioDecoderBase>(
+                std::move(audio_decoder_impl));
+          }
+#endif  // SB_API_VERSION >= 15
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
                         << audio_stream_info.codec;

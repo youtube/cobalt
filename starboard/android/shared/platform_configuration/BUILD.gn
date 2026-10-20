@@ -51,6 +51,10 @@ config("platform_configuration") {
     "mediandk",
   ]
 
+  if (enable_iamf_decode) {
+    libs += [ "//third_party/libiamf/platforms/android/libiamf.a" ]
+  }
+
   if (!cobalt_fastbuild && (is_debug || is_devel)) {
     cflags += [ "-g" ]
   }
