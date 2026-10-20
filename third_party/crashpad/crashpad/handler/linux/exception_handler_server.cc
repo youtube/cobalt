@@ -36,9 +36,9 @@
 #include "util/linux/proc_task_reader.h"
 #include "util/linux/socket.h"
 
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
 #include "base/types/cxx23_to_underlying.h"
-#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17)
 
 namespace crashpad {
 
@@ -328,13 +328,13 @@ void ExceptionHandlerServer::Stop() {
 }
 
 void ExceptionHandlerServer::HandleEvent(Event* event, uint32_t event_type) {
-#if BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
   DCHECK_NE(base::to_underlying(event->type),
             base::to_underlying(Event::Type::kShutdown));
 #else
   DCHECK_NE(std::to_underlying(event->type),
             std::to_underlying(Event::Type::kShutdown));
-#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17) || BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17)
 
   if (event_type & EPOLLERR) {
     LogSocketError(event->fd.get());
