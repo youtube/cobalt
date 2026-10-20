@@ -95,6 +95,10 @@ if (host_os == "mac" || is_apple) {
     # be obtained with gclient sync after setting the environment variable
     # FORCE_MAC_TOOLCHAIN for target_os mac only].
     use_system_xcode = ""
+
+    # Allows generating the tvOS GN build graph on Linux hosts (for example,
+    # when running `gn analyze` in CI).
+    allow_tvos_gn_on_linux = false
   }
 
   if (use_system_xcode == "") {
@@ -113,5 +117,5 @@ if (host_os == "mac" || is_apple) {
   }
 
   assert(current_os != "ios" || use_system_xcode)
-  assert(host_os == "mac" || !use_system_xcode)
+  assert(host_os == "mac" || !use_system_xcode || allow_tvos_gn_on_linux)
 }

@@ -42,6 +42,7 @@
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/permissions_policy/document_policy_feature.mojom-blink.h"
@@ -575,6 +576,11 @@ PerformanceEntryVector Performance::getEntriesByTypeInternal(
                           WebFeature::kLongAnimationFrameRequested);
         entries = &long_animation_frame_buffer_;
       break;
+
+#if BUILDFLAG(IS_COBALT)
+    case PerformanceEntry::kCobaltFrame:
+      break;
+#endif
 
     case PerformanceEntry::kInvalid:
       break;

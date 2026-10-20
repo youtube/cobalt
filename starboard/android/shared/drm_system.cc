@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <stdint.h>
+
 #include <optional>
 #include <string>
 #include <string_view>
@@ -24,6 +26,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
+#include "starboard/common/span.h"
 #include "starboard/common/string.h"
 
 // Declare the function as static instead of putting it in the above anonymous
@@ -81,6 +84,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
   SB_CHECK(callbacks_.update_request);
   SB_CHECK(callbacks_.session_updated);
   SB_CHECK(callbacks_.key_statuses_changed);
+  SB_CHECK(callbacks_.session_closed);
 
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
@@ -97,8 +101,10 @@ DrmSystem::~DrmSystem() {
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
     std::string_view mime_type,
-    std::string_view initialization_data)
-    : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
+    Span<const uint8_t> initialization_data)
+    : ticket_(ticket),
+      init_data_(initialization_data.begin(), initialization_data.end()),
+      mime_(mime_type) {}
 
 int DrmSystem::SessionUpdateRequest::TakeTicket() {
   return std::exchange(ticket_, kSpontaneousDrmTicketId);
@@ -108,13 +114,14 @@ MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_CHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
+  return media_drm_bridge->CreateSession(
+      ticket_, MakeSpan(init_data_.data(), init_data_.size()), mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    std::string_view initialization_data) {
+    Span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
       ticket, type, initialization_data));
@@ -140,6 +147,11 @@ void DrmSystem::CloseSession(std::string_view session_id) {
     return;
   }
   media_drm_bridge_->CloseSession(media_drm_session_id);
+
+  // Notify the client that the session has been closed. MediaDrm does not
+  // deliver a close event of its own, so do it here.
+  callbacks_.session_closed(this, context_, session_id.data(),
+                            static_cast<int>(session_id.size()));
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -320,7 +332,7 @@ void DrmSystem::GenerateSessionUpdateRequest(
 }
 
 void DrmSystem::UpdateSession(int ticket,
-                              std::string_view key,
+                              Span<const uint8_t> key,
                               std::string_view session_id) {
   const auto media_drm_session_id =
       [this, &session_id]() -> std::optional<std::string> {

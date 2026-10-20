@@ -1,8 +1,14 @@
 package dev.cobalt.coat;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -11,9 +17,11 @@ import dev.cobalt.util.Holder;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -25,6 +33,7 @@ public class PlatformErrorTest {
   private static final String TEST_URL = "https://www.youtube.com/tv";
   private static final int TEST_DATA = 0;
   private static final int RETRY_BUTTON_ID = 1;
+  private static final int NETWORK_SETTINGS_BUTTON_ID = 2;
   private static final int DISMISS_BUTTON_ID = 3;
 
   private PlatformError platformError;
@@ -37,6 +46,11 @@ public class PlatformErrorTest {
     platformError = new PlatformError(holder, PlatformError.CONNECTION_ERROR, TEST_DATA, "", false);
 
     CobaltActivity.resetRetryCount();
+  }
+
+  @After
+  public void tearDown() {
+    TestCobaltActivity.sBridge = null;
   }
 
   @Test
@@ -97,6 +111,39 @@ public class PlatformErrorTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Test
+  public void isRetryPending_isTrue_whileDialogIsShowing() {
+    Dialog mockDialog = mock(Dialog.class);
+    when(mockDialog.isShowing()).thenReturn(true);
+    platformError.setDialog(mockDialog);
+
+    assertTrue(platformError.isRetryPending());
+
+    // Network settings sets a positive response but leaves the dialog up.
+    platformError.onClick(null, NETWORK_SETTINGS_BUTTON_ID);
+    assertTrue(platformError.isRetryPending());
+  }
+
+  @Test
+  public void isRetryPending_isTrue_afterDismissButton() {
+    Dialog mockDialog = mock(Dialog.class);
+    platformError.setDialog(mockDialog);
+
+    platformError.onClick(null, DISMISS_BUTTON_ID);
+
+    assertTrue(platformError.isRetryPending());
+  }
+
+  @Test
+  public void isRetryPending_isFalse_afterRetry() {
+    Dialog mockDialog = mock(Dialog.class);
+    platformError.setDialog(mockDialog);
+
+    platformError.retry();
+
+    assertFalse(platformError.isRetryPending());
   }
 
   @Test
@@ -300,5 +347,65 @@ public class PlatformErrorTest {
     mockActivity.reloadUrl("");
 
     verify(mockNavController).reload(true);
+  }
+
+  /** Minimal CobaltActivity with an injectable StarboardBridge, for ErrorDialog tests. */
+  public static class TestCobaltActivity extends CobaltActivity {
+    static StarboardBridge sBridge;
+
+    @Override
+    protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+      return sBridge;
+    }
+
+    @Override
+    protected StarboardBridge getStarboardBridge() {
+      return sBridge;
+    }
+  }
+
+  /** Creates an ErrorDialog on a TestCobaltActivity that reports itself as showing. */
+  private static ErrorDialog createShowingErrorDialog() {
+    // Attached but not created, so no CobaltActivity lifecycle code runs.
+    CobaltActivity activity = Robolectric.buildActivity(TestCobaltActivity.class).get();
+    ErrorDialog dialog = spy(new ErrorDialog.Builder(activity).create());
+    doReturn(true).when(dialog).isShowing();
+    return dialog;
+  }
+
+  @Test
+  public void errorDialogCancel_requestsSuspendWithoutDismissing_whenDialogIsShowing() {
+    StarboardBridge mockBridge = mock(StarboardBridge.class);
+    TestCobaltActivity.sBridge = mockBridge;
+    ErrorDialog dialog = createShowingErrorDialog();
+
+    // Back presses (legacy or predictive back) reach the dialog through cancel().
+    dialog.cancel();
+
+    verify(mockBridge).requestSuspend();
+    verify(dialog, never()).dismiss();
+  }
+
+  @Test
+  public void errorDialogCancel_doesNothing_whenDialogIsNotShowing() {
+    StarboardBridge mockBridge = mock(StarboardBridge.class);
+    TestCobaltActivity.sBridge = mockBridge;
+    ErrorDialog dialog = createShowingErrorDialog();
+    doReturn(false).when(dialog).isShowing();
+
+    dialog.cancel();
+
+    verify(mockBridge, never()).requestSuspend();
+    verify(dialog, never()).dismiss();
+  }
+
+  @Test
+  public void errorDialogCancel_doesNotCrashOrDismiss_whenStarboardBridgeIsNull() {
+    TestCobaltActivity.sBridge = null;
+    ErrorDialog dialog = createShowingErrorDialog();
+
+    dialog.cancel();
+
+    verify(dialog, never()).dismiss();
   }
 }

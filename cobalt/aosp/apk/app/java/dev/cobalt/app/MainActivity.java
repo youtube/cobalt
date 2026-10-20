@@ -27,6 +27,7 @@ import android.view.Window;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
+import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -43,7 +44,6 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class MainActivity extends BaseCobaltActivity {
-
   static {
     // Each aosp apk ships exactly one app loader under its natural name
     // via android_apk shared_libraries: libloader_app.so for the production
@@ -173,7 +173,8 @@ public class MainActivity extends BaseCobaltActivity {
           }
         });
 
-    setContentView(new VideoSurfaceView(this));
+    mVideoSurfaceView = new VideoSurfaceView(this);
+    setContentView(mVideoSurfaceView);
   }
 
   /**
@@ -251,7 +252,7 @@ public class MainActivity extends BaseCobaltActivity {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
     BaseStarboardBridge bridge =
-        new BaseStarboardBridge(
+        new StarboardBridge(
             getApplicationContext(), activityHolder, serviceHolder, args, startDeepLink);
 
     CobaltService.Factory clientLogInfoFactory =

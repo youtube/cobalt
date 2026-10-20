@@ -63,6 +63,18 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// When enabled, periodically records decoded image memory metrics
+// (Memory.GPU.DecodedImages and Memory.GPU.DecodedImages.Peak) for
+// ServiceTransferCache.
+BASE_FEATURE(kCobaltDecodedImagesMetrics,
+             "CobaltDecodedImagesMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDecodedImagesMetricsInterval,
+                   &kCobaltDecodedImagesMetrics,
+                   "interval",
+                   base::Minutes(1));
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, uses Android SurfaceControl for the display compositor with
 // Starboard media, removes the primary UI plane, and releases VizBufferQueue UI
@@ -71,6 +83,14 @@ BASE_FEATURE(kCobaltInProcessDirectRaster,
 BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
              "CobaltRemoveUiPlaneDuringFullscreenVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// How long to keep the primary plane (UI) buffers after the UI plane is
+// removed, so that brief pauses (e.g. between Closed Captions lines) do not
+// repeatedly free and re-allocate them. 0 frees them immediately.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltRemoveUiPlaneDestroyBuffersDelay,
+                   &kCobaltRemoveUiPlaneDuringFullscreenVideo,
+                   "destroy_buffers_delay",
+                   base::Seconds(5));
 
 // When enabled, Cobalt persists Skia's compiled shaders (GrShaderCache) to the
 // GPU shader disk cache instead of disabling the disk cache. The other GPU disk

@@ -396,11 +396,28 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
       env, j_starboard_bridge_, x, y, width, height);
 }
 
+void StarboardBridge::AddActivePlayer(JNIEnv* env, SbPlayer player) {
+  SB_DCHECK(env);
+  Java_BaseStarboardBridge_addActivePlayer(env, j_starboard_bridge_,
+                                           reinterpret_cast<jlong>(player));
+}
+
+void StarboardBridge::RemoveActivePlayer(JNIEnv* env, SbPlayer player) {
+  SB_DCHECK(env);
+  Java_BaseStarboardBridge_removeActivePlayer(env, j_starboard_bridge_,
+                                              reinterpret_cast<jlong>(player));
+}
+
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
     JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_getAudioOutputManager(env,
                                                         j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerManager(JNIEnv* env) {
+  SB_CHECK(env);
+  return Java_BaseStarboardBridge_getExoPlayerManager(env, j_starboard_bridge_);
 }
 
 std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {

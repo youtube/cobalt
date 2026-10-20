@@ -243,7 +243,7 @@ void PosixInitializePortNumberForTests() {
     HANDLE_EINTR(close(socket_fd));
     return;
   }
-  port_number_for_tests = addr_in.sin_port;
+  port_number_for_tests = ntohs(addr_in.sin_port);
 
   // Clean up the socket.
   bool result = HANDLE_EINTR(close(socket_fd)) >= 0;
