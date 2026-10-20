@@ -22,7 +22,9 @@
 namespace media {
 
 // Handy callback type to get sb window handle from CobaltContentRendererClient.
-using GetSbWindowHandleCallback = base::RepeatingCallback<uint64_t()>;
+using SbWindowHandleReadyCallback = base::OnceCallback<void(uint64_t)>;
+using GetSbWindowHandleCallback =
+    base::RepeatingCallback<void(SbWindowHandleReadyCallback)>;
 
 }  // namespace media
 

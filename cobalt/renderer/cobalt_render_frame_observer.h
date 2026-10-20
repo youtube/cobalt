@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
 #define COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
 
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "starboard/extension/graphics.h"
@@ -26,7 +28,10 @@ namespace cobalt {
 class CobaltRenderFrameObserver : public content::RenderFrameObserver,
                                   public blink::WebContentSettingsClient {
  public:
-  explicit CobaltRenderFrameObserver(content::RenderFrame* render_frame);
+  explicit CobaltRenderFrameObserver(
+      content::RenderFrame* render_frame,
+      base::RepeatingClosure on_was_hidden_cb = base::NullCallback(),
+      base::RepeatingClosure on_was_shown_cb = base::NullCallback());
   ~CobaltRenderFrameObserver() override;
 
   CobaltRenderFrameObserver(const CobaltRenderFrameObserver&) = delete;
@@ -35,6 +40,8 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver,
 
   void DidMeaningfulLayout(
       blink::WebMeaningfulLayout meaningful_layout) override;
+  void WasHidden() override;
+  void WasShown() override;
 
   // blink::WebContentSettingsClient implementation.
   bool AllowRunningInsecureContent(bool enabled_per_settings,
@@ -45,6 +52,9 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver,
 
   // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
+
+  base::RepeatingClosure on_was_hidden_cb_;
+  base::RepeatingClosure on_was_shown_cb_;
 };
 
 }  // namespace cobalt

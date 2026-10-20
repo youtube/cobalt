@@ -286,10 +286,17 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
 
 void StarboardRendererClient::GetSbWindowHandle() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  uint64_t sb_window_handle = 0;
   if (get_sb_window_handle_callback_) {
-    sb_window_handle = get_sb_window_handle_callback_.Run();
+    get_sb_window_handle_callback_.Run(
+        base::BindOnce(&StarboardRendererClient::OnSbWindowHandleReady,
+                       weak_factory_.GetWeakPtr()));
+    return;
   }
+  renderer_extension_->OnSbWindowHandleReady(0);
+}
+
+void StarboardRendererClient::OnSbWindowHandleReady(uint64_t sb_window_handle) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
 
