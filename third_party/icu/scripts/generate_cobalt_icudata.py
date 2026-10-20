@@ -19,6 +19,7 @@ import concurrent.futures
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -34,6 +35,21 @@ _ICU_TOOLS = (
     'genrb',
     'gencmn',
 )
+
+
+def _is_non_empty_file(path: pathlib.Path) -> bool:
+  return path.is_file() and path.stat().st_size > 0
+
+
+def _get_icu_major_version(icu_src: pathlib.Path) -> str:
+  """Reads U_ICU_VERSION_MAJOR_NUM from source/common/unicode/uvernum.h."""
+  uvernum_h = icu_src / 'common' / 'unicode' / 'uvernum.h'
+  content = uvernum_h.read_text(encoding='utf-8')
+  match = re.search(r'^#define\s+U_ICU_VERSION_MAJOR_NUM\s+(\d+)', content,
+                    re.MULTILINE)
+  if not match:
+    raise RuntimeError(f'Could not find U_ICU_VERSION_MAJOR_NUM in {uvernum_h}')
+  return match.group(1)
 
 
 def _get_host_toolchain(icu_root: pathlib.Path):
@@ -73,7 +89,7 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
                       num_cores: int) -> pathlib.Path:
   """Compiles and links the 9 ICU host CLI tools into build_dir/bin."""
   bin_dir = build_dir / 'bin'
-  if all((bin_dir / tool).is_file() for tool in _ICU_TOOLS):
+  if all(_is_non_empty_file(bin_dir / tool) for tool in _ICU_TOOLS):
     return bin_dir
 
   obj_dir = build_dir / 'obj'
@@ -103,17 +119,20 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
   def compile_source(src_path: pathlib.Path, extra_includes=()):
     rel = '_'.join(src_path.relative_to(icu_src).parts)
     obj_path = obj_dir / f'{rel}.o'
-    if obj_path.is_file():
+    if _is_non_empty_file(obj_path):
       return str(obj_path)
     is_cpp = src_path.suffix == '.cpp'
     lang_flags = (['-std=c++17']
                   if is_cpp else ['-std=gnu11', '-Dchar16_t=uint16_t'])
+    tmp_obj_path = obj_path.with_name(f'{obj_path.name}.tmp.{os.getpid()}')
     cmd = ([cxx if is_cpp else cc] + common_flags + list(extra_includes) +
            lang_flags +
-           ['-c', str(src_path), '-o', str(obj_path)])
+           ['-c', str(src_path), '-o', str(tmp_obj_path)])
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
+      tmp_obj_path.unlink(missing_ok=True)
       raise RuntimeError(f'Failed to compile {src_path}:\n{res.stderr}')
+    tmp_obj_path.replace(obj_path)
     return str(obj_path)
 
   with concurrent.futures.ThreadPoolExecutor(max_workers=num_cores) as executor:
@@ -134,11 +153,14 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
         compile_source(s, extra_includes=(f'-I{tool_dir}',)) for s in tool_srcs
     ]
     out_bin = bin_dir / tool
-    link_cmd = ([cxx] + host_ldflags + ['-o', str(out_bin)] + tool_objs +
+    tmp_bin = out_bin.with_name(f'{out_bin.name}.tmp.{os.getpid()}')
+    link_cmd = ([cxx] + host_ldflags + ['-o', str(tmp_bin)] + tool_objs +
                 [str(lib_a), '-ldl', '-lpthread', '-lm'])
     res = subprocess.run(link_cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
+      tmp_bin.unlink(missing_ok=True)
       raise RuntimeError(f'Failed to link {tool}:\n{res.stderr}')
+    tmp_bin.replace(out_bin)
     return out_bin
 
   with concurrent.futures.ThreadPoolExecutor(
@@ -151,8 +173,11 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
 def _build_filtered_icudata(icu_src: pathlib.Path, filter_file: pathlib.Path,
                             bin_dir: pathlib.Path,
                             build_dir: pathlib.Path) -> pathlib.Path:
-  """Runs icutools.databuilder and gencmn to generate filtered icudt74l.dat."""
-  out_build_dir = build_dir / 'data_out' / 'icudt74l'
+  """Runs icutools.databuilder and gencmn to generate filtered icudt<ver>l.dat."""
+  icu_ver = _get_icu_major_version(icu_src)
+  entry_point = f'icudt{icu_ver}'
+  bundle_name = f'{entry_point}l'
+  out_build_dir = build_dir / 'data_out' / bundle_name
   tmp_dir = build_dir / 'data_tmp'
   shutil.rmtree(out_build_dir, ignore_errors=True)
   shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -184,9 +209,9 @@ def _build_filtered_icudata(icu_src: pathlib.Path, filter_file: pathlib.Path,
           str(bin_dir / 'gencmn'),
           '-c',
           '-e',
-          'icudt74',
+          entry_point,
           '-n',
-          'icudt74l',
+          bundle_name,
           '-s',
           str(out_build_dir),
           '-t',
@@ -198,7 +223,7 @@ def _build_filtered_icudata(icu_src: pathlib.Path, filter_file: pathlib.Path,
       ],
       check=True,
   )
-  return tmp_dir / 'icudt74l.dat'
+  return tmp_dir / f'{bundle_name}.dat'
 
 
 def main():
