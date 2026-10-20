@@ -17,7 +17,9 @@
 
 #include <atomic>
 #include <memory>
+#include <vector>
 
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -83,11 +85,22 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
                       bool has_played_media_before,
                       base::OnceClosure closure) override;
 
-  uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
+  void GetSbWindowHandle(::media::SbWindowHandleReadyCallback callback);
 
  private:
+  friend class CobaltContentRendererClientWindowHandleTest;
+
   void EnsureH5vccSettingsRemoteInitialized();
-  void OnGetSbWindow(uint64_t handle);
+  void OnMainFrameShown(content::RenderFrame* render_frame);
+  void OnMainFrameHiddenOrDestroyed(content::RenderFrame* render_frame);
+  void RequestSbWindowHandle(content::RenderFrame* render_frame);
+  void ResetSbWindowHandle();
+  void GetSbWindowHandleOnMainThread(
+      ::media::SbWindowHandleReadyCallback callback);
+  void OnGetSbWindow(uint64_t request_id, uint64_t handle);
+  virtual void BindPlatformWindowProvider(
+      content::RenderFrame* render_frame,
+      mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
@@ -104,8 +117,13 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   gfx::Size viewport_size_;
 
+  scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
+  base::flat_set<content::RenderFrame*> visible_main_frames_;
   std::atomic<uint64_t> sb_window_handle_ = 0;
   bool window_handle_requested_ = false;
+  uint64_t window_handle_request_id_ = 0;
+  std::vector<::media::SbWindowHandleReadyCallback>
+      pending_window_handle_callbacks_;
 
   COBALT_THREAD_CHECKER(main_thread_checker_);
 

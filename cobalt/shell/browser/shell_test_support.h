@@ -95,6 +95,7 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   MockShellPlatformDelegate() {
+    ON_CALL(*this, HasPlatformWindow()).WillByDefault(testing::Return(true));
 #if BUILDFLAG(IS_IOS)
     // Initialize() on tvOS creates a display::Screen instance that is required
     // by calls to Shell::CreateNewWindow().

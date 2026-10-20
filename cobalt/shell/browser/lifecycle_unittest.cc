@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <vector>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/unguessable_token.h"
 #include "cobalt/shell/browser/shell.h"
@@ -19,6 +24,7 @@
 #include "content/test/test_web_contents.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
+#include "media/base/test_helpers.h"
 #include "media/starboard/starboard_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -47,14 +53,27 @@ class FakeStarboardRendererBarrier {
 
   bool IsConcealed() const {
     std::unique_ptr<media::StarboardRenderer> probe = CreateRenderer();
+    bool window_requested = false;
+    probe->SetStarboardRendererCallbacks(
+        /*paint_video_hole_frame_cb=*/base::DoNothing(),
+        /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+        /*get_sb_window_handle_cb=*/
+        base::BindRepeating([](bool* requested) { *requested = true; },
+                            &window_requested)
+#if BUILDFLAG(IS_ANDROID)
+            ,
+        /*request_overlay_info_cb=*/base::DoNothing()
+#endif  // BUILDFLAG(IS_ANDROID)
+    );
+    auto audio_stream = media::CreateMockDemuxerStream(
+        media::DemuxerStream::AUDIO, /*encrypted=*/false);
+    std::vector<media::DemuxerStream*> streams = {audio_stream.get()};
     testing::NiceMock<media::MockMediaResource> media_resource;
+    ON_CALL(media_resource, GetAllStreams())
+        .WillByDefault(testing::Return(streams));
     testing::NiceMock<media::MockRendererClient> renderer_client;
-    media::PipelineStatus status = media::PIPELINE_OK;
-    probe->Initialize(&media_resource, &renderer_client,
-                      base::BindOnce([](media::PipelineStatus* out,
-                                        media::PipelineStatus s) { *out = s; },
-                                     &status));
-    return status == media::PIPELINE_ERROR_ABORT;
+    probe->Initialize(&media_resource, &renderer_client, base::DoNothing());
+    return !window_requested;
   }
 
   void CompleteSuspend() { media_task_runner_->RunPendingTasks(); }
@@ -399,6 +418,66 @@ TEST_F(LifecycleTest, RapidRevealAndConcealIgnoresStaleMediaBarrierCallback) {
   EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
   std::move(active_barrier_cb).Run();
   task_environment()->RunUntilIdle();
+}
+
+// Verifies the user journey where the app attempts to return to the foreground
+// but native SbWindowCreate() fails because the OS surface disappeared
+// mid-reveal: OnReveal() must not resume deferred StarboardRenderers while
+// HasPlatformWindow() is false, keeping them concealed until a later reveal
+// creates a valid platform window.
+TEST_F(LifecycleTest, RevealWithoutPlatformWindowKeepsRenderersConcealed) {
+  CreateTestShell(true /* is_visible */);
+
+  FakeStarboardRendererBarrier fake_barrier;
+
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  fake_barrier.CompleteSuspend();
+  task_environment()->RunUntilIdle();
+  EXPECT_TRUE(fake_barrier.IsConcealed());
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Failed reveal where SbWindowCreate() failed (HasPlatformWindow() == false).
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, HasPlatformWindow()).WillOnce(testing::Return(false));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+
+  EXPECT_TRUE(fake_barrier.IsConcealed());
+  EXPECT_FALSE(fake_barrier.suspend_called());
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  // Subsequent re-conceal followed by a successful reveal
+  // (HasPlatformWindow() == true) resumes active renderers.
+  EXPECT_CALL(*platform_, OnConceal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnConceal();
+  });
+  Shell::OnConceal();
+  static_cast<cobalt::CobaltLifecycleManagerObserver*>(platform_)
+      ->OnAllFramesConcealed(shell_->web_contents());
+  EXPECT_CALL(*platform_, ConcealShell(shell_)).Times(1);
+  fake_barrier.CompleteSuspend();
+  task_environment()->RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(platform_);
+
+  EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
+    platform_->ShellPlatformDelegate::OnReveal();
+  });
+  EXPECT_CALL(*platform_, RevealShell(shell_));
+  EXPECT_CALL(*platform_, HasPlatformWindow()).WillOnce(testing::Return(true));
+  Shell::OnReveal();
+  task_environment()->RunUntilIdle();
+
+  EXPECT_FALSE(fake_barrier.IsConcealed());
+  EXPECT_TRUE(fake_barrier.suspend_called());
 }
 
 }  // namespace content

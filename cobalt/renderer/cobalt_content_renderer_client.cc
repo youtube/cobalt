@@ -209,8 +209,21 @@ CobaltContentRendererClient::~CobaltContentRendererClient() {
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   CHECK(content::RenderThread::IsMainThread());
+  if (!main_task_runner_) {
+    main_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  }
   new js_injection::JsCommunication(render_frame);
-  new CobaltRenderFrameObserver(render_frame);
+  if (render_frame->IsMainFrame()) {
+    new CobaltRenderFrameObserver(
+        render_frame,
+        base::BindRepeating(
+            &CobaltContentRendererClient::OnMainFrameHiddenOrDestroyed,
+            weak_factory_.GetWeakPtr(), render_frame),
+        base::BindRepeating(&CobaltContentRendererClient::OnMainFrameShown,
+                            weak_factory_.GetWeakPtr(), render_frame));
+  } else {
+    new CobaltRenderFrameObserver(render_frame);
+  }
   if (render_frame->GetWebView()) {
     viewport_size_ =
         gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());
@@ -218,30 +231,129 @@ void CobaltContentRendererClient::RenderFrameCreated(
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
 
-  if (sb_window_handle_.load() == 0 && !window_handle_requested_) {
-    window_handle_requested_ = true;
-    mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
-    render_frame->GetBrowserInterfaceBroker().GetInterface(
-        window_provider.BindNewPipeAndPassReceiver());
-
-    auto* window_provider_ptr = window_provider.get();
-    window_provider_ptr->GetSbWindow(
-        base::BindPostTaskToCurrentDefault(base::BindOnce(
-            [](base::WeakPtr<CobaltContentRendererClient> client,
-               mojo::Remote<media::mojom::PlatformWindowProvider> remote,
-               uint64_t handle) {
-              if (client) {
-                client->OnGetSbWindow(handle);
-              }
-            },
-            weak_factory_.GetWeakPtr(), std::move(window_provider))));
+  // Only mark the main frame visible and request the SbWindow handle at frame
+  // creation if the WebView is already visible. When the app starts in
+  // Preloading or Concealed state (GetVisibilityState() != kVisible), no native
+  // SbWindow exists yet, and CobaltRenderFrameObserver::WasShown() will request
+  // the handle when the main frame becomes visible on reveal.
+  if (render_frame->IsMainFrame() && render_frame->GetWebView() &&
+      render_frame->GetWebView()->GetVisibilityState() ==
+          blink::mojom::PageVisibilityState::kVisible) {
+    OnMainFrameShown(render_frame);
   }
 
   EnsureH5vccSettingsRemoteInitialized();
 }
 
-void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
+void CobaltContentRendererClient::OnMainFrameShown(
+    content::RenderFrame* render_frame) {
   CHECK(content::RenderThread::IsMainThread());
+  if (!render_frame) {
+    return;
+  }
+  if (!main_task_runner_) {
+    main_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  }
+  visible_main_frames_.insert(render_frame);
+  RequestSbWindowHandle(render_frame);
+}
+
+void CobaltContentRendererClient::OnMainFrameHiddenOrDestroyed(
+    content::RenderFrame* render_frame) {
+  CHECK(content::RenderThread::IsMainThread());
+  visible_main_frames_.erase(render_frame);
+  // In --single-process mode, splash_screen_web_contents_ and the main
+  // web_contents_ share this renderer client and deliver WasHidden()/WasShown()
+  // over independent Widget Mojo pipes. Only invalidate the shared SbWindow
+  // handle once no main frame remains visible.
+  if (visible_main_frames_.empty()) {
+    ResetSbWindowHandle();
+  }
+}
+
+void CobaltContentRendererClient::BindPlatformWindowProvider(
+    content::RenderFrame* render_frame,
+    mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
+  CHECK(content::RenderThread::IsMainThread());
+  render_frame->GetBrowserInterfaceBroker().GetInterface(std::move(receiver));
+}
+
+void CobaltContentRendererClient::RequestSbWindowHandle(
+    content::RenderFrame* render_frame) {
+  CHECK(content::RenderThread::IsMainThread());
+  if (!render_frame || sb_window_handle_.load() != 0 ||
+      window_handle_requested_) {
+    return;
+  }
+  window_handle_requested_ = true;
+  const uint64_t request_id = ++window_handle_request_id_;
+  mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
+  BindPlatformWindowProvider(render_frame,
+                             window_provider.BindNewPipeAndPassReceiver());
+
+  auto* window_provider_ptr = window_provider.get();
+  window_provider_ptr->GetSbWindow(
+      base::BindPostTaskToCurrentDefault(base::BindOnce(
+          [](base::WeakPtr<CobaltContentRendererClient> client,
+             mojo::Remote<media::mojom::PlatformWindowProvider> remote,
+             uint64_t request_id, uint64_t handle) {
+            if (client) {
+              client->OnGetSbWindow(request_id, handle);
+            }
+          },
+          weak_factory_.GetWeakPtr(), std::move(window_provider), request_id)));
+}
+
+void CobaltContentRendererClient::ResetSbWindowHandle() {
+  CHECK(content::RenderThread::IsMainThread());
+  ++window_handle_request_id_;
+  sb_window_handle_ = 0;
+  window_handle_requested_ = false;
+}
+
+void CobaltContentRendererClient::GetSbWindowHandle(
+    ::media::SbWindowHandleReadyCallback callback) {
+  const uint64_t handle = sb_window_handle_.load();
+  if (handle != 0) {
+    std::move(callback).Run(handle);
+    return;
+  }
+  if (!main_task_runner_) {
+    std::move(callback).Run(0);
+    return;
+  }
+  // Using base::Unretained(this) is safe here because
+  // CobaltContentRendererClient is a process-global singleton that outlives
+  // the media pipeline.
+  main_task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &CobaltContentRendererClient::GetSbWindowHandleOnMainThread,
+          base::Unretained(this),
+          base::BindPostTaskToCurrentDefault(std::move(callback))));
+}
+
+void CobaltContentRendererClient::GetSbWindowHandleOnMainThread(
+    ::media::SbWindowHandleReadyCallback callback) {
+  CHECK(content::RenderThread::IsMainThread());
+  const uint64_t handle = sb_window_handle_.load();
+  if (handle != 0) {
+    std::move(callback).Run(handle);
+    return;
+  }
+  pending_window_handle_callbacks_.push_back(std::move(callback));
+  if (!window_handle_requested_ && !visible_main_frames_.empty()) {
+    RequestSbWindowHandle(*visible_main_frames_.begin());
+  }
+}
+
+void CobaltContentRendererClient::OnGetSbWindow(uint64_t request_id,
+                                                uint64_t handle) {
+  CHECK(content::RenderThread::IsMainThread());
+  if (request_id != window_handle_request_id_) {
+    return;
+  }
+  window_handle_requested_ = false;
   if (!handle) {
     LOG(ERROR) << "Renderer received invalid SbWindow handle.";
     return;
@@ -250,10 +362,18 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
   LOG(INFO) << "Renderer received SbWindow handle: "
             << reinterpret_cast<void*>(handle);
   sb_window_handle_ = handle;
+  auto callbacks = std::move(pending_window_handle_callbacks_);
+  pending_window_handle_callbacks_.clear();
+  for (auto& callback : callbacks) {
+    std::move(callback).Run(handle);
+  }
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
+  if (!main_task_runner_) {
+    main_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  }
 
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
@@ -412,6 +532,9 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   CHECK(content::RenderThread::IsMainThread());
+  if (!main_task_runner_) {
+    main_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  }
 
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   // Note: The local audio write duration intentionally differs from
@@ -425,8 +548,9 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 #if BUILDFLAG(IS_STARBOARD)
   // Using base::Unretained(this) is safe here because
   // CobaltContentRendererClient is a process-global singleton that outlives
-  // the media pipeline, and GetSbWindowHandle() only accesses an atomic
-  // member variable.
+  // the media pipeline, and GetSbWindowHandle() reads only the atomic
+  // sb_window_handle_ and the already-initialized main_task_runner_ off the
+  // main thread.
   renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
       &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
 #endif  // BUILDFLAG(IS_STARBOARD)
