@@ -2408,20 +2408,21 @@ class PipelineFlagsTest(unittest.TestCase):
 class RestoreFilesOutsideBuildTest(unittest.TestCase):
   """restore_files_outside_build with a real git repo and a fake gn."""
 
-  # Fake gn: `ls` lists the targets, `analyze` reports a dependency only for
-  # .cc files.
+  # Fake `gn gen <dir> --ide=json`: cobalt_apk depends on :lib (a.cc and the
+  # public header b.h); :other (c.cc) is not in its closure.
   _FAKE_GN = """#!/usr/bin/env python3
-import json, sys
-if sys.argv[1] == "ls":
-  print("//cobalt/android:cobalt_apk\\n//cobalt/android:cobalt_apk_java")
-else:
-  query = json.load(open(sys.argv[3]))
-  built = query["files"][0].endswith(".cc")
-  json.dump({"status": "Found dependency" if built else "No dependency"},
-            open(sys.argv[4], "w"))
+import json, os, sys
+targets = {
+    "//cobalt/android:cobalt_apk": {"deps": ["//lib:lib"]},
+    "//cobalt/android:cobalt_apk(//build/toolchain/linux:clang_x64)": {},
+    "//lib:lib": {"sources": ["//a.cc"], "public": ["//b.h"]},
+    "//other:other": {"sources": ["//c.cc"], "public": "*"},
+}
+with open(os.path.join(sys.argv[2], "project.json"), "w") as f:
+  json.dump({"targets": targets}, f)
 """
 
-  def test_restores_only_unbuilt_files_and_keeps_deps(self):
+  def test_restores_only_unbuilt_files(self):
     with tempfile.TemporaryDirectory() as repo, \
          tempfile.TemporaryDirectory() as bin_dir:
       gn = os.path.join(bin_dir, "gn")
@@ -2436,11 +2437,13 @@ else:
                        capture_output=True)
 
       def write(rel, text):
+        os.makedirs(os.path.dirname(os.path.join(repo, rel)), exist_ok=True)
         with open(os.path.join(repo, rel), "w", encoding="utf-8") as f:
           f.write(text)
 
+      files = ("a.cc", "b.h", "c.cc", "TestExpectations", "DEPS", "BUILD.gn")
       git("init", "-q")
-      for rel in ("a.cc", "TestExpectations", "DEPS"):
+      for rel in files:
         write(rel, "old\n")
       git("add", "-A")
       git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "s")
@@ -2449,8 +2452,9 @@ else:
                                  capture_output=True,
                                  text=True,
                                  check=True).stdout.strip()
-      for rel in ("a.cc", "TestExpectations", "DEPS"):
+      for rel in files:
         write(rel, "new\n")
+      write("out/android-arm_devel/args.gn", "target_os = \"android\"\n")
 
       path = bin_dir + os.pathsep + os.environ["PATH"]
       with mock.patch.dict(os.environ, {"PATH": path}):
@@ -2458,11 +2462,11 @@ else:
                                                "android-arm_devel",
                                                "cobalt_apk")
 
-      self.assertEqual(restored, ["TestExpectations"])
-      for rel, text in (("a.cc", "new\n"), ("TestExpectations", "old\n"),
-                        ("DEPS", "new\n")):
+      self.assertEqual(restored, ["TestExpectations", "c.cc"])
+      for rel in files:
         with open(os.path.join(repo, rel), encoding="utf-8") as f:
-          self.assertEqual(f.read(), text, rel)
+          expected = "old\n" if rel in restored else "new\n"
+          self.assertEqual(f.read(), expected, rel)
 
 
 class RepoPathSafetyTest(unittest.TestCase):

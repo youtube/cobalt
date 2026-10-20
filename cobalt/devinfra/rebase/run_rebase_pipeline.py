@@ -15,6 +15,7 @@ import collections
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -276,51 +277,59 @@ def restore_files_outside_build(repo_path: str, start_sha: str, out_dir: str,
   """Puts changed files that `target` does not build back to start_sha.
 
   The agent may change files the built target never compiles, such as web
-  test expectations. Each file changed since start_sha that `gn analyze`
-  finds no dependency on is checked out from start_sha. The agent only
-  edits existing files, so `git diff` lists every change. DEPS is kept: gn
-  does not read it, but gclient sync does. Returns the restored paths.
+  test expectations. One `gn gen --ide=json` lists the files of every
+  target; a changed file outside the dependency closure of `target` is
+  checked out from start_sha. The agent only edits existing files, so
+  `git diff` lists every change. GN files are kept (gn reads them, but they
+  are no target's source), and so is DEPS (gclient sync reads it). Returns
+  the restored paths.
   """
 
   def run(cmd: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd, cwd=repo_path, capture_output=True, text=True, check=False)
 
-  build_dir = os.path.join("out", out_dir)
-  labels = [
-      l for l in run(["gn", "ls", build_dir]).stdout.split()
-      if l.endswith(":" + target)
+  changed = [
+      rel for rel in run([
+          "git", "diff", "--name-only", "--ignore-submodules", start_sha
+      ]).stdout.splitlines()
+      if rel != "DEPS" and not rel.endswith((".gn", ".gni"))
   ]
-  if len(labels) != 1:
+  if not changed:
+    return []
+  # A scratch build dir with the same args, so out/<out_dir> is untouched.
+  with tempfile.TemporaryDirectory(
+      dir=os.path.join(repo_path, "out")) as build_dir:
+    shutil.copy(os.path.join(repo_path, "out", out_dir, "args.gn"), build_dir)
+    if run(["gn", "gen", build_dir, "--ide=json"]).returncode != 0:
+      log.warning("[WARNING] gn gen --ide=json failed; keeping all files.")
+      return []
+    with open(os.path.join(build_dir, "project.json"), encoding="utf-8") as f:
+      targets = json.load(f)["targets"]
+
+  # Default-toolchain labels have no "(toolchain)" suffix, so this finds
+  # e.g. //cobalt/android:cobalt_apk and not its copies in other toolchains.
+  roots = [label for label in targets if label.endswith(":" + target)]
+  if len(roots) != 1:
     log.warning("[WARNING] No unique GN label for %s; keeping all files.",
                 target)
     return []
-  changed = run(
-      ["git", "diff", "--name-only", "--ignore-submodules",
-       start_sha]).stdout.splitlines()
+  built, seen, pending = set(), set(), roots
+  while pending:
+    label = pending.pop()
+    if label in seen:
+      continue
+    seen.add(label)
+    info = targets[label]
+    for key in ("sources", "inputs", "public"):
+      # "public" is "*" when the target declares no public headers.
+      if isinstance(info.get(key), list):
+        built.update(info[key])
+    pending.extend(info.get("deps", []))
 
-  restored = []
-  with tempfile.TemporaryDirectory() as tmp:
-    query = os.path.join(tmp, "query.json")
-    answer = os.path.join(tmp, "answer.json")
-    for rel in changed:
-      if rel == "DEPS":
-        continue
-      with open(query, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "files": ["//" + rel],
-                "test_targets": [],
-                "additional_compile_targets": labels,
-            }, f)
-      if run(["gn", "analyze", build_dir, query, answer]).returncode != 0:
-        log.warning("[WARNING] gn analyze failed for %s; keeping it.", rel)
-        continue
-      with open(answer, encoding="utf-8") as f:
-        if json.load(f).get("status") != "No dependency":
-          continue
-      run(["git", "checkout", start_sha, "--", rel])
-      restored.append(rel)
+  restored = [rel for rel in changed if "//" + rel not in built]
+  if restored:
+    run(["git", "checkout", start_sha, "--", *restored])
   return restored
 
 
