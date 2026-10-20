@@ -161,7 +161,9 @@ jobs:
       - name: Validate JSON Output
         id: validate
         if: always() && !cancelled()
+        shell: bash
         run: |
+          set -euo pipefail
           file_path="artifacts/triage_analysis.json"
           if [[ -f "${file_path}" ]]; then
             if jq -e 'type == "object" and has("verdict") and has("confidence") and has("summary") and has("findings_summary") and has("recommendation")' "${file_path}" >/dev/null 2>&1; then
@@ -174,9 +176,13 @@ jobs:
       - name: Extract Findings & Recommendation
         id: extract
         if: always() && !cancelled()
+        env:
+          IS_VALID: ${{ steps.validate.outputs.valid }}
+        shell: bash
         run: |
+          set -euo pipefail
           file_path="artifacts/triage_analysis.json"
-          if [[ "${{ steps.validate.outputs.valid }}" == "true" && -f "${file_path}" ]]; then
+          if [[ "${IS_VALID}" == "true" && -f "${file_path}" ]]; then
             verdict=$(jq -r '.verdict // "failure"' "${file_path}")
             confidence=$(jq -r '.confidence // 0' "${file_path}")
             summary=$(jq -r '.summary // ""' "${file_path}")
