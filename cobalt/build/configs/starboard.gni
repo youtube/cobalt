@@ -28,7 +28,7 @@ declare_args() {
 
 if (is_cobalt) {
   # Differentiates our 1P ATV platform from 3P AOSP.
-  is_androidtv = is_android && !is_starboard
+  is_androidtv = target_os == "android" && is_android
 }
 
 # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
