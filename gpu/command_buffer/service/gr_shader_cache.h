@@ -15,6 +15,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "gpu/raster_export.h"
 #include "third_party/skia/include/gpu/ganesh/GrContextOptions.h"
 
@@ -72,6 +73,12 @@ class RASTER_EXPORT GrShaderCache
 
   void StoreVkPipelineCacheIfNeeded(GrDirectContext* gr_context);
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Writes the entries whose disk writes were deferred. No-op unless
+  // kCobaltGpuShaderDiskCache was enabled when the cache was created.
+  void FlushPendingDiskWrites();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
  private:
   static constexpr int32_t kInvalidClientId = 0;
 
@@ -125,8 +132,15 @@ class RASTER_EXPORT GrShaderCache
   template <typename Iterator>
   void EraseFromCache(Iterator it) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+<<<<<<< HEAD
   void WriteToDisk(const CacheKey& key, CacheData* data)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+=======
+  void WriteToDisk(const CacheKey& key, CacheData* data);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  void FlushPendingDiskWritesLocked();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+>>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 
   int32_t current_client_id() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -142,6 +156,7 @@ class RASTER_EXPORT GrShaderCache
   base::flat_map<base::PlatformThreadId, int32_t> current_client_id_
       GUARDED_BY(lock_);
   bool need_store_pipeline_cache_ GUARDED_BY(lock_) = false;
+<<<<<<< HEAD
 
   base::AsyncMemoryPressureListenerRegistration
       memory_pressure_listener_registration_;
@@ -151,6 +166,15 @@ class RASTER_EXPORT GrShaderCache
   // not thread-safe.
   base::MemoryPressureLevel memory_pressure_level_ GUARDED_BY(lock_) =
       base::MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_NONE;
+=======
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Whether WriteToDisk() leaves new entries pending for
+  // FlushPendingDiskWrites() instead of writing them immediately. Set from
+  // kCobaltGpuShaderDiskCache when the cache is created.
+  const bool defer_disk_writes_;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  const bool enable_vk_pipeline_cache_;
+>>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 
   // Bound to the thread on which GrShaderCache is created. Some methods can
   // only be called on this thread. GrShaderCache is created on gpu main thread.

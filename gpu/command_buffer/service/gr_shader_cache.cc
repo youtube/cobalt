@@ -44,10 +44,19 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
       curr_size_bytes_(0u),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
+<<<<<<< HEAD
       memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kGrShaderCache,
           this) {
+=======
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      defer_disk_writes_(
+          base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)),
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      enable_vk_pipeline_cache_(
+          base::FeatureList::IsEnabled(features::kEnableVkPipelineCache)) {
+>>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",
@@ -177,6 +186,28 @@ void GrShaderCache::CacheClientIdOnDisk(int32_t client_id) {
   client_ids_to_cache_on_disk_.insert(client_id);
 }
 
+<<<<<<< HEAD
+=======
+void GrShaderCache::PurgeMemory(
+    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+  base::AutoLock auto_lock(lock_);
+  size_t original_limit = cache_size_limit_;
+
+  cache_size_limit_ = gpu::UpdateShaderCacheSizeOnMemoryPressure(
+      cache_size_limit_, memory_pressure_level);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Deferred disk writes would be lost with the evicted entries, so write the
+  // pending entries first.
+  if (defer_disk_writes_ && curr_size_bytes_ > cache_size_limit_) {
+    FlushPendingDiskWritesLocked();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  EnforceLimits(0u);
+
+  cache_size_limit_ = original_limit;
+}
+
+>>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 bool GrShaderCache::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                                  base::trace_event::ProcessMemoryDump* pmd) {
   base::AutoLock auto_lock(lock_);
@@ -220,6 +251,12 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
 
   // Only cache the shader on disk if this client id is permitted.
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_ANDROID)
+  // Keep the entry pending; FlushPendingDiskWrites() writes it later.
+  if (defer_disk_writes_) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   // In Cobalt, we bypass this restriction and allow caching unless
   // the process explicitly specifies the 'incognito' flag.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
@@ -235,6 +272,39 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   std::string encoded_key = base::Base64Encode(MakeString(key.data.get()));
   client_->StoreShader(encoded_key, MakeString(data->data.get()));
 }
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+void GrShaderCache::FlushPendingDiskWrites() {
+  // |defer_disk_writes_| is const, so checking it before taking the lock keeps
+  // the feature-off path (the control arm) from doing anything on the idle and
+  // background notifications that call this.
+  if (!defer_disk_writes_) {
+    return;
+  }
+  base::AutoLock auto_lock(lock_);
+  FlushPendingDiskWritesLocked();
+}
+
+void GrShaderCache::FlushPendingDiskWritesLocked() {
+  lock_.AssertAcquired();
+  // Without deferral, WriteToDisk() already wrote every entry it was allowed
+  // to. The incognito check mirrors the one in WriteToDisk().
+  if (!defer_disk_writes_ ||
+      base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
+    return;
+  }
+
+  TRACE_EVENT0("gpu", "GrShaderCache::FlushPendingDiskWrites");
+  for (auto& [key, data] : store_) {
+    if (!data.pending_disk_write) {
+      continue;
+    }
+    data.pending_disk_write = false;
+    client_->StoreShader(base::Base64Encode(MakeString(key.data.get())),
+                         MakeString(data.data.get()));
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
 void GrShaderCache::EnforceLimits(size_t size_needed) {
   size_t current_cache_size_limit = GetCurrentCacheSizeLimit();

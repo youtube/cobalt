@@ -111,7 +111,11 @@ source_set("browser") {
     "//components/prefs",
     "//components/variations/service",
     "//components/viz/common",
+<<<<<<< HEAD
     "//services/network/public/cpp",
+=======
+    "//gpu/config",
+>>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]
