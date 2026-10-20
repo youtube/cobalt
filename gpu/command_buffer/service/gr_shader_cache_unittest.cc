@@ -223,7 +223,6 @@ TEST_F(GrShaderCacheTest, MultipleThreadsUsingSameCache) {
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), 2 * shader->size());
 }
 
-<<<<<<< HEAD
 TEST_F(GrShaderCacheTest, MemoryPressure) {
   int32_t regular_client_id = 3;
   cache_.CacheClientIdOnDisk(regular_client_id);
@@ -297,7 +296,6 @@ TEST_F(GrShaderCacheTest, MemoryPressure) {
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), kCacheLimit);
 }
 
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
                                         public testing::Test {
@@ -409,6 +407,5 @@ TEST_F(GrShaderCacheDeferredWritesTest, WritesImmediatelyWhenFeatureDisabled) {
 }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
->>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 }  // namespace raster
 }  // namespace gpu

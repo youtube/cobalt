@@ -30,17 +30,11 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                        kCobaltDecodedImagesMetricsInterval);
 
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                              kCobaltRemoveUiPlaneDestroyBuffersDelay);
-=======
-GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
-GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
-                                      kCobaltRemoveUiPlaneDestroyBuffersDelay);
 GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuShaderDiskCache);
 GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuShaderDiskCacheSizeKb);
->>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(IS_COBALT)

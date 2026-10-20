@@ -44,19 +44,14 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
       curr_size_bytes_(0u),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
-<<<<<<< HEAD
-      memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kGrShaderCache,
-          this) {
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       defer_disk_writes_(
           base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)),
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-      enable_vk_pipeline_cache_(
-          base::FeatureList::IsEnabled(features::kEnableVkPipelineCache)) {
->>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
+      memory_pressure_listener_registration_(
+          FROM_HERE,
+          base::MemoryPressureListenerTag::kGrShaderCache,
+          this) {
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",
@@ -186,28 +181,6 @@ void GrShaderCache::CacheClientIdOnDisk(int32_t client_id) {
   client_ids_to_cache_on_disk_.insert(client_id);
 }
 
-<<<<<<< HEAD
-=======
-void GrShaderCache::PurgeMemory(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
-  base::AutoLock auto_lock(lock_);
-  size_t original_limit = cache_size_limit_;
-
-  cache_size_limit_ = gpu::UpdateShaderCacheSizeOnMemoryPressure(
-      cache_size_limit_, memory_pressure_level);
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  // Deferred disk writes would be lost with the evicted entries, so write the
-  // pending entries first.
-  if (defer_disk_writes_ && curr_size_bytes_ > cache_size_limit_) {
-    FlushPendingDiskWritesLocked();
-  }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-  EnforceLimits(0u);
-
-  cache_size_limit_ = original_limit;
-}
-
->>>>>>> 81310cbc74 (android: Add finch feature flag to re-enable GPU Shader Cache with delayed write (#13164))
 bool GrShaderCache::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                                  base::trace_event::ProcessMemoryDump* pmd) {
   base::AutoLock auto_lock(lock_);
