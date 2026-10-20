@@ -53,11 +53,11 @@ jobs:
           git config --global submodule.recurse false
 
           # Copy script from main branch.
-          git fetch --depth=1 --no-recurse-submodules origin main:main
-          git show main:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
-          git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
+          git fetch --depth=1 --no-recurse-submodules origin experimental/derp:experimental/derp
+          git show experimental/derp:.github/scripts/autoroll_chromium.py > "${RUNNER_TEMP}/autoroll_chromium.py"
+          git show experimental/derp:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
           mkdir -p "${GITHUB_WORKSPACE}/.github/actions/gob_auth"
-          git show main:.github/actions/gob_auth/action.yaml > "${GITHUB_WORKSPACE}/.github/actions/gob_auth/action.yaml"
+          git show experimental/derp:.github/actions/gob_auth/action.yaml > "${GITHUB_WORKSPACE}/.github/actions/gob_auth/action.yaml"
 
           # Use existing branch from remote if it exists, otherwise start from target branch.
           if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
