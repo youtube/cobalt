@@ -28,12 +28,17 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.InputDevice;
 import android.view.Surface;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.ExoPlayerManager;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
@@ -45,8 +50,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,10 +88,15 @@ public class BaseStarboardBridge {
 
   private Surface mVideoSurface;
   private final Object mVideoSurfaceLock = new Object();
+  // Handles of the SbPlayers that are currently playing, i.e. whose playback rate is greater than
+  // 0. The screen is kept on while it isn't empty. Guarded by itself.
+  private final Set<Long> mActivePlayers = new HashSet<>();
+  private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final CobaltSystemConfigChangeReceiver mSysConfigChangeReceiver;
   private final CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private final AudioOutputManager mAudioOutputManager;
+  private final ExoPlayerManager mExoPlayerManager;
   private final AudioPermissionRequester mAudioPermissionRequester;
   private final ResourceOverlay mResourceOverlay;
   private final AdvertisingId mAdvertisingId;
@@ -152,6 +164,7 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = null;
     mTtsHelper = null;
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = null;
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = null;
@@ -180,6 +193,7 @@ public class BaseStarboardBridge {
     mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
     mTtsHelper = new CobaltTextToSpeechHelper(appContext);
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mExoPlayerManager = new ExoPlayerManager(appContext);
     mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     mResourceOverlay = new ResourceOverlay(appContext);
     mAdvertisingId = new AdvertisingId(appContext);
@@ -276,6 +290,8 @@ public class BaseStarboardBridge {
     }
     mActivities.put(activity, Boolean.TRUE);
     mActivityHolder.set(activity);
+    // FLAG_KEEP_SCREEN_ON is set per window, so (re-)apply it to the started activity.
+    updateKeepScreenOn(activity);
     mSysConfigChangeReceiver.setForeground(true);
     if (isActivityLifecycleCoordinationEnabled()) {
       // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
@@ -290,6 +306,9 @@ public class BaseStarboardBridge {
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran: " + activity);
     mActivities.put(activity, Boolean.FALSE);
+    // Clears FLAG_KEEP_SCREEN_ON, as |activity| is now stopped. onActivityStart() sets it again if
+    // a player is still playing.
+    updateKeepScreenOn(activity);
     if (isActivityLifecycleCoordinationEnabled()) {
       // Only suspend services and disable foreground config updates if no other activity instance
       // is currently started.
@@ -737,6 +756,11 @@ public class BaseStarboardBridge {
     return mAudioOutputManager;
   }
 
+  @CalledByNative
+  ExoPlayerManager getExoPlayerManager() {
+    return mExoPlayerManager;
+  }
+
   /** Returns Java layer implementation for AudioPermissionRequester */
   @SuppressWarnings("unused")
   @CalledByNative
@@ -817,6 +841,71 @@ public class BaseStarboardBridge {
     Activity activity = mActivityHolder.get();
     if (activity instanceof BaseCobaltActivity) {
       ((BaseCobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
+    }
+  }
+
+  /**
+   * Called when |player| is playing, i.e. its playback rate is set to a value greater than 0. The
+   * screen is kept on while any player is playing. Can be called from any thread. Calling it for a
+   * player that is already playing, e.g. when its playback rate changes, has no effect.
+   */
+  @CalledByNative
+  void addActivePlayer(long player) {
+    boolean isFirstActivePlayer;
+    synchronized (mActivePlayers) {
+      isFirstActivePlayer = mActivePlayers.add(player) && mActivePlayers.size() == 1;
+    }
+    if (isFirstActivePlayer) {
+      mMainHandler.post(() -> updateKeepScreenOn(mActivityHolder.get()));
+    }
+  }
+
+  /**
+   * Called when |player| is no longer playing, i.e. its playback rate is set to 0 or it is being
+   * destroyed. Can be called from any thread. Calling it for a player that isn't playing, e.g. when
+   * a paused player is destroyed, has no effect.
+   */
+  @CalledByNative
+  void removeActivePlayer(long player) {
+    boolean wasLastActivePlayer;
+    synchronized (mActivePlayers) {
+      wasLastActivePlayer = mActivePlayers.remove(player) && mActivePlayers.isEmpty();
+    }
+    if (wasLastActivePlayer) {
+      mMainHandler.post(() -> updateKeepScreenOn(mActivityHolder.get()));
+    }
+  }
+
+  /**
+   * Sets FLAG_KEEP_SCREEN_ON on the window of |activity| if it is started and any player is
+   * playing, and clears it otherwise. Must be called on the UI thread. It always applies the latest
+   * state instead of the state at the time it was posted, so that calls posted from different
+   * threads can't be applied out of order.
+   */
+  private void updateKeepScreenOn(Activity activity) {
+    Window window = activity != null ? activity.getWindow() : null;
+    if (window == null) {
+      // The flag will be applied once an activity is started.
+      return;
+    }
+    // A stopped activity's window isn't visible, so it doesn't need the flag.
+    boolean isStarted = Boolean.TRUE.equals(mActivities.get(activity));
+    boolean hasActivePlayers;
+    synchronized (mActivePlayers) {
+      hasActivePlayers = !mActivePlayers.isEmpty();
+    }
+    boolean keepScreenOn = isStarted && hasActivePlayers;
+    boolean isKeepScreenOnSet =
+        (window.getAttributes().flags & WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0;
+    if (keepScreenOn == isKeepScreenOnSet) {
+      return;
+    }
+    if (keepScreenOn) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      Log.i(TAG, "Screen keep-on enabled for media playback.");
+    } else {
+      window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+      Log.i(TAG, "Screen keep-on disabled.");
     }
   }
 
@@ -1048,6 +1137,9 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   protected void hideSplashScreen() {}
+
+  @CalledByNative
+  protected void onPrimaryMainFrameNavigationStarted() {}
 
   @CalledByNative
   protected void setStartupMilestone(int milestone) {}

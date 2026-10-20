@@ -8,6 +8,7 @@ on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [android, aosp, evergreen, linux, tvos]
     types:
+      - in_progress
       - completed
   workflow_dispatch:
     inputs:
@@ -61,20 +62,42 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event || 'workflow_dispatch' }}
+          HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         shell: bash
         run: |
           set -euo pipefail
+
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
-          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
-            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+
+          # Post-submit runs (push to main/release branches) must never be
+          # attributed to an already merged PR, so skip PR resolution there.
+          if [[ "${TRIGGER_EVENT}" == "push" ]]; then
+            pr_number=""
+          elif [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            # workflow_run.pull_requests is empty for fork PRs, and the
+            # commits/<sha>/pulls endpoint only knows about commits that exist
+            # in this repository. Resolve fork PRs via their head ref instead.
+            if [[ -n "${HEAD_REPO_OWNER:-}" && -n "${HEAD_BRANCH:-}" ]]; then
+              pr_number=$(gh api -X GET "repos/${REPO}/pulls" \
+                  -f head="${HEAD_REPO_OWNER}:${HEAD_BRANCH}" -f state=open -f per_page=100 \
+                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0].number // ""')
+            fi
             if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+              pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
+                | jq -r '[.[] | select(.state == "open")][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number --jq '.[0].number // ""')
             fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
+
+          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
@@ -86,7 +109,6 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github
-            .agent
             cobalt/devinfra/github
 
       - name: Checkout PR files
@@ -119,7 +141,7 @@ jobs:
           set -euo pipefail
           {
             echo "content<<EOF"
-            cat .agent/shepherd_prompt.md
+            cat cobalt/devinfra/github/shepherd/shepherd_prompt.md
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -134,19 +156,49 @@ jobs:
           gemini_debug: true
           upload_artifacts: true
           settings: '{"tools":{"core":["read_file","list_directory","write_file"]}}'
-          prompt: ${{ steps.prompt.outputs.content }}
+          instruction: ${{ steps.prompt.outputs.content }}
 
-      - name: Extract Analysis Results
-        id: extract
-        shell: bash
+      - name: Validate JSON Output
+        id: validate
+        if: always() && !cancelled()
         run: |
-          set -euo pipefail
-          jq -e 'has("verdict") and has("confidence") and has("summary") and has("recommendation") and has("findings_summary")' artifacts/triage_analysis.json >/dev/null
-          jq -r '
-            "verdict=\(.verdict)\nconfidence=\(.confidence)\nsummary=\((.summary // "") | gsub("[\r\n]"; " "))",
-            "findings<<EOF\n\(.findings_summary)\nEOF",
-            "recommendation<<EOF\n\(.recommendation | tojson)\nEOF"
-          ' artifacts/triage_analysis.json >> "$GITHUB_OUTPUT"
+          file_path="artifacts/triage_analysis.json"
+          if [[ -f "${file_path}" ]]; then
+            if jq -e 'type == "object" and has("verdict") and has("confidence") and has("summary") and has("findings_summary") and has("recommendation")' "${file_path}" >/dev/null 2>&1; then
+              echo "valid=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          fi
+          echo "valid=false" >> "${GITHUB_OUTPUT}"
+
+      - name: Extract Findings & Recommendation
+        id: extract
+        if: always() && !cancelled()
+        run: |
+          file_path="artifacts/triage_analysis.json"
+          if [[ "${{ steps.validate.outputs.valid }}" == "true" && -f "${file_path}" ]]; then
+            verdict=$(jq -r '.verdict // "failure"' "${file_path}")
+            confidence=$(jq -r '.confidence // 0' "${file_path}")
+            summary=$(jq -r '.summary // ""' "${file_path}")
+            recommendation=$(jq -c '.recommendation // {}' "${file_path}")
+
+            echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
+            echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
+            echo "summary=${summary}" >> "${GITHUB_OUTPUT}"
+            echo "recommendation=${recommendation}" >> "${GITHUB_OUTPUT}"
+
+            {
+              echo "findings<<EOF"
+              jq -r '.findings_summary // ""' "${file_path}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            echo "verdict=failure" >> "${GITHUB_OUTPUT}"
+            echo "confidence=0" >> "${GITHUB_OUTPUT}"
+            echo "summary=" >> "${GITHUB_OUTPUT}"
+            echo "recommendation={}" >> "${GITHUB_OUTPUT}"
+            echo "findings=" >> "${GITHUB_OUTPUT}"
+          fi
 
   status-and-deflake:
     runs-on: ubuntu-latest
@@ -156,7 +208,7 @@ jobs:
       statuses: write
       actions: write
       contents: read
-      pull-requests: write
+      pull-requests: read
     outputs:
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
@@ -169,20 +221,42 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event || 'workflow_dispatch' }}
+          HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         shell: bash
         run: |
           set -euo pipefail
+
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
-          if [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
-            pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" --jq '.[0].number // ""' 2>/dev/null || true)
+
+          # Post-submit runs (push to main/release branches) must never be
+          # attributed to an already merged PR, so skip PR resolution there.
+          if [[ "${TRIGGER_EVENT}" == "push" ]]; then
+            pr_number=""
+          elif [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            # workflow_run.pull_requests is empty for fork PRs, and the
+            # commits/<sha>/pulls endpoint only knows about commits that exist
+            # in this repository. Resolve fork PRs via their head ref instead.
+            if [[ -n "${HEAD_REPO_OWNER:-}" && -n "${HEAD_BRANCH:-}" ]]; then
+              pr_number=$(gh api -X GET "repos/${REPO}/pulls" \
+                  -f head="${HEAD_REPO_OWNER}:${HEAD_BRANCH}" -f state=open -f per_page=100 \
+                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0].number // ""')
+            fi
             if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state all --json number --jq '.[0].number // ""')
+              pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
+                | jq -r '[.[] | select(.state == "open")][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number --jq '.[0].number // ""')
             fi
           fi
           if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
             head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
           fi
+
+          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
 
@@ -197,6 +271,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
             -f state="pending" \
             -f description="Checks are running" \
@@ -212,18 +287,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: .github
+          sparse-checkout: .github/config
 
-      - name: Deflake Failing Tests
+      - name: Evaluate Automated Actions and Deflake
         id: deflake
         if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOW: ${{ github.event.workflow_run.id }}
-          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
@@ -239,49 +312,43 @@ jobs:
             exit 0
           fi
 
-          action=$(echo "${RECOMMENDATION_JSON}" | jq -r '.action // empty' 2>/dev/null || true)
-          should_restart=$(echo "${RECOMMENDATION_JSON}" | jq -r '
-            if .restart_failed_jobs == true or .action == "restart_failed_jobs" then "true"
-            else "false"
-            end
-          ' 2>/dev/null || echo "false")
-          mapfile -t labels < <(echo "${RECOMMENDATION_JSON}" | jq -r '(.labels // [])[]' 2>/dev/null || true)
+          action=$(echo "${RECOMMENDATION_JSON}" | jq -r '.action // "none"')
+          restart_failed_jobs=$(echo "${RECOMMENDATION_JSON}" | jq -r '.restart_failed_jobs // false')
 
-          # Apply recommended labels to PR if any
-          for label in "${labels[@]}"; do
-            if [[ -n "${label}" && -n "${PR_NUMBER}" ]]; then
-              echo "Applying label '${label}' to PR #${PR_NUMBER}"
-              gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "${label}" || true
-            fi
-          done
-
-          # Restart failed jobs if recommended
-          if [[ "${should_restart}" == "true" ]]; then
-            if [[ -f .github/config/infra/deflake.json ]]; then
-              max_attempts=$(jq -r '.deflake_runs | tonumber? // empty' .github/config/infra/deflake.json)
-            fi
-            max_attempts="${max_attempts:-${DEFAULT_MAX_ATTEMPTS}}"
-
-            if [[ "${RUN_ATTEMPT}" -ge "${max_attempts}" ]]; then
-              echo "Max attempts reached (${RUN_ATTEMPT}/${max_attempts}). Skipping rerun."
-              exit 0
-            fi
-
-            current_sha=$(git ls-remote "https://github.com/${HEAD_REPO}.git" "refs/heads/${HEAD_BRANCH}" | cut -f1)
-            if [[ "${current_sha}" != "${HEAD_SHA}" ]]; then
-              echo "Branch head moved to ${current_sha} (run SHA: ${HEAD_SHA}). Skipping rerun."
-              exit 0
-            fi
-
-            echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
-            gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
-            echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "No job restart recommended by shepherd agent (action: ${action:-none})."
+          config_file=".github/config/${WORKFLOW_NAME}.json"
+          max_attempts="${DEFAULT_MAX_ATTEMPTS}"
+          if [[ -f "${config_file}" ]]; then
+            max_attempts=$(jq -r --arg default "${DEFAULT_MAX_ATTEMPTS}" '.max_deflake_attempts // $default' "${config_file}")
           fi
 
-      - name: Update Workflow and Overall Commit Status
-        id: update-commit-status
+          if (( RUN_ATTEMPT >= max_attempts )); then
+            echo "Workflow ${WORKFLOW_NAME} has reached attempt ${RUN_ATTEMPT} of ${max_attempts}. Skipping deflake."
+            exit 0
+          fi
+
+          rerun_triggered="false"
+
+          if [[ "${action}" == "restart_failed_jobs" || "${restart_failed_jobs}" == "true" ]]; then
+            if [[ -n "${WORKFLOW_ID:-}" ]]; then
+              echo "Attempting to restart failed jobs for workflow ${WORKFLOW_ID} (attempt ${RUN_ATTEMPT} of ${max_attempts})..."
+              if gh run rerun "${WORKFLOW_ID}" --failed --repo "${REPO}"; then
+                rerun_triggered="true"
+                echo "Successfully requested rerun of failed jobs."
+              fi
+            fi
+          elif [[ "${action}" == "apply_labels" ]]; then
+            mapfile -t labels < <(echo "${RECOMMENDATION_JSON}" | jq -r '.labels[]?')
+            if [[ ${#labels[@]} -gt 0 && -n "${PR_NUMBER:-}" ]]; then
+              for lbl in "${labels[@]}"; do
+                echo "Applying label ${lbl} to PR #${PR_NUMBER}..."
+                gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "${lbl}" || true
+              done
+            fi
+          fi
+
+          echo "rerun_triggered=${rerun_triggered}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish Commit Status
         if: (github.event.action || inputs.action) != 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -302,6 +369,8 @@ jobs:
             desc="Retrying failed jobs"
           else
             mkdir -p shepherd_artifacts
+
+            # Deduplicate reports by platform name keeping only the latest run attempt.
             mapfile -t artifact_ids < <(gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
               [.artifacts[]? | select(.name | startswith("shepherd-report-"))]
               | group_by(.name)
@@ -310,23 +379,13 @@ jobs:
             ' 2>/dev/null || true)
 
             for art_id in "${artifact_ids[@]}"; do
-              if [[ -n "${art_id}" ]]; then
-                art_dir="shepherd_artifacts/${art_id}"
-                mkdir -p "${art_dir}"
-                gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "${art_dir}/artifact.zip" 2>/dev/null || true
-                if [[ -f "${art_dir}/artifact.zip" ]]; then
-                  unzip -qo "${art_dir}/artifact.zip" -d "${art_dir}" 2>/dev/null || true
-                  rm -f "${art_dir}/artifact.zip"
-                fi
-              fi
+              gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "shepherd_artifacts/${art_id}.zip" 2>/dev/null || true
+              unzip -o -q "shepherd_artifacts/${art_id}.zip" -d "shepherd_artifacts/${art_id}" 2>/dev/null || true
             done
 
-            if [[ ${#artifact_ids[@]} -eq 0 ]]; then
-              gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
-            fi
+            shopt -s nullglob
+            reports=(shepherd_artifacts/*/shepherd_report.json)
 
-            shopt -s globstar nullglob
-            reports=(shepherd_artifacts/**/shepherd_report.json)
             if [[ ${#reports[@]} -eq 0 ]]; then
               state="failure"
               desc="Failed"
@@ -390,13 +449,15 @@ jobs:
   comment-pr:
     runs-on: ubuntu-latest
     needs: [status-and-deflake, shepherd-analysis]
-    if: always() && !cancelled() && needs.status-and-deflake.outputs.pr_number != ''
-    concurrency:
-      group: ci-shepherd-comment @ ${{ needs.status-and-deflake.outputs.head_sha }}
-      cancel-in-progress: true
+    # Run even when status-and-deflake failed so the comment reflects the
+    # current statuses, but only when the run belongs to an open PR.
+    if: ${{ !cancelled() && needs.status-and-deflake.outputs.pr_number != '' && needs.status-and-deflake.outputs.head_sha != '' }}
     permissions:
       statuses: read
       pull-requests: write
+    concurrency:
+      group: ci-shepherd-comment @ ${{ needs.status-and-deflake.outputs.head_sha }}
+      cancel-in-progress: false
     steps:
       - name: Update PR Comment
         env:
@@ -411,22 +472,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          header="<!-- sticky-pull-request-comment: shepherd-report -->"
-          comment_id=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --jq ".[] | select(.body | contains(\"$header\")) | .id" | head -n1)
-          [[ -z "$comment_id" ]] && comment_id=$(gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="$header" --jq '.id')
-
           {
-            echo "${header}"
-            echo ""
             echo "| Context | State | Description |"
             echo "|---|---|---|"
-            gh api "repos/${REPO}/commits/${HEAD_SHA}/status" | jq -r '
-              {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
-              .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
-              (if .target_url and .target_url != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
-              "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
-            '
-            if [[ -n "${VERDICT:-}" ]]; then
+          } > shepherd_report.md
+
+          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100")
+          echo "${status_json}" | jq -r '
+            {success: "✅ PASS", pending: "⏳ PENDING"} as $icons |
+            .statuses // [] | sort_by(.context)[] | select(.context | startswith("CI /")?) |
+            (if (.target_url // "") != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
+            "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
+          ' >> shepherd_report.md
+
+          if [[ -n "${VERDICT:-}" ]]; then
+            {
               echo ""
               echo "### 🤖 CI Shepherd Analysis"
               echo ""
@@ -434,7 +494,67 @@ jobs:
               echo "- **Confidence**: ${CONFIDENCE}"
               echo ""
               echo "${FINDINGS}"
-            fi
-          } > shepherd_report.md
+            } >> shepherd_report.md
+          fi
 
-          gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -F body=@shepherd_report.md --silent
+          header="<!-- sticky-pull-request-comment: shepherd-report -->"
+          comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
+
+          # Find the sticky comment (created by pull_request.yml on PR open) or
+          # create it if missing. Let API errors fail the job instead of
+          # silently posting duplicate comments.
+          comment_id=$(gh api --paginate --slurp "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            | jq -r --arg h "${header}" '[.[][]? | select((.body // "") | contains($h)) | .id][0] // empty')
+
+          if [[ -n "${comment_id}" ]]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="${comment_body}" --silent
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${comment_body}" --silent
+          fi
+
+  publish-golden-workspace:
+    name: Publish Golden Workspace Refs
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.action || inputs.action) == 'completed' &&
+      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch\) &&
+      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox\)
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Update Golden Workspace Refs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          GIT_USER: "github-actions[bot]"
+          GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+          EMPTY_TREE: "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p digests repo
+          if [[ -n "${WORKFLOW_ID:-}" ]]; then
+            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests 2>/dev/null || exit 0
+          fi
+
+          cd repo && git init -q
+          for f in ../digests/*/*; do
+            [ -f "$f" ] || continue
+            platform=$(basename "$f")
+            digest=$(tr -d '[:space:]' < "$f")
+            [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || continue
+
+            parent=()
+            if git fetch -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "refs/golden-workspace/${platform}" 2>/dev/null; then
+              [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
+              parent=(-p FETCH_HEAD)
+            fi
+
+            commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
+              commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
+
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${commit}:refs/golden-workspace/${platform}" || true
+          done

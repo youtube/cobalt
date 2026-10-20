@@ -20,6 +20,7 @@
 // clang-format on
 
 #include <jni.h>
+#include <stdint.h>
 
 #include <atomic>
 #include <functional>
@@ -35,6 +36,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/pass_key.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -45,6 +47,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
     SbDrmSessionUpdateRequestFunc update_request;
     SbDrmSessionUpdatedFunc session_updated;
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+    SbDrmSessionClosedFunc session_closed;
   };
   static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
                                            void* context,
@@ -60,16 +63,16 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      std::string_view initialization_data) override;
+      Span<const uint8_t> initialization_data) override;
   void UpdateSession(int ticket,
-                     std::string_view key,
+                     Span<const uint8_t> key,
                      std::string_view session_id) override;
   void CloseSession(std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               std::string_view certificate) override {}
+                               Span<const uint8_t> certificate) override {}
   std::optional<std::string_view> GetMetrics() override;
   // SbDrmSystemPrivate override ends.
 
@@ -102,7 +105,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
    public:
     SessionUpdateRequest(int ticket,
                          std::string_view mime_type,
-                         std::string_view initialization_data);
+                         Span<const uint8_t> initialization_data);
     ~SessionUpdateRequest() = default;
 
     MediaDrmBridge::OperationResult Generate(
@@ -115,7 +118,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
 
    private:
     int ticket_;
-    const std::string init_data_;
+    const std::vector<uint8_t> init_data_;
     const std::string mime_;
   };
 

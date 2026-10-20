@@ -41,6 +41,15 @@ config("wnos") {
   ]
 }
 
+if (is_ios && target_platform == "tvos") {
+  # AVPlayer can't load an HLS playlist from a file URL, so the tests play MP4.
+  bundle_data("url_player_test_data") {
+    testonly = true
+    sources = [ "//media/test/data/bear-1280x720.mp4" ]
+    outputs = [ "{{bundle_resources_dir}}/content/test/starboard/nplb/url_player/{{source_file_part}}" ]
+  }
+}
+
 test("nplb") {
   testonly = true
 
@@ -327,7 +336,6 @@ test("nplb") {
       "time_zone_get_name_test.cc",
       "ui_navigation_test.cc",
       "undefined_behavior_test.cc",
-      "url_player_create_test.cc",
       "vertical_video_test.cc",
       "window_create_test.cc",
       "window_destroy_test.cc",
@@ -408,8 +416,13 @@ test("nplb") {
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 
-  if (is_ios && target_platform == "tvos" && is_internal_build) {
-    sources += internal_tvos_test_sources
-    deps += [ "//cobalt/internal/third_party/platform_drm:headers" ]
+  if (is_ios && target_platform == "tvos") {
+    sources += [ "url_player_create_test.cc" ]
+    deps += [ ":url_player_test_data" ]
+
+    if (is_internal_build) {
+      sources += internal_tvos_test_sources
+      deps += [ "//cobalt/internal/third_party/platform_drm:headers" ]
+    }
   }
 }

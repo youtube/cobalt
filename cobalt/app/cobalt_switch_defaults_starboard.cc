@@ -70,6 +70,11 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kForceDarkMode,
       // Hide scrollbars to avoid memory allocation.
       ::switches::kHideScrollbars,
+#if BUILDFLAG(IS_ANDROID)
+      // AOSP: turn QUIC off by default, as on Android TV. With QUIC on,
+      // downloads that pause mid-transfer get dropped (b/532158865).
+      ::switches::kDisableQuic,
+#endif  // BUILDFLAG(IS_ANDROID)
   };
   return kCobaltToggleSwitches;
 }
@@ -80,7 +85,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Disable Vulkan.
       {::switches::kDisableFeatures, "Vulkan"},
       {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, "
        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
        // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
        // creation, but egl extension required to support the attribute is

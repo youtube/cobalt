@@ -78,9 +78,13 @@ AudioRendererPcm::AudioRendererPcm(
       min_frames_per_append_(min_frames_per_append),
       allow_audio_writing_on_pause_(
           experimental_features.GetBool(kMediaAllowAudioWritingOnPause)),
+      skip_audio_resampling_on_unchanged_sample_rate_(
+          experimental_features.GetBool(
+              kMediaSkipAudioResamplingOnUnchangedSampleRate)),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
-      channels_(audio_stream_info.number_of_channels),
+      channels_(audio_renderer_sink->GetOutputNumberOfChannels(
+          audio_stream_info.number_of_channels)),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
@@ -581,10 +585,21 @@ void AudioRendererPcm::OnFirstOutput(
   buffered_frames_to_start_ = std::min(
       destination_sample_rate / 5, max_cached_frames_ - min_frames_per_append_);
 
-  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32, so we
-  // resample the audio to that format to avoid unnecessary extra conversion.
-  if (decoded_sample_rate != destination_sample_rate ||
-      decoded_sample_type != kSbMediaAudioSampleTypeFloat32) {
+  // |time_stretcher_| only supports kSbMediaAudioSampleTypeFloat32.  Decoded
+  // audio of any other sample type is converted to it in ProcessAudioData(),
+  // but unless |skip_audio_resampling_on_unchanged_sample_rate_| is set it is
+  // also routed through the resampler, at a ratio of 1.0 when the sample rate
+  // doesn't change.
+  const bool sample_rate_changes =
+      decoded_sample_rate != destination_sample_rate;
+  const bool needs_resampler =
+      sample_rate_changes ||
+      (!skip_audio_resampling_on_unchanged_sample_rate_ &&
+       decoded_sample_type != kSbMediaAudioSampleTypeFloat32);
+  SB_LOG_IF(INFO, !needs_resampler &&
+                      decoded_sample_type != kSbMediaAudioSampleTypeFloat32)
+      << "Skipping audio resampling as the sample rate is unchanged.";
+  if (needs_resampler) {
     resampler_ = AudioResampler::Create(
         decoded_sample_type, decoded_sample_rate,
         kSbMediaAudioSampleTypeFloat32, destination_sample_rate, channels_);

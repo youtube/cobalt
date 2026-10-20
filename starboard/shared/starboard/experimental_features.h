@@ -163,6 +163,25 @@ const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread();
 // Get the extension API for configuring experimental features.
 const void* GetExperimentalFeaturesConfigurationApi();
 
+// Modes for Media.NdkAudioMode.
+enum class NdkAudioMode {
+  kDisabled = 0,  // Must stay 0: matches the experiment "unset" sentinel.
+  kPullSink = 1,
+  kAudioTrack = 2,
+};
+
+inline const char* ToString(NdkAudioMode mode) {
+  switch (mode) {
+    case NdkAudioMode::kDisabled:
+      return "disabled";
+    case NdkAudioMode::kPullSink:
+      return "pull_sink";
+    case NdkAudioMode::kAudioTrack:
+      return "audio_track";
+  }
+  return "unknown";
+}
+
 // -----------------------------------------------------------------------------
 // Experimental Feature Key Constants
 // -----------------------------------------------------------------------------
@@ -193,11 +212,6 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableVideoRendererVspAdjustment(
         "Media.EnableVideoRendererVspAdjustment");
 
-// To check the regression of the fix for the bug that pending frame grows
-// 2000+. For details, see http://b/517914191.
-inline constexpr ExperimentalFeatureKey<bool>
-    kMediaFixNeedMoreInputBackpressure("Media.FixNeedMoreInputBackpressure");
-
 inline constexpr ExperimentalFeatureKey<bool> kMediaFlushAudioTrackDuringSeek(
     "Media.FlushAudioTrackDuringSeek");
 
@@ -213,16 +227,24 @@ inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreStaleRenderedFramesAfterSeek(
         "Media.IgnoreStaleRenderedFramesAfterSeek");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
-    "Media.NdkAudioTrack");
+// Selects which NDK audio mode to use. The int value maps to `NdkAudioMode`.
+// TODO: b/565474970 - Remove this flag once the experiment is complete.
+inline constexpr ExperimentalFeatureKey<int> kMediaNdkAudioMode(
+    "Media.NdkAudioMode");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
-inline constexpr ExperimentalFeatureKey<bool> kMediaSeamlessAudioSwitching(
-    "Media.SeamlessAudioSwitching");
+// When set, AudioRendererPcm only resamples decoded audio when its sample rate
+// has to change.  By default decoded audio that merely needs to be converted
+// to float32 for the time stretcher is also routed through the resampler at
+// a ratio of 1.0.
+// TODO(b/511356295): Remove this flag once the experiment is complete.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaSkipAudioResamplingOnUnchangedSampleRate(
+        "Media.SkipAudioResamplingOnUnchangedSampleRate");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaSkipFlushOnDecoderTeardown(
     "Media.SkipFlushOnDecoderTeardown");
@@ -233,10 +255,6 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
-
-inline constexpr ExperimentalFeatureKey<int>
-    kMediaVideoDecoderMaxPendingInputsSize(
-        "Media.VideoDecoderMaxPendingInputsSize");
 
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");

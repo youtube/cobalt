@@ -14,8 +14,6 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 
-#include <atomic>
-
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -68,8 +66,6 @@ constexpr int TYPE_USB_DEVICE = 11;
 constexpr int TYPE_USB_HEADSET = 22;
 constexpr int TYPE_WIRED_HEADPHONES = 4;
 constexpr int TYPE_WIRED_HEADSET = 3;
-
-std::atomic<bool> g_enable_seamless_audio_switching = false;
 
 SbMediaAudioConnector GetConnectorFromAndroidOutputType(
     int android_output_device_type) {
@@ -205,10 +201,6 @@ int AudioOutputManager::GetMinBufferSizeInFrames(
          GetBytesPerSample(sample_type);
 }
 
-void AudioOutputManager::SetSeamlessAudioSwitching(bool enable) {
-  g_enable_seamless_audio_switching.store(enable, std::memory_order_relaxed);
-}
-
 std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
     JNIEnv* env,
     int numberOfChannels) {
@@ -225,6 +217,17 @@ bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
   SB_DCHECK(env);
   return Java_AudioOutputManager_hasPassthroughSupportFor(
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
+}
+
+bool AudioOutputManager::GetDirectPlaybackSupport(JNIEnv* env,
+                                                  int encoding,
+                                                  int sample_rate,
+                                                  int channel_count,
+                                                  bool require_hw_av_sync) {
+  SB_DCHECK(env);
+  return Java_AudioOutputManager_getDirectPlaybackSupport(
+             env, j_audio_output_manager_, encoding, sample_rate, channel_count,
+             require_hw_av_sync) == JNI_TRUE;
 }
 
 bool AudioOutputManager::GetAudioConfiguration(
@@ -270,10 +273,6 @@ void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
-jboolean JNI_AudioOutputManager_IsSeamlessAudioSwitchingEnabled(JNIEnv* env) {
-  return g_enable_seamless_audio_switching.load(std::memory_order_relaxed);
 }
 
 }  // namespace starboard

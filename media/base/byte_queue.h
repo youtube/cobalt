@@ -17,6 +17,7 @@
 
 #include "base/containers/span.h"
 #include "base/process/memory.h"
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -56,6 +57,11 @@ class MEDIA_EXPORT ByteQueue {
   base::span<const uint8_t> Data() {
     return {Front(), base::checked_cast<size_t>(used_)};
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::span<const uint8_t> Data() const {
+    return {Front(), base::checked_cast<size_t>(used_)};
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // Default starting size for the queue.

@@ -511,6 +511,9 @@ TEST_F(PosixPrctlTimerslackTests, SetAndGetSuccessRoundTrip) {
 class PosixPrctlTaskPerfEventsTests : public ::testing::Test {
  protected:
   void TearDown() override {
+    if (IsSkipped()) {
+      return;
+    }
     // Leave the state as enabled, which is a sane default.
     prctl(PR_TASK_PERF_EVENTS_ENABLE);
   }
@@ -520,6 +523,9 @@ TEST_F(PosixPrctlTaskPerfEventsTests, Success) {
   errno = 0;
   int result = prctl(PR_TASK_PERF_EVENTS_DISABLE);
   int call_errno = errno;
+  if (result == -1 && call_errno == EINVAL) {
+    GTEST_SKIP() << "prctl(PR_TASK_PERF_EVENTS_DISABLE) is not supported.";
+  }
   ASSERT_EQ(0, result) << "prctl(PR_TASK_PERF_EVENTS_DISABLE) failed. Errno: "
                        << call_errno << " (" << strerror(call_errno) << ")";
 
