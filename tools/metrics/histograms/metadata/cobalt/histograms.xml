@@ -568,6 +568,26 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFileAction"
+    enum="CobaltStabilityPmaFileAction" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the action taken for each prior-session .pma file encountered in the
+    BrowserStabilityMetrics directory during startup cleanup in
+    ClearOtherStabilityMetricsPmaFiles().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFilesMergedCount"
+    units="files" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of prior-session BrowserStabilityMetrics .pma files whose
+    histogram deltas were merged into StatisticsRecorder during startup cleanup
+    in ClearOtherStabilityMetricsPmaFiles(). Recorded once per browser startup.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.StabilityMetrics.UsedKilobytes" units="KB"
     expires_after="never">
   <owner>avvall@google.com</owner>
