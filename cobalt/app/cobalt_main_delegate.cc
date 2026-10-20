@@ -116,6 +116,10 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  // Disabled unconditionally here, exactly as before kCobaltGpuShaderDiskCache
+  // existed, so the control arm is unchanged. PostEarlyInitialization() removes
+  // the switch again only when the feature is enabled.
+  cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
@@ -159,16 +163,17 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     browser_client_->CreateFeatureListAndFieldTrials();
   }
 
-  bool keep_gpu_shader_disk_cache_disabled = true;
 #if BUILDFLAG(IS_ANDROID)
+  // Treatment arm only: re-enable the GPU shader disk cache that
+  // BasicStartupComplete() disabled, now that the FeatureList exists and before
+  // anything reads the switch (GpuDiskCacheFactory, GpuProcessHost,
+  // RenderProcessHost all run later). With the feature off, nothing here runs
+  // and the switch stays exactly where it has always been.
   if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
-    keep_gpu_shader_disk_cache_disabled = false;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-  if (keep_gpu_shader_disk_cache_disabled) {
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+    base::CommandLine::ForCurrentProcess()->RemoveSwitch(
         switches::kDisableGpuShaderDiskCache);
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();

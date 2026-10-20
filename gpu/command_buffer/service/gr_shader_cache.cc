@@ -261,6 +261,12 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 void GrShaderCache::FlushPendingDiskWrites() {
+  // |defer_disk_writes_| is const, so checking it before taking the lock keeps
+  // the feature-off path (the control arm) from doing anything on the idle and
+  // background notifications that call this.
+  if (!defer_disk_writes_) {
+    return;
+  }
   base::AutoLock auto_lock(lock_);
   FlushPendingDiskWritesLocked();
 }
