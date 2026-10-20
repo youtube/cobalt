@@ -21,6 +21,7 @@
 #include "base/command_line.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -274,19 +275,25 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
 
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+  const int path_key =
+      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)
+          ? static_cast<int>(base::DIR_CACHE)
+          : static_cast<int>(content::SHELL_DIR_USER_DATA);
+  base::FilePath base_dir;
+  if (base::PathService::Get(path_key, &base_dir) && !base_dir.empty()) {
+    return base_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
   }
   return base::FilePath();
 }
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+  const int path_key =
+      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)
+          ? static_cast<int>(base::DIR_CACHE)
+          : static_cast<int>(content::SHELL_DIR_USER_DATA);
+  base::FilePath base_dir;
+  if (base::PathService::Get(path_key, &base_dir) && !base_dir.empty()) {
+    return base_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
