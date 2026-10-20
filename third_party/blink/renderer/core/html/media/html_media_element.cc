@@ -2544,7 +2544,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     sent_stalled_event_ = false;
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
-            features::kCobaltSkipMediaProgressLayoutUpdate) ||
+            features::kCobaltSkipHiddenMediaControlsWork) ||
         ShouldShowControls()) {
       UpdateLayoutObject();
     }
@@ -4616,6 +4616,17 @@ MediaControls* HTMLMediaElement::GetMediaControls() const {
 void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt does not show native controls or the cast overlay button, so skip
+  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
+  // when native controls are not needed.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsWork) &&
+      !ShouldShowControls()) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // It might be nice to lazily initialize only the controls we need when they
   // are actually visible, but cursory tests don't show any memory improvements.
