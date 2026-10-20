@@ -50,6 +50,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   virtual void RaisePlatformError(int64_t navigation_id,
                                   const std::string& url);
   virtual void SetStartupDiagnosisInfo(const char* key, const char* value);
+  virtual void OnPrimaryMainFrameNavigationStarted();
 
  protected:
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
