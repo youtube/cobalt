@@ -7,6 +7,8 @@
 
 #include <jni.h>
 
+#include <optional>
+
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
 #include "base/containers/span.h"
