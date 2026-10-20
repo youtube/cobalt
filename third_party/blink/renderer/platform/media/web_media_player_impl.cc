@@ -3052,6 +3052,29 @@ media::PipelineStatus WebMediaPlayerImpl::OnDemuxerCreated(
 void WebMediaPlayerImpl::StartPipeline() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
+#if BUILDFLAG(IS_COBALT)
+  // Defer pipeline startup when the page (WebView) is hidden so
+  // CobaltContentRendererClient::DeferMediaLoad() holds the closure in
+  // MediaLoadDeferrer until OnPageVisibilityChanged(kVisible). Do not invoke
+  // defer_load_cb_ when only IsFrameHidden() or was_suspended_for_frame_closed_
+  // is true while the WebView is still kVisible, because DeferMediaLoad() only
+  // defers when WebView visibility != kVisible and would otherwise run the
+  // StartPipeline() closure synchronously.
+  if (defer_load_cb_ && delegate_->IsPageHidden()) {
+    auto defer_load_cb = std::move(defer_load_cb_);
+    const bool is_deferred = defer_load_cb.Run(
+        WTF::BindOnce(&WebMediaPlayerImpl::StartPipeline, weak_this_));
+    defer_load_cb_ = std::move(defer_load_cb);
+    if (is_deferred) {
+      return;
+    }
+    // If `defer_load_cb` returned false, it already executed the bound
+    // `StartPipeline()` closure synchronously while `defer_load_cb_` was moved
+    // out, so return to avoid running `StartPipeline()` a second time.
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   PostCrossThreadTask(
       *vfc_task_runner_, FROM_HERE,
       CrossThreadBindOnce(
