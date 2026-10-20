@@ -683,16 +683,13 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       // Returns the events recorded since the last call to this function.
       .SetMethod("getBluetoothManualChooserEvents",
                  &TestRunnerBindings::GetBluetoothManualChooserEvents)
-<<<<<<< HEAD
+#endif
       // Returns the clipboard read tracking state from the mock clipboard host.
       // The returned object has boolean properties: readTextCalled,
       // readHtmlCalled, readUnsanitizedCustomFormatCalled,
       // readAvailableFormatsCalled.
       .SetMethod("getClipboardReadState",
                  &TestRunnerBindings::GetClipboardReadState)
-=======
-#endif
->>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       .SetMethod("getManifestThen", &TestRunnerBindings::GetManifestThen)
       // Returns the absolute path to a directory this test can write data in.
       // This returns the path to a fresh empty directory every time this method
