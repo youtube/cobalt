@@ -28,7 +28,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/jni_android.h"
 #include "cobalt/android/jni_headers/JavaSwitchesTestHelper_jni.h"
 #endif
@@ -121,7 +121,7 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
   EXPECT_EQ(metrics_macro.value(), metrics_ascii.value());
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROIDTV)
 IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
                        NativeFileCreationReadByJava) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -189,6 +189,6 @@ IN_PROC_BROWSER_TEST_F(ExperimentConfigBrowserTest,
   base::DeleteFile(beacon_file);
   EXPECT_TRUE(Java_JavaSwitchesTestHelper_shouldApplyExperimentConfigs(env));
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
