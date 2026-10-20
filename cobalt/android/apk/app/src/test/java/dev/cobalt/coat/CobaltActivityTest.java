@@ -640,4 +640,39 @@ public class CobaltActivityTest {
     assertTrue(activity.shouldFreezeOnBackground());
     assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
   }
+
+  // --- onPrimaryMainFrameNavigationStarted() ---
+
+  @Test
+  public void onPrimaryMainFrameNavigationStarted_resetsSplashScreenState() {
+    CobaltActivity activity = mock(CobaltActivity.class);
+    doCallRealMethod().when(activity).hasHiddenSplashScreen();
+    doCallRealMethod().when(activity).onSplashScreenHidden();
+    doCallRealMethod().when(activity).onPrimaryMainFrameNavigationStarted();
+    activity.onSplashScreenHidden();
+    assertTrue(activity.hasHiddenSplashScreen());
+
+    // E.g. the web app reloaded itself: the new page has not hidden its splash screen yet.
+    activity.onPrimaryMainFrameNavigationStarted();
+
+    assertFalse(activity.hasHiddenSplashScreen());
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_retriesAgain_afterNewNavigationStarted() {
+    PlatformError platformError = createPendingPlatformError();
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+    doCallRealMethod().when(activity).onSplashScreenHidden();
+    doCallRealMethod().when(activity).onPrimaryMainFrameNavigationStarted();
+
+    // Once the splash screen is hidden, network recovery is the web app's job.
+    activity.onSplashScreenHidden();
+    activity.checkAndRetryOnNetworkOnline();
+    verify(platformError, never()).retry();
+
+    // A new document load is a cold start again.
+    activity.onPrimaryMainFrameNavigationStarted();
+    activity.checkAndRetryOnNetworkOnline();
+    verify(platformError).retry();
+  }
 }

@@ -132,6 +132,14 @@ void CobaltWebContentsObserver::DidStartNavigation(
     base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
   }
 
+  // Same-document navigations (pushState, fragment changes) don't load a new
+  // document, so they don't restart the web app's splash screen state.
+  if (!handle->IsSameDocument() &&
+      base::FeatureList::IsEnabled(
+          features::kDisableNetworkDialogDismissButton)) {
+    OnPrimaryMainFrameNavigationStarted();
+  }
+
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
   timeout_timer_->Stop();
@@ -210,6 +218,14 @@ void CobaltWebContentsObserver::SetStartupDiagnosisInfo(const char* key,
   starboard::StarboardBridge::GetInstance()->SetStartupDiagnosisInfo(key,
                                                                      value);
 #endif
+}
+
+void CobaltWebContentsObserver::OnPrimaryMainFrameNavigationStarted() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::StarboardBridge::GetInstance()
+      ->OnPrimaryMainFrameNavigationStarted(env);
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 }
 
 void CobaltWebContentsObserver::OnNavigationTimeout(int64_t navigation_id,

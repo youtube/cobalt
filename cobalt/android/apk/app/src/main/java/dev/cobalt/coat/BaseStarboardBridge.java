@@ -1139,6 +1139,9 @@ public class BaseStarboardBridge {
   protected void hideSplashScreen() {}
 
   @CalledByNative
+  protected void onPrimaryMainFrameNavigationStarted() {}
+
+  @CalledByNative
   protected void setStartupMilestone(int milestone) {}
 
   @CalledByNative
