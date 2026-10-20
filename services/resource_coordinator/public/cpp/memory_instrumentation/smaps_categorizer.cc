@@ -19,8 +19,9 @@
 
 #include <string_view>
 
-#include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/files/file.h"
@@ -154,12 +155,12 @@ std::optional<ParsedSmapsResults> SmapsCategorizer::ScanSmaps(
   };
 
   while (true) {
-    int bytes_read = UNSAFE_BUFFERS(file.ReadAtCurrentPos(
-        buffer + buffer_offset, sizeof(buffer) - buffer_offset));
-    if (bytes_read <= 0)
+    std::optional<size_t> bytes_read = file.ReadAtCurrentPosNoBestEffort(
+        base::as_writable_byte_span(buffer).subspan(buffer_offset));
+    if (!bytes_read.has_value() || *bytes_read == 0)
       break;
 
-    size_t total_buffered = buffer_offset + bytes_read;
+    size_t total_buffered = buffer_offset + *bytes_read;
     std::string_view chunk(buffer, total_buffered);
     size_t last_newline = chunk.find_last_of('\n');
 

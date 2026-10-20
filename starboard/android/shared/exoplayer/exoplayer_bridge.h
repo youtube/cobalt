@@ -104,15 +104,15 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   int ReadSample(JNIEnv* env,
                  int type,
-                 jobject j_buffer,
-                 jlongArray j_metadata);
+                 const jni_zero::JavaParamRef<jobject>& j_buffer,
+                 const jni_zero::JavaParamRef<jlongArray>& j_metadata);
   bool IsReady(JNIEnv* env, int type) const;
   int SkipData(JNIEnv* env, int type, int64_t position_us);
   int64_t GetBufferedPositionUs(JNIEnv* env, int type) const;
 
   void OnInitialized(JNIEnv*);
   void OnReady(JNIEnv*);
-  void OnError(JNIEnv* env, jstring msg);
+  void OnError(JNIEnv* env, const jni_zero::JavaParamRef<jstring>& msg);
   void OnEnded(JNIEnv*) const;
   void OnDroppedVideoFrames(JNIEnv* env, int count);
   void OnIsPlayingChanged(JNIEnv*, bool is_playing);

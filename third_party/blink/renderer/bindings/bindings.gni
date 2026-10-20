@@ -268,7 +268,9 @@ if (is_cobalt) {
   # Exclusion patterns used in Cobalt builds to omit interfaces.
   cobalt_bindings_exclude_patterns = [
     "*_rtc_*",
+    "*v8_rtc.*",
     "*v8_rtc_*",
+    "*v8_navigator_rtc*",
     "*peer_connection*",
     "*explicit_congestion_notification*",
     "*v8_union_mediastreamtrack_string*",
@@ -304,6 +306,7 @@ if (is_cobalt) {
   ]
 
   cobalt_ai_exclude_patterns = [
+    "*v8_classifier*",
     "*v8_rewriter*",
     "*v8_translator*",
     "*v8_writer*",
