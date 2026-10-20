@@ -266,7 +266,7 @@ TEST_P(SlotManagementTest, AdoptSlot) {
   if (!storage_path_implemented_) {
     return;
   }
-  ImInitialize(3, kTestAppKey);
+  ImInitialize(2, kTestAppKey);
   ImReset();
   ASSERT_EQ(IM_SUCCESS, ImRollForward(1));
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
