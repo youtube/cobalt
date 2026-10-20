@@ -55,6 +55,8 @@ QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 
 #if BUILDFLAG(IS_COBALT)
 int QuicChromiumPacketReader::StartReadingMultiplePackets() {
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   for (;;) {
 if (read_pending_)
       return OK;
@@ -164,6 +166,8 @@ void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
 
 void QuicChromiumPacketReader::StartReading() {
 #if BUILDFLAG(IS_COBALT)
+  // Packets handled here reuse the time read for the yield check.
+  quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
   if (try_reading_multiple_packets_) {
     int rv = StartReadingMultiplePackets();
     if (rv == OK || rv == ERR_IO_PENDING) {

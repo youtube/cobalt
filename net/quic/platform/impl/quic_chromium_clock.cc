@@ -28,14 +28,14 @@ QuicChromiumClock::~QuicChromiumClock() = default;
 
 #if BUILDFLAG(IS_COBALT)
 QuicChromiumClock::ScopedApproximateNow::ScopedApproximateNow() {
-  s_approximate_now = QuicTime::Zero();
   ++s_approximate_now_scopes;
 }
 
 QuicChromiumClock::ScopedApproximateNow::~ScopedApproximateNow() {
   DCHECK_GT(s_approximate_now_scopes, 0);
-  --s_approximate_now_scopes;
-  s_approximate_now = QuicTime::Zero();
+  if (--s_approximate_now_scopes == 0) {
+    s_approximate_now = QuicTime::Zero();
+  }
 }
 #endif
 
