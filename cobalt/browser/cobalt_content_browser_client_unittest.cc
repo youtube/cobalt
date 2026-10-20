@@ -34,6 +34,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "content/public/browser/overlay_window.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -86,6 +87,36 @@ TEST_F(CobaltContentBrowserClientTest,
 #endif
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
+  // The one-argument override creates a temp dir and registers its canonical
+  // path, so the expectation below must be read back from PathService (a
+  // ScopedTempDir path would differ on Android: /data/user/0 vs /data/data).
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // Feature off (the default): no directory, so no GPU disk cache can be
+  // created even without --disable-gpu-shader-disk-cache.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_TRUE(client.GetGrShaderDiskCacheDirectory().empty());
+  }
+
+  // Feature on: under base::DIR_CACHE, never under the user data directory.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+              cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
   EXPECT_EQ(
@@ -113,21 +144,19 @@ TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
   CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
                                     /*deep_link=*/"",
                                     /*is_visible=*/true);
-  // By default (kCobaltStorageCleanup disabled), shader disk cache directories
-  // remain in SHELL_DIR_USER_DATA.
+  // By default (kCobaltStorageCleanup disabled), the shader disk cache
+  // directory remains in SHELL_DIR_USER_DATA. GetGrShaderDiskCacheDirectory()
+  // is gated on kCobaltGpuShaderDiskCache instead; see the
+  // GrShaderDiskCacheDirectory test.
   EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
             user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
-  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
-            user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
 
-  // When kCobaltStorageCleanup is enabled, shader disk cache directories use
+  // When kCobaltStorageCleanup is enabled, the shader disk cache directory uses
   // base::DIR_CACHE.
   base::test::ScopedFeatureList feature_list(
       base::features::kCobaltStorageCleanup);
   EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
             cache_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
-  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
-            cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
 }
 #endif
 
