@@ -67,6 +67,13 @@ def cobalt_to_evergreen_version(cobalt_version):
   """
   match = _LTS_VERSION_PATTERN.match(cobalt_version)
   if not match:
+    # Evergreen packages are only released from LTS release branches, and the
+    # Evergreen version encodes that LTS release (<MAJOR>.lts.<MINOR>). Other
+    # versions, such as 27.master.0 on the main branch, are never published as
+    # Evergreen packages (their updater talks to the separate trunk Omaha app,
+    # see Configurator::GetAppGuidHelper()), so there is no Evergreen version
+    # to derive. Fall back to the default version, which is lower than any
+    # released Evergreen version.
     return DEFAULT_EVERGREEN_VERSION
   major = int(match.group(1)) - _EVERGREEN_MAJOR_VERSION_OFFSET
   if major < 1:
