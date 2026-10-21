@@ -19,7 +19,6 @@
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -70,11 +69,6 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kForceDarkMode,
       // Hide scrollbars to avoid memory allocation.
       ::switches::kHideScrollbars,
-#if BUILDFLAG(IS_ANDROID)
-      // AOSP: turn QUIC off by default, as on Android TV. With QUIC on,
-      // downloads that pause mid-transfer get dropped (b/532158865).
-      ::switches::kDisableQuic,
-#endif  // BUILDFLAG(IS_ANDROID)
   };
   return kCobaltToggleSwitches;
 }
