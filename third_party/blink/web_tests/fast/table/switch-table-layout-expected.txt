@@ -1,0 +1,4 @@
+This test verifies table cell width is correctly updated after a table-layout change.
+	
+PASS
+PASS

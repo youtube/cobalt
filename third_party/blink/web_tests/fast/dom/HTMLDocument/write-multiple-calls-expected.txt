@@ -1,0 +1,16 @@
+Tests: calling HTMLDocument::write
+
+Condition(s): multiple calls
+
+Success message:
+
+passed
+
+
+Failure message:
+
+pa
+ssed
+
+
+passed

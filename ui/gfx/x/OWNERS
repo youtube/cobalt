@@ -1,0 +1,4 @@
+thomasanderson@chromium.org
+
+# Adding new atoms is allowed without OWNERS review.
+per-file atom_cache.cc=*

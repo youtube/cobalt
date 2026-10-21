@@ -1,0 +1,7 @@
+include_rules = [
+  "+components/translate/core/browser",
+  "+components/translate/core/common",
+  "+components/translate/core/language_detection",
+  "+components/language_detection/core",
+  "+net",
+]

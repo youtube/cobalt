@@ -1,0 +1,7 @@
+UNKNOWN focusable has_input_focus
+++UNKNOWN hidden
+++++UNKNOWN
+++++++IMAGE label='Has two simple children'
+++++++UNKNOWN label='Has two focusable children'
+++++++++UNKNOWN focusable
+++++++++UNKNOWN focusable

@@ -1,0 +1,3 @@
+Test to make sure that reloads get reload navigation type.
+
+navigation type is 1, expected (reload) is 1

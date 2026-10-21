@@ -1,0 +1,6 @@
+Tests "reload" from within inspector window while on pause.
+
+Set timer for test function.
+Script execution paused.
+Page reloaded.
+

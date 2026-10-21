@@ -1,0 +1,3 @@
+[document web]
+++[paragraph]
+++++[static] name='This test is for body tag'

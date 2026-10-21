@@ -1,0 +1,6 @@
+include_rules = [
+  '+av1',
+  '+aom',
+  '+aom_dsp',
+  '+testing/gtest/include/gtest',
+]

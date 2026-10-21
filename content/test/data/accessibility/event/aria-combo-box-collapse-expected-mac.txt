@@ -1,0 +1,3 @@
+AXExpandedChanged on AXComboBox AXAutocompleteValue='list'
+AXFocusedUIElementChanged on AXComboBox AXAutocompleteValue='list'
+AXSelectedChildrenChanged on AXComboBox AXAutocompleteValue='list'

@@ -1,0 +1,13 @@
+diff --git a/components-chromium/iron-overlay-behavior/iron-overlay-manager.js b/components-chromium/iron-overlay-behavior/iron-overlay-manager.js
+index 99768f419688..7dd55b8077b7 100644
+--- a/components-chromium/iron-overlay-behavior/iron-overlay-manager.js
++++ b/components-chromium/iron-overlay-behavior/iron-overlay-manager.js
+@@ -13,7 +13,7 @@ import './iron-overlay-backdrop.js';
+ 
+ import {IronA11yKeysBehavior} from '../iron-a11y-keys-behavior/iron-a11y-keys-behavior.js';
+ import {dom} from '../polymer/lib/legacy/polymer.dom.js';
+-import * as gestures from '../polymer/lib/utils/gestures.js';
++import {gestures} from '../polymer/lib/utils/gestures.js';
+ 
+ /**
+  * @struct

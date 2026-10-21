@@ -1,0 +1,51 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chromeos/ui_mode.gni")
+import("//extensions/buildflags/buildflags.gni")
+
+assert(enable_extensions_core)
+
+source_set("virtual_keyboard_private") {
+  sources = [
+    "virtual_keyboard_private_api.cc",
+    "virtual_keyboard_private_api.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [
+    "//base",
+    "//build:chromeos_buildflags",
+    "//extensions/browser:browser_sources",
+    "//extensions/common/api",
+  ]
+
+  deps = [
+    ":virtual_keyboard_delegate",
+    "//content/public/browser",
+    "//extensions/browser/api:extensions_api_client",
+  ]
+
+  if (is_chromeos) {
+    deps += [
+      "//ash",
+      "//chromeos/crosapi/mojom",
+      "//ui/base",
+      "//ui/color:color_headers",
+    ]
+  }
+}
+
+source_set("virtual_keyboard_delegate") {
+  sources = [ "virtual_keyboard_delegate.h" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [
+    "//base",
+    "//extensions/common/api",
+    "//ui/gfx/geometry",
+  ]
+}

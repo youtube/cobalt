@@ -1,0 +1,5 @@
+# ChromeOS > Software > System Services > Serviceability > Diagnostics
+buganizer {
+  component_id: 1131925
+}
+team_email: "cros-system-services@google.com"

@@ -1,0 +1,7 @@
+chengweih@chromium.org
+mattreynolds@chromium.org
+reillyg@chromium.org
+
+per-file BUILD.gn=*
+
+# For adding or removing languages.

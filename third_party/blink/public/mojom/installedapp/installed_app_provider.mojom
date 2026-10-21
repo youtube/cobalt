@@ -1,0 +1,25 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+[JavaPackage="org.chromium.installedapp.mojom"]
+module blink.mojom;
+
+import "third_party/blink/public/mojom/installedapp/related_application.mojom";
+import "url/mojom/url.mojom";
+
+// Mojo service for the getInstalledRelatedApps implementation.
+// The browser process implements this service and receives calls from
+// renderers to resolve calls to navigator.getInstalledRelatedApps().
+interface InstalledAppProvider {
+  // Filters |relatedApps|, keeping only those which are both installed on the
+  // user's system, and related to the web origin of the requesting page.
+  // Also appends the app version to the filtered apps.
+  // When `add_saved_related_applications` is set to true, the returned
+  // |installed_apps| will use the value saved in the browser for consistent
+  // behavior even if the manifest fetch fails.
+  FilterInstalledApps(array<RelatedApplication> related_apps,
+                      url.mojom.Url manifest_url,
+                      bool add_saved_related_applications)
+      => (array<RelatedApplication> installed_apps);
+};

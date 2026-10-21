@@ -1,0 +1,12 @@
+{
+  metadata: {
+    namespace: "delivery_type_names",
+    export: "PLATFORM_EXPORT",
+  },
+
+  data: [
+    "cache",
+    "cache-storage",
+    "navigational-prefetch",
+  ],
+}

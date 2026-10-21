@@ -1,0 +1,9 @@
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+CONSOLE ERROR: Uncaught ReferenceError: UndefinedReference is not defined
+This is a testharness.js-based test.
+Harness: the test ran to completion.
+

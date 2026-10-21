@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test AudioScheduledSourceNode</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      "use strict";
+
+      // Constructing AudioScheduledSourceNode should fail
+      test(() => {
+        const context = new AudioContext();
+        assert_throws_js(
+            TypeError,
+            () => new AudioScheduledSourceNode(context),
+            "new AudioScheduledSourceNode(context) should throw TypeError"
+        );
+      }, "Constructing AudioScheduledSourceNode should fail");
+
+      // Verify scheduling properties on
+      // AudioScheduledSourceNode and its derived nodes
+      test(() => {
+        const expectedProperties = ["start", "stop", "onended"];
+
+        // AudioScheduledSourceNode must *own* these properties.
+        for (const prop of expectedProperties) {
+          assert_own_property(
+              AudioScheduledSourceNode.prototype,
+              prop,
+              `AudioScheduledSourceNode.prototype should own`+
+              `property "${prop}"`
+          );
+        }
+
+        // ConstantSourceNode and OscillatorNode must NOT own them.
+        const noOwnProps = ["ConstantSourceNode", "OscillatorNode"];
+        for (const ctorName of noOwnProps) {
+          for (const prop of expectedProperties) {
+            assert_not_own_property(
+                self[ctorName].prototype,
+                prop,
+                `${ctorName}.prototype should NOT own property "${prop}"`
+            );
+          }
+        }
+
+        // AudioBufferSourceNode has its own "start" method,
+        // but not the others.
+        for (const prop of expectedProperties) {
+          if (prop !== "start") {
+            assert_not_own_property(
+                AudioBufferSourceNode.prototype,
+                prop,
+                `AudioBufferSourceNode.prototype should NOT own` +
+                `property "${prop}"`
+            );
+          }
+        }
+        assert_own_property(
+            AudioBufferSourceNode.prototype,
+            "start",
+            'AudioBufferSourceNode.prototype should own property "start"'
+        );
+      }, "Verifying properties on AudioScheduledSourceNode and derived nodes");
+    </script>
+  </body>
+</html>

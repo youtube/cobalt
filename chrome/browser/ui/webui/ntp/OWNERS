@@ -1,0 +1,3 @@
+file://components/search/OWNERS
+
+per-file app_launcher_handler*=dmurph@chromium.org

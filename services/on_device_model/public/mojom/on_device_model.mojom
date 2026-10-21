@@ -1,0 +1,353 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module on_device_model.mojom;
+
+import "mojo/public/mojom/base/file.mojom";
+import "mojo/public/mojom/base/file_path.mojom";
+import "skia/public/mojom/bitmap.mojom";
+
+// Opened file resources needed to define an adaptation.
+[Stable]
+struct AdaptationAssets {
+  // Model weights could be passed as an opened file or a file path.
+  // The backend type will decide which one should be used, or
+  // which one is preferred if both are passed. If both are unset,
+  // usually the operation should fail.
+  // APU backend: weights_path should be used.
+  // GPU backend: weights should be used.
+  // TODO(b/313919363): This should also be a ReadOnlyFile.
+  mojo_base.mojom.File? weights;
+  mojo_base.mojom.FilePath? weights_path;
+};
+
+// Conveys the result of a language detection attempt on output text.
+[Stable]
+struct LanguageDetectionResult {
+  // Language code of the detected language. If detection was indeterminate,
+  // this is "und" per ISO 639-2.
+  string code;
+
+  // Reliability of this result, in the range [0, 1].
+  float reliability;
+};
+
+// Aggregated text safety evaluation results.
+[Stable]
+struct SafetyInfo {
+  // Independent safety class probabilities in the range [0, 1].
+  array<float> class_scores;
+
+  // Language detection information. Present if and only if the safety config is
+  // restricted by language.
+  LanguageDetectionResult? language;
+};
+
+// Partial response received via StreamingResponder.OnResponse().
+[Stable]
+struct ResponseChunk {
+  // Text for this chunk of the response.
+  string text;
+
+  // Optional safety information computed against the full response so far, up
+  // to and including `text`.
+  SafetyInfo? safety_info;
+};
+
+// Information pertaining to a complete response that was streamed by a
+// StreamingResponder.
+[Stable]
+struct ResponseSummary {
+  // Optional safety information computed against the full response.
+  SafetyInfo? safety_info;
+
+  // The total number of output tokens for this response.
+  uint32 output_token_count;
+};
+
+// Streams a response from a call to execute a model. Close this pipe to cancel
+// the call to |Generate()|.
+[Stable]
+interface StreamingResponder {
+  // This is called each time a new chunk of text is available.
+  OnResponse@0(ResponseChunk chunk);
+
+  // This is called once when all text for the query has been returned. No other
+  // methods on this interface will be called after OnComplete(). `summary`
+  // conveys metadata about the response that was streamed.
+  OnComplete@1(ResponseSummary summary);
+};
+
+// Notifies the caller when the model is done processing context. Close this
+// pipe to cancel the call to |AddContext()|.
+[Stable]
+interface ContextClient {
+  // Called when the context has finished processing with the number of tokens
+  // processed.
+  OnComplete@0(uint32 tokens_processed);
+};
+
+// Params to describe the adaptation to load.
+[Stable]
+struct LoadAdaptationParams {
+  // Assets for an adaptation.
+  AdaptationAssets assets;
+};
+
+// A set of capabilities that a model can have.
+[Stable]
+struct Capabilities {
+  // Whether this model will handle InputPieces containing images.
+  bool image_input = false;
+
+  // Whether this model will handle InputPieces containing audio.
+  bool audio_input = false;
+};
+
+// Params to describe a new session.
+[Stable]
+struct SessionParams {
+  // The maximum number of input+output tokens the session can handle. This is
+  // needed when initializing the session. Currently this is only supported by
+  // the APU backend. When set to 0, the original `max_tokens` set by the base
+  // model will be used.
+  uint32 max_tokens = 0;
+
+  // The capabilities to enable for this session.
+  Capabilities capabilities;
+
+  // These params control the output sampling. Higher `top_k` means more tokens
+  // are considered, higher `temperature` means less likely tokens are more
+  // probable.
+  // `top_k` should be a value from 1 to the max top K value the model was
+  // initialized with.
+  [MinVersion=1]
+  uint32 top_k;
+  // `temperature` should be a value greater than 0.0. Values above 1.0 may give
+  // poor results.
+  [MinVersion=1]
+  float temperature;
+};
+
+// The set of tokens that can be added as part of an input.
+[Stable, Extensible]
+enum Token {
+  // Prefix for system text.
+  kSystem,
+  // Prefix for model text.
+  kModel,
+  // Prefix for user text.
+  kUser,
+  // End a system/model/user section.
+  [Default] kEnd,
+};
+
+// Holds the possible input types to the model. Note that if any of these input
+// types include cross-origin data, such as a screenshot, any of the origins may
+// be able to control the model output.
+[Stable, Extensible]
+union InputPiece {
+  // A token which may have different internal representations depending on the
+  // loaded model.
+  Token token;
+  // Text to be provided as input.
+  string text;
+  // Bitmap provided as input. This is not ImageSkia because there is no desire
+  // to support multiple scale factors.
+  skia.mojom.BitmapWithArbitraryBpp bitmap;
+
+  // Used to handle version skew.
+  [Default]
+  bool unknown_type;
+
+  // Audio provided as input.
+  [MinVersion=1]
+  AudioData audio;
+};
+
+[Stable]
+struct Input {
+  // A list of tokens and text that the model will use to construct the final
+  // input.
+  array<InputPiece> pieces;
+};
+
+[Stable]
+struct AppendOptions {
+  // The input for the model.
+  Input input;
+
+  // The maximum number of tokens that should be processed. If zero, will
+  // process all tokens from this input.
+  uint32 max_tokens = 0;
+};
+
+[Stable, Extensible]
+union ResponseConstraint {
+  // A JSON schema defining structured output requirements for the response.
+  // Passed as an opaque JSON blob to llguidance.
+  string json_schema;
+
+  // A regex string specifying the output constraints.
+  string regex;
+
+  // Used to handle version skew.
+  [Default]
+  bool unknown_type;
+};
+
+[Stable]
+struct GenerateOptions {
+  // The maximum number of tokens that should be output from a call to
+  // Generate(). If zero, will output tokens until an end token or the maximum
+  // sequence length.
+  uint32 max_output_tokens = 0;
+
+  // Specifies any constraints on the output for this Generate() call. Note that
+  // only one of the JSON schema or regex constraints should be provided.
+  [MinVersion=2]
+  ResponseConstraint? constraint;
+};
+
+// Priorities which determine how requests to a session are scheduled.
+[Stable, Extensible]
+enum Priority {
+  // Requests should be treated as high priority, the user may be actively
+  // waiting for a response.
+  [Default] kForeground,
+  // Requests are not urgent and may be queued. Background requests will only
+  // run if there are no active foreground requests.
+  kBackground,
+};
+
+// A session for a model that allows adding context and then executing an input
+// with that context.
+[Stable]
+interface Session {
+  // Appends input to this session. Any input added here will build off of
+  // previous calls to |Append()|. To cancel, close the |client| pipe.
+  [MinVersion=1]
+  Append@6(AppendOptions options, pending_remote<ContextClient>? client);
+
+  // Generates output from the model on top of any input added from Append().
+  // The response will be streamed to |response|. To cancel the request, close
+  // the |response| pipe.
+  [MinVersion=1]
+  Generate@7(
+      GenerateOptions options, pending_remote<StreamingResponder> response);
+
+  // Gets the size of the given text in tokens. Will return 0 if the text is
+  // empty or error occurred.
+  GetSizeInTokens@5(Input input) => (uint32 size);
+
+  // Gets the probability score of the first token in `text` on top of the
+  // current context.
+  Score@3(string text) => (float probability);
+
+  // Clones the current session. The cloned session will have the same context
+  // as the current session.
+  Clone@4(pending_receiver<Session> session);
+
+  // Gets the probability for a series of tokens on top of the current
+  // context. Capabilities.probabilities_output must be specified to use this.
+  // Note that this is implemented as a blocking method on the service side
+  // and should only be used in debugging/testing.
+  [MinVersion=3]
+  GetProbabilitiesBlocking@8(string text) => (array<float> probabilities);
+
+  // Sets the priority for currently queued requests to this session and future
+  // requests. Any clones made of this session will inherit the current
+  // priority. Priority for new sessions defaults to kForeground.
+  [MinVersion=4]
+  SetPriority@9(Priority priority);
+};
+
+// A loaded model which can be queried. This interface must be controlled by the
+// browser and consumers must take care to sanitize inputs.
+[Stable]
+interface OnDeviceModel {
+  // Starts a session with this model. Sessions are logically independent,
+  // but requests may block progress of other sessions.
+  StartSession@0(pending_receiver<Session> session,
+                 [MinVersion=1] SessionParams? params);
+
+  // DEPRECATED: Does nothing
+  ClassifyTextSafety@1(string text) => (SafetyInfo? safety_info);
+
+  // DEPRECATED: Does nothing
+  DetectLanguage@2(string text) => (LanguageDetectionResult? result);
+
+  // Loads an adaptation with the specified params. This will always load the
+  // adaptation on top of the base model.
+  LoadAdaptation@3(
+      LoadAdaptationParams params, pending_receiver<OnDeviceModel> model)
+      => (LoadModelResult result);
+};
+
+// A connection to a text safety model, that can be used to score arbitrary
+// text in a set of safety categories.
+interface TextSafetySession {
+  // Infers multiclass safety scores for the given `text` using this model's
+  // underlying safety classifier, if any. Returns null if classification fails
+  // or there is no classifier available.
+  ClassifyTextSafety@1(string text) => (SafetyInfo? safety_info);
+
+  // Detects the language of the text using the language classifier. Returns
+  // null if there is no classifier available.
+  DetectLanguage@2(string text) => (LanguageDetectionResult? result);
+
+  // Clones the session and any configuration.
+  Clone@3(pending_receiver<TextSafetySession> session);
+};
+
+// A loaded text safety model, that can be shared by multiple features.
+// This remote of this interface is held by the browser, and manages the
+// resource.
+interface TextSafetyModel {
+  // Starts a session with this model.
+  StartSession@0(pending_receiver<TextSafetySession> session);
+};
+
+// Classifies the device based on how fast it is estimated to be able to run a
+// model.
+[Stable, Extensible]
+enum PerformanceClass {
+  // There was an error running the benchmark. The device is likely not able to
+  // run any models.
+  [Default] kError,
+  // The GPU was blocked so the benchmark could not run.
+  kGpuBlocked,
+  // The library failed to load so the benchmark could not run.
+  kFailedToLoadLibrary,
+
+  // The values below classify devices into a range of performance buckets.
+  kVeryLow,
+  kLow,
+  kMedium,
+  kHigh,
+  kVeryHigh,
+};
+
+[Stable, Extensible]
+enum LoadModelResult {
+  kSuccess,
+  kGpuBlocked,
+  [Default] kFailedToLoadLibrary,
+  [MinVersion=1, EnableIf=is_chromeos] kCrosNeedReboot,
+};
+
+[Stable]
+struct AudioData {
+  // Number of channels.
+  int32 channel_count;
+
+  // Sample rate of the buffer.
+  int32 sample_rate;
+
+  // Number of frames in the buffer.
+  int32 frame_count;
+
+  // Channel data.
+  array<float> data;
+};

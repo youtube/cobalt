@@ -1,0 +1,3 @@
+# Chromium's blame.ignoreRevsFile is normally irrelevant to Cobalt
+# and makes git-blame slower and less reliable.
+# See crbug.com/574290 and crrev.com/c/5888125.

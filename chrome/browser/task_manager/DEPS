@@ -1,0 +1,4 @@
+include_rules = [
+  "+extensions/strings/grit/extensions_strings.h",
+  "+third_party/jni_zero"
+]

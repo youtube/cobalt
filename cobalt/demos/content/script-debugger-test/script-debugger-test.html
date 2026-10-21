@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+  .text {
+    color: rgb(255, 255, 255);
+    padding: 5px;
+  }
+  </style>
+  <script type="text/javascript">
+    function start() {
+      document.addEventListener('keypress', onKeypress);
+    }
+
+    function onKeypress(event) {
+      var k = String.fromCharCode(event.charCode);
+      switch(k) {
+        case 'c':
+          try {
+            throw ({'message': 'test exception'});
+          } catch(e) {
+            console.log('Caught exception: ' + e);
+          }
+          break;
+        case 'd':
+          debugger;
+          break;
+        case 'e':
+          throw({'message': 'test exception'});
+          break;
+      }
+    }
+
+    window.addEventListener('load', start);
+  </script>
+</head>
+
+<body style="background: rgb(0,0,0);">
+  <div class='text'>C: throws caught exception</div>
+  <div class='text'>D: executes 'debugger' statement</div>
+  <div class='text'>E: throws uncaught exception</div>
+</body>
+</html>

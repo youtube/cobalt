@@ -1,0 +1,4 @@
+include_rules = [
+  "+services/device/public/mojom",
+  "+mojo/public/cpp/bindings",
+]

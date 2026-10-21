@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/gesture-util.js"></script>
+<style>
+body {
+    height: 1800px;
+}
+</style>
+<script>
+  // Compute ScrollableArea::pageStep.
+  var pageStep = innerHeight * 0.875;
+  if (navigator.userAgent.indexOf("Mac OS X") >= 0) {
+      pageStep = Math.max(pageStep, innerHeight - 40);
+  }
+
+  promise_test(async () => {
+      // Click in the vertical scrollbar track, below the thumb, and hold the
+      // mouse button down. The animation shouldn't continue past the initial
+      // page step since the initial page step will take the scrollbar thumb
+      // under the cursor.
+      await mouseMoveTo(790, 280);
+      await mouseDownAt(790, 280);
+
+      await waitForAnimationEndTimeBased( () => { return scrollY; } );
+      assert_equals(window.scrollY, pageStep);
+  }, 'Scrollbar track autoscrolling doesn\'t overshoot cursor.');
+</script>

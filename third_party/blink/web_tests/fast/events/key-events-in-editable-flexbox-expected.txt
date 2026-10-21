@@ -1,0 +1,8 @@
+PASS successfullyParsed is true
+
+TEST COMPLETE
+
+PASS targetDiv.innerText is "TEST"
+PASS targetDiv.innerHTML is "<br>"
+PASS targetDiv.innerText is "TEST"
+TEST

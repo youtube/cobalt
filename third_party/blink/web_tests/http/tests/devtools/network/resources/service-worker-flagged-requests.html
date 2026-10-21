@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<script>
+function installSW() {
+  navigator.serviceWorker.register('service-worker-flagged-requests.js');
+}
+</script>
+  </head>
+  <body onload="installSW()"></body>
+</html>

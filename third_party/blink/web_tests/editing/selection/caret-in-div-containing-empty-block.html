@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<title>Testcase for bug https://bugs.webkit.org/show_bug.cgi?id=108053:
+Caret is not displayed when trying to focus inside a contenteditable element
+containing an empty block.</title>
+<body>
+<style>
+body {
+  margin: 0;
+}
+
+#textDiv, #horizontalDiv, #verticalDiv, #sidewaysDiv {
+  height: 200px;
+  width: 200px;
+  border: 1px solid black;
+  padding-block: 3px 7px;
+  padding-inline: 11px 5px;
+  position: absolute;
+}
+
+#verticalDiv {
+  writing-mode: vertical-rl;
+}
+
+#sidewaysDiv {
+  writing-mode: sideways-lr;
+}
+</style>
+
+<div id="textDiv" contenteditable="true">Some text.<p></p></div>
+<div id="horizontalDiv" contenteditable="true"><p></p></div>
+<div id="verticalDiv" contenteditable="true"><p></p></div>
+<div id="sidewaysDiv" contenteditable="true"><p></p></div>
+
+<script>
+const DIV_SIZE = 200;
+const BORDER_WIDTH = 1;
+const PADDING_BLOCK_SUM = 3 + 7;
+const PADDING_INLINE_SUM = 11 + 5;
+
+document.querySelector('#textDiv').focus();
+const textCaretRect = internals.absoluteCaretBounds(document);
+
+test(() => {
+  document.querySelector('#horizontalDiv').focus();
+  const caretRect = internals.absoluteCaretBounds(document);
+
+  assert_equals(caretRect.left, textCaretRect.left);
+  assert_equals(caretRect.top, textCaretRect.top);
+  assert_equals(caretRect.width, textCaretRect.width);
+  assert_equals(caretRect.height, textCaretRect.height);
+}, 'horizontal-tb');
+
+test(() => {
+  document.querySelector('#verticalDiv').focus();
+  const caretRect = internals.absoluteCaretBounds(document);
+
+  assert_equals(caretRect.left,
+      DIV_SIZE + 2 * BORDER_WIDTH + PADDING_BLOCK_SUM - textCaretRect.bottom);
+  assert_equals(caretRect.top, textCaretRect.left);
+  assert_equals(caretRect.width, textCaretRect.height);
+  assert_equals(caretRect.height, textCaretRect.width);
+}, 'vertical-rl');
+
+test(() => {
+  document.querySelector('#sidewaysDiv').focus();
+  const caretRect = internals.absoluteCaretBounds(document);
+
+  assert_equals(caretRect.left, textCaretRect.top);
+  assert_equals(caretRect.bottom,
+     DIV_SIZE + 2 * BORDER_WIDTH + PADDING_INLINE_SUM - textCaretRect.left);
+  assert_equals(caretRect.width, textCaretRect.height);
+  assert_equals(caretRect.height, textCaretRect.width);
+}, 'sideways-lr');
+</script>
+</body>
+</html>

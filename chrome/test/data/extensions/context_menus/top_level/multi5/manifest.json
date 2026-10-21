@@ -1,0 +1,10 @@
+{
+  "name": "Ze Extension with multiple Context Menus",
+  "version": "1",
+  "manifest_version": 2,
+  "permissions": [ "contextMenus" ],
+  "background": {
+    "persistent": false,
+    "scripts": [ "background.js" ]
+  }
+}

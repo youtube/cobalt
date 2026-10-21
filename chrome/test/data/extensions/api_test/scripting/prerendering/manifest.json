@@ -1,0 +1,17 @@
+{
+  "name": "Scripting API Prerendering Test",
+  "manifest_version": 3,
+  "version": "0.1",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "webRequest",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "host_permissions": [
+    "http://example.com/*"
+  ]
+}

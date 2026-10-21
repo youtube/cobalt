@@ -1,0 +1,6 @@
+include_rules = [
+  "+sandbox/linux/bpf_dsl",
+  "+sandbox/linux/seccomp-bpf",
+  "+sandbox/linux/services",
+  "+sandbox/linux/system_headers",
+]

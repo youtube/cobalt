@@ -1,0 +1,60 @@
+WebSocket should fail if subprotocol contains a forbidden character.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS new WebSocket(URL, "\u0000") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0000' is invalid..
+PASS new WebSocket(URL, "\u0001") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0001' is invalid..
+PASS new WebSocket(URL, "\u0002") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0002' is invalid..
+PASS new WebSocket(URL, "\u0003") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0003' is invalid..
+PASS new WebSocket(URL, "\u0004") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0004' is invalid..
+PASS new WebSocket(URL, "\u0005") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0005' is invalid..
+PASS new WebSocket(URL, "\u0006") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0006' is invalid..
+PASS new WebSocket(URL, "\u0007") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0007' is invalid..
+PASS new WebSocket(URL, "\u0008") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0008' is invalid..
+PASS new WebSocket(URL, "\u0009") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0009' is invalid..
+PASS new WebSocket(URL, "\u000a") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000A' is invalid..
+PASS new WebSocket(URL, "\u000b") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000B' is invalid..
+PASS new WebSocket(URL, "\u000c") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000C' is invalid..
+PASS new WebSocket(URL, "\u000d") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000D' is invalid..
+PASS new WebSocket(URL, "\u000e") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000E' is invalid..
+PASS new WebSocket(URL, "\u000f") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u000F' is invalid..
+PASS new WebSocket(URL, "\u0010") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0010' is invalid..
+PASS new WebSocket(URL, "\u0011") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0011' is invalid..
+PASS new WebSocket(URL, "\u0012") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0012' is invalid..
+PASS new WebSocket(URL, "\u0013") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0013' is invalid..
+PASS new WebSocket(URL, "\u0014") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0014' is invalid..
+PASS new WebSocket(URL, "\u0015") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0015' is invalid..
+PASS new WebSocket(URL, "\u0016") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0016' is invalid..
+PASS new WebSocket(URL, "\u0017") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0017' is invalid..
+PASS new WebSocket(URL, "\u0018") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0018' is invalid..
+PASS new WebSocket(URL, "\u0019") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u0019' is invalid..
+PASS new WebSocket(URL, "\u001a") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001A' is invalid..
+PASS new WebSocket(URL, "\u001b") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001B' is invalid..
+PASS new WebSocket(URL, "\u001c") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001C' is invalid..
+PASS new WebSocket(URL, "\u001d") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001D' is invalid..
+PASS new WebSocket(URL, "\u001e") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001E' is invalid..
+PASS new WebSocket(URL, "\u001f") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u001F' is invalid..
+PASS new WebSocket(URL, "\u0020") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ' ' is invalid..
+PASS new WebSocket(URL, "\u0022") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '"' is invalid..
+PASS new WebSocket(URL, "\u0028") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '(' is invalid..
+PASS new WebSocket(URL, "\u0029") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ')' is invalid..
+PASS new WebSocket(URL, "\u002c") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ',' is invalid..
+PASS new WebSocket(URL, "\u002f") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '/' is invalid..
+PASS new WebSocket(URL, "\u003a") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ':' is invalid..
+PASS new WebSocket(URL, "\u003b") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ';' is invalid..
+PASS new WebSocket(URL, "\u003c") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '<' is invalid..
+PASS new WebSocket(URL, "\u003d") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '=' is invalid..
+PASS new WebSocket(URL, "\u003e") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '>' is invalid..
+PASS new WebSocket(URL, "\u003f") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '?' is invalid..
+PASS new WebSocket(URL, "\u0040") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '@' is invalid..
+PASS new WebSocket(URL, "\u005b") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '[' is invalid..
+PASS new WebSocket(URL, "\u005c") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\\' is invalid..
+PASS new WebSocket(URL, "\u005d") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol ']' is invalid..
+PASS new WebSocket(URL, "\u007b") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '{' is invalid..
+PASS new WebSocket(URL, "\u007d") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '}' is invalid..
+PASS new WebSocket(URL, "\u007f") threw exception SyntaxError: Failed to construct 'WebSocket': The subprotocol '\u007F' is invalid..
+PASS WebSocket correctly accepted subprotocol "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

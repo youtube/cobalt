@@ -1,0 +1,72 @@
+{
+  "layers": [
+    {
+      "name": "Scrolling background of LayoutView #document",
+      "bounds": [800, 600],
+      "contentsOpaque": true,
+      "backgroundColor": "#FFFFFF"
+    },
+    {
+      "name": "LayoutBlockFlow DIV class='overlap'",
+      "bounds": [300, 500],
+      "drawsContent": false,
+      "transform": 1
+    },
+    {
+      "name": "LayoutBlockFlow (positioned, children-inline) DIV class='item'",
+      "position": [14, 35],
+      "bounds": [101, 210],
+      "invalidations": [
+        [0, 80, 39, 40]
+      ]
+    }
+  ],
+  "transforms": [
+    {
+      "id": 1,
+      "transform": [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [8, 8, 0, 1]
+      ]
+    }
+  ]
+}
+{
+  "layers": [
+    {
+      "name": "Scrolling background of LayoutView #document",
+      "bounds": [800, 600],
+      "contentsOpaque": true,
+      "backgroundColor": "#FFFFFF"
+    },
+    {
+      "name": "LayoutBlockFlow DIV class='overlap'",
+      "bounds": [300, 500],
+      "drawsContent": false,
+      "transform": 1
+    },
+    {
+      "name": "LayoutBlockFlow (positioned, children-inline) DIV class='item'",
+      "position": [14, 35],
+      "bounds": [101, 210],
+      "invalidations": [
+        [0, 160, 39, 40],
+        [0, 80, 39, 40]
+      ]
+    }
+  ],
+  "transforms": [
+    {
+      "id": 1,
+      "transform": [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [8, 8, 0, 1]
+      ]
+    }
+  ]
+}
+

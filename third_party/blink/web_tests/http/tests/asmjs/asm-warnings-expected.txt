@@ -1,0 +1,3 @@
+CONSOLE WARNING: Invalid asm.js: Bad variable declaration
+CONSOLE WARNING: Invalid asm.js: Can only use immutable variables in global definition
+

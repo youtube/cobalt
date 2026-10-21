@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/gesture-util.js"></script>
+<style>
+  body {
+    margin: 0px;
+    height: 2000px;
+    width: 2000px;
+  }
+  #changer {
+    background-color: #FF7F7F;
+    height: 10px;
+  }
+  #anchor {
+    height: 1500px;
+    background-color: #84BE6A;
+  }
+</style>
+
+<div id="changer"></div>
+<div id="anchor"></div>
+
+<script>
+  const changer_desired_height = "100px";
+  const pixelsToScrollY = 205;
+  // End position: changer height + pixelsToScrollY.
+  const endY = 305;
+
+  function addScrollListener(target) {
+    const scrollListener = () => {
+      if (target.style.height != changer_desired_height) {
+        target.style.height = changer_desired_height;
+      }
+    }
+    document.addEventListener("scroll", scrollListener, { once: true });
+  }
+
+  promise_test(async () => {
+    await waitForCompositorReady();
+    await waitForScrollReset(document.scrollingElement);
+
+    // Scroll down (10px) so the anchor is invisible.
+    document.getElementById('anchor').scrollIntoView();
+    await waitForScrollendEvent(document);
+
+    const changer = document.getElementById("changer");
+    addScrollListener(changer);
+    await smoothScrollWithXY(
+      0, pixelsToScrollY, 100, 100, GestureSourceType.MOUSE_INPUT,
+      SPEED_INSTANT);
+    assert_equals(window.scrollY, endY);
+  }, "Verify smooth scroll interaction with scroll anchoring");
+</script>

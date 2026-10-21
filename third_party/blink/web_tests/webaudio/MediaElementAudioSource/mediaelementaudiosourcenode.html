@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Validation of MediaElementAudioSourceNode API</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      "use strict";
+
+      test(() => {
+        const context = new AudioContext();
+        const audioElement = new Audio();
+        const mediaSource = new MediaElementAudioSourceNode(
+            context, { mediaElement: audioElement });
+        const audioNode = mediaSource;
+
+        assert_equals(audioNode.numberOfInputs, 0,
+            'audioNode.numberOfInputs should equal 0');
+        assert_equals(audioNode.numberOfOutputs, 1,
+            'audioNode.numberOfOutputs should equal 1');
+
+        assert_throws_js(
+            TypeError,
+            () => audioNode.connect(0, 0, 0),
+            'audioNode.connect(0, 0, 0) should throw TypeError');
+        assert_throws_dom(
+            'IndexSizeError',
+            () => audioNode.connect(context.destination, 5, 0),
+            'audioNode.connect(context.destination, 5, 0)' +
+                'should throw IndexSizeError');
+        assert_throws_dom(
+            'IndexSizeError',
+            () => audioNode.connect(context.destination, 0, 5),
+            'audioNode.connect(context.destination, 0, 5)' +
+                'should throw IndexSizeError');
+
+        const element = mediaSource.mediaElement;
+        assert_true(
+            element instanceof HTMLMediaElement,
+            'mediaSource.mediaElement should be an instance of HTMLMediaElement');
+        assert_true(
+            mediaSource.mediaElement === element,
+            'mediaSource.mediaElement should return the ' +
+                'same object on repeated accesses');
+
+        try {
+          audioNode.connect(context.destination, 0, 0);
+          assert_true(true,
+              'audioNode.connect(context.destination, 0, 0) did not throw');
+        } catch (e) {
+          assert_unreached(
+              'audioNode.connect(context.destination, 0, 0) should not throw');
+        }
+
+        // Creating another MediaElementAudioSourceNode with the same audio
+        // element should throw.
+        assert_throws_dom(
+            'InvalidStateError',
+            () => new MediaElementAudioSourceNode(
+                context, { mediaElement: audioElement }),
+            'Creating another MediaElementAudioSourceNode with ' +
+                'the same audio element should throw');
+      }, 'Validation of MediaElementAudioSourceNode API');
+    </script>
+  </body>
+</html>

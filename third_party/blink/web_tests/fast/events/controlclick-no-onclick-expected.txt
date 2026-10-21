@@ -1,0 +1,3 @@
+This tests to make sure that a control click does not result in a click event on the Mac.
+
+PASS

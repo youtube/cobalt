@@ -1,0 +1,35 @@
+ALERT: Invalid test: #errors
+#document-fragment
+html
+#document
+| <head>
+| <body>
+
+../resources/tests_innerHTML_1.dat:
+76
+77
+78
+
+Test 76 of 81 in ../resources/tests_innerHTML_1.dat failed. Input:
+<input><option>
+Got:
+| <input>
+| <option>
+Expected:
+| <option>
+
+Test 77 of 81 in ../resources/tests_innerHTML_1.dat failed. Input:
+<keygen><option>
+Got:
+| <keygen>
+| <option>
+Expected:
+| <option>
+
+Test 78 of 81 in ../resources/tests_innerHTML_1.dat failed. Input:
+<textarea><option>
+Got:
+| <textarea>
+|   "<option>"
+Expected:
+| <option>

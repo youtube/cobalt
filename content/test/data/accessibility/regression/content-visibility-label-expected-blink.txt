@@ -1,0 +1,6 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++genericContainer name='abc'
+++++++++genericContainer ignored invisible
+++++++++++staticText ignored invisible

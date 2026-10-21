@@ -1,0 +1,11 @@
+include_rules = [
+  "+components/certificate_transparency",
+  "+components/network_time/time_tracker",
+  "+crypto",
+  "+net",
+  "+mojo/public/cpp",
+  "+services/network/public",
+  "+services/network/test",
+  "+services/network/url_loader.h",
+  "+third_party/boringssl/src/pki",
+]

@@ -1,0 +1,8 @@
+ 
+ 
+ 
+
+GIF  image test: PASS
+APNG image test: PASS
+WEBP image test: PASS
+

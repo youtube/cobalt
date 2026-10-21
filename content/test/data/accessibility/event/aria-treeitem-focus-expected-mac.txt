@@ -1,0 +1,3 @@
+AXFocusedUIElementChanged on AXRow AXSubrole=AXOutlineRow AXTitle='Minor Ninth'
+AXSelectedChildrenChanged on AXOutline
+AXSelectedRowsChanged on AXOutline

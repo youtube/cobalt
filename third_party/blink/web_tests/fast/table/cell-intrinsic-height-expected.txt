@@ -1,0 +1,3 @@
+PASS
+
+crbug.com/478279: Let instrinsic height stylings work for cells.

@@ -1,0 +1,13 @@
+ 
+
+--------
+Frame: '<!--framePath //<!--frame0-->-->'
+--------
+Frame-with-link-to-navigate
+localhost
+Click me
+
+--------
+Frame: 'toNavigate'
+--------
+Inner iframe.

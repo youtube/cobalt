@@ -1,0 +1,14 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+const int64 kInvalidServiceWorkerRegistrationId = -1;
+const int64 kInvalidServiceWorkerVersionId = -1;
+const int64 kInvalidServiceWorkerResourceId = -1;
+
+// (crbug.com/352578800). A reserved resource and registration IDs for SyntheticResponse.
+const int64 kSyntheticResponseServiceWorkerRegistrationId = -10;
+const int64 kSyntheticResponseServiceWorkerVersionId = -10;
+const int64 kSyntheticResponseServiceWorkerResourceId = -10;

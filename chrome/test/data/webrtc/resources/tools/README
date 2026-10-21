@@ -1,0 +1,3 @@
+The files in this directory are downloaded from gs://chrome-webrtc-resources,
+which is a google-internal bucket. The files in .. are downloaded from
+gs://chromium-webrtc-resources, which is public.

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+selection_test(
+    [
+      '<div contenteditable="true">',
+        '<br>',
+        '<ol>',
+          '<li id="test1" style="display: inline">|one</li>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ol>',
+        '<ul>',
+          '<li id="test2" style="display: inline">one</li>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ul>',
+        '</div>',
+    ],
+    'Outdent',
+    [
+      '<div contenteditable="true">',
+        '<br>',
+        '|one',
+        '<br>',
+        '<ol>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ol>',
+        '<ul>',
+          '<li id="test2" style="display: inline">one</li>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ul>',
+        '</div>',
+    ],
+    'Outdent first inline item');
+
+selection_test(
+    [
+      '<div contenteditable="true">',
+        '<br>',
+        'one',
+        '<br>',
+        '<ol>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ol>',
+        '<ul>',
+          '<li id="test2" style="display: inline">|one</li>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ul>',
+        '</div>',
+    ],
+    'Outdent',
+    [
+      '<div contenteditable="true">',
+        '<br>',
+        'one',
+        '<br>',
+        '<ol>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ol>',
+        '|one',
+        '<br>',
+        '<ul>',
+          '<li>two</li>',
+          '<li>three</li>',
+        '</ul>',
+        '</div>',
+    ],
+    'Outdent second inline item');
+
+</script>
+</body>
+</html>

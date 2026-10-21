@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Automatic Pull AudioNodes
+    </title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+      const sampleRate = 44100.0;
+      // We carefully arrange the renderLengthInFrames to be a multiple of the
+      // AudioNode rendering quantum (AudioNode::ProcessingSizeInFrames) so that
+      // AudioSourceNode will not feed tailing zeroes into the context and fail
+      // this test.
+      const renderLengthInFrames = 256;
+      const fftSize = 64;
+
+      // Audio data 1.0 in Uint8 format will be 255.
+      const audioDataOneUint8 = 255;
+      // Audio data 0 in Uint8 format will be 128.
+      const audioDataZeroUint8 = 128;
+
+      // Helper function to create the basic audio graph used in each test case.
+      // It sets up a source buffer playing a constant '1.0' signal connected
+      // to an analyser.
+      function setupSourceAndAnalyser(context) {
+        const buffer = new AudioBuffer({
+            numberOfChannels: 1,
+            length: renderLengthInFrames,
+            sampleRate: context.sampleRate
+        });
+
+        const channelData = buffer.getChannelData(0);
+        for (let i = 0; i < channelData.length; i++) {
+          channelData[i] = 1.0;
+        }
+        const source = new AudioBufferSourceNode(context, {buffer});
+        const analyser = new AnalyserNode(context, {fftSize});
+        source.connect(analyser);
+
+        return { source, analyser };
+      }
+
+      promise_test(async (t) => {
+        // To verify that the analyser pulls data even if it's a terminal
+        // node (not connected to the destination or anything else downstream).
+        const context = new OfflineAudioContext(
+            1, renderLengthInFrames, sampleRate);
+        const { source, analyser } = setupSourceAndAnalyser(context);
+
+        source.start();
+
+        await context.startRendering();
+
+        const timeDomainData = new Uint8Array(fftSize);
+        analyser.getByteTimeDomainData(timeDomainData);
+
+        // Since the source produces '1.0', the analyser (as an inspector node)
+        // should pull this data. The first sample should reflect this value.
+        // Conversion to Uint8.
+        assert_true(
+            timeDomainData[0] >= audioDataOneUint8,
+            'Analyser should pull data when only connected upstream (check 1.0)'
+        );
+      }, 'Analyser pulls data when connected upstream only');
+
+      promise_test(async (t) => {
+        // To verify that the analyser pulls data normally when it's part
+        // of a chain connected to the destination.
+        const context = new OfflineAudioContext(
+            1, renderLengthInFrames, sampleRate);
+        const { source, analyser } = setupSourceAndAnalyser(context);
+
+        analyser.connect(context.destination);
+        source.start();
+
+        await context.startRendering();
+
+        const timeDomainData = new Uint8Array(fftSize);
+        analyser.getByteTimeDomainData(timeDomainData);
+
+        assert_true(
+            timeDomainData[0] >= audioDataOneUint8,
+            'Analyser should pull data when fully connected (check 1.0)'
+        );
+
+      }, 'Analyser pulls data when connected downstream to destination');
+
+      promise_test(async (t) => {
+        // To verify that the analyser does not pull data if its downstream
+        // connection doesn't eventually reach the context destination.
+        const context = new OfflineAudioContext(
+            1, renderLengthInFrames, sampleRate);
+        const { source, analyser } = setupSourceAndAnalyser(context);
+
+        const intermediateNode = new GainNode(context);
+        analyser.connect(intermediateNode);
+
+        source.start();
+
+        await context.startRendering();
+
+        const timeDomainData = new Uint8Array(fftSize);
+        analyser.getByteTimeDomainData(timeDomainData);
+
+        // Because the audio chain stops before the destination, the analyser
+        // should not be triggered to pull or process data. Its buffer should
+        // contain the default value (0.0, which is 128 as Uint8).
+        assert_equals(
+            timeDomainData[0], audioDataZeroUint8,
+            'Analyser should not pull data if downstream path is broken'
+        );
+
+      }, 'Analyser does not pull data if downstream path is unconnected');
+
+    </script>
+  </body>
+</html>

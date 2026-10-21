@@ -1,0 +1,6 @@
+include_rules = [
+  "+components/printing",
+  "+content/public",
+  "+pdf",
+  "+ui/base",
+]
