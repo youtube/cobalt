@@ -2689,6 +2689,13 @@ void WebFrameWidgetImpl::BeginMainFrame(const viz::BeginFrameArgs& args) {
 
 #if BUILDFLAG(IS_COBALT)
   cobalt_bmf_start_time_ = last_frame_time;
+  // Start of WidgetBase::BeginMainFrame (before rAF-aligned input dispatch).
+  // It is only recorded when ShouldRecordBeginMainFrameMetrics(); fall back
+  // to now otherwise (single-threaded / test compositors).
+  cobalt_main_frame_run_time_ = cobalt_raf_aligned_input_start_time_.is_null()
+                                    ? base::TimeTicks::Now()
+                                    : cobalt_raf_aligned_input_start_time_;
+  cobalt_raf_aligned_input_start_time_ = base::TimeTicks();
 #endif
 
   if (animation_frame_timing_monitor_) {
@@ -2853,6 +2860,12 @@ void WebFrameWidgetImpl::RecordManipulationTypeCounts(
 
 void WebFrameWidgetImpl::RecordDispatchRafAlignedInputTime(
     base::TimeTicks raf_aligned_input_start_time) {
+#if BUILDFLAG(IS_COBALT)
+  // WidgetBase::BeginMainFrame dispatches rAF-aligned input before calling
+  // BeginMainFrame(); remember when that started so the main-frame queue
+  // wait does not include input handling.
+  cobalt_raf_aligned_input_start_time_ = raf_aligned_input_start_time;
+#endif
   if (LocalRootImpl()) {
     LocalRootImpl()->GetFrame()->View()->GetUkmAggregator()->RecordTimerSample(
         LocalFrameUkmAggregator::kHandleInputEvents,
@@ -2943,6 +2956,7 @@ void WebFrameWidgetImpl::RequestCobaltMainFramePresentation() {
   }
   CobaltMainFrameSnapshot snapshot;
   snapshot.bmf_start = cobalt_bmf_start_time_;
+  snapshot.main_frame_run_time = cobalt_main_frame_run_time_;
   snapshot.metrics = view->GetUkmAggregator()->GetBeginMainFrameMetrics();
   LayerTreeHost()->RequestSuccessfulPresentationTimeForNextFrame(
       WTF::BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,

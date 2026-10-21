@@ -19,7 +19,6 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/stream_parser.h"
-#include "media/filters/source_buffer_state.h"
 #include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
@@ -219,14 +218,6 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         script_state, exception_context, name, *value, [script_state] {
           return ExposeSourceBufferChangeType(
               ExecutionContext::From(script_state));
-        });
-  }
-  if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
-    return ProcessSettingAsPositiveInt(
-        script_state, exception_context, name, *value, [](int int_value) {
-          ::media::SourceBufferState::SetMaxPendingBytesPerParseOverride(
-              int_value);
-          return true;
         });
   }
   if (name == "Media.EnableMultiSourceBufferSwitching") {

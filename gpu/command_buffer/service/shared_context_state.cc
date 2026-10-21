@@ -1209,6 +1209,14 @@ void SharedContextState::StoreVkPipelineCacheIfNeeded() {
   }
 }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+void SharedContextState::FlushGrShaderCacheDiskWrites() {
+  if (gr_shader_cache_) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
 void SharedContextState::UseShaderCache(
     std::optional<gpu::raster::GrShaderCache::ScopedCacheUse>& cache_use,
     int32_t client_id) const {

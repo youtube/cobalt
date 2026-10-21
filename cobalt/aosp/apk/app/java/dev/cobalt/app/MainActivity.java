@@ -44,7 +44,6 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("starboard")
 public class MainActivity extends BaseCobaltActivity {
-
   static {
     // Each aosp apk ships exactly one app loader under its natural name
     // via android_apk shared_libraries: libloader_app.so for the production
@@ -174,7 +173,8 @@ public class MainActivity extends BaseCobaltActivity {
           }
         });
 
-    setContentView(new VideoSurfaceView(this));
+    mVideoSurfaceView = new VideoSurfaceView(this);
+    setContentView(mVideoSurfaceView);
   }
 
   /**

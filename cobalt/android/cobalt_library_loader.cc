@@ -12,18 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <vector>
+
 #include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/memory/cobalt_memory_context.h"
+#include "cobalt/android/androidtv_flag_map.h"
+#include "cobalt/android/jni_headers/JavaSwitches_jni.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
 
 namespace {
+
+// Takes the Android TV experiment switches handed over by Java
+// (JavaSwitches.apply()) before the native library load.
+cobalt::AndroidTvFlagMap TakeAndroidTvFlags() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::vector<std::string> key_values;
+  base::android::AppendJavaStringArrayToStringVector(
+      env, cobalt::Java_JavaSwitches_takeNativeKeyValues(env), &key_values);
+  return cobalt::AndroidTvFlagMap::FromKeyValues(key_values);
+}
 
 // Applies Cobalt's command-line defaults right after LibraryLoader switches the
 // CommandLine to native. LibraryLoader runs this hook once per process.
@@ -34,8 +50,11 @@ bool NativeInit(base::android::LibraryProcessType type) {
 
   // Defaults must be applied before base::FeatureList is created.
   CHECK(!base::FeatureList::GetInstance());
-  cobalt::CommandLinePreprocessor::ApplyDefaults(
-      base::CommandLine::ForCurrentProcess());
+  base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  // Expand Android TV experiment keys first so they take precedence over
+  // defaults.
+  cobalt::ExpandAndroidTvFlags(TakeAndroidTvFlags(), cmd_line);
+  cobalt::CommandLinePreprocessor::ApplyDefaults(cmd_line);
   return true;
 }
 

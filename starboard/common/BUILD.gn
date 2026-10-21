@@ -148,6 +148,7 @@ source_set("common_test") {
     "result_test.cc",
     "semaphore_test.cc",
     "size_test.cc",
+    "span_test.cc",
     "starboard_common_time_test.cc",
     "string_test.cc",
   ]

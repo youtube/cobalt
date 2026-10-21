@@ -42,6 +42,18 @@ constexpr char kEnableH5vccSettings[] = "enable-h5vcc-settings";
 // Specify the maximum HTTP disk cache size in bytes.
 constexpr char kMaxHttpCacheSize[] = "max-http-cache-size";
 
+// Enables the Starboard lifecycle on Android.
+constexpr char kUseStarboardLifecycle[] = "use-starboard-lifecycle";
+
+// Enables activity lifecycle coordination and safe surface teardown across
+// overlapping Android activities.
+constexpr char kEnableActivityLifecycleCoordination[] =
+    "enable-activity-lifecycle-coordination";
+
+// Allows the renderer to handle critical memory pressure in the foreground.
+constexpr char kAllowCriticalMemoryPressureHandlingInForeground[] =
+    "allow-critical-memory-pressure-handling-in-foreground";
+
 }  // namespace switches
 }  // namespace cobalt
 

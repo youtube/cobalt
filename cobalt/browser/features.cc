@@ -175,24 +175,21 @@ const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam{
     &kCobaltGpuMemoryAblation, "CobaltGpuMemoryAblation_ablation_delay",
     base::Seconds(0)};
 
-BASE_FEATURE(kCobaltSystemMemoryPressureEvaluator,
-             "CobaltSystemMemoryPressureEvaluator",
+BASE_FEATURE(kEnableCobaltMemoryPressureEvaluator,
+             "EnableCobaltMemoryPressureEvaluator",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<double> kCobaltMemoryPressureModerateFractionParam{
-    &kCobaltSystemMemoryPressureEvaluator, "moderate_fraction", 0.85};
+    &kEnableCobaltMemoryPressureEvaluator, "moderate_fraction", 0.85};
 
 const base::FeatureParam<double> kCobaltMemoryPressureCriticalFractionParam{
-    &kCobaltSystemMemoryPressureEvaluator, "critical_fraction", 0.95};
+    &kEnableCobaltMemoryPressureEvaluator, "critical_fraction", 0.95};
 
 const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam{
-    &kCobaltSystemMemoryPressureEvaluator, "budget_mb", 0};
+    &kEnableCobaltMemoryPressureEvaluator, "budget_mb", 0};
 
 const base::FeatureParam<int> kCobaltMemoryPressurePollIntervalSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "poll_interval_seconds", 10};
-
-const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam{
-    &kCobaltSystemMemoryPressureEvaluator, "cooldown_seconds", 60};
+    &kEnableCobaltMemoryPressureEvaluator, "poll_interval_seconds", 10};
 
 BASE_FEATURE(kCobaltSkipTrustedHeaderClient,
              "CobaltSkipTrustedHeaderClient",
@@ -206,6 +203,22 @@ BASE_FEATURE(kCobaltFreezeOnBackground,
 // is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
 const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
     &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltProcessStateSummary,
+             "CobaltProcessStateSummary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kProcessStateSummaryMinFlushIntervalParam,
+                   &kCobaltProcessStateSummary,
+                   "min_flush_interval",
+                   base::Seconds(15));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
+             "CobaltStabilityMetricsDeduplication",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features
 }  // namespace cobalt

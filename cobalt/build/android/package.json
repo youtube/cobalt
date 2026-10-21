@@ -126,6 +126,13 @@
                 "obj/third_party/android_provider/android_provider_java.javac.jar",
                 "obj/third_party/androidx/local_modifications/buildcompat/buildcompat_java.javac.jar",
                 "obj/third_party/androidx/local_modifications/window/window_util_java.javac.jar",
+                "obj/third_party/androidx/androidx_media3_media3_common_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_container_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_database_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_datasource_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_decoder_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_exoplayer_java/classes.jar",
+                "obj/third_party/androidx/androidx_media3_media3_extractor_java/classes.jar",
                 "obj/third_party/blink/public/blink_headers_java.javac.jar",
                 "obj/third_party/blink/public/common/common_java.javac.jar",
                 "obj/third_party/blink/public/mojom/android_mojo_bindings_java.javac.jar",
@@ -644,6 +651,34 @@
                 {
                     "from_file": "obj/third_party/androidx/local_modifications/window/window_util_java.javac.jar",
                     "to_file": "jar/third_party_androidx_local_modifications_window_window_util_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_common_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_common_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_container_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_container_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_database_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_database_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_datasource_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_datasource_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_decoder_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_decoder_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_exoplayer_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_exoplayer_java.jar"
+                },
+                {
+                    "from_file": "obj/third_party/androidx/androidx_media3_media3_extractor_java/classes.jar",
+                    "to_file": "jar/third_party_androidx_androidx_media3_media3_extractor_java.jar"
                 },
                 {
                     "from_file": "obj/third_party/blink/public/blink_headers_java.javac.jar",

@@ -128,6 +128,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/public/common/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include <atomic>
 
@@ -2508,7 +2511,15 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     ScheduleNamedEvent(event_type_names::kProgress);
     previous_progress_time_ = base::ElapsedTimer();
     sent_stalled_event_ = false;
+#if BUILDFLAG(IS_COBALT)
+    if (!base::FeatureList::IsEnabled(
+            features::kCobaltSkipHiddenMediaControlsWork) ||
+        ShouldShowControls()) {
+      UpdateLayoutObject();
+    }
+#else
     UpdateLayoutObject();
+#endif  // BUILDFLAG(IS_COBALT)
   } else if (!media_source_attachment_ &&
              previous_progress_time_->Elapsed() >
                  kStalledNotificationInterval &&
@@ -4553,6 +4564,17 @@ void HTMLMediaElement::EnsureMediaControls() {
 void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt does not show native controls or the cast overlay button, so skip
+  // creating MediaControlsImpl, its shadow DOM, and its media event listeners
+  // when native controls are not needed.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsWork) &&
+      !ShouldShowControls()) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   bool native_controls = ShouldShowControls();
 
