@@ -51,6 +51,20 @@ CobaltMainFrameSnapshot& CobaltMainFrameSnapshot::operator=(
 CobaltMainFrameSnapshot::~CobaltMainFrameSnapshot() = default;
 
 // static
+CobaltFrameInputTiming CobaltFrameInputTiming::FromMainFrameSnapshot(
+    const CobaltMainFrameSnapshot* snapshot) {
+  CobaltFrameInputTiming timing;
+  if (!snapshot || !snapshot->metrics) {
+    return timing;
+  }
+  timing.main_frame_queue_duration =
+      IntervalMs(snapshot->bmf_start, snapshot->main_frame_run_time);
+  timing.handle_input_events_duration =
+      snapshot->metrics->handle_input_events.InMillisecondsF();
+  return timing;
+}
+
+// static
 CobaltFrameDrawBreakdown CobaltFrameDrawBreakdown::FromFrameTimingDetails(
     const viz::FrameTimingDetails& details) {
   const gfx::SwapTimings& swap = details.swap_timings;
@@ -88,6 +102,7 @@ CobaltFrameTiming::CobaltFrameTiming(
     double draw_duration,
     double swap_duration,
     const CobaltFrameDrawBreakdown& draw_breakdown,
+    const CobaltFrameInputTiming& input_timing,
     DOMWindow* source)
     : PerformanceEntry(duration, AtomicString("frame"), start_time, source),
       frame_token_(frame_token),
@@ -100,7 +115,8 @@ CobaltFrameTiming::CobaltFrameTiming(
       frame_prep_duration_(frame_prep_duration),
       draw_duration_(draw_duration),
       swap_duration_(swap_duration),
-      draw_breakdown_(draw_breakdown) {}
+      draw_breakdown_(draw_breakdown),
+      input_timing_(input_timing) {}
 
 CobaltFrameTiming::~CobaltFrameTiming() = default;
 
@@ -134,6 +150,10 @@ void CobaltFrameTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
                     draw_breakdown_.gpu_queue_duration);
   AddOptionalNumber(builder, "gpuDrawDuration",
                     draw_breakdown_.gpu_draw_duration);
+  AddOptionalNumber(builder, "mainFrameQueueDuration",
+                    input_timing_.main_frame_queue_duration);
+  AddOptionalNumber(builder, "handleInputEventsDuration",
+                    input_timing_.handle_input_events_duration);
 }
 
 void CobaltFrameTiming::Trace(Visitor* visitor) const {
