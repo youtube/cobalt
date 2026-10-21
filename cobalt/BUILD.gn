@@ -375,6 +375,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_storage_metrics_helper_unittest.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/browser/v8_cpu_profiler_unittest.cc",
+    "//cobalt/shell/browser/cobalt_permission_manager_unittest.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
