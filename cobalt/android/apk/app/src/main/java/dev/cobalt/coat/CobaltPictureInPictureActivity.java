@@ -103,7 +103,7 @@ public class CobaltPictureInPictureActivity extends Activity {
         .setJavaActivity(mNativeCobaltVideoOverlayWindow, CobaltPictureInPictureActivity.this);
 
     mWindowAndroid =
-        ActivityWindowAndroid.create(
+        new ActivityWindowAndroid(
             this,
             /* listenToActivityState= */ true,
             IntentRequestTracker.createFromActivity(this),

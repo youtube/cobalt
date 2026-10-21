@@ -308,6 +308,7 @@ if (is_cobalt) {
     "*v8_translator*",
     "*v8_writer*",
     "*v8_summarizer*",
+    "*v8_classifier*",
     "*v8_language_model*",
     "*v8_union_language_model_*",
     "*v8_union_languagemodeltool*",

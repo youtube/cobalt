@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/policy_container_utils.h"
 
 #include "base/containers/to_vector.h"
+#include "build/build_config.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/policy_container.mojom-blink.h"
 #include "third_party/blink/public/platform/web_content_security_policy_struct.h"
@@ -145,7 +146,13 @@ network::mojom::blink::CSPSourceListPtr ConvertSourceListToMojoBlink(
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_dynamic_url,
       source_list.allow_unsafe_hashes, source_list.report_sample,
-      source_list.allow_trusted_types_eval, source_list.report_hash_algorithm);
+      source_list.allow_trusted_types_eval, source_list.report_hash_algorithm
+#if BUILDFLAG(IS_COBALT)
+      ,
+      source_list.cobalt_insecure_local_network,
+      source_list.cobalt_insecure_private_range
+#endif
+  );
 }
 
 }  // namespace

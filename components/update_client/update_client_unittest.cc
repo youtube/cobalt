@@ -73,14 +73,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-<<<<<<< HEAD
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
 
 #include "base/win/windows_types.h"
 #endif  // BUILDFLAG(IS_WIN)
-=======
->>>>>>> parent of 39e5f020cc0 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace update_client {
 namespace {

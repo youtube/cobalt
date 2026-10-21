@@ -247,7 +247,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid =
-        ActivityWindowAndroid.create(
+        new ActivityWindowAndroid(
             this,
             listenToActivityState,
             mIntentRequestTracker,
