@@ -83,7 +83,7 @@ void ApplicationAOSP::Initialize() {
 }
 
 SbWindow ApplicationAOSP::CreateWindow(const SbWindowOptions* /*options*/) {
-  ANativeWindow* native_window = android::shared::AcquireWindowSurface();
+  ANativeWindow* native_window = AcquireWindowSurface();
   if (native_window == nullptr) {
     SB_LOG(ERROR) << "SbWindowCreate: no Android surface available.";
     return kSbWindowInvalid;
@@ -178,7 +178,7 @@ bool ApplicationAOSP::ReleaseWindowSurfaceAndWait(int64_t timeout_usec) {
 
   // Even if the release timed out, null the surface reference so a stale ref
   // won't be used.
-  android::shared::SetWindowSurface(nullptr);
+  SetWindowSurface(nullptr);
   return released;
 }
 

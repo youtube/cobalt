@@ -19,6 +19,8 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -32,6 +34,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
@@ -49,9 +52,11 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "net/disk_cache/cache_util.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/memory/memory_pressure_monitor.h"
@@ -259,13 +264,17 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void RecordPriorSessionExitReasons() {
+int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
+                                      int64_t last_logged_timestamp_ms) {
   if (base::android::BuildInfo::GetInstance()->sdk_int() <
       base::android::SDK_VERSION_R) {
-    return;
+    return -1;
   }
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
+  Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
+                                                       deduplication_enabled);
+  return Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+      env, last_logged_timestamp_ms);
 }
 #endif
 
@@ -290,7 +299,45 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
+
+void CleanupOrphanedUserDataCacheDirectories() {
+  base::FilePath user_data_dir;
+  base::FilePath cache_dir;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) ||
+      !base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    return;
+  }
+  DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+}
+
 }  // namespace
+
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir) {
+  if (user_data_dir.empty() || cache_dir.empty() ||
+      user_data_dir == cache_dir) {
+    return;
+  }
+
+  constexpr const char* kOrphanedCacheDirs[] = {
+      "Cache",
+      "Code Cache",
+      "ShaderCache",
+      "GrShaderCache",
+  };
+  for (const char* dir_name : kOrphanedCacheDirs) {
+    base::FilePath orphaned_dir = user_data_dir.AppendASCII(dir_name);
+    if (orphaned_dir == cache_dir || orphaned_dir.IsParent(cache_dir) ||
+        !base::PathExists(orphaned_dir)) {
+      continue;
+    }
+    if (!disk_cache::CleanupDirectorySync(orphaned_dir)) {
+      LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
+                 << orphaned_dir;
+    }
+  }
+}
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
@@ -415,14 +462,44 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
   }
 
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    base::ThreadPool::PostDelayedTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::ThreadPolicy::PREFER_BACKGROUND,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories),
+        kStorageCleanupDelay);
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->sdk_int() >=
       base::android::SDK_VERSION_R) {
-    base::ThreadPool::PostTask(
+    const bool deduplication_enabled = base::FeatureList::IsEnabled(
+        features::kCobaltStabilityMetricsDeduplication);
+    int64_t last_logged_timestamp_ms = -1;
+    if (deduplication_enabled) {
+      if (PrefService* local_state =
+              GlobalFeatures::GetInstance()->metrics_local_state()) {
+        last_logged_timestamp_ms =
+            local_state->GetInt64(kLastLoggedProcessExitTimestampMs);
+      }
+    }
+    base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&RecordPriorSessionExitReasons));
+        base::BindOnce(&RecordPriorSessionExitReasons, deduplication_enabled,
+                       last_logged_timestamp_ms),
+        base::BindOnce([](int64_t recorded_timestamp_ms) {
+          if (recorded_timestamp_ms > 0) {
+            if (PrefService* local_state =
+                    GlobalFeatures::GetInstance()->metrics_local_state()) {
+              local_state->SetInt64(kLastLoggedProcessExitTimestampMs,
+                                    recorded_timestamp_ms);
+            }
+          }
+        }));
   }
 #endif
 

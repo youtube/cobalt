@@ -102,9 +102,9 @@ class Session {
   ~Session();
   void Close();
   void GenerateChallenge(std::string_view type,
-                         std::string_view initialization_data,
+                         Span<const uint8_t> initialization_data,
                          int ticket);
-  void Update(std::string_view key, int ticket);
+  void Update(Span<const uint8_t> key, int ticket);
   std::string Id() const { return id_; }
 
   int Decrypt( _GstBuffer* buffer,
@@ -212,7 +212,7 @@ void Session::Close() {
 }
 
 void Session::GenerateChallenge(std::string_view type,
-                                std::string_view initialization_data,
+                                Span<const uint8_t> initialization_data,
                                 int ticket) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_LOG(INFO) << "Generating challenge";
@@ -225,7 +225,7 @@ void Session::GenerateChallenge(std::string_view type,
   OpenCDMSession* session = nullptr;
   if (opencdm_construct_session(
           ocdm_system_, Temporary, std::string(type).c_str(),
-          reinterpret_cast<const uint8_t*>(initialization_data.data()),
+          initialization_data.data(),
           static_cast<uint16_t>(initialization_data.size()),
           /*cdm_data=*/nullptr, /*cdm_data_size=*/0, &session_callbacks_,
           /*user_data=*/this, &session) != ERROR_NONE ||
@@ -277,7 +277,7 @@ void Session::DispatchPendingKeyUpdates() {
   }
 }
 
-void Session::Update(std::string_view key, int ticket) {
+void Session::Update(Span<const uint8_t> key, int ticket) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   auto id = Id();
   SB_DCHECK(!id.empty());
@@ -288,7 +288,7 @@ void Session::Update(std::string_view key, int ticket) {
     operation_ = Operation::kUpdate;
   }
   if (opencdm_session_update(
-          session_.get(), reinterpret_cast<const uint8_t*>(key.data()),
+          session_.get(), key.data(),
           static_cast<uint16_t>(key.size())) != ERROR_NONE) {
     session_updated_callback_(drm_system_, context_, ticket,
                               kSbDrmStatusUnknownError, nullptr, id.c_str(),
@@ -582,7 +582,7 @@ bool DrmSystemOcdm::IsKeySystemSupported(const char* key_system,
 void DrmSystemOcdm::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    std::string_view initialization_data) {
+    Span<const uint8_t> initialization_data) {
   SB_CHECK(ocdm_system_ != nullptr);
   SB_LOG(INFO) << "Generate challenge type: " << type;
   std::unique_ptr<Session> session(
@@ -598,7 +598,7 @@ void DrmSystemOcdm::GenerateSessionUpdateRequest(
 }
 
 void DrmSystemOcdm::UpdateSession(int ticket,
-                                  std::string_view key,
+                                  Span<const uint8_t> key,
                                   std::string_view session_id) {
   SB_LOG(INFO) << "Update: " << session_id;
   auto* session = GetSessionById(session_id);
@@ -614,10 +614,10 @@ void DrmSystemOcdm::CloseSession(std::string_view session_id) {
 }
 
 void DrmSystemOcdm::UpdateServerCertificate(int ticket,
-                                            std::string_view certificate) {
+                                            Span<const uint8_t> certificate) {
   SB_CHECK(ocdm_system_ != nullptr);
   auto status = opencdm_system_set_server_certificate(
-      ocdm_system_, reinterpret_cast<const uint8_t*>(certificate.data()),
+      ocdm_system_, certificate.data(),
       static_cast<int>(certificate.size()));
 
   server_certificate_updated_callback_(

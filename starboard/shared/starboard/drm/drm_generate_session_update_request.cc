@@ -16,7 +16,10 @@
 #include "starboard/drm.h"
 // clang-format on
 
+#include <stdint.h>
+
 #include "starboard/common/log.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
@@ -36,6 +39,6 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
 
   drm_system->GenerateSessionUpdateRequest(
       ticket, type,
-      std::string_view(static_cast<const char*>(initialization_data),
-                       initialization_data_size));
+      starboard::MakeSpan(static_cast<const uint8_t*>(initialization_data),
+                          static_cast<size_t>(initialization_data_size)));
 }
