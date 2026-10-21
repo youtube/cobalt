@@ -570,7 +570,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       //       should revisit this.
       auto sync_time = decoded_audio_writing_in_progress_->timestamp();
       int samples_written = audio_track_->WriteSample(
-          MakeSpan(sample_buffer, samples_to_write), sync_time);
+          make_span(sample_buffer, samples_to_write), sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
         if (samples_written == AudioTrack::kAudioTrackErrorDeadObject) {

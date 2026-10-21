@@ -35,7 +35,7 @@ namespace {
 
 constexpr int64_t kStateChangeTimeoutNs = 100'000'000;  // 100 ms
 
-void ScaleSamples(Span<const float> samples,
+void ScaleSamples(span<const float> samples,
                   float volume,
                   std::vector<float>* scaled_samples) {
   scaled_samples->resize(samples.size());
@@ -190,11 +190,11 @@ void NdkAudioTrack::PauseAndFlush() {
   }
 }
 
-int NdkAudioTrack::WriteSample(Span<const float> samples) {
+int NdkAudioTrack::WriteSample(span<const float> samples) {
   SB_CHECK_EQ(sample_type_, kSbMediaAudioSampleTypeFloat32);
   SB_CHECK_EQ(samples.size() % channels_, 0u);
 
-  Span<const float> samples_to_write = samples;
+  span<const float> samples_to_write = samples;
   float volume = volume_.load(std::memory_order_relaxed);
   if (volume != 1.0f) {
     ScaleSamples(samples, volume, &scaled_samples_float_);
@@ -216,13 +216,13 @@ int NdkAudioTrack::WriteSample(Span<const float> samples) {
   return result * channels_;
 }
 
-int NdkAudioTrack::WriteSample(Span<const uint16_t> samples,
+int NdkAudioTrack::WriteSample(span<const uint16_t> samples,
                                int64_t sync_time) {
   SB_NOTREACHED();
   return 0;
 }
 
-int NdkAudioTrack::WriteSample(Span<const uint8_t> buffer, int64_t sync_time) {
+int NdkAudioTrack::WriteSample(span<const uint8_t> buffer, int64_t sync_time) {
   SB_NOTREACHED();
   return 0;
 }
