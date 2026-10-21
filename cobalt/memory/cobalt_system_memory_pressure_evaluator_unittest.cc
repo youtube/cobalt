@@ -123,7 +123,8 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, NormalProcessMemory) {
   EXPECT_TRUE(notifications_.empty());
 }
 
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessTransitionToModerate) {
+TEST_F(CobaltSystemMemoryPressureEvaluatorTest,
+       ProcessTransitionToModerateAndCritical) {
   // Increase process to 175 MB (87.5% of 200 MB budget, >= 85%) -> MODERATE.
   SetProcessPrivateMemoryMB(175);
   evaluator_->CheckMemoryPressure();
@@ -134,9 +135,7 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessTransitionToModerate) {
   ASSERT_EQ(1u, notifications_.size());
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             notifications_.back());
-}
 
-TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessTransitionToCritical) {
   // Increase process to 195 MB (97.5% of 200 MB budget, >= 95%) -> CRITICAL.
   SetProcessPrivateMemoryMB(195);
   evaluator_->CheckMemoryPressure();
@@ -144,7 +143,7 @@ TEST_F(CobaltSystemMemoryPressureEvaluatorTest, ProcessTransitionToCritical) {
 
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             evaluator_->current_vote());
-  ASSERT_EQ(1u, notifications_.size());
+  ASSERT_EQ(2u, notifications_.size());
   EXPECT_EQ(base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             notifications_.back());
 }
