@@ -33,6 +33,7 @@ import android.view.KeyEvent;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
+import dev.cobalt.util.AndroidTvFlags;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -399,6 +400,8 @@ public class CobaltActivityTest {
     NetworkChangeNotifier.resetInstanceForTests();
     CobaltContentBrowserClientJni.setInstanceForTesting(null);
     JavaSwitches.setOverrideForTesting(null);
+    // RobolectricTestRunner doesn't run ResettersForTesting, so reset CommandLine explicitly.
+    CommandLine.resetForTesting(false);
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -528,7 +531,7 @@ public class CobaltActivityTest {
 
   private static Map<String, String> createStarboardLifecycleSwitches() {
     Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.USE_STARBOARD_LIFECYCLE, "1");
+    switches.put(AndroidTvFlags.USE_STARBOARD_LIFECYCLE, "1");
     return switches;
   }
 
