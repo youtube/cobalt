@@ -59,10 +59,10 @@ constexpr int64_t kSurfaceReleaseTimeoutUsec = 2'000'000;
 constexpr const char* kDefaultSwitches[] = {
     // Don't use "/dev/shm" for shared memory; it does not exist on Android.
     // With this switch it falls back to GetTempDir().
-    starboard::base_switches::kDisableDevShmUsage,
+    base_switches::kDisableDevShmUsage,
     // With QUIC on, downloads that pause mid-transfer get dropped
     // (b/532158865).
-    starboard::network_switches::kDisableQuic,
+    network_switches::kDisableQuic,
 };
 
 void AppendDefaultSwitches(std::vector<std::string>* args) {
