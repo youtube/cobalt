@@ -40,7 +40,7 @@ void ScaleSamples(Span<const float> samples,
                   std::vector<float>* scaled_samples) {
   scaled_samples->resize(samples.size());
   for (size_t i = 0; i < samples.size(); ++i) {
-    (*scaled_samples)[i] = samples.data()[i] * volume;
+    (*scaled_samples)[i] = samples[i] * volume;
   }
 }
 
@@ -198,8 +198,7 @@ int NdkAudioTrack::WriteSample(Span<const float> samples) {
   float volume = volume_.load(std::memory_order_relaxed);
   if (volume != 1.0f) {
     ScaleSamples(samples, volume, &scaled_samples_float_);
-    samples_to_write =
-        MakeSpan(scaled_samples_float_.data(), scaled_samples_float_.size());
+    samples_to_write = scaled_samples_float_;
   }
 
   int num_frames = samples_to_write.size() / channels_;
