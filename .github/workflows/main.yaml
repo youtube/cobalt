@@ -488,6 +488,8 @@ jobs:
     permissions: {}
     runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
+    outputs:
+      skip: ${{ steps.build.outputs.skip }}
     strategy:
       fail-fast: false
       matrix:
@@ -575,12 +577,19 @@ jobs:
           sccache_gcs_key: ${{ secrets.sccache_gcs_key }}
 
       - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true' || needs.initialize.outputs.test_chromedriver == 'true')
+        if: |
+          steps.build.outputs.skip != 'true' &&
+          (matrix.config == 'qa' || matrix.config == 'gold') &&
+          (needs.initialize.outputs.test_package == 'true' ||
+           needs.initialize.outputs.test_e2e == 'true' ||
+           needs.initialize.outputs.test_yts == 'true' ||
+           needs.initialize.outputs.test_chromedriver == 'true')
         uses: ./.github/actions/package
         with:
           package_dir: out/test-package
 
       - name: Upload Test Artifacts
+        if: steps.build.outputs.skip != 'true'
         uses: ./.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -603,7 +612,9 @@ jobs:
 
   on-device-test:
     needs: [initialize, build]
-    if: needs.initialize.outputs.run_on_device_test == 'true'
+    if: |
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.run_on_device_test == 'true'
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_tests
     permissions: {}
@@ -646,11 +657,15 @@ jobs:
     # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_e2e == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.draft == false) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') &&
+           vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' &&
+           vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
@@ -682,11 +697,15 @@ jobs:
     # Run YTS tests via presumit.
     # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
     if: |
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_yts == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.draft == false) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') &&
+           vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' &&
+           vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
@@ -717,6 +736,7 @@ jobs:
     needs: [initialize, build]
     # Run YTS Playback tests via presumit.
     if: |
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_yts_playback == 'true' &&
       contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
     runs-on: [self-hosted, odt-runner]
@@ -743,7 +763,10 @@ jobs:
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
-    if: needs.initialize.outputs.run_browser_tests == 'true' && needs.initialize.outputs.test_on_host == 'true'
+    if: |
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.run_browser_tests == 'true' &&
+      needs.initialize.outputs.test_on_host == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_browser_tests_on_host
     container:
@@ -776,9 +799,11 @@ jobs:
     needs: [initialize, build]
     # Run YTS tests via presumit.
     if: |
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_yts_wpt == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.draft == false) ||
           (inputs.nightly == 'true' || github.event_name == 'schedule') ||
           (github.event_name == 'push')
         )
@@ -808,11 +833,15 @@ jobs:
   yts-finch-test:
     needs: [initialize, build]
     if: |
+      needs.build.outputs.skip != 'true' &&
       needs.initialize.outputs.test_yts_finch == 'true' &&
         (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.draft == false) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') &&
+           vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' &&
+           vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
           contains(fromJson(needs.initialize.outputs.labels), 'runtest')
         )
     runs-on: [self-hosted, odt-runner]
@@ -839,7 +868,9 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: |
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -899,7 +930,9 @@ jobs:
 
   web-tests:
     needs: [initialize, docker-webtest-image, build]
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: |
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.web_tests == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_web_tests
@@ -967,7 +1000,9 @@ jobs:
 
   chromedriver-smoketest:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_chromedriver == 'true'
+    if: |
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.test_chromedriver == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: x64_chromedriver_smoke_tests
@@ -992,7 +1027,11 @@ jobs:
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]'
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.expected_tests_json != '[]'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
@@ -1012,6 +1051,13 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
+      - name: Download Pruned Test Targets
+        # actions/download-artifact v4.1.9
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806
+        continue-on-error: true
+        with:
+          name: ${{ matrix.platform }}_test_targets_json
+          path: pruned_targets/
       - name: Prepare Test Filters
         id: prepare-test-filters
         uses: ./.github/actions/prepare_test_filters
@@ -1029,6 +1075,7 @@ jobs:
         id: filter
         env:
           TEST_TARGET: ${{ steps.extract-target-name.outputs.test_target }}
+          TARGET_FULL: ${{ matrix.test_info.target }}
           FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         run: |
           set -ex
@@ -1039,6 +1086,15 @@ jobs:
           if [ "${test_filter}" == "-*" ]; then
             echo "${TEST_TARGET} was skipped due to test filter."
             skipped="true"
+          elif [[ -f "pruned_targets/test_targets.json" ]]; then
+            is_pruned=$(jq -r --arg t "${TARGET_FULL#//}" \
+              'if any(.[]; (.target // "") | ltrimstr("//") == $t)
+               then "false" else "true" end' \
+              pruned_targets/test_targets.json)
+            if [ "${is_pruned}" == "true" ]; then
+              echo "${TARGET_FULL} was pruned by test_targets.py."
+              skipped="true"
+            fi
           fi
           echo "skipped=${skipped}" >> "${GITHUB_OUTPUT}"
         shell: bash
@@ -1082,7 +1138,12 @@ jobs:
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
+    if: |
+      always() &&
+      needs.build.outputs.skip != 'true' &&
+      needs.initialize.outputs.run_browser_tests == 'true' &&
+      (needs.browser-test-on-host.result != 'skipped' &&
+       needs.browser-test-on-host.result != '')
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
