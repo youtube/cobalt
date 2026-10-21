@@ -1,5 +1,9 @@
 {
   "docker_service": "rdk",
+  "target_cpu": [
+    "x64",
+    "arm"
+  ],
   "platforms": [
     "evergreen-arm-hardfp-rdk"
   ],

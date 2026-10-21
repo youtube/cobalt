@@ -1,5 +1,7 @@
 {
   "docker_service": "linux",
+  "publish_golden": true,
+  "publish_src": true,
   "platforms": [
     "linux-x64x11"
   ],

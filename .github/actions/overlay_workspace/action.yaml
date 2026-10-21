@@ -3,6 +3,7 @@ description: Layers a pre-warmed golden workspace using fuse-overlayfs for zero-
 
 inputs:
   path:
+    # TODO: Verify destination path changes / remove temporary test modifications before production
     description: Destination path (e.g. cobalt).
     required: true
   platform:
@@ -11,6 +12,9 @@ inputs:
   use_gcloud:
     description: "Whether to run gcloud config set account."
     default: 'false'
+  target_os:
+    description: "Target OS for gclient (linux, android, ios)."
+    default: 'linux'
 
 outputs:
   cache_hit:
@@ -31,14 +35,21 @@ runs:
       env:
         INPUT_PATH: ${{ inputs.path }}
       run: |
-        set -euo pipefail
         MERGED_DIR="${GITHUB_WORKSPACE}/${INPUT_PATH}"
-        if mountpoint -q "${MERGED_DIR}"; then
-          fusermount3 -u -z "${MERGED_DIR}"
-        fi
+        # Clean up stale mounts and reclaim space from finished or cancelled jobs
+        fusermount3 -u -z "${MERGED_DIR}" 2>/dev/null || fusermount -u -z "${MERGED_DIR}" 2>/dev/null || umount -l "${MERGED_DIR}" 2>/dev/null || true
         rm -rf /runner-cache/workspaces/*
-        if [ -w "/runner-cache" ] && [ ! -d "/runner-cache/golden-workspace/gclient" ]; then
+
+    - name: Purge Legacy Unpartitioned Golden Workspace
+      id: purge-legacy
+      shell: bash
+      run: |
+        # Purge legacy golden workspace without version marker
+        if [ -w "/runner-cache" ] && [ ! -f "/runner-cache/golden-workspace/.version_v2" ]; then
+          echo "Notice: Purging legacy golden workspace..."
           rm -rf /runner-cache/golden-workspace
+          mkdir -p /runner-cache/golden-workspace
+          touch /runner-cache/golden-workspace/.version_v2
         fi
 
     - name: Check SSD Cache Hit
@@ -46,24 +57,13 @@ runs:
       shell: bash
       env:
         PLATFORM: ${{ inputs.platform }}
+        TARGET_OS: ${{ inputs.target_os }}
       run: |
-        set -euo pipefail
-        src_hit=false
-        gclient_hit=false
         cache_hit=false
-        PROFILE="linux"
-        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
-          PROFILE="android"
-        fi
         SRC_DIR="/runner-cache/golden-workspace/src"
-        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PROFILE}"
-        if [ -d "${SRC_DIR}/src/.git" ] && cmp -s DEPS "${SRC_DIR}/src/DEPS"; then
-          src_hit=true
-        fi
-        if [ -d "${GCLIENT_DIR}" ] && cmp -s DEPS "${GCLIENT_DIR}/src/DEPS"; then
-          gclient_hit=true
-        fi
-        if [ "${src_hit}" = "true" ] && [ "${gclient_hit}" = "true" ]; then
+        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${TARGET_OS}"
+        if [ -d "${SRC_DIR}/src/.git" ] && cmp -s DEPS "${SRC_DIR}/src/DEPS" && \
+           [ -d "${GCLIENT_DIR}" ] && cmp -s DEPS "${GCLIENT_DIR}/src/DEPS"; then
           cache_hit=true
         fi
         echo "cache_hit=${cache_hit}" >> "${GITHUB_OUTPUT}"
@@ -76,106 +76,91 @@ runs:
           --arg run_id "${GITHUB_RUN_ID}" \
           --arg url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
           --arg platform "${PLATFORM}" \
-          --arg profile "${PROFILE}" \
+          --arg target_os "${TARGET_OS}" \
           --argjson cache_hit "${cache_hit}" \
-          --argjson src_cache_hit "${src_hit}" \
-          --argjson gclient_cache_hit "${gclient_hit}" \
-          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, platform: $platform, profile: $profile, cache_hit: $cache_hit, src_cache_hit: $src_cache_hit, gclient_cache_hit: $gclient_cache_hit}')
-        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json
+          '{workflow: $workflow, job: $job, runner: $runner, run_id: $run_id, url: $url, platform: $platform, target_os: $target_os, cache_hit: $cache_hit}')
+        gcloud logging write github-actions-runners "${LOG_PAYLOAD}" --payload-type=json || true
 
     - name: Hydrate Snapshot from GCS
       id: hydrate-snapshot
+      if: inputs.target_os != 'ios'
       shell: bash
       env:
-        PLATFORM: ${{ inputs.platform }}
+        TARGET_OS: ${{ inputs.target_os }}
         MAX_HISTORY_COMMITS: 200
       run: |
-        set -euo pipefail
         if [ ! -w "/runner-cache" ]; then
           exit 0
         fi
 
-        PROFILE="linux"
-        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
-          PROFILE="android"
-        fi
-
         git config --global --add safe.directory "${GITHUB_WORKSPACE}"
         BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        mkdir -p /runner-cache/golden-workspace/gclient
 
-        hydrate_part() {
-          local key="$1"
-          local staging_dir="/runner-cache/staging.${key//\//-}.$$"
-          local lower_dir="/runner-cache/golden-workspace/${key}"
-          local ref="refs/remotes/origin/golden-workspace/${key}"
-          local expected=""
+        for key in "src" "gclient/${TARGET_OS}"; do
+          LOWER_DIR="/runner-cache/golden-workspace/${key}"
+          REF="refs/remotes/origin/golden-workspace/${key}"
 
-          if [ -n "$(git ls-remote origin "refs/golden-workspace/${key}")" ]; then
-            git fetch -q origin "+refs/golden-workspace/${key}:${ref}"
-            expected=$(git log -1 --format=%s "${ref}")
-          fi
+          git fetch -q origin "+refs/golden-workspace/${key}:${REF}" || true
+          EXPECTED=$(git log -1 --format=%s "${REF}" || true)
 
-          if [ -f "${lower_dir}/.digest" ]; then
-            local local_digest
-            local_digest=$(cat "${lower_dir}/.digest")
-            if [ -n "${expected}" ] && [ -n "${local_digest}" ] && git log -n "${MAX_HISTORY_COMMITS}" --format=%s "${ref}" | grep -Fxq "${local_digest}"; then
-              echo "Golden workspace (${key}) on SSD is valid (${local_digest:0:12})."
-              if cmp -s DEPS "${lower_dir}/src/DEPS" || [ "${local_digest}" = "${expected}" ]; then
-                return 0
+          if [ -f "${LOWER_DIR}/.digest" ]; then
+            LOCAL_DIGEST=$(cat "${LOWER_DIR}/.digest")
+            if [ -n "${LOCAL_DIGEST}" ] && git log -n "${MAX_HISTORY_COMMITS}" --format=%s "${REF}" | grep -Fxq "${LOCAL_DIGEST}"; then
+              echo "Golden workspace for ${key} on SSD is valid (${LOCAL_DIGEST:0:12})."
+              if cmp -s DEPS "${LOWER_DIR}/src/DEPS" || [ "${LOCAL_DIGEST}" = "${EXPECTED}" ]; then
+                continue
               fi
-              echo "Notice: DEPS differs from the SSD snapshot (${key}); fetching latest (${expected:0:12})..."
+              echo "Notice: DEPS differs from the SSD snapshot; fetching latest (${EXPECTED:0:12})..."
             else
-              echo "Notice: Golden workspace (${key}) on SSD is stale or unverified; re-hydrating..."
-              rm -rf "${lower_dir}"
+              echo "Notice: Golden workspace for ${key} on SSD is stale or unverified; re-hydrating..."
+              rm -rf "${LOWER_DIR}"
             fi
           fi
 
-          if [ -z "${expected}" ]; then
+          if [ -z "${EXPECTED}" ]; then
             echo "Notice: No golden workspace snapshot ref found for ${key}."
-            return 0
+            continue
           fi
 
-          echo "Downloading, extracting, and verifying golden workspace (${key}) (${expected:0:12})..."
-          rm -rf "${staging_dir}" && mkdir -p "${staging_dir}"
-          {
-            gcloud storage cat "gs://${BUCKET}/${key}/${expected}.tar.zst" \
-              | tee /dev/fd/3 \
-              | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${staging_dir}" >&2
-          } 3>&1 | sha256sum -c <(echo "${expected}  -")
+          STAGING_DIR="/runner-cache/staging.${key//\//_}.$$"
+          trap 'rm -rf "${STAGING_DIR}"' EXIT
 
-          if [ -d "${staging_dir}/src/.git" ]; then
-            git -C "${staging_dir}/src" update-index --refresh -q
+          echo "Downloading, extracting, and verifying golden workspace for ${key} (${EXPECTED:0:12})..."
+          rm -rf "${STAGING_DIR}" && mkdir -p "${STAGING_DIR}"
+          COMPUTED=$( (gcloud storage cat "gs://${BUCKET}/${key}/${EXPECTED}.tar.zst" \
+            | tee /dev/fd/3 \
+            | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") \
+            | sha256sum | awk '{print $1}') || true
+          wait || true
+
+          if [ "${COMPUTED}" != "${EXPECTED}" ]; then
+            echo "::warning::Golden workspace checksum verification failed for ${key}!"
+            rm -rf "${STAGING_DIR}"
+            continue
           fi
 
-          echo "${expected}" > "${staging_dir}/.digest"
-          rm -rf "${lower_dir}"
-          mv "${staging_dir}" "${lower_dir}"
-          echo "Extracted and verified golden workspace (${key}) to ${lower_dir}"
-        }
+          if [ -d "${STAGING_DIR}/src/.git" ]; then
+            git -C "${STAGING_DIR}/src" update-index --refresh -q || true
+          fi
 
-        hydrate_part "src" &
-        pid_src=$!
-        hydrate_part "gclient/${PROFILE}" &
-        pid_gclient=$!
-        wait "${pid_src}"
-        wait "${pid_gclient}"
+          echo "${EXPECTED}" > "${STAGING_DIR}/.digest"
+          mkdir -p "$(dirname "${LOWER_DIR}")"
+          rm -rf "${LOWER_DIR}"
+          mv "${STAGING_DIR}" "${LOWER_DIR}"
+          echo "Extracted and verified golden workspace for ${key} to ${LOWER_DIR}"
+        done
 
     - name: Resolve Active Snapshot Directory
       id: resolve-snapshot
       shell: bash
       env:
-        PLATFORM: ${{ inputs.platform }}
+        TARGET_OS: ${{ inputs.target_os }}
         SSD_CACHE_HIT: ${{ steps.detect-cache.outputs.cache_hit }}
       run: |
-        set -euo pipefail
-        PROFILE="linux"
-        if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
-          PROFILE="android"
-        fi
-        lower_dirs=()
         SRC_DIR="/runner-cache/golden-workspace/src"
-        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${PROFILE}"
+        GCLIENT_DIR="/runner-cache/golden-workspace/gclient/${TARGET_OS}"
+        lower_dirs=()
+
         if [ -d "${GCLIENT_DIR}" ]; then
           if cmp -s DEPS "${GCLIENT_DIR}/src/DEPS"; then
             lower_dirs+=("${GCLIENT_DIR}")
@@ -187,12 +172,18 @@ runs:
           lower_dirs+=("${SRC_DIR}")
         fi
 
-        lower_dir=$(IFS=:; echo "${lower_dirs[*]}")
-        echo "lower_dir=${lower_dir}" >> "${GITHUB_OUTPUT}"
-        if [ "${#lower_dirs[@]}" -eq 2 ]; then
-          echo "cache_hit=${SSD_CACHE_HIT}" >> "${GITHUB_OUTPUT}"
+        if [ "${#lower_dirs[@]}" -ge 1 ]; then
+          lower_dir=$(IFS=:; echo "${lower_dirs[*]}")
+          echo "lower_dir=${lower_dir}" >> "${GITHUB_OUTPUT}"
+          if [ "${#lower_dirs[@]}" -eq 2 ]; then
+            echo "cache_hit=${SSD_CACHE_HIT}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
+          fi
         else
+          echo "lower_dir=" >> "${GITHUB_OUTPUT}"
           echo "cache_hit=false" >> "${GITHUB_OUTPUT}"
+          echo "Golden workspace not found on SSD or GCS. Proceeding with cold workspace."
         fi
 
     - name: Mount OverlayFS Layer
@@ -215,3 +206,9 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}"
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
+
+        echo "UPPER_DIR=${UPPER_DIR}" >> "${GITHUB_ENV}"
+        echo "SRC_DIR=${LOWER_DIR##*:}" >> "${GITHUB_ENV}"
+
+        echo "UPPER_DIR=${UPPER_DIR}" >> "${GITHUB_ENV}"
+        echo "SRC_DIR=${LOWER_DIR##*:}" >> "${GITHUB_ENV}"
