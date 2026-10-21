@@ -198,7 +198,7 @@ IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,
 // static.
 Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     const std::vector<uint8_t>& data) {
-  BufferReader reader({data.data(), data.size()});
+  BufferReader reader(data);
 
   auto header_byte_opt = reader.ReadByte();
   if (!header_byte_opt) {
