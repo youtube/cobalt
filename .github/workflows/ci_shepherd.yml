@@ -17,6 +17,11 @@ on: # zizmor: ignore[dangerous-triggers]
         required: true
         type: choice
         options: [android, aosp, evergreen, linux, tvos]
+      # TODO: Remove workflow_run_id testing input before production
+      workflow_run_id:
+        description: 'Workflow run ID to publish golden refs from'
+        required: false
+        type: string
       pr_number:
         description: 'Pull request number'
         required: false
@@ -316,9 +321,10 @@ jobs:
   publish-golden-workspace:
     name: Publish Golden Workspace Refs
     runs-on: ubuntu-latest
+    # TODO: Revert workflow_dispatch testing condition to push/main before production
     if: |
       (github.event.action || inputs.action) == 'completed' &&
-      ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event_name == 'workflow_dispatch') &&
+      ((github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')) &&
       (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
     permissions:
       contents: write
@@ -328,9 +334,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
-          WORKFLOW_NAME: ${{ inputs.workflow_name }}
-          REF_NAME: ${{ github.ref_name }}
+          # TODO: Remove inputs.workflow_run_id fallback once experimental testing is complete
+          WORKFLOW_ID: ${{ github.event.workflow_run.id || inputs.workflow_run_id }}
           GIT_USER: "github-actions[bot]"
           GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
           EMPTY_TREE: "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -339,25 +344,26 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           mkdir -p digests repo
-          WORKFLOW_ID="${WORKFLOW_ID:-$(gh run list -R "${REPO}" -w "${WORKFLOW_NAME}.yaml" -b "${REF_NAME}" -s completed -L 5 --json databaseId,event -q '[.[] | select(.event == "push" or .event == "workflow_dispatch")][0].databaseId')}"
-          if [[ -n "${WORKFLOW_ID:-}" ]] && gh run view "${WORKFLOW_ID}" --repo "${REPO}" --json artifacts -q '.artifacts[].name' | grep -q '^golden-digest-'; then
-            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests
+          if [[ -z "${WORKFLOW_ID:-}" ]]; then
+            echo "::error::WORKFLOW_ID is not set."
+            exit 1
           fi
+
+          gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "golden-digest-*" -D digests
 
           REMOTE_URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
           cd repo && git init -q
           for f in ../digests/*/*; do
             [ -f "$f" ] || continue
-            while read -r key digest; do
-              [[ "$key" =~ ^(src|gclient/[a-zA-Z0-9._-]+)$ && "$digest" =~ ^[0-9a-f]{64}$ ]] || continue
+            while read -r layer_key digest; do
+              [ -n "${layer_key}" ] && [ -n "${digest}" ] || continue
               parent=()
-              if [ -n "$(git ls-remote "${REMOTE_URL}" "refs/golden-workspace/${key}")" ]; then
-                git fetch -q "${REMOTE_URL}" "refs/golden-workspace/${key}"
-                [ "$(git log -1 --format=%s FETCH_HEAD)" = "${digest}" ] && continue
+              if git fetch -q "${REMOTE_URL}" "refs/golden-workspace/${layer_key}" 2>/dev/null; then
+                [ "$(git log -1 --format=%s FETCH_HEAD 2>/dev/null)" = "${digest}" ] && continue
                 parent=(-p FETCH_HEAD)
               fi
               commit=$(git -c user.name="${GIT_USER}" -c user.email="${GIT_EMAIL}" \
                 commit-tree "${parent[@]}" -m "${digest}" "${EMPTY_TREE}")
-              git push -f "${REMOTE_URL}" "${commit}:refs/golden-workspace/${key}"
+              git push "${REMOTE_URL}" "${commit}:refs/golden-workspace/${layer_key}" || true
             done < "$f"
           done
