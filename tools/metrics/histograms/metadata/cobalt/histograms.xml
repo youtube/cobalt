@@ -513,6 +513,18 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Stability.Android.SystemExitReason.Deduplicated"
+    enum="Boolean" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records whether the latest historical Android ApplicationExitInfo returned
+    by ActivityManager on startup had already been logged in an earlier session
+    (true) and was therefore suppressed as a duplicate, or represents a newly
+    logged process exit (false). Recorded once per browser startup on Android R+
+    (API 30+) devices when a historical exit info entry is present.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Stability.Android.SystemExitReason.Foreground"
     enum="AndroidProcessExitReason" expires_after="never">
   <owner>avvall@google.com</owner>
@@ -565,6 +577,26 @@ Always run the pretty print utility on this file after editing:
     The percentage of capacity currently used in the Cobalt Persistent Memory
     Allocator (PMA) for stability metrics (BrowserStabilityMetrics). Recorded at
     key startup stages.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFileAction"
+    enum="CobaltStabilityPmaFileAction" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the action taken for each prior-session .pma file encountered in the
+    BrowserStabilityMetrics directory during startup cleanup in
+    ClearOtherStabilityMetricsPmaFiles().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.StabilityMetrics.PriorPmaFilesMergedCount"
+    units="files" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of prior-session BrowserStabilityMetrics .pma files whose
+    histogram deltas were merged into StatisticsRecorder during startup cleanup
+    in ClearOtherStabilityMetricsPmaFiles(). Recorded once per browser startup.
   </summary>
 </histogram>
 

@@ -174,6 +174,7 @@ void GlobalFeatures::CreateMetricsLocalState() {
   // call, etc., this is the setting that's overridden).
   pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                      false);
+  pref_registry->RegisterInt64Pref(kLastLoggedProcessExitTimestampMs, -1);
   base::FilePath path =
       GetPrefFilePath(kMetricsConfigFilename, "metrics config");
 
