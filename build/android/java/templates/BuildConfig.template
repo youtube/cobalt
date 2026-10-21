@@ -117,5 +117,11 @@ public class BuildConfig {
     public static boolean DISABLE_STRICT_MODE_CONTEXT;
 #endif
 
+#if defined(_IS_COBALT)
+    public static boolean IS_COBALT = true;
+#else
+    public static boolean IS_COBALT;
+#endif
+
     public static final String LOGTAG_PREFIX = QUOTE(_LOGTAG_PREFIX);
 }

@@ -58,16 +58,20 @@
 #include "content/public/common/result_codes.h"
 #include "net/disk_cache/cache_util.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/memory/android_os_signal_evaluator.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 #include "base/memory/memory_pressure_monitor.h"
 #include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
-#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"  // nogncheck
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_client.h"
-#endif
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -416,6 +420,8 @@ CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
                                                bool is_visible)
     : ShellBrowserMainParts(deep_link, is_visible) {}
 
+CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
+
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   LOG(INFO) << "Native CommandLine: "
@@ -545,38 +551,49 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
-#if BUILDFLAG(IS_STARBOARD)
-  // Register the Cobalt system memory pressure evaluator on Starboard platforms
-  // when enabled via Finch or command line.
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  // Register Cobalt memory pressure evaluators when enabled via Finch or
+  // command line.
   if (base::FeatureList::IsEnabled(
-          features::kCobaltSystemMemoryPressureEvaluator)) {
+          features::kEnableCobaltMemoryPressureEvaluator)) {
     // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
     // implementation of MemoryPressureMonitor.
     auto* monitor =
         static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
             base::MemoryPressureMonitor::Get());
-    // |monitor| may be nullptr in browser tests or if memory monitoring is
-    // disabled.
+    if (!monitor) {
+      memory_pressure_monitor_ =
+          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+      monitor = memory_pressure_monitor_.get();
+    }
     if (monitor) {
       cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
           media_allowance_getter;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       media_allowance_getter = base::BindRepeating(
           &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
-#endif
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       monitor->SetSystemEvaluator(
           std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
               monitor->CreateVoter(), std::move(media_allowance_getter)));
       LOG(INFO)
           << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+
+#if BUILDFLAG(IS_ANDROID)
+      // Register evaluator for Android OS memory pressure signals.
+      android_os_signal_evaluator_ =
+          std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+              monitor->CreateVoter());
+      LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
+#endif  // BUILDFLAG(IS_ANDROID)
     } else {
       LOG(WARNING)
-          << "No MemoryPressureMonitor available; cannot register evaluator.";
+          << "No MemoryPressureMonitor available; cannot register evaluators.";
     }
   } else {
-    LOG(INFO) << "CobaltSystemMemoryPressureEvaluator is disabled by Finch.";
+    LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
   }
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
   StartStorageMigration();
   ScheduleCobaltStorageMetricsRecording();
@@ -632,6 +649,16 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
                  "immediately.";
     std::move(task).Run();
   }
+}
+
+void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+#if BUILDFLAG(IS_ANDROID)
+  android_os_signal_evaluator_.reset();
+#endif
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  memory_pressure_monitor_.reset();
+#endif
+  ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
