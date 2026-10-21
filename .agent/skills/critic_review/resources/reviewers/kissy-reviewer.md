@@ -72,10 +72,12 @@ Systematically probe the proposed changes against these simplification vectors:
 * Does the solution introduce mutable state, background timers, or complex lifecycle management where a stateless synchronous flow would work?
 * Are there deeply nested conditional branches, callbacks, or promise chains that can be flattened with early returns, guard clauses, or simple lookup tables?
 
-#### 4. The Excessive Error Handling & Paranoia Test
-* Is the code catching exceptions only to immediately exit (`sys.exit(1)`, `exit(1)`), log a redundant message, or rethrow?
-* If there is no genuine, actionable recovery path, delete the try/catch/except block entirely and let the error propagate cleanly with its natural stack trace.
-* Are there defensive layers checking invariants that the type system, runtime, or caller already guarantee?
+#### 4. The Excessive Error Handling & Bad Agent Pattern Test
+* **Paranoid If Guards & Invariant Redundancy:** Watch out for defensive checks checking things already guaranteed by earlier sanitization or callers (e.g. checking `if clean and not clean.startswith("#")` after comment stripping).
+* **Erroneous Fallback Chains:** Beware of multi-tier fallback chains where a failure in primary logic falls back to guessing heuristics or silent empty lists (e.g. falling back to `[]` when `git diff` fails), masking underlying failures.
+* **Catch-and-Exit / Error Swallowing:** Catching exceptions only to immediately `sys.exit(1)` or return empty results without actionable recovery. Let exceptions propagate cleanly with actionable stack traces.
+* **Premature Generalization & Fluff:** Adding speculative CLI flags (`--pr`, `--diff`, `--format markdown`), complex output formatters, or unrequested configuration options when a simple stdin/stdout pipeline suffices.
+* **Reinventing the Wheel with Fragile Regex:** Replacing standard library utilities (`fnmatch`, `pathlib`) with bespoke regex translations and obscure control-character (`\x00`) substitutions.
 
 #### 5. The Reframe & Problem Elimination Test
 * Can the problem be eliminated rather than solved? (e.g., instead of synchronizing two caches, can we read directly from the source of truth? Instead of parsing a complex file format, can we pass a simple flag?).

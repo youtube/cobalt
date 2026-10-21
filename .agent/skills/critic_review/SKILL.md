@@ -22,8 +22,6 @@ to verify correctness, robustness, security, style, and project guidelines.
 
 ## Skill Folder Structure
 
-This skill adheres to the recommended Jetski skill layout:
-
 ```text
 skills/critic_review/
 ├── SKILL.md                 # Main workflow & instructions (this file)
@@ -98,13 +96,13 @@ Per the repository Code Submission Policy (CSP), mandatory codeowner reviewers a
 
 ```bash
 # 1. Resolve codeowner reviewers for local working tree diff:
-python3 SKILL_DIR/scripts/resolve_codeowners.py --diff
+python3 SKILL_DIR/scripts/resolve_codeowners.py
 
-# 2. Or resolve codeowners for a specific PR via GitHub CLI (gh):
-python3 SKILL_DIR/scripts/resolve_codeowners.py --pr <PR_NUMBER>
+# 2. Or pass files via stdin:
+git diff --name-only | python3 SKILL_DIR/scripts/resolve_codeowners.py
 
-# 3. Or pass explicit file paths from <current_state>:
-python3 SKILL_DIR/scripts/resolve_codeowners.py <file1> <file2> ... --format markdown
+# 3. Or pass explicit file paths:
+python3 SKILL_DIR/scripts/resolve_codeowners.py <file1> <file2> ...
 ```
 
 The resolver strictly adheres to GitHub CODEOWNERS specifications:
