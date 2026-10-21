@@ -646,6 +646,11 @@ void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
   for (auto& key_status : key_statuses) {
     SbDrmKeyId sb_key_id;
     SB_DCHECK_LE(key_status.first.size(), sizeof(sb_key_id.identifier));
+    if (key_status.first.size() > sizeof(sb_key_id.identifier)) {
+      SB_LOG(ERROR) << "Ignoring key ID with invalid size "
+                    << key_status.first.size();
+      continue;  // Skip this key status.
+    }
     memcpy(sb_key_id.identifier, key_status.first.c_str(),
            key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());
