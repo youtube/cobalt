@@ -57,6 +57,10 @@
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace net {
 
 namespace {
@@ -3049,5 +3053,89 @@ INSTANTIATE_TEST_SUITE_P(,
                          [](auto& info) {
                            return info.param ? "Enabled" : "Disabled";
                          });
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(SQLitePersistentCookieStoreTest,
+       CobaltCookieFlushOptimizationBatchesUpdateAccess) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltCookieFlushOptimization);
+  InitializeStore(/*crypt=*/false, /*restore_old_session_cookies=*/false);
+
+  base::Time t = base::Time::Now();
+  auto cookie1 = CanonicalCookie::CreateUnsafeCookieForTesting(
+      "A", "B", "foo.bar", "/", t, t + base::Days(1), t, t,
+      /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT);
+  store_->AddCookie(*cookie1);
+  Flush();
+
+  base::HistogramTester histogram_tester;
+  // Calling Flush() when the queue is empty should not record a 0-op sample in
+  // Cobalt.Storage.Cookie.PendingOperationsAtCommit.
+  Flush();
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.Cookie.PendingOperationsAtCommit", 0);
+
+  // Repeated UpdateCookieAccessTime calls should coalesce in pending_ without
+  // inflating queue length or starting a background commit.
+  cookie1->SetLastAccessDate(t + base::Minutes(5));
+  store_->UpdateCookieAccessTime(*cookie1);
+  cookie1->SetLastAccessDate(t + base::Minutes(10));
+  store_->UpdateCookieAccessTime(*cookie1);
+  EXPECT_EQ(1u, store_->GetQueueLengthForTesting());
+
+  // Adding a new cookie should batch with the queued UpdateCookieAccessTime and
+  // commit both in a single SQLite transaction on Flush().
+  auto cookie2 = CanonicalCookie::CreateUnsafeCookieForTesting(
+      "C", "D", "foo.bar", "/", t, t + base::Days(1), t, t,
+      /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT);
+  store_->AddCookie(*cookie2);
+  EXPECT_EQ(2u, store_->GetQueueLengthForTesting());
+
+  Flush();
+  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
+  histogram_tester.ExpectTotalCount("Cobalt.Storage.Cookie.CommitDuration", 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.Cookie.PendingOperationsAtCommit", 2, 1);
+
+  DestroyStore();
+}
+
+TEST_F(SQLitePersistentCookieStoreTest,
+       CobaltCookieFlushOptimizationCommitsAtBatchSizeWithoutDuplicatePosts) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltCookieFlushOptimization);
+  InitializeStore(/*crypt=*/false, /*restore_old_session_cookies=*/false);
+
+  base::Time t = base::Time::Now();
+  // Queue 511 distinct UpdateCookieAccessTime operations (below the 512 batch
+  // threshold) and verify that repeated access updates for an existing key do
+  // not trigger a premature commit.
+  for (int i = 0; i < 511; ++i) {
+    auto c = CanonicalCookie::CreateUnsafeCookieForTesting(
+        "C" + base::NumberToString(i), "V", "foo.bar", "/", t,
+        t + base::Days(1), t, t, /*secure=*/false, /*httponly=*/false,
+        CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT);
+    store_->UpdateCookieAccessTime(*c);
+  }
+  EXPECT_EQ(511u, store_->GetQueueLengthForTesting());
+
+  // The 512th distinct operation (a COOKIE_ADD) reaches kCommitAfterBatchSize
+  // (512) and must immediately post a background Commit() rather than only
+  // arming the 1-second timer.
+  auto cookie_512 = CanonicalCookie::CreateUnsafeCookieForTesting(
+      "C511", "V", "foo.bar", "/", t, t + base::Days(1), t, t,
+      /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
+      COOKIE_PRIORITY_DEFAULT);
+  store_->AddCookie(*cookie_512);
+
+  // Wait for the background commit triggered by reaching 512 operations.
+  Flush();
+  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
+
+  DestroyStore();
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net

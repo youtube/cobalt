@@ -202,6 +202,9 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
   void DoFocus() override {
+    if (auto* client = cobalt::CobaltContentBrowserClient::Get()) {
+      client->ResetCookieFlushDeduplicationWindow();
+    }
 #if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
       platform_event_source_->DispatchFocusEvent(true);

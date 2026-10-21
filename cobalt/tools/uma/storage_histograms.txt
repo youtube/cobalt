@@ -41,6 +41,7 @@ Cobalt.Storage.ProcessIo.StartupWriteKB
 Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 # Batch size and delay per commit (validates commit batching changes).
 Cobalt.Storage.Cookie.PendingOperationsAtCommit
+Cobalt.Storage.Cookie.FlushAction
 DOMStorage.CommitSizeBytesAggregated
 DOMStorage.CommitMeasuredDelay
 

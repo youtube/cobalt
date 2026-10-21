@@ -102,6 +102,14 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // experimentation (--enable-features=CobaltStorageCleanup).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 
+// When enabled, prevents read-only cookie access timestamp updates
+// (COOKIE_UPDATEACCESS) from arming Cobalt's 1-second SQLite background commit
+// timer (batching them until the next cookie mutation or lifecycle flush) and
+// deduplicates back-to-back FlushCookiesAndLocalStorage() calls across
+// pause/stop/exit transitions. Disabled by default for Finch/Mendel A/B
+// experimentation (--enable-features=CobaltCookieFlushOptimization).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCookieFlushOptimization);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.
