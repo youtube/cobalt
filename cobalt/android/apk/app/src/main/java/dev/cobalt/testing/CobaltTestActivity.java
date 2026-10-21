@@ -19,6 +19,7 @@ import android.app.Service;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
