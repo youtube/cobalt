@@ -113,11 +113,13 @@ extern const base::Feature kForceVideoSplashScreen;
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
-// How long after the splash screen finishes loading Cobalt switches to the main
-// WebContents, once that has loaded (default: 1500ms). If SplashScreenConfig is
-// enabled, it is also passed to the splash screen as the "timeout" query param
-// (in ms), and the built-in splash screen stays up until then instead of
-// closing when its animation ends. Values need a unit, e.g., "3s" or "2500ms".
+// How long after the splash screen starts Cobalt switches to the main
+// WebContents, once that has loaded (default: 1500ms). The splash screen starts
+// when its page finishes loading or, for a video, when the video starts
+// playing, within 2s. If SplashScreenConfig is enabled, it is also passed
+// to the splash screen as the "timeout" query param (in ms), and the built-in
+// splash screen stays up until then instead of closing when its animation
+// ends. Values need a unit, e.g., "3s" or "2500ms".
 // Locally: --enable-features=SplashScreenConfig:timeout/3s
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 
@@ -181,6 +183,34 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
 // NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient
 // that costs Mojo round trips to the browser UI thread on every request.
 BASE_DECLARE_FEATURE(kCobaltSkipTrustedHeaderClient);
+
+// Freezes the web app (document freeze event, JS timers stopped, freeze-time
+// memory purging) when the Android Activity is stopped, after an optional
+// delay. Disabled by default: Chrobalt currently never freezes in the
+// background on Android TV (except NVIDIA Shield). Replaces the retired
+// EnableFreeze Java switch.
+BASE_DECLARE_FEATURE(kCobaltFreezeOnBackground);
+
+// Delay in milliseconds between the visibilitychange:hidden event and the
+// freeze event when kCobaltFreezeOnBackground is enabled. 0 freezes
+// immediately; 1500 matches the Cobalt 25 Conceal -> Freeze delay.
+extern const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs;
+
+#if BUILDFLAG(IS_ANDROID)
+// Android-only: Enables and configures persisting the 16-byte process state
+// summary to Android's ActivityManager.setProcessStateSummary() (API 30+).
+BASE_DECLARE_FEATURE(kCobaltProcessStateSummary);
+
+// Android-only: Minimum interval between rate-limited process state summary
+// flushes to ActivityManager (default: 15s).
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kProcessStateSummaryMinFlushIntervalParam);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+// Deduplicates prior-session BrowserStabilityMetrics .pma files (single
+// authoritative startup reader/merger) and Android ApplicationExitInfo records
+// across sessions.
+BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 
 }  // namespace features
 }  // namespace cobalt

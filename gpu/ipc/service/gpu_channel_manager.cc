@@ -434,14 +434,28 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
     bool disable_disk_cache =
         gpu_preferences_.disable_gpu_shader_disk_cache ||
         workarounds.disable_program_disk_cache;
+    size_t program_cache_size = gpu_preferences_.gpu_program_cache_size;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // kCobaltGpuShaderDiskCache only opens the disk cache for Skia's
+    // GrShaderCache (see GpuHostImpl::SetChannelDiskCacheHandle). Keep the GL
+    // program cache memory-only and at the platform default size, as it is
+    // when the feature is off: kCobaltGpuShaderDiskCacheSizeKb (which also
+    // sets gpu_program_cache_size) is meant to size only the GrShaderCache.
+    if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+      disable_disk_cache = true;
+      program_cache_size = base::SysInfo::IsLowEndDevice()
+                               ? kLowEndMaxProgramCacheMemoryBytes
+                               : kDefaultMaxProgramCacheMemoryBytes;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
     // Use the EGL blob cache extension for the passthrough decoder.
     if (use_passthrough_cmd_decoder()) {
       program_cache_ = std::make_unique<gles2::PassthroughProgramCache>(
-          gpu_preferences_.gpu_program_cache_size, disable_disk_cache);
+          program_cache_size, disable_disk_cache);
     } else {
       program_cache_ = std::make_unique<gles2::MemoryProgramCache>(
-          gpu_preferences_.gpu_program_cache_size, disable_disk_cache,
+          program_cache_size, disable_disk_cache,
           workarounds.disable_program_caching_for_transform_feedback,
           &use_shader_cache_shm_count_);
     }
@@ -805,6 +819,14 @@ void GpuChannelManager::OnBackgroundCleanup() {
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
   for (auto& kv : gpu_channels_) {
     kv.second->MarkAllContextsLost();
@@ -837,6 +859,14 @@ void GpuChannelManager::OnBackgroundCleanup() {
 
 void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   if (shared_context_state_) {
     shared_context_state_->PurgeMemory(

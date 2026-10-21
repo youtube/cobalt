@@ -14,6 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/crash_log/crash_log.h"
 
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
@@ -65,8 +66,7 @@ NOINLINE NOT_TAIL_CALLED void CrashLog::triggerCrash() {
   static int static_variable_to_make_this_function_unique = 0;
   base::debug::Alias(&static_variable_to_make_this_function_unique);
 
-  volatile int* zero = nullptr;
-  *zero = 0;
+  CHECK(false) << "Intentionally triggered crash";
 }
 
 void CrashLog::EnsureReceiverIsBound() {

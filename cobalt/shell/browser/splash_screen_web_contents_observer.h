@@ -15,15 +15,22 @@
 #ifndef COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 
+#include <utility>
+
 #include "base/functional/callback.h"
+#include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace content {
 
 class SplashScreenWebContentsObserver : public WebContentsObserver {
  public:
+  using StartupEventCallback =
+      base::RepeatingCallback<void(SplashScreenMetrics::Event)>;
+
   SplashScreenWebContentsObserver(WebContents* web_contents,
-                                  base::OnceClosure on_load_complete);
+                                  base::OnceClosure on_load_complete,
+                                  StartupEventCallback on_startup_event);
 
   SplashScreenWebContentsObserver(const SplashScreenWebContentsObserver&) =
       delete;
@@ -41,10 +48,27 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
 
   void DidFirstVisuallyNonEmptyPaint() override;
 
+  // Runs `on_video_started` whenever a video starts playing in the splash
+  // screen, i.e., once SbPlayer has prerolled it.
+  void set_on_video_started(base::RepeatingClosure on_video_started) {
+    on_video_started_ = std::move(on_video_started);
+  }
+
+  void MediaStartedPlaying(const MediaPlayerInfo& video_type,
+                           const MediaPlayerId& id) override;
+  void MediaStoppedPlaying(
+      const MediaPlayerInfo& video_type,
+      const MediaPlayerId& id,
+      WebContentsObserver::MediaStoppedReason reason) override;
+
  private:
   void LoadProgressChanged(double progress) override;
 
+  void NotifyStartupEvent(SplashScreenMetrics::Event event);
+
   base::OnceClosure on_load_complete_;
+  StartupEventCallback on_startup_event_;
+  base::RepeatingClosure on_video_started_;
 };
 
 }  // namespace content

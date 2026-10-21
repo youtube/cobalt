@@ -40,6 +40,7 @@
 
 int main(int argc, char** argv);
 
+namespace starboard {
 namespace {
 
 // Cobalt normally runs main() on the process's main thread, which has a large
@@ -81,7 +82,7 @@ void* StarboardMain(void* /*context*/) {
   // Don't use "/dev/shm" for shared memory; it does not exist on Android.
   // With this switch it falls back to GetTempDir().
   args.push_back("--disable-dev-shm-usage");
-  starboard::StarboardBridge::GetInstance()->AppendArgs(env, &args);
+  StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
   // For Android instrumentation test runs the runner provides a stdout file.
   // Redirect stdout/stderr to it.
@@ -132,8 +133,6 @@ void* StarboardMain(void* /*context*/) {
 
 }  // namespace
 
-namespace starboard {
-
 void JNI_MainActivity_StartLoader(JNIEnv* env) {
   if (g_loader_started.exchange(true)) {
     SB_LOG(WARNING)
@@ -161,7 +160,7 @@ jboolean JNI_MainActivity_IsLoaderStarted(JNIEnv* /*env*/) {
 }
 
 jboolean JNI_MainActivity_HasSurface(JNIEnv* /*env*/) {
-  return android::shared::HasWindowSurface();
+  return HasWindowSurface();
 }
 
 // MainActivity hands the Activity window's Surface to Starboard here.
@@ -171,7 +170,7 @@ void JNI_MainActivity_NativeOnSurfaceCreated(
   ANativeWindow* native_window = ANativeWindow_fromSurface(env, surface.obj());
   SB_LOG(INFO) << "cobalt_loader: Starboard surface created, native_window="
                << native_window;
-  starboard::android::shared::SetWindowSurface(native_window);
+  SetWindowSurface(native_window);
 }
 
 void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
@@ -179,15 +178,15 @@ void JNI_MainActivity_NativeOnSurfaceDestroyed(JNIEnv*) {
   ApplicationAOSP* application = ApplicationAOSP::GetIfExists();
   if (application == nullptr) {
     // Nothing is running yet, or it is already gone; just drop the surface.
-    starboard::android::shared::SetWindowSurface(nullptr);
+    SetWindowSurface(nullptr);
     return;
   }
-  int64_t start_usec = starboard::CurrentMonotonicTime();
+  int64_t start_usec = CurrentMonotonicTime();
   bool released =
       application->ReleaseWindowSurfaceAndWait(kSurfaceReleaseTimeoutUsec);
 
   SB_LOG(INFO) << "cobalt_loader: Starboard surface released after "
-               << (starboard::CurrentMonotonicTime() - start_usec) / 1000
+               << (CurrentMonotonicTime() - start_usec) / 1000
                << " ms, released=" << released;
 }
 

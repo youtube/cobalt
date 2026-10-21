@@ -62,6 +62,7 @@ class CobaltCrashAnnotations {
  private:
   friend class base::NoDestructor<CobaltCrashAnnotations>;
   friend class CobaltCrashAnnotationsTest;
+  friend class HangWatcherDelegateImplTest;
 
   CobaltCrashAnnotations();
   ~CobaltCrashAnnotations();

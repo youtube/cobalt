@@ -82,6 +82,9 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
+  }
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::GetPlatformInfoApi();
   }
@@ -93,9 +96,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetPlayerSettingsApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    // TODO(b/377052218): Re-enable
-    // return starboard::GetAccessibilityApi();
-    return NULL;
+    return starboard::GetAccessibilityApi();
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
@@ -105,10 +106,5 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetLoaderAppMetricsApi();
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_EVERGREEN)
-  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
-    return starboard::GetNativeStabilityApi();
-  }
-#endif  // BUILDFLAG(USE_EVERGREEN)
   return NULL;
 }
