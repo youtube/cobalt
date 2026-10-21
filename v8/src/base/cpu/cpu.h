@@ -151,10 +151,6 @@ class V8_BASE_EXPORT CPU final {
   bool has_lasx() const { return has_lasx_; }
 
  private:
-<<<<<<< HEAD:v8/src/base/cpu/cpu.h
-#if defined(V8_OS_STARBOARD)
-  bool StarboardDetectCPU();
-#endif
   void DetectFeatures();
 
   char vendor_[13] = {};
@@ -224,75 +220,6 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbs_ = false;
   bool has_lsx_ = false;
   bool has_lasx_ = false;
-=======
-  char vendor_[13];
-  int stepping_;
-  int model_;
-  int ext_model_;
-  int family_;
-  int ext_family_;
-  int type_;
-  int implementer_;
-  int architecture_;
-  int variant_;
-  int part_;
-  int icache_line_size_;
-  int dcache_line_size_;
-  int num_virtual_address_bits_;
-  bool has_fpu_;
-  bool has_cmov_;
-  bool has_sahf_;
-  bool has_mmx_;
-  bool has_sse_;
-  bool has_sse2_;
-  bool has_sse3_;
-  bool has_ssse3_;
-  bool has_sse41_;
-  bool has_sse42_;
-  bool is_atom_;
-  bool has_intel_jcc_erratum_;
-  bool has_cetss_;
-  bool has_osxsave_;
-  bool has_avx_;
-  bool has_avx2_;
-  bool has_avx_vnni_;
-  bool has_avx_vnni_int8_;
-  bool has_fma3_;
-  bool has_f16c_;
-  bool has_bmi1_;
-  bool has_bmi2_;
-  bool has_lzcnt_;
-  bool has_popcnt_;
-  bool has_apx_f_;
-  bool has_idiva_;
-  bool has_neon_;
-  bool has_thumb2_;
-  bool has_vfp_;
-  bool has_vfp3_;
-  bool has_vfp3_d32_;
-  bool has_jscvt_;
-  bool has_dot_prod_;
-  bool has_lse_;
-  bool has_mte_;
-  bool has_sha3_;
-  bool has_pmull1q_;
-  bool has_fp16_;
-  bool has_hbc_;
-  bool has_cssc_;
-  bool has_mops_;
-  bool is_fp64_mode_;
-  bool has_non_stop_time_stamp_counter_;
-  bool is_running_in_vm_;
-  bool has_msa_;
-  RV_MMU_MODE riscv_mmu_;
-  unsigned vlen_;
-  bool has_rvv_;
-  bool has_zba_;
-  bool has_zbb_;
-  bool has_zbs_;
-  bool has_lsx_;
-  bool has_lasx_;
->>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):v8/src/base/cpu.h
 };
 
 }  // namespace base
