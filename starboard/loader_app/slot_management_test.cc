@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -266,7 +267,7 @@ TEST_P(SlotManagementTest, AdoptSlot) {
   if (!storage_path_implemented_) {
     return;
   }
-  ImInitialize(3, kTestAppKey);
+  ImInitialize(2, kTestAppKey);
   ImReset();
   ASSERT_EQ(IM_SUCCESS, ImRollForward(1));
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
@@ -497,6 +498,50 @@ TEST_P(SlotManagementTest, CompareEvergreenVersion) {
   std::vector<char> v4(kTestEvergreenVersion4,
                        kTestEvergreenVersion4 + strlen(kTestEvergreenVersion4));
   ASSERT_EQ(1, CompareEvergreenVersion(v4, v3));
+}
+
+TEST_P(SlotManagementTest, CompareEvergreenVersionWithMalformedVersion) {
+  // NUL-padded buffers, as produced by reading a manifest into a fixed-size
+  // buffer of kMaxEgVersionSize.
+  auto make_version = [](const char* str) {
+    std::vector<char> version(kMaxEgVersionSize);
+    strncpy(version.data(), str, kMaxEgVersionSize - 1);
+    return version;
+  };
+  const std::vector<char> valid = make_version("1.2.3");
+  ASSERT_EQ(1, CompareEvergreenVersion(make_version("1.2.4"), valid));
+  ASSERT_EQ(-1, CompareEvergreenVersion(make_version("1.2"), valid));
+  ASSERT_EQ(0, CompareEvergreenVersion(make_version("1.2.3"), valid));
+  ASSERT_EQ(0, CompareEvergreenVersion(std::vector<char>(), valid));
+  ASSERT_EQ(0, CompareEvergreenVersion(valid, std::vector<char>()));
+  ASSERT_EQ(0, CompareEvergreenVersion(valid, make_version("")));
+  // INT_MAX is the largest valid segment.
+  ASSERT_EQ(1, CompareEvergreenVersion(make_version("2147483647"), valid));
+
+  // Malformed versions must be treated as invalid rather than crashing.
+  const char* const kMalformedVersions[] = {
+      "1.x",           // Non-numeric segment.
+      "1..2",          // Empty segment.
+      "1.",            // Trailing deliminator.
+      ".1",            // Leading deliminator.
+      "1.0.rc1",       // Non-numeric segment.
+      "5-rc1",         // Trailing non-digit characters.
+      "1.-1.0",        // Negative segment.
+      " 1.2",          // Leading whitespace.
+      "3000000000.0",  // Segment exceeds INT_MAX.
+      "2147483648",    // INT_MAX + 1.
+      "1.0.99999999999",
+  };
+  for (const char* malformed : kMalformedVersions) {
+    SCOPED_TRACE(malformed);
+    std::vector<char> v = make_version(malformed);
+    EXPECT_EQ(0, CompareEvergreenVersion(v, valid));
+    EXPECT_EQ(0, CompareEvergreenVersion(valid, v));
+    // Not NUL-terminated.
+    std::vector<char> unterminated(malformed, malformed + strlen(malformed));
+    EXPECT_EQ(0, CompareEvergreenVersion(unterminated, valid));
+    EXPECT_EQ(0, CompareEvergreenVersion(valid, unterminated));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(SlotManagementTests,

@@ -12,7 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <string>
+#include <string_view>
+
 #include "base/base_paths.h"
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/files/file_util.h"
+#include "base/files/memory_mapped_file.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/metrics/metrics_hashes.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/sparse_histogram.h"
@@ -23,11 +34,13 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/file_metrics_provider.h"
@@ -304,11 +317,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
                                "AllocatedObjects.ArrayBuffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
-  EXPECT_TRUE(check_non_zero_histogram(
+  EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
   EXPECT_TRUE(check_non_zero_histogram(
       "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
@@ -374,8 +387,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       allocator->memory_allocator();
   ASSERT_NE(mem_allocator, nullptr);
 
-  // Verify the strict 512 KiB cap
-  EXPECT_EQ(mem_allocator->size(), 512u * 1024u);
+  // Verify the strict 128 KiB per-file cap
+  EXPECT_EQ(mem_allocator->size(), 128u * 1024u);
 
   // Verify allocator ID "STAB"
   EXPECT_EQ(mem_allocator->Id(), 0x53544142u);
@@ -414,6 +427,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_EQ(
       histogram_tester.GetBucketCount("Cobalt.Startup.MilestoneReached", 26),
       1);
+  histogram_tester.ExpectTotalCount("Histogram.MismatchedConstructionArguments",
+                                    0);
 
   // Verify navigation duration metric was recorded exactly once
   histogram_tester.ExpectTotalCount(
@@ -448,13 +463,13 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_GT(percent_samples->TotalCount(), 0);
   EXPECT_LE(percent_samples->sum() / percent_samples->TotalCount(), 100);
 
-  // Verify UsedKilobytes is sampled and within 0 - 512 KB
+  // Verify UsedKilobytes is sampled and within 0 - 128 KB
   base::HistogramBase* used_kb_hist = base::StatisticsRecorder::FindHistogram(
       "Cobalt.StabilityMetrics.UsedKilobytes");
   ASSERT_TRUE(used_kb_hist);
   auto used_samples = used_kb_hist->SnapshotSamples();
   EXPECT_GT(used_samples->TotalCount(), 0);
-  EXPECT_LE(used_samples->sum() / used_samples->TotalCount(), 512);
+  EXPECT_LE(used_samples->sum() / used_samples->TotalCount(), 128);
 
   // Verify we have not hit near-capacity condition under normal operation
   // and that the false bucket (the denominator) is recorded.
@@ -480,6 +495,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(
       local_state->FindPreference(metrics::prefs::kMetricsLastSeenPrefix +
                                   std::string("BrowserStabilityMetrics")));
+  EXPECT_TRUE(local_state->FindPreference(kLastLoggedProcessExitTimestampMs));
+  EXPECT_EQ(local_state->GetInt64(kLastLoggedProcessExitTimestampMs), -1);
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
@@ -547,6 +564,406 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
           shell()->web_contents(),
           "'peakTileMemory' in window.performance.measureSystemMemoryInfo()")
           .ExtractBool());
+}
+
+namespace {
+
+constexpr char kStabilityAllocatorName[] = "BrowserStabilityMetrics";
+
+bool CreatePriorSessionSparsePmaFile(const base::FilePath& file_path,
+                                     std::string_view allocator_name,
+                                     std::string_view histogram_name,
+                                     base::HistogramBase::Sample32 sample,
+                                     bool mark_deleted = false) {
+  base::File file(file_path, base::File::FLAG_CREATE_ALWAYS |
+                                 base::File::FLAG_READ |
+                                 base::File::FLAG_WRITE);
+  if (!file.IsValid()) {
+    return false;
+  }
+  auto mmfile = std::make_unique<base::MemoryMappedFile>();
+  if (!mmfile->Initialize(std::move(file), {0, 64 * 1024},
+                          base::MemoryMappedFile::READ_WRITE_EXTEND)) {
+    return false;
+  }
+  if (!base::FilePersistentMemoryAllocator::IsFileAcceptable(
+          *mmfile, /*read_only=*/false)) {
+    return false;
+  }
+  auto mem_allocator = std::make_unique<base::FilePersistentMemoryAllocator>(
+      std::move(mmfile), 64 * 1024, 0x53544142, allocator_name,
+      base::FilePersistentMemoryAllocator::kReadWrite);
+  if (mark_deleted) {
+    mem_allocator->SetMemoryState(
+        base::PersistentMemoryAllocator::MEMORY_DELETED);
+  }
+  base::PersistentHistogramAllocator allocator(std::move(mem_allocator));
+  base::PersistentHistogramAllocator::Reference ref = 0;
+  std::unique_ptr<base::HistogramBase> histogram = allocator.AllocateHistogram(
+      base::SPARSE_HISTOGRAM, histogram_name,
+      base::HashMetricName(histogram_name), 0, 0, nullptr,
+      base::HistogramBase::kUmaTargetedHistogramFlag, &ref);
+  if (!histogram) {
+    return false;
+  }
+  allocator.FinalizeHistogram(ref, /*registered=*/true);
+  histogram->Add(sample);
+  return true;
+}
+
+}  // namespace
+
+class CobaltMetricsDeduplicationEnabledBrowserTest
+    : public CobaltMetricsBrowserTest {
+ public:
+  CobaltMetricsDeduplicationEnabledBrowserTest() = default;
+
+  void CreatedBrowserMainParts(
+      content::BrowserMainParts* browser_main_parts) override {
+    CobaltMetricsBrowserTest::CreatedBrowserMainParts(browser_main_parts);
+    // Initialize ScopedFeatureList here (before PreCreateThreads/SetupMetrics)
+    // rather than in the constructor because BrowserTestBase::SetUp() resets
+    // base::FeatureList before entering ContentMain(), and ShellMainDelegate
+    // does not re-create FeatureList from command-line switches.
+    feature_list_.InitAndEnableFeature(
+        features::kCobaltStabilityMetricsDeduplication);
+  }
+
+  void TearDownOnMainThread() override {
+    feature_list_.Reset();
+    CobaltMetricsBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    CobaltMetricsDeduplicationEnabledBrowserTest,
+    StabilityMetricsPmaSingleAndMultiSessionMergeWithoutDoubleLogging) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  ASSERT_TRUE(base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication));
+  base::HistogramTester histogram_tester;
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath& metrics_dir = temp_dir.GetPath();
+
+  const base::Time stamp1 = base::Time::FromTimeT(1700000100);
+  const base::Time stamp2 = base::Time::FromTimeT(1700000200);
+  const base::FilePath prior_file1 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp1, /*pid=*/41001);
+  const base::FilePath prior_file2 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp2, /*pid=*/41002);
+
+  constexpr char kHist1[] = "Cobalt.Test.BrowserPmaSession1";
+  constexpr char kHist2[] = "Cobalt.Test.BrowserPmaSession2";
+  ASSERT_TRUE(CreatePriorSessionSparsePmaFile(
+      prior_file1, kStabilityAllocatorName, kHist1, 101));
+  ASSERT_TRUE(CreatePriorSessionSparsePmaFile(
+      prior_file2, kStabilityAllocatorName, kHist2, 202));
+
+  // Before merging, neither prior-session histogram is registered in the
+  // current browser process's StatisticsRecorder.
+  EXPECT_EQ(base::StatisticsRecorder::FindHistogram(kHist1), nullptr);
+  EXPECT_EQ(base::StatisticsRecorder::FindHistogram(kHist2), nullptr);
+
+#if !BUILDFLAG(IS_WIN)
+  // On POSIX, hold a read-only mapping on prior_file1 to verify post-merge
+  // MEMORY_DELETED state and atomic consumption of unlogged samples.
+  auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
+  ASSERT_TRUE(inspect_mapped->Initialize(prior_file1,
+                                         base::MemoryMappedFile::READ_ONLY));
+#endif
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
+                                     base::GetCurrentProcId());
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  EXPECT_FALSE(base::PathExists(prior_file1));
+  EXPECT_FALSE(base::PathExists(prior_file2));
+
+  // Verify exact 1x counts (no 2x duplication from FileMetricsProvider or
+  // GlobalHistogramAllocator import).
+  base::HistogramBase* merged1 =
+      base::StatisticsRecorder::FindHistogram(kHist1);
+  ASSERT_NE(merged1, nullptr);
+  EXPECT_EQ(merged1->SnapshotSamples()->GetCount(101), 1);
+  EXPECT_EQ(merged1->SnapshotSamples()->TotalCount(), 1);
+
+  base::HistogramBase* merged2 =
+      base::StatisticsRecorder::FindHistogram(kHist2);
+  ASSERT_NE(merged2, nullptr);
+  EXPECT_EQ(merged2->SnapshotSamples()->GetCount(202), 1);
+  EXPECT_EQ(merged2->SnapshotSamples()->TotalCount(), 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kMergedAndDeleted, 2);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 2, 1);
+  histogram_tester.ExpectTotalCount("UMA.FileMetricsProvider.AccessResult", 0);
+
+#if !BUILDFLAG(IS_WIN)
+  // Verify the underlying PMA header was marked MEMORY_DELETED and its unlogged
+  // samples were atomically consumed via SnapshotDelta().
+  auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
+      std::move(inspect_mapped), 0, 0, std::string_view(),
+      base::FilePersistentMemoryAllocator::kReadOnly);
+  EXPECT_EQ(inspect_mem->GetMemoryState(),
+            base::PersistentMemoryAllocator::MEMORY_DELETED);
+  base::PersistentHistogramAllocator inspect_allocator(std::move(inspect_mem));
+  base::PersistentHistogramAllocator::Iterator iter(&inspect_allocator);
+  while (auto h = iter.GetNext()) {
+    inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(h.get());
+  }
+  EXPECT_EQ(merged1->SnapshotSamples()->GetCount(101), 1);
+#endif
+
+  // Re-running cleanup and import is idempotent and adds 0 duplicate samples.
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
+                                     base::GetCurrentProcId());
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  EXPECT_EQ(merged1->SnapshotSamples()->GetCount(101), 1);
+  EXPECT_EQ(merged2->SnapshotSamples()->GetCount(202), 1);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsDeduplicationEnabledBrowserTest,
+                       StabilityMetricsPmaAlreadyMarkedDeletedNotReMerged) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  ASSERT_TRUE(base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication));
+  base::HistogramTester histogram_tester;
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const base::FilePath prior_file =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          temp_dir.GetPath(), kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000300), /*pid=*/41003);
+  constexpr char kAlreadyDeletedHist[] =
+      "Cobalt.Test.BrowserPmaAlreadyDeletedSample";
+  ASSERT_TRUE(CreatePriorSessionSparsePmaFile(
+      prior_file, kStabilityAllocatorName, kAlreadyDeletedHist, 55,
+      /*mark_deleted=*/true));
+
+  ClearOtherStabilityMetricsPmaFiles(
+      temp_dir.GetPath(), kStabilityAllocatorName, base::GetCurrentProcId());
+
+  EXPECT_FALSE(base::PathExists(prior_file));
+  EXPECT_EQ(base::StatisticsRecorder::FindHistogram(kAlreadyDeletedHist),
+            nullptr);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kAlreadyMarkedDeleted, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StabilityMetricsPmaCorruptInvalidAndActivePidEdgeCases) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::HistogramTester histogram_tester;
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath& metrics_dir = temp_dir.GetPath();
+
+  // 1. Non-existent directory and empty directory are handled safely.
+  ClearOtherStabilityMetricsPmaFiles(
+      metrics_dir.AppendASCII("non_existent_subdir"), kStabilityAllocatorName,
+      base::GetCurrentProcId());
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
+                                     base::GetCurrentProcId());
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 2);
+
+  const base::Time stamp = base::Time::FromTimeT(1700000400);
+
+  // 2. Zero-byte and truncated .pma files with valid names ->
+  // kCorruptOrUnacceptableDeleted.
+  const base::FilePath zero_byte_pma =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp, /*pid=*/42001);
+  ASSERT_TRUE(base::WriteFile(zero_byte_pma, ""));
+
+  const base::FilePath truncated_pma =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp, /*pid=*/42002);
+  ASSERT_TRUE(base::WriteFile(truncated_pma, "short_header"));
+
+  // 3. Mismatched allocator name, zero PID, negative PID, and malformed name ->
+  // kInvalidFileNameDeleted.
+  const base::FilePath mismatched_pma =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, "OtherAllocator", stamp, /*pid=*/42003);
+  ASSERT_TRUE(base::WriteFile(mismatched_pma, "other"));
+
+  const base::FilePath zero_pid_pma =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp, /*pid=*/0);
+  ASSERT_TRUE(base::WriteFile(zero_pid_pma, "zero_pid"));
+
+  const base::FilePath negative_pid_pma =
+      metrics_dir.AppendASCII("BrowserStabilityMetrics-65550000--1.pma");
+  ASSERT_TRUE(base::WriteFile(negative_pid_pma, "neg_pid"));
+
+  const base::FilePath malformed_pma =
+      metrics_dir.AppendASCII("unparseable.pma");
+  ASSERT_TRUE(base::WriteFile(malformed_pma, "malformed"));
+
+  // 4. Active current_pid .pma file and non-.pma file must be preserved.
+  const base::FilePath active_pid_pma =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName, stamp,
+          base::GetCurrentProcId());
+  ASSERT_TRUE(base::WriteFile(active_pid_pma, "active_session"));
+
+  const base::FilePath non_pma_file = metrics_dir.AppendASCII("keep_me.txt");
+  ASSERT_TRUE(base::WriteFile(non_pma_file, "preserve"));
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir, kStabilityAllocatorName,
+                                     base::GetCurrentProcId());
+
+  EXPECT_FALSE(base::PathExists(zero_byte_pma));
+  EXPECT_FALSE(base::PathExists(truncated_pma));
+  EXPECT_FALSE(base::PathExists(mismatched_pma));
+  EXPECT_FALSE(base::PathExists(zero_pid_pma));
+  EXPECT_FALSE(base::PathExists(negative_pid_pma));
+  EXPECT_FALSE(base::PathExists(malformed_pma));
+  EXPECT_TRUE(base::PathExists(active_pid_pma));
+  EXPECT_TRUE(base::PathExists(non_pma_file));
+
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kCorruptOrUnacceptableDeleted, 2);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kInvalidFileNameDeleted, 4);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 3);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StabilityMetricsPmaDeduplicationDisabledControlCohort) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  ASSERT_FALSE(base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication));
+
+  base::HistogramTester histogram_tester;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const base::FilePath prior_file =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          temp_dir.GetPath(), kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000500), /*pid=*/43001);
+  constexpr char kControlHist[] = "Cobalt.Test.BrowserPmaLegacyControlSample";
+  ASSERT_TRUE(CreatePriorSessionSparsePmaFile(
+      prior_file, kStabilityAllocatorName, kControlHist, 88));
+
+#if !BUILDFLAG(IS_WIN)
+  auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
+  ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
+                                         base::MemoryMappedFile::READ_ONLY));
+#endif
+
+  ClearOtherStabilityMetricsPmaFiles(
+      temp_dir.GetPath(), kStabilityAllocatorName, base::GetCurrentProcId());
+  EXPECT_FALSE(base::PathExists(prior_file));
+
+  base::HistogramBase* merged =
+      base::StatisticsRecorder::FindHistogram(kControlHist);
+  ASSERT_NE(merged, nullptr);
+  EXPECT_EQ(merged->SnapshotSamples()->GetCount(88), 1);
+
+#if !BUILDFLAG(IS_WIN)
+  // In the A/B control cohort (flag disabled), the PMA header is not mutated to
+  // MEMORY_DELETED.
+  auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
+      std::move(inspect_mapped), 0, 0, std::string_view(),
+      base::FilePersistentMemoryAllocator::kReadOnly);
+  EXPECT_NE(inspect_mem->GetMemoryState(),
+            base::PersistentMemoryAllocator::MEMORY_DELETED);
+#endif
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kMergedAndDeleted, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 1, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StabilityMetricsPmaDirectoryBudgetEdgeCases) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const base::FilePath& metrics_dir = temp_dir.GetPath();
+
+  constexpr int64_t kPmaFileSize = 128 * 1024;
+  constexpr int64_t kMaxDirBudget = 512 * 1024;
+
+  // Single file exceeding total budget is rejected.
+  EXPECT_FALSE(EnsurePmaDirectoryBudget(metrics_dir, kStabilityAllocatorName,
+                                        kMaxDirBudget, kMaxDirBudget + 1));
+
+  // Corrupt and mismatched files are pruned first, and non-.pma files are
+  // ignored in size calculations.
+  const base::FilePath invalid_pma = metrics_dir.AppendASCII("corrupt.pma");
+  const base::FilePath non_pma = metrics_dir.AppendASCII("ignore.txt");
+  ASSERT_TRUE(base::WriteFile(invalid_pma, std::string(1024, 'x')));
+  ASSERT_TRUE(base::WriteFile(non_pma, std::string(2048, 'y')));
+  EXPECT_EQ(GetTotalStabilityMetricsPmaDirSizeBytes(metrics_dir), 1024);
+
+  const base::FilePath f1 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000100), /*pid=*/44001);
+  const base::FilePath f2 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000200), /*pid=*/44002);
+  const base::FilePath f3 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000300), /*pid=*/44003);
+  const base::FilePath f4 =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir, kStabilityAllocatorName,
+          base::Time::FromTimeT(1700000400), /*pid=*/44004);
+
+  ASSERT_TRUE(base::WriteFile(f1, std::string(kPmaFileSize, 'a')));
+  ASSERT_TRUE(base::WriteFile(f2, std::string(kPmaFileSize, 'b')));
+  ASSERT_TRUE(base::WriteFile(f3, std::string(kPmaFileSize, 'c')));
+
+  // 3 * 128 KiB = 384 KiB existing + 128 KiB new <= 512 KiB budget: invalid_pma
+  // is deleted, and f1..f3 are all preserved.
+  EXPECT_TRUE(EnsurePmaDirectoryBudget(metrics_dir, kStabilityAllocatorName,
+                                       kMaxDirBudget, kPmaFileSize));
+  EXPECT_FALSE(base::PathExists(invalid_pma));
+  EXPECT_TRUE(base::PathExists(non_pma));
+  EXPECT_TRUE(base::PathExists(f1));
+  EXPECT_TRUE(base::PathExists(f2));
+  EXPECT_TRUE(base::PathExists(f3));
+
+  // Add f4 (4 * 128 KiB = 512 KiB existing). Requesting 128 KiB more exceeds
+  // 512 KiB and prunes the oldest file (f1) while keeping f2, f3, f4.
+  ASSERT_TRUE(base::WriteFile(f4, std::string(kPmaFileSize, 'd')));
+  EXPECT_TRUE(EnsurePmaDirectoryBudget(metrics_dir, kStabilityAllocatorName,
+                                       kMaxDirBudget, kPmaFileSize));
+  EXPECT_FALSE(base::PathExists(f1));
+  EXPECT_TRUE(base::PathExists(f2));
+  EXPECT_TRUE(base::PathExists(f3));
+  EXPECT_TRUE(base::PathExists(f4));
+  EXPECT_EQ(GetTotalStabilityMetricsPmaDirSizeBytes(metrics_dir),
+            3 * kPmaFileSize);
 }
 
 }  // namespace cobalt

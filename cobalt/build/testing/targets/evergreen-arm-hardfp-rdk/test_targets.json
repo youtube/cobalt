@@ -131,5 +131,17 @@
     "runs_on": "device",
     "test_type": "e2e_test",
     "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_dom_document_tests",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
+  },
+  {
+    "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_html_dom_element_tests",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "build": false
   }
 ]

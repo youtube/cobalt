@@ -18,13 +18,23 @@
 #include <string>
 #include <variant>
 
+#include "base/base_paths.h"
+#include "base/features.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "content/public/browser/overlay_window.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -77,6 +87,36 @@ TEST_F(CobaltContentBrowserClientTest,
 #endif
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
+  // The one-argument override creates a temp dir and registers its canonical
+  // path, so the expectation below must be read back from PathService (a
+  // ScopedTempDir path would differ on Android: /data/user/0 vs /data/data).
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // Feature off (the default): no directory, so no GPU disk cache can be
+  // created even without --disable-gpu-shader-disk-cache.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_TRUE(client.GetGrShaderDiskCacheDirectory().empty());
+  }
+
+  // Feature on: under base::DIR_CACHE, never under the user data directory.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+              cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
   EXPECT_EQ(
@@ -90,6 +130,90 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
+  base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA);
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath user_data_dir =
+      base::PathService::CheckedGet(content::SHELL_DIR_USER_DATA);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  // By default (kCobaltStorageCleanup disabled), the shader disk cache
+  // directory remains in SHELL_DIR_USER_DATA. GetGrShaderDiskCacheDirectory()
+  // is gated on kCobaltGpuShaderDiskCache instead; see the
+  // GrShaderDiskCacheDirectory test.
+  EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
+            user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+
+  // When kCobaltStorageCleanup is enabled, the shader disk cache directory uses
+  // base::DIR_CACHE.
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltStorageCleanup);
+  EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
+            cache_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+}
+#endif
+
+TEST_F(CobaltContentBrowserClientTest, DeleteOrphanedUserDataCacheDirectories) {
+  base::ScopedTempDir temp_user_data_dir;
+  base::ScopedTempDir temp_cache_dir;
+  ASSERT_TRUE(temp_user_data_dir.CreateUniqueTempDir());
+  ASSERT_TRUE(temp_cache_dir.CreateUniqueTempDir());
+
+  const base::FilePath& user_data = temp_user_data_dir.GetPath();
+  const base::FilePath& cache_dir = temp_cache_dir.GetPath();
+
+  // Create orphaned cache directories and a persistent Local Storage directory
+  // in user_data, plus live cache directories in cache_dir.
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII(name)));
+    ASSERT_TRUE(base::WriteFile(
+        user_data.AppendASCII(name).AppendASCII("entry"), "stale"));
+    ASSERT_TRUE(base::CreateDirectory(cache_dir.AppendASCII(name)));
+    ASSERT_TRUE(base::WriteFile(
+        cache_dir.AppendASCII(name).AppendASCII("entry"), "live"));
+  }
+  ASSERT_TRUE(base::CreateDirectory(user_data.AppendASCII("Local Storage")));
+
+  // Safety check: when user_data == cache_dir, nothing is deleted.
+  DeleteOrphanedUserDataCacheDirectories(user_data, user_data);
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cache")));
+
+  // Safety check: when cache_dir is nested inside user_data (e.g.,
+  // user_data/Cache), user_data/Cache is preserved while other orphaned
+  // directories (e.g., Code Cache) are cleaned up.
+  DeleteOrphanedUserDataCacheDirectories(user_data,
+                                         user_data.AppendASCII("Cache"));
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cache")));
+  EXPECT_FALSE(base::PathExists(user_data.AppendASCII("Code Cache")));
+
+  // Normal execution: all remaining orphaned cache directories in user_data are
+  // renamed to old_<name>_000 and deleted via
+  // disk_cache::CleanupDirectorySync(), while cache_dir and persistent
+  // user_data subdirectories remain intact.
+  DeleteOrphanedUserDataCacheDirectories(user_data, cache_dir);
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    EXPECT_FALSE(base::PathExists(user_data.AppendASCII(name)));
+    EXPECT_TRUE(base::PathExists(cache_dir.AppendASCII(name)));
+  }
+
+  // Run queued BEST_EFFORT tasks posted by disk_cache::CleanupDirectorySync()
+  // and verify old_<name>_000 temporary directories are deleted.
+  task_environment_.RunUntilIdle();
+  for (const char* name :
+       {"Cache", "Code Cache", "ShaderCache", "GrShaderCache"}) {
+    EXPECT_FALSE(base::PathExists(
+        user_data.AppendASCII(std::string("old_") + name + "_000")));
+  }
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Local Storage")));
 }
 
 class CobaltContentBrowserClientHeaderTest

@@ -49,8 +49,11 @@ public final class ProcessExitReasonHelper {
       "Cobalt.Stability.Android.SystemExitReason";
   public static final String HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND =
       "Cobalt.Stability.Android.SystemExitReason.Foreground";
+  public static final String HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED =
+      "Cobalt.Stability.Android.SystemExitReason.Deduplicated";
 
   private static ActivityManager sActivityManagerForTesting;
+  private static volatile boolean sDeduplicationEnabled;
 
   private ProcessExitReasonHelper() {}
 
@@ -142,6 +145,17 @@ public final class ProcessExitReasonHelper {
     }
   }
 
+  /** Returns whether cross-session exit reason timestamp deduplication is enabled. */
+  public static boolean isDeduplicationEnabled() {
+    return sDeduplicationEnabled;
+  }
+
+  /** Sets whether cross-session exit reason timestamp deduplication is enabled. */
+  @CalledByNative
+  public static void setDeduplicationEnabled(boolean enabled) {
+    sDeduplicationEnabled = enabled;
+  }
+
   /** Returns whether the previous process session was killed due to low memory. */
   public static boolean getWasLowMemoryKilled(@Nullable Context context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
@@ -151,15 +165,18 @@ public final class ProcessExitReasonHelper {
     return am != null && ApiHelperForR.getWasLowMemoryKilled(am);
   }
 
+  private static @Nullable Context getApplicationContextSafe() {
+    try {
+      return ContextUtils.getApplicationContext();
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
   /** Returns the ActivityManager using the application context (or test override). */
   @RequiresApi(Build.VERSION_CODES.R)
   public static @Nullable ActivityManager getActivityManager() {
-    Context context = null;
-    try {
-      context = ContextUtils.getApplicationContext();
-    } catch (Throwable ignored) {
-    }
-    return ApiHelperForR.getActivityManager(context);
+    return ApiHelperForR.getActivityManager(getApplicationContextSafe());
   }
 
   /** Returns the cached latest historical ApplicationExitInfo for the process. */
@@ -168,18 +185,23 @@ public final class ProcessExitReasonHelper {
     return ApiHelperForR.getLatestProcessExitInfo(getActivityManager());
   }
 
-  /** Records historical process exit reasons into UMA histograms. */
-  @CalledByNative
+  /** Records historical process exit reasons into UMA histograms without prior timestamp filter. */
   public static void recordHistoricalProcessExitReason() {
+    recordHistoricalProcessExitReason(-1L);
+  }
+
+  /**
+   * Records historical process exit reasons into UMA histograms if newer than {@code
+   * lastLoggedTimestampMs} (persisted in C++ {@code PrefService}), returning the recorded exit
+   * timestamp in ms or {@code -1L} if skipped/deduplicated.
+   */
+  @CalledByNative
+  public static long recordHistoricalProcessExitReason(long lastLoggedTimestampMs) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-      return;
+      return -1L;
     }
-    Context context = null;
-    try {
-      context = ContextUtils.getApplicationContext();
-    } catch (Throwable ignored) {
-    }
-    ApiHelperForR.recordHistoricalProcessExitReason(context);
+    return ApiHelperForR.recordHistoricalProcessExitReason(
+        getApplicationContextSafe(), lastLoggedTimestampMs);
   }
 
   @RequiresApi(Build.VERSION_CODES.R)
@@ -188,6 +210,9 @@ public final class ProcessExitReasonHelper {
 
     @GuardedBy("sExitInfoLock")
     private static boolean sExitInfoQueried;
+
+    @GuardedBy("sExitInfoLock")
+    private static boolean sExitReasonRecorded;
 
     @GuardedBy("sExitInfoLock")
     private static @Nullable ApplicationExitInfo sCachedExitInfo;
@@ -232,30 +257,50 @@ public final class ProcessExitReasonHelper {
       return info != null && info.getReason() == ApplicationExitInfo.REASON_LOW_MEMORY;
     }
 
-    static void recordHistoricalProcessExitReason(@Nullable Context context) {
+    static long recordHistoricalProcessExitReason(
+        @Nullable Context context, long lastLoggedTimestampMs) {
       ActivityManager am = getActivityManager(context);
       if (am == null) {
         Log.w(TAG, "ActivityManager is null, cannot get process exit reasons.");
-        return;
+        return -1L;
       }
-      ApplicationExitInfo info = getLatestProcessExitInfo(am);
+      ApplicationExitInfo info;
+      synchronized (sExitInfoLock) {
+        if (sExitReasonRecorded) {
+          return -1L;
+        }
+        info = getLatestProcessExitInfo(am);
+        sExitReasonRecorded = true;
+      }
       if (info == null) {
-        return;
+        return -1L;
+      }
+      long exitTimestamp = info.getTimestamp();
+      if (isDeduplicationEnabled()
+          && exitTimestamp > 0
+          && lastLoggedTimestampMs > 0
+          && exitTimestamp <= lastLoggedTimestampMs) {
+        RecordHistogram.recordBooleanHistogram(HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED, true);
+        return -1L;
       }
       Integer exitReason = convertToExitReason(info.getReason());
       if (exitReason != null) {
+        RecordHistogram.recordBooleanHistogram(HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED, false);
         RecordHistogram.recordEnumeratedHistogram(
             HISTOGRAM_SYSTEM_EXIT_REASON, exitReason, ExitReason.NUM_ENTRIES);
         if (info.getImportance() <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
           RecordHistogram.recordEnumeratedHistogram(
               HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND, exitReason, ExitReason.NUM_ENTRIES);
         }
+        return exitTimestamp > 0 ? exitTimestamp : -1L;
       }
+      return -1L;
     }
 
     static void resetForTesting() {
       synchronized (sExitInfoLock) {
         sExitInfoQueried = false;
+        sExitReasonRecorded = false;
         sCachedExitInfo = null;
       }
     }
@@ -264,6 +309,7 @@ public final class ProcessExitReasonHelper {
   @VisibleForTesting
   public static void setActivityManagerForTesting(@Nullable ActivityManager am) {
     sActivityManagerForTesting = am;
+    sDeduplicationEnabled = false;
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       ApiHelperForR.resetForTesting();
     }

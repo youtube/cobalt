@@ -50,6 +50,19 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="1" label="Is hung"/>
 </enum>
 
+<enum name="CobaltSplashScreenSwitchTrigger">
+  <int value="0" label="Minimum splash screen duration elapsed"/>
+  <int value="1" label="Splash screen closed itself"/>
+  <int value="2" label="Main WebContents finished loading"/>
+</enum>
+
+<enum name="CobaltStabilityPmaFileAction">
+  <int value="0" label="Merged and deleted"/>
+  <int value="1" label="Already marked deleted (skipped)"/>
+  <int value="2" label="Corrupt or unacceptable (deleted)"/>
+  <int value="3" label="Invalid file name or PID (deleted)"/>
+</enum>
+
 <enum name="CobaltStartupMilestone">
   <int value="1" label="JavaActivityCreated"/>
   <int value="2" label="PreLibraryLoaderInit"/>

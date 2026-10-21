@@ -282,13 +282,19 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
   }
 #endif
 
+  splash_screen_metrics_ = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/splash_screen_web_contents_ != nullptr,
+      /*is_visible=*/GetPlatform()->IsVisible());
+
   if (splash_screen_web_contents_) {
     splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
     splash_screen_web_contents_observer_ =
         std::make_unique<SplashScreenWebContentsObserver>(
             splash_screen_web_contents_.get(),
             base::BindOnce(&Shell::OnSplashScreenLoadComplete,
-                           weak_factory_.GetWeakPtr()));
+                           weak_factory_.GetWeakPtr()),
+            base::BindRepeating(&Shell::MarkStartupEvent,
+                                weak_factory_.GetWeakPtr()));
     splash_screen_web_contents_delegate_ =
         std::make_unique<SplashScreenWebContentsDelegate>(
             base::BindPostTaskToCurrentDefault(
@@ -352,6 +358,12 @@ void Shell::OnFocus() {
 // static
 void Shell::OnConceal() {
   CHECK(g_platform);
+  // Startup timings that include time in the background aren't meaningful.
+  for (Shell* shell : windows_) {
+    if (shell->splash_screen_metrics_) {
+      shell->splash_screen_metrics_->Invalidate();
+    }
+  }
   if (g_platform->IsVisible()) {
     g_platform->OnConceal();
   }
@@ -586,6 +598,7 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 }
 
 void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MarkStartupEvent(SplashScreenMetrics::Event::kMainFirstPaint);
   MaybeHideSystemSplashScreen();
 }
 
@@ -597,6 +610,9 @@ void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
 }
 
 void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    MarkStartupEvent(SplashScreenMetrics::Event::kMainNavigationStart);
+  }
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
@@ -610,6 +626,10 @@ void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      navigation_handle->HasCommitted() && !navigation_handle->IsErrorPage()) {
+    MarkStartupEvent(SplashScreenMetrics::Event::kMainCommit);
+  }
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsInPrimaryMainFrame()) {
     if (navigation_handle->GetURL() ==
@@ -630,6 +650,9 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
+  // Marked regardless of the splash screen state, so that it's also recorded
+  // when there is no splash screen.
+  MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -640,7 +663,7 @@ void Shell::DidStopLoading() {
     }
 
     if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
-      SwitchToMainWebContents();
+      SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger::kMainLoaded);
     } else {
       ScheduleSwitchToMainWebContents();
     }
@@ -676,6 +699,7 @@ void Shell::LoadSplashScreenWebContents() {
     // Display splash screen.
     VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
+    MarkStartupEvent(SplashScreenMetrics::Event::kSplashStart);
     GetPlatform()->LoadSplashScreenContents(this);
 
     GURL splash_screen_url = GetSplashScreenURL();
@@ -1196,6 +1220,11 @@ void Shell::LoadProgressChanged(double progress) {
     g_platform->LoadProgressChanged(this, progress);
   }
 #endif
+  if (progress >= 1.0) {
+    // Marked regardless of the splash screen state, so that it's also recorded
+    // when there is no splash screen.
+    MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
+  }
   if (progress >= 1.0 && !is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     is_main_frame_loaded_ = true;
@@ -1208,7 +1237,7 @@ void Shell::LoadProgressChanged(double progress) {
 
     if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
       VLOG(1) << "NativeSplash: Main frame WebContents is loaded.";
-      SwitchToMainWebContents();
+      SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger::kMainLoaded);
     } else {
       ScheduleSwitchToMainWebContents();
     }
@@ -1250,10 +1279,16 @@ void Shell::ScheduleSwitchToMainWebContents() {
       // Send hidden event to WebApp if it's video-based splash screen.
       web_contents_->WasHidden();
     }
+    // If the minimum duration has already elapsed, the switch only waited for
+    // the main WebContents to load.
+    const SplashScreenMetrics::SwitchTrigger trigger =
+        remaining_delay.is_zero()
+            ? SplashScreenMetrics::SwitchTrigger::kMainLoaded
+            : SplashScreenMetrics::SwitchTrigger::kTimer;
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
-                       weak_factory_.GetWeakPtr()),
+                       weak_factory_.GetWeakPtr(), trigger),
         remaining_delay);
   }
 }
@@ -1264,7 +1299,8 @@ void Shell::TitleWasSet(NavigationEntry* entry) {
   }
 }
 
-void Shell::SwitchToMainWebContents() {
+void Shell::SwitchToMainWebContents(
+    SplashScreenMetrics::SwitchTrigger trigger) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   // It is safe to use |has_switched_to_main_frame_|
   // instead of a lock due to it is on a single thread.
@@ -1272,6 +1308,9 @@ void Shell::SwitchToMainWebContents() {
   if (!has_switched_to_main_frame_) {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
+    if (splash_screen_metrics_) {
+      splash_screen_metrics_->OnSwitchedToMain(trigger);
+    }
     if (web_contents_) {
       CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
@@ -1294,6 +1333,7 @@ void Shell::OnSplashScreenLoadComplete() {
   if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
       splash_screen_start_time_.is_null()) {
     splash_screen_start_time_ = base::TimeTicks::Now();
+    MarkStartupEvent(SplashScreenMetrics::Event::kSplashLoaded);
     if (is_main_frame_loaded_) {
       ScheduleSwitchToMainWebContents();
     }
@@ -1303,9 +1343,20 @@ void Shell::OnSplashScreenLoadComplete() {
 void Shell::ClosingSplashScreenWebContents() {
   VLOG(1) << "NativeSplash: Closing splash screen WebContents.";
   splash_state_ = STATE_SPLASH_SCREEN_ENDED;
+  MarkStartupEvent(SplashScreenMetrics::Event::kSplashClosed);
   if (is_main_frame_loaded_) {
     // If main frame WebContents is loaded, switch to it.
-    SwitchToMainWebContents();
+    SwitchToMainWebContents(SplashScreenMetrics::SwitchTrigger::kSplashClosed);
+  }
+}
+
+void Shell::OnMainReady() {
+  MarkStartupEvent(SplashScreenMetrics::Event::kMainReady);
+}
+
+void Shell::MarkStartupEvent(SplashScreenMetrics::Event event) {
+  if (splash_screen_metrics_) {
+    splash_screen_metrics_->MarkEvent(event);
   }
 }
 
