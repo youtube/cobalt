@@ -36,6 +36,19 @@ bool EnsurePmaDirectoryBudget(const base::FilePath& metrics_dir,
                               int64_t max_total_bytes,
                               int64_t bytes_to_add);
 
+// Action taken on each prior-session .pma file encountered in
+// ClearOtherStabilityMetricsPmaFiles().
+// These values are persisted to logs (CobaltStabilityPmaFileAction in
+// enums.xml). Entries should not be renumbered and numeric values should
+// never be reused.
+enum class StabilityPmaFileAction {
+  kMergedAndDeleted = 0,
+  kAlreadyMarkedDeleted = 1,
+  kCorruptOrUnacceptableDeleted = 2,
+  kInvalidFileNameDeleted = 3,
+  kMaxValue = kInvalidFileNameDeleted,
+};
+
 // Reads all persistent memory allocator (.pma) files in |metrics_dir|
 // matching |expected_allocator_name| (excluding |current_pid|) into memory by
 // merging their histogram deltas into the global StatisticsRecorder, and then

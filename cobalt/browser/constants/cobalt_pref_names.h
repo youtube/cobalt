@@ -26,6 +26,8 @@ constexpr char kVariationsBeaconFilename[] = "Variations";
 constexpr char kVariationsCrashStreak[] = "variations_crash_streak";
 constexpr char kStabilityExitedCleanly[] =
     "user_experience_metrics.stability.exited_cleanly";
+constexpr char kLastLoggedProcessExitTimestampMs[] =
+    "user_experience_metrics.stability.last_logged_process_exit_timestamp_ms";
 
 }  // namespace cobalt
 

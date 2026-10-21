@@ -219,5 +219,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Seconds(15));
 #endif  // BUILDFLAG(IS_ANDROID)
 
+BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
+             "CobaltStabilityMetricsDeduplication",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
