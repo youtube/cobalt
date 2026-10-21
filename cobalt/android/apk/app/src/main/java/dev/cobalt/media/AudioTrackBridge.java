@@ -57,12 +57,20 @@ public class AudioTrackBridge {
   private final Object mPositionLock = new Object();
 
   // The following variables are used to determine the playback position.
+  // Whether a raw frame position has been received since creation or the last flush().
   @GuardedBy("mPositionLock")
-  private long mWrapCount = 0;
+  private boolean mHasRawFramePosition = false;
 
+  // Low-order 32 bits of the most recent raw frame position. This must remain an int so that
+  // the subtraction in getAudioTimestamp() is performed in wrapping 32-bit arithmetic.
   @GuardedBy("mPositionLock")
-  private long mLastRawFramePosition = 0;
+  private int mLastRawFramePosition = 0;
 
+  // Continuous 64-bit frame position that follows the raw position, including backward jitter.
+  @GuardedBy("mPositionLock")
+  private long mUnwrappedFramePosition = 0;
+
+  // Monotonically non-decreasing 64-bit frame position reported to the native side.
   @GuardedBy("mPositionLock")
   private long mMaxFramePositionSoFar = 0;
 
@@ -398,8 +406,9 @@ public class AudioTrackBridge {
       mAvSyncHeader = null;
       mAvSyncPacketBytesRemaining = 0;
       synchronized (mPositionLock) {
-        mWrapCount = 0;
+        mHasRawFramePosition = false;
         mLastRawFramePosition = 0;
+        mUnwrappedFramePosition = 0;
         mMaxFramePositionSoFar = 0;
       }
     } catch (Throwable t) {
@@ -507,7 +516,8 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
       return mAudioTimestamp;
     }
-    // The `synchronized` is required as `mMaxFramePositionSoFar` can also be modified in flush().
+    // The `synchronized` is required as the timestamp position tracking variables can also be
+    // modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
       boolean success = false;
@@ -518,30 +528,25 @@ public class AudioTrackBridge {
       }
 
       if (success) {
-        // Only the low-order 32 bits of AudioTrack.getTimestamp() are valid.
+        // Only the low-order 32 bits of AudioTrack.getTimestamp() are valid, and the counter wraps
+        // at 2^32. Casting to int keeps those 32 bits, and 32-bit two's complement subtraction
+        // yields the correct signed distance across a wrap, e.g. 0x00000002 - 0xFFFFFFFE == 4.
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        long rawFramePosition = mRawAudioTimestamp.framePosition & 0xFFFFFFFFL;
+        int rawFramePosition = (int) mRawAudioTimestamp.framePosition;
 
-        // A drop of more than 2^31 frames indicates a 32-bit rollover.
-        // Smaller drops are assumed to be micro-jitter and do not increment the wrap count.
-        if (mLastRawFramePosition > rawFramePosition) {
-          if ((mLastRawFramePosition - rawFramePosition) > 0x7FFFFFFFL) {
-            mWrapCount++;
-          }
-        } else if (rawFramePosition > mLastRawFramePosition) {
-          if ((rawFramePosition - mLastRawFramePosition) > 0x7FFFFFFFL && mWrapCount > 0) {
-            // A jump of more than 2^31 frames indicates a backward jitter across the rollover
-            // boundary. As the raw position is now behind the rollover boundary, decrement the wrap
-            // count.
-            mWrapCount--;
-          }
+        if (!mHasRawFramePosition) {
+          // The raw frame position counts from the creation or the last flush() of the
+          // AudioTrack, so the first sample is used as the absolute position.
+          mHasRawFramePosition = true;
+          mUnwrappedFramePosition = Integer.toUnsignedLong(rawFramePosition);
+        } else {
+          // 32-bit int subtraction wraps, so the signed delta is correct across a rollover.
+          mUnwrappedFramePosition += rawFramePosition - mLastRawFramePosition;
         }
         mLastRawFramePosition = rawFramePosition;
-
-        long continuousPosition = (mWrapCount << 32) | rawFramePosition;
-        if (continuousPosition > mMaxFramePositionSoFar) {
-          mMaxFramePositionSoFar = continuousPosition;
-        }
+        // Backward jitter lowers mUnwrappedFramePosition, but the reported position never
+        // regresses.
+        mMaxFramePositionSoFar = Math.max(mMaxFramePositionSoFar, mUnwrappedFramePosition);
         mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
         mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
       } else {

@@ -146,8 +146,8 @@ public class AudioTrackBridgeTest {
 
   @Test
   public void testAudioTimestampMultipleRollovers() {
-    // Advance in quarter-epoch steps (0x40000000 is 1,073,741,824 / 2^30). Every step is within
-    // the 2^31 threshold, so the only wrap count increments are the drops from 0xC0000000 to 0x0.
+    // Advance in quarter-epoch steps (0x40000000 is 1,073,741,824 / 2^30). Every step, including
+    // the wraps from 0xC0000000 to 0x0, is a signed 32-bit delta of +2^30.
     long[] rawSequence = {
       0x40000000L, 0x80000000L, 0xC0000000L, 0x0L, // 1st rollover.
       0x40000000L, 0x80000000L, 0xC0000000L, 0x0L, // 2nd rollover.
@@ -206,27 +206,39 @@ public class AudioTrackBridgeTest {
     assertEquals(TWO_POW_32 + 2L, ts.getFramePosition());
 
     // Jitter backward across the boundary to 0xFFFFFFFE (4,294,967,294 / 2^32 - 2).
-    // Crossing back below the boundary decrements the wrap count, so the continuous position
-    // returns to epoch 0 (2^32 - 2) and the high-water mark holds at 2^32 + 2.
+    // The signed 32-bit delta 0xFFFFFFFE - 0x2 is -4, so the unwrapped position moves back to
+    // 2^32 - 2 while the reported position holds at 2^32 + 2.
     mSimulatedFramePosition = 0xFFFFFFFEL;
     ts = mBridge.getAudioTimestamp();
     assertEquals(TWO_POW_32 + 2L, ts.getFramePosition());
 
-    // Jitter resolves and advances forward past boundary to 0x5 (5 frames past boundary).
+    // The jitter resolves with a +7 delta to 0x5 (5 frames past the boundary).
     mSimulatedFramePosition = 0x5L;
     ts = mBridge.getAudioTimestamp();
     assertEquals(TWO_POW_32 + 5L, ts.getFramePosition());
   }
 
   @Test
-  public void testAudioTimestampLargeForwardJumpWithoutPriorRolloverKeepsWrapCountNonNegative() {
+  public void testAudioTimestampFirstSampleIsUsedAsAbsolutePosition() {
+    // 0x90000000 is 2,415,919,104 (2^31 + 2^28). The first sample is not compared against any
+    // previous position, so values of 2^31 or more are used as is.
+    mSimulatedFramePosition = 0x90000000L;
+    assertEquals(0x90000000L, mBridge.getAudioTimestamp().getFramePosition());
+  }
+
+  @Test
+  public void testAudioTimestampForwardJumpOfMoreThan2Pow31IsTreatedAsBackwardJitter() {
     mSimulatedFramePosition = 0x10L;
     mBridge.getAudioTimestamp();
 
-    // 0xFFFFFFF0 is 4,294,967,280 (2^32 - 16). The jump exceeds 2^31, but with no prior
-    // rollover the wrap count is already 0, so it stays at 0 and the position is used as is.
+    // 0xFFFFFFF0 is 4,294,967,280 (2^32 - 16). The signed 32-bit delta 0xFFFFFFF0 - 0x10 is -32,
+    // which is indistinguishable from backward jitter, so the position holds at 0x10 (16).
     mSimulatedFramePosition = 0xFFFFFFF0L;
-    assertEquals(0xFFFFFFF0L, mBridge.getAudioTimestamp().getFramePosition());
+    assertEquals(0x10L, mBridge.getAudioTimestamp().getFramePosition());
+
+    // 0x20 (32) is a +48 delta from 0xFFFFFFF0, so tracking resumes from the new raw position.
+    mSimulatedFramePosition = 0x20L;
+    assertEquals(0x20L, mBridge.getAudioTimestamp().getFramePosition());
   }
 
   @Test
@@ -248,32 +260,31 @@ public class AudioTrackBridgeTest {
   }
 
   @Test
-  public void testAudioTimestampFlushResetsWrapCount() {
+  public void testAudioTimestampFlushResetsAfterRollover() {
     // 0xFFFFFFF0 is 4,294,967,280 (2^32 - 16).
     mSimulatedFramePosition = 0xFFFFFFF0L;
     mBridge.getAudioTimestamp();
 
-    // Rollover to 0x10 (16), incrementing the wrap count to 1.
+    // Rollover to 0x10 (16).
     mSimulatedFramePosition = 0x10L;
     assertEquals(TWO_POW_32 + 0x10L, mBridge.getAudioTimestamp().getFramePosition());
 
     mBridge.flush();
 
-    // The wrap count is reset, so the position restarts in epoch 0.
+    // The continuous position is reset, so it restarts from the first sample after flush.
     mSimulatedFramePosition = 100L;
     assertEquals(100L, mBridge.getAudioTimestamp().getFramePosition());
   }
 
   @Test
-  public void testAudioTimestampFlushResetsLastRawPosition() {
+  public void testAudioTimestampFlushUsesNextSampleAsAbsolutePosition() {
     // 0xFFFFFFF0 is 4,294,967,280 (2^32 - 16).
     mSimulatedFramePosition = 0xFFFFFFF0L;
     mBridge.getAudioTimestamp();
 
     mBridge.flush();
 
-    // The last raw position is reset, so a hardware position of 0 after flush is not
-    // interpreted as a rollover from 0xFFFFFFF0.
+    // The first sample after flush is used as is, rather than as a +16 delta from 0xFFFFFFF0.
     mSimulatedFramePosition = 0L;
     assertEquals(0L, mBridge.getAudioTimestamp().getFramePosition());
   }
