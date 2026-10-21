@@ -5368,21 +5368,16 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 #endif
     Unpacker::Unpack(
         "gjpmebpgbhcamgdgjcmnjfhggjpgcimm",
-        std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
+        base::ToVector(gjpm_hash),
         op_result,
 #else
     Unpacker::Unpack(
         "gjpmebpgbhcamgdgjcmnjfhggjpgcimm", "UpdateClientTest",
-<<<<<<< HEAD
         base::ToVector(gjpm_hash), GetTestFilePath("runaction_test_win.crx3"),
-=======
-        std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
-        GetTestFilePath("runaction_test_win.crx3"),
 #endif
 #if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
         base::MakeRefCounted<UnzipCobaltFactory>()
 #else
->>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         base::MakeRefCounted<UnzipChromiumFactory>(
             base::BindRepeating(&unzip::LaunchInProcessUnzipper))
 #endif
