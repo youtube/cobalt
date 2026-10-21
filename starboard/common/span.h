@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 // Copied from copied_base/base/containers/span.h, which is base::span as it
@@ -32,14 +33,6 @@
 
 namespace starboard {
 
-// Copied from copied_base/base/template_util.h.
-template <typename T>
-using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
-
-// Copied from copied_base/base/template_util.h.
-template <typename Iter>
-using iter_reference_t = decltype(*std::declval<Iter&>());
-
 // [views.constants]
 constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();
 
@@ -47,6 +40,14 @@ template <typename T, size_t Extent = dynamic_extent>
 class span;
 
 namespace internal {
+
+// Copied from copied_base/base/template_util.h.
+template <typename T>
+using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
+// Copied from copied_base/base/template_util.h.
+template <typename Iter>
+using iter_reference_t = decltype(*std::declval<Iter&>());
 
 // Unlike base's IsContiguousIterator, only accepts pointers.
 template <typename T>
@@ -315,8 +316,7 @@ class span : public internal::ExtentStorage<Extent> {
       // Subtracting two iterators gives a ptrdiff_t, but the result should be
       // non-negative: see CHECK below.
       : span(begin, static_cast<size_t>(end - begin)) {
-    // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    SB_CHECK(begin <= end);
+    SB_CHECK_LE(begin, end);
   }
 
   template <
@@ -407,22 +407,19 @@ class span : public internal::ExtentStorage<Extent> {
   }
 
   constexpr span<T, dynamic_extent> first(size_t count) const noexcept {
-    // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    SB_CHECK(count <= size());
+    SB_CHECK_LE(count, size());
     return {data(), count};
   }
 
   constexpr span<T, dynamic_extent> last(size_t count) const noexcept {
-    // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    SB_CHECK(count <= size());
+    SB_CHECK_LE(count, size());
     return {data() + (size() - count), count};
   }
 
   constexpr span<T, dynamic_extent> subspan(
       size_t offset,
       size_t count = dynamic_extent) const noexcept {
-    // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
-    SB_CHECK(offset <= size());
+    SB_CHECK_LE(offset, size());
     SB_CHECK(count == dynamic_extent || count <= size() - offset);
     return {data() + offset, count != dynamic_extent ? count : size() - offset};
   }
@@ -434,8 +431,7 @@ class span : public internal::ExtentStorage<Extent> {
 
   // [span.elem], span element access
   constexpr T& operator[](size_t idx) const noexcept {
-    // Note: CHECK_LT is not constexpr, hence regular CHECK must be used.
-    SB_CHECK(idx < size());
+    SB_CHECK_LT(idx, size());
     return *(data() + idx);
   }
 
@@ -495,7 +491,7 @@ as_writable_bytes(span<T, X> s) noexcept {
 // Type-deducing helpers for constructing a span.
 template <int&... ExplicitArgumentBarrier, typename It>
 constexpr auto make_span(It it, size_t size) noexcept {
-  using T = std::remove_reference_t<iter_reference_t<It>>;
+  using T = std::remove_reference_t<internal::iter_reference_t<It>>;
   return span<T>(it, size);
 }
 
@@ -504,7 +500,7 @@ template <int&... ExplicitArgumentBarrier,
           typename End,
           typename = std::enable_if_t<!std::is_convertible_v<End, size_t>>>
 constexpr auto make_span(It it, End end) noexcept {
-  using T = std::remove_reference_t<iter_reference_t<It>>;
+  using T = std::remove_reference_t<internal::iter_reference_t<It>>;
   return span<T>(it, end);
 }
 
@@ -530,7 +526,7 @@ constexpr auto make_span(Container&& container) noexcept {
 // Usage: auto static_span = base::make_span<N>(...);
 template <size_t N, int&... ExplicitArgumentBarrier, typename It>
 constexpr auto make_span(It it, size_t size) noexcept {
-  using T = std::remove_reference_t<iter_reference_t<It>>;
+  using T = std::remove_reference_t<internal::iter_reference_t<It>>;
   return span<T, N>(it, size);
 }
 
@@ -540,7 +536,7 @@ template <size_t N,
           typename End,
           typename = std::enable_if_t<!std::is_convertible_v<End, size_t>>>
 constexpr auto make_span(It it, End end) noexcept {
-  using T = std::remove_reference_t<iter_reference_t<It>>;
+  using T = std::remove_reference_t<internal::iter_reference_t<It>>;
   return span<T, N>(it, end);
 }
 
