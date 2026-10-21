@@ -14,6 +14,7 @@
 
 #include "starboard/benchmark/player/player_benchmark_helper.h"
 
+#include <chrono>
 #include <iostream>
 #include <limits>
 
@@ -450,6 +451,42 @@ void SbPlayerBenchmarkHelper::DummyPlayerErrorFunc(SbPlayer player,
       static_cast<SbPlayerBenchmarkHelper*>(context);
   helper->error_occurred_ = true;
   helper->cv_.notify_all();
+}
+
+// static
+void PlayerInitializationWaiter::PlayerStatusFunc(SbPlayer player,
+                                                  void* context,
+                                                  SbPlayerState state,
+                                                  int ticket) {
+  if (state != kSbPlayerStateInitialized) {
+    return;
+  }
+  PlayerInitializationWaiter* waiter =
+      static_cast<PlayerInitializationWaiter*>(context);
+  std::lock_guard<std::mutex> lock(waiter->mutex_);
+  waiter->initialized_ = true;
+  waiter->cv_.notify_all();
+}
+
+// static
+void PlayerInitializationWaiter::PlayerErrorFunc(SbPlayer player,
+                                                 void* context,
+                                                 SbPlayerError error,
+                                                 const char* message) {
+  SB_LOG(ERROR) << "Player error " << error
+                << " during initialization: " << (message ? message : "");
+  PlayerInitializationWaiter* waiter =
+      static_cast<PlayerInitializationWaiter*>(context);
+  std::lock_guard<std::mutex> lock(waiter->mutex_);
+  waiter->error_occurred_ = true;
+  waiter->cv_.notify_all();
+}
+
+bool PlayerInitializationWaiter::WaitForInitialization(int64_t timeout_us) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  cv_.wait_for(lock, std::chrono::microseconds(timeout_us),
+               [this] { return initialized_ || error_occurred_; });
+  return initialized_ && !error_occurred_;
 }
 
 }  // namespace benchmark
