@@ -68,7 +68,8 @@ class SelectedTrackStream final : public DemuxerStream {
   // completed with the end of stream when the previous stream is disabled.
   void SwitchTo(ChunkDemuxerStream* stream);
 
-  // Called when the demuxer aborts the reads of all streams for a seek.
+  // Called when the demuxer aborts the reads of all streams for a seek. Reads
+  // complete with kAborted until StartReturningData().
   void AbortReads();
 
   // Called when the demuxer starts returning data, after a seek.
@@ -92,6 +93,8 @@ class SelectedTrackStream final : public DemuxerStream {
   bool holding_reads_ GUARDED_BY(lock_) = false;
   // Set by SwitchTo() until the next read is served.
   bool config_change_pending_ GUARDED_BY(lock_) = false;
+  // Set by AbortReads() until the next StartReturningData().
+  bool returning_abort_for_reads_ GUARDED_BY(lock_) = false;
   bool is_shutdown_ GUARDED_BY(lock_) = false;
 };
 

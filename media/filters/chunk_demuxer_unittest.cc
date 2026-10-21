@@ -5236,6 +5236,45 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchHoldsPendingRead) {
   CheckExpectedBuffers(video_stream, "0K 40K 80K");
 }
 
+TEST_F(ChunkDemuxerMultiSourceBufferTest, ReadAfterAbortDuringSwitchIsAborted) {
+  InitWithFirstSourceBuffers();
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  AddSecondSourceBuffers();
+  CheckExpectedBuffers(video_stream, "0K");
+  SelectTrack(DemuxerStream::VIDEO, video2_);
+
+  // The pipeline aborts the reads before it flushes the renderer and seeks.
+  // A read that arrives after the abort, while the switch waits for the seek,
+  // completes right away instead of waiting for the seek, which waits for the
+  // renderer's flush, which waits for the read.
+  demuxer_->AbortPendingReads();
+  bool read_done = false;
+  video_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(read_done);
+
+  // The seek completes the switch.
+  Seek(base::TimeDelta());
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest,
+       SourceInitializedDuringSeekAbortsReads) {
+  ASSERT_TRUE(InitDemuxer(HAS_VIDEO));
+  demuxer_->StartWaitingForSeek(base::TimeDelta());
+
+  // A SourceBuffer that initializes while the demuxer waits for a seek aborts
+  // reads like the other streams.
+  AddSourceWithOneTrack("audio1", HAS_AUDIO);
+  DemuxerStream* audio_stream = GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(audio_stream);
+  bool read_done = false;
+  audio_stream->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(read_done);
+}
+
 TEST_F(ChunkDemuxerMultiSourceBufferTest, QueuedSourcesDontAffectPlayback) {
   InitWithFirstSourceBuffers();
   AddSecondSourceBuffers();
@@ -5411,17 +5450,18 @@ TEST_F(ChunkDemuxerCodecSwitchTest, UnsupportedCodecChangeFailsSeek) {
       .WillOnce(Return(false));
   EXPECT_MEDIA_LOG(HasSubstr("SourceBuffer switch rejected: vp8 ("));
 
-  // A read that waits for the seek gets the end of stream, instead of a
-  // config change to "video2".
+  // A read while the demuxer waits for the seek is aborted, as for any seek.
   demuxer_->StartWaitingForSeek(base::TimeDelta());
   bool read_done = false;
   GetStream(DemuxerStream::VIDEO)
-      ->Read(1, base::BindOnce(&OnReadDone_LastBufferEOSExpected, &read_done));
-  demuxer_->Seek(base::TimeDelta(), NewExpectedStatusCB(PIPELINE_ERROR_DECODE));
+      ->Read(1, base::BindOnce(&OnReadDone_AbortExpected, &read_done));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(read_done);
 
-  // So do later reads.
+  // The seek fails, and reads get the end of stream instead of a config change
+  // to "video2".
+  demuxer_->Seek(base::TimeDelta(), NewExpectedStatusCB(PIPELINE_ERROR_DECODE));
+  base::RunLoop().RunUntilIdle();
   ExpectEndOfStream(DemuxerStream::VIDEO);
 }
 

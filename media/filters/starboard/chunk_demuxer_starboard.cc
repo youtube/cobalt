@@ -152,6 +152,10 @@ void ChunkDemuxer::CreateSelectedTrackStreamIfNeeded_Locked(
   if (!selected_stream) {
     selected_stream =
         std::make_unique<SelectedTrackStream>(stream->type(), stream);
+    if (!returning_data_) {
+      // Like the other streams, it aborts reads until the next seek.
+      selected_stream->AbortReads();
+    }
   }
 }
 
@@ -255,6 +259,8 @@ void ChunkDemuxer::InitializeLateSource_Locked(
   source_state->Seek(GetStartTime());
   if (returning_data_) {
     source_state->StartReturningData();
+  } else {
+    source_state->AbortReads();
   }
 }
 

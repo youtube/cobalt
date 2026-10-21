@@ -43,6 +43,13 @@ void SelectedTrackStream::Read(uint32_t count, ReadCB read_cb) {
     std::move(read_cb_).Run(kOk, {StreamParserBuffer::CreateEOSBuffer()});
     return;
   }
+  if (returning_abort_for_reads_) {
+    // As ChunkDemuxerStream does after AbortReads(): a read that arrives
+    // after the abort, for example from the renderer while it flushes for a
+    // seek, must not wait for that seek, since the seek waits for the flush.
+    std::move(read_cb_).Run(kAborted, {});
+    return;
+  }
   if (!holding_reads_) {
     ServeRead_Locked();
   }
@@ -103,6 +110,7 @@ void SelectedTrackStream::SwitchTo(ChunkDemuxerStream* stream) {
 
 void SelectedTrackStream::AbortReads() {
   base::AutoLock auto_lock(lock_);
+  returning_abort_for_reads_ = true;
   if (read_cb_) {
     std::move(read_cb_).Run(kAborted, {});
   }
@@ -111,6 +119,7 @@ void SelectedTrackStream::AbortReads() {
 void SelectedTrackStream::StartReturningData() {
   base::AutoLock auto_lock(lock_);
   holding_reads_ = false;
+  returning_abort_for_reads_ = false;
   if (read_cb_ && !is_shutdown_) {
     ServeRead_Locked();
   }
