@@ -18,9 +18,23 @@ inputs:
     required: true
   test_device_family:
     description: "Test device family."
-    required: true
-  test_attempts:
-    description: "Number of attempts for the tests."
+    required: false
+    default: ""
+  test_type:
+    description: "Test type (unit_test, e2e_test, yts_test, yts_wpt_test)."
+    required: false
+    default: "unit_test"
+  artifact_name:
+    description: "Name of the artifact on GCS (e.g. Cobalt.apk)."
+    required: false
+    default: ""
+  cobalt_path:
+    description: "GCS path to Cobalt artifact/directory."
+    required: false
+    default: ""
+  result_files:
+    description: "Comma- or space-separated list of result files to check, or empty to auto-detect."
+    required: false
     default: ""
   retry_all:
     description: "Whether to retry all tests instead of analyzing previous results."
@@ -74,8 +88,9 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_BASE_REF: ${{ github.base_ref || github.ref_name }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: unit_test
+        TEST_TYPE: ${{ inputs.test_type }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        COBALT_PATH: ${{ inputs.cobalt_path }}
         PLATFORM: ${{ matrix.platform }}
         TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
@@ -85,12 +100,25 @@ runs:
       run: |
         set -x
 
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
+        artifact_name="${ARTIFACT_NAME}"
+        if [[ "${PLATFORM}" == *aosp* && "${artifact_name}" == "Cobalt.apk" ]]; then
+          artifact_name="cobalt.apk"
+        fi
+
+        cobalt_path="${COBALT_PATH}"
+        if [[ -z "${cobalt_path}" ]]; then
+          if [[ "${TEST_DEVICE_FAMILY}" == "rdk" ]]; then
+            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa"
+          else
+            cobalt_path="${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}"
+          fi
+        fi
+
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-          --device_family "${TEST_DEVICE_FAMILY}" \
+          ${TEST_DEVICE_FAMILY:+--device_family "${TEST_DEVICE_FAMILY}"} \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${FILTER_DIR}" \
           --label chrobalt_on_device_test \
@@ -111,7 +139,8 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --label target_branch:${GITHUB_BASE_REF} \
           --dimensions "${TEST_DIMENSIONS}" \
-          ${TEST_ATTEMPTS:+"--test_attempts" "${TEST_ATTEMPTS}"} \
+          ${cobalt_path:+--cobalt_path "${cobalt_path}"} \
+          ${artifact_name:+--artifact_name "${artifact_name}"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
@@ -128,6 +157,8 @@ runs:
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
+        RESULT_FILES: ${{ inputs.result_files }}
+        TEST_TYPE: ${{ inputs.test_type }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -143,6 +174,7 @@ runs:
         # Check for missing result xml files.
         target_failed=0
         readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
+        set +x
         for test_target_with_path in "${test_targets[@]}"; do
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
@@ -153,21 +185,44 @@ runs:
             continue
           fi
 
+          # Look for JSON results and convert to XML.
+          json_reports=("${test_output}/${PLATFORM}"/**/"${test_target}"*report.json)
+          if [ -f "${json_reports[0]:-}" ]; then
+            converted_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+            mkdir -p "$(dirname "${converted_xml}")"
+            python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+              "${json_reports[0]}" \
+              "${converted_xml}"
+          fi
+
+          # Look for XML result files.
           xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+
+          # If no XML result was found, try to generate one from the logs.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # Target was NOT skipped, but XML is missing -> Crash.
-            echo "Test result xml is missing for ${test_target}."
-            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
+            log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log)
+            target_out_xml="${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+            mkdir -p "$(dirname "${target_out_xml}")"
             if [ -f "${log_paths[0]:-}" ]; then
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${target_out_xml}"
+              if [ -f "${target_out_xml}" ]; then
+                xml_files=("${target_out_xml}")
+              fi
             fi
-            target_failed=1
+          fi
+
+          if [[ "${#xml_files[@]}" -eq 0 ]]; then
+            if [[ "${TEST_TYPE}" != yts_* ]]; then
+              echo "::error::Test result xml is missing for ${test_target}."
+              target_failed=1
+            fi
           elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
             # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
             target_failed=1
           fi
         done
+        set -x
         exit ${target_failed}
       shell: bash
     - name: Archive Test Results
