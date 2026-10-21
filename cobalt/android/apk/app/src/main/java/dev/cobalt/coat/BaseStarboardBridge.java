@@ -170,6 +170,7 @@ public class BaseStarboardBridge {
     mAdvertisingId = null;
     mIsAmatiDevice = false;
     mNativeApp = 0;
+    sInstance = this;
   }
 
   public BaseStarboardBridge(
@@ -1137,6 +1138,9 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   protected void hideSplashScreen() {}
+
+  @CalledByNative
+  protected void onPrimaryMainFrameNavigationStarted() {}
 
   @CalledByNative
   protected void setStartupMilestone(int milestone) {}

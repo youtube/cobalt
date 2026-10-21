@@ -16,7 +16,6 @@
 -SbMediaSetAudioWriteDurationTests/*aac*
 -SbPlayerGetAudioConfigurationTests/*
 -SbPlayerGetMediaTimeTests/*
--SbPlayerTest.Audioless
 -SbPlayerWriteSampleTests/*
 -SbSocketAddressTypes/*
 -SearchPosetMaximalElementsTests.*

@@ -18,13 +18,19 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/process/process_handle.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -34,15 +40,21 @@ constexpr char kExpectedAllocatorName[] = "BrowserStabilityMetrics";
 
 class CobaltStabilityMetricsHelperTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_TRUE(temp_dir_.CreateUniqueTempDir()); }
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    feature_list_.InitAndEnableFeature(
+        features::kCobaltStabilityMetricsDeduplication);
+  }
 
   const base::FilePath& metrics_dir() const { return temp_dir_.GetPath(); }
 
   base::ScopedTempDir temp_dir_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(CobaltStabilityMetricsHelperTest,
        ClearOtherStabilityMetricsPmaFiles_MergesAndDeletesFiles) {
+  base::HistogramTester histogram_tester;
   base::Time stamp = base::Time::FromTimeT(1700000000);
   base::ProcessId prior_pid = 1234;
   base::ProcessId current_pid = 5678;
@@ -99,10 +111,22 @@ TEST_F(CobaltStabilityMetricsHelperTest,
   std::unique_ptr<base::HistogramSamples> samples = merged->SnapshotSamples();
   EXPECT_EQ(samples->GetCount(42), 1);
 
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kMergedAndDeleted, 1);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kInvalidFileNameDeleted, 1);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 1, 1);
+
   // When called with kNullProcessId, current_file is also cleared.
   ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
                                      base::kNullProcessId);
   EXPECT_FALSE(base::PathExists(current_file));
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kCorruptOrUnacceptableDeleted, 1);
 }
 
 TEST_F(CobaltStabilityMetricsHelperTest,
@@ -303,6 +327,154 @@ TEST_F(CobaltStabilityMetricsHelperTest,
        EnsurePmaDirectoryBudget_RejectsWhenSingleFileExceedsMax) {
   EXPECT_FALSE(EnsurePmaDirectoryBudget(metrics_dir(), kExpectedAllocatorName,
                                         512 * 1024, 1024 * 1024));
+}
+
+TEST_F(
+    CobaltStabilityMetricsHelperTest,
+    ClearOtherStabilityMetricsPmaFiles_ConsumesSamplesAndMarksDeletedToPreventDoubleMerge) {
+  base::Time stamp = base::Time::FromTimeT(1700000300);
+  base::ProcessId prior_pid = 3001;
+  base::ProcessId current_pid = 9999;
+
+  base::FilePath prior_file =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir(), kExpectedAllocatorName, stamp, prior_pid);
+
+  ASSERT_TRUE(base::GlobalHistogramAllocator::CreateWithFile(
+      prior_file, 64 * 1024, 1, kExpectedAllocatorName));
+  base::HistogramBase* histogram = base::Histogram::FactoryGet(
+      "Cobalt.Test.NoDoubleMerge", 1, 100, 10,
+      base::HistogramBase::kUmaTargetedHistogramFlag);
+  ASSERT_TRUE(histogram);
+  histogram->Add(77);
+  base::GlobalHistogramAllocator::ReleaseForTesting();
+
+#if !BUILDFLAG(IS_WIN)
+  // On POSIX, keep a read-only mapping open to inspect the underlying PMA state
+  // after ClearOtherStabilityMetricsPmaFiles unlinks the path. (Windows does
+  // not allow deleting a file with an active memory mapping.)
+  auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
+  ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
+                                         base::MemoryMappedFile::READ_ONLY));
+#endif
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
+                                     current_pid);
+  EXPECT_FALSE(base::PathExists(prior_file));
+
+  base::HistogramBase* merged =
+      base::StatisticsRecorder::FindHistogram("Cobalt.Test.NoDoubleMerge");
+  ASSERT_TRUE(merged);
+  EXPECT_EQ(merged->SnapshotSamples()->GetCount(77), 1);
+
+#if !BUILDFLAG(IS_WIN)
+  // Verify the PMA header was marked MEMORY_DELETED and its unlogged samples
+  // were atomically consumed via SnapshotDelta() so a second reader or
+  // mid-merge crash can never re-merge the same samples.
+  auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
+      std::move(inspect_mapped), 0, 0, std::string_view(),
+      base::FilePersistentMemoryAllocator::kReadOnly);
+  EXPECT_EQ(inspect_mem->GetMemoryState(),
+            base::PersistentMemoryAllocator::MEMORY_DELETED);
+
+  base::PersistentHistogramAllocator inspect_allocator(std::move(inspect_mem));
+  base::PersistentHistogramAllocator::Iterator iter(&inspect_allocator);
+  while (auto h = iter.GetNext()) {
+    inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(h.get());
+  }
+  EXPECT_EQ(merged->SnapshotSamples()->GetCount(77), 1);
+#endif
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       ClearOtherStabilityMetricsPmaFiles_SkipsAlreadyMarkedDeletedPmaFile) {
+  base::HistogramTester histogram_tester;
+  base::Time stamp = base::Time::FromTimeT(1700000400);
+  base::ProcessId prior_pid = 4001;
+
+  base::FilePath prior_file =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir(), kExpectedAllocatorName, stamp, prior_pid);
+
+  ASSERT_TRUE(base::GlobalHistogramAllocator::CreateWithFile(
+      prior_file, 64 * 1024, 1, kExpectedAllocatorName));
+  base::HistogramBase* histogram = base::Histogram::FactoryGet(
+      "Cobalt.Test.AlreadyDeletedPmaSample", 1, 100, 10,
+      base::HistogramBase::kUmaTargetedHistogramFlag);
+  ASSERT_TRUE(histogram);
+  histogram->Add(55);
+  base::GlobalHistogramAllocator::Get()->memory_allocator()->SetMemoryState(
+      base::PersistentMemoryAllocator::MEMORY_DELETED);
+  base::GlobalHistogramAllocator::ReleaseForTesting();
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
+                                     /*current_pid=*/9999);
+  EXPECT_FALSE(base::PathExists(prior_file));
+
+  // Sample should NOT be merged because the file was already marked deleted.
+  EXPECT_EQ(base::StatisticsRecorder::FindHistogram(
+                "Cobalt.Test.AlreadyDeletedPmaSample"),
+            nullptr);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kAlreadyMarkedDeleted, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 1);
+}
+
+TEST_F(
+    CobaltStabilityMetricsHelperTest,
+    ClearOtherStabilityMetricsPmaFiles_DeduplicationFeatureDisabledUsesReadOnlyMerge) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kCobaltStabilityMetricsDeduplication);
+
+  base::HistogramTester histogram_tester;
+  base::Time stamp = base::Time::FromTimeT(1700000500);
+  base::ProcessId prior_pid = 5001;
+
+  base::FilePath prior_file =
+      base::GlobalHistogramAllocator::ConstructFilePathForUploadDir(
+          metrics_dir(), kExpectedAllocatorName, stamp, prior_pid);
+
+  ASSERT_TRUE(base::GlobalHistogramAllocator::CreateWithFile(
+      prior_file, 64 * 1024, 1, kExpectedAllocatorName));
+  base::HistogramBase* histogram = base::Histogram::FactoryGet(
+      "Cobalt.Test.LegacyControlMergeSample", 1, 100, 10,
+      base::HistogramBase::kUmaTargetedHistogramFlag);
+  ASSERT_TRUE(histogram);
+  histogram->Add(88);
+  base::GlobalHistogramAllocator::ReleaseForTesting();
+
+#if !BUILDFLAG(IS_WIN)
+  auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
+  ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
+                                         base::MemoryMappedFile::READ_ONLY));
+#endif
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
+                                     /*current_pid=*/9999);
+  EXPECT_FALSE(base::PathExists(prior_file));
+
+  base::HistogramBase* merged = base::StatisticsRecorder::FindHistogram(
+      "Cobalt.Test.LegacyControlMergeSample");
+  ASSERT_TRUE(merged);
+  EXPECT_EQ(merged->SnapshotSamples()->GetCount(88), 1);
+
+#if !BUILDFLAG(IS_WIN)
+  // In legacy control mode, the PMA header is not mutated to MEMORY_DELETED.
+  auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
+      std::move(inspect_mapped), 0, 0, std::string_view(),
+      base::FilePersistentMemoryAllocator::kReadOnly);
+  EXPECT_NE(inspect_mem->GetMemoryState(),
+            base::PersistentMemoryAllocator::MEMORY_DELETED);
+#endif
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFileAction",
+      StabilityPmaFileAction::kMergedAndDeleted, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 1, 1);
 }
 
 }  // namespace

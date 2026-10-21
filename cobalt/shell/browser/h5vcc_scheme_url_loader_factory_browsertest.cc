@@ -353,6 +353,42 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   EXPECT_EQ("Dimensions: 724x138", EvalJs(shell(), CheckImageDimension()));
 }
 
+// splash.html's timeout counts from when its video starts, as Shell's does.
+// Unlike the splash.html tests above, it runs on Android too: with the image
+// forced, the page doesn't use MediaSource, which Android's browser tests don't
+// support yet.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       SplashTimeoutCountsFromVideoStart) {
+  // The image keeps a real video from starting, while the page still handles
+  // the events of its video element, which the test sends itself.
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?force_image=true&timeout=1000");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // Returns how long after its video started the page closed itself.
+  constexpr char kScript[] = R"(
+    (async () => {
+      let closedMs = 0;
+      window.close = () => { closedMs = closedMs || performance.now(); };
+      // The video starts 500 ms after the page has loaded, and ends at once.
+      const loadEndMs =
+          performance.getEntriesByType('navigation')[0].loadEventEnd;
+      await new Promise((resolve) => setTimeout(
+          resolve, Math.max(0, loadEndMs + 500 - performance.now())));
+      const videoEl = document.getElementById('video');
+      const startMs = performance.now();
+      videoEl.dispatchEvent(new Event('playing'));
+      videoEl.dispatchEvent(new Event('ended'));
+      while (!closedMs) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      return closedMs - startMs;
+    })();
+  )";
+  // Counted from the page's load instead, the page would close 500 ms sooner.
+  EXPECT_GE(EvalJs(shell(), kScript).ExtractDouble(), 990);
+}
+
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
                        LoadSplashVideoNoCache) {
   VerifySplashVideoFromCacheWithContent(

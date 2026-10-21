@@ -30,6 +30,7 @@ import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.os.Build;
 import java.util.Collections;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.UmaRecorderHolder;
 import org.junit.After;
@@ -48,13 +49,16 @@ public class ProcessExitReasonHelperTest {
   @Before
   public void setUp() {
     ProcessExitReasonHelper.setActivityManagerForTesting(null);
+    ProcessExitReasonHelper.setDeduplicationEnabled(false);
     UmaRecorderHolder.resetForTesting();
     mContext = RuntimeEnvironment.getApplication();
+    ContextUtils.initApplicationContextForTests(mContext);
   }
 
   @After
   public void tearDown() {
     ProcessExitReasonHelper.setActivityManagerForTesting(null);
+    ProcessExitReasonHelper.setDeduplicationEnabled(false);
     UmaRecorderHolder.resetForTesting();
   }
 
@@ -161,6 +165,170 @@ public class ProcessExitReasonHelperTest {
         0,
         RecordHistogram.getHistogramTotalCountForTesting(
             ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND));
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void recordHistoricalProcessExitReason_isIdempotentWithinSession() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
+    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(info.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info));
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+
+    ProcessExitReasonHelper.recordHistoricalProcessExitReason();
+    ProcessExitReasonHelper.recordHistoricalProcessExitReason();
+
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON_FOREGROUND,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void recordHistoricalProcessExitReason_deduplicatesSameTimestampAcrossSessions() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info1 = mock(ApplicationExitInfo.class);
+    when(info1.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(info1.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(info1.getTimestamp()).thenReturn(1000L);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info1));
+
+    // Session 1: records the exit info at timestamp 1000L and returns 1000L for C++ PrefService.
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setDeduplicationEnabled(true);
+    assertTrue(ProcessExitReasonHelper.getWasLowMemoryKilled(mContext));
+    long recordedTimestampSession1 = ProcessExitReasonHelper.recordHistoricalProcessExitReason(-1L);
+    assertEquals(1000L, recordedTimestampSession1);
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED, 0));
+
+    // Session 2: OS still returns the same historical exit at timestamp 1000L, and C++ PrefService
+    // passes lastLoggedTimestampMs = 1000L. Should be deduplicated and not re-logged.
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setDeduplicationEnabled(true);
+    long recordedTimestampSession2 =
+        ProcessExitReasonHelper.recordHistoricalProcessExitReason(recordedTimestampSession1);
+    assertEquals(-1L, recordedTimestampSession2);
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED, 1));
+
+    // Session 3: OS records a newer exit at timestamp 2000L.
+    ApplicationExitInfo info2 = mock(ApplicationExitInfo.class);
+    when(info2.getReason()).thenReturn(ApplicationExitInfo.REASON_EXIT_SELF);
+    when(info2.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(info2.getTimestamp()).thenReturn(2000L);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info2));
+
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setDeduplicationEnabled(true);
+    long recordedTimestampSession3 =
+        ProcessExitReasonHelper.recordHistoricalProcessExitReason(recordedTimestampSession1);
+    assertEquals(2000L, recordedTimestampSession3);
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_EXIT_SELF));
+    assertEquals(
+        2,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON_DEDUPLICATED, 0));
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void getLatestProcessExitInfo_doesNotConsumeExitBeforeRecordUma() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
+    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(info.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(info.getTimestamp()).thenReturn(1500L);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info));
+
+    // Session 1 queries getWasLowMemoryKilled(), then exits before
+    // recordHistoricalProcessExitReason() runs on the background thread (so PrefService still holds
+    // -1L).
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    assertTrue(ProcessExitReasonHelper.getWasLowMemoryKilled(mContext));
+
+    // Session 2 starts with lastLoggedTimestampMs = -1L and records timestamp 1500L to UMA.
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    assertTrue(ProcessExitReasonHelper.getWasLowMemoryKilled(mContext));
+    assertEquals(1500L, ProcessExitReasonHelper.recordHistoricalProcessExitReason(-1L));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.R)
+  public void recordHistoricalProcessExitReason_deduplicationDisabledLogsEverySession() {
+    ActivityManager am = mock(ActivityManager.class);
+    ApplicationExitInfo info = mock(ApplicationExitInfo.class);
+    when(info.getReason()).thenReturn(ApplicationExitInfo.REASON_LOW_MEMORY);
+    when(info.getImportance())
+        .thenReturn(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+    when(info.getTimestamp()).thenReturn(3000L);
+    when(am.getHistoricalProcessExitReasons(isNull(), eq(0), eq(1)))
+        .thenReturn(Collections.singletonList(info));
+
+    // Session 1 with deduplication enabled records timestamp 3000L.
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setDeduplicationEnabled(true);
+    long recordedTimestamp = ProcessExitReasonHelper.recordHistoricalProcessExitReason(-1L);
+    assertEquals(3000L, recordedTimestamp);
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
+
+    // Session 2 with deduplication disabled (A/B control cohort) still logs timestamp 3000L even
+    // when lastLoggedTimestampMs = 3000L is passed.
+    ProcessExitReasonHelper.setActivityManagerForTesting(am);
+    ProcessExitReasonHelper.setDeduplicationEnabled(false);
+    assertFalse(ProcessExitReasonHelper.isDeduplicationEnabled());
+    assertTrue(ProcessExitReasonHelper.getWasLowMemoryKilled(mContext));
+    assertEquals(
+        3000L, ProcessExitReasonHelper.recordHistoricalProcessExitReason(recordedTimestamp));
+    assertEquals(
+        2,
+        RecordHistogram.getHistogramValueCountForTesting(
+            ProcessExitReasonHelper.HISTOGRAM_SYSTEM_EXIT_REASON,
+            ProcessExitReasonHelper.ExitReason.REASON_LOW_MEMORY));
   }
 
   @Test

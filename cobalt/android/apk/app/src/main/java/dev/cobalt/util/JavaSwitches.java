@@ -27,6 +27,7 @@ import java.util.Map;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.ui.display.DisplaySwitches;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.json.JSONObject;
