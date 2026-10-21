@@ -28,9 +28,9 @@ class ChunkDemuxerStream;
 
 // Forwards DemuxerStream reads to the ChunkDemuxerStream of the currently
 // selected track when multi-SourceBuffer switching is enabled (see
-// SetEnableMultiSourceBufferSwitching). The renderer keeps the DemuxerStream
-// proxy it received at initialization while track selection switches the
-// underlying stream.
+// ChunkDemuxer::SetEnableMultiSourceBufferSwitching()). The renderer keeps the
+// DemuxerStream proxy it received at initialization while track selection
+// switches the underlying stream.
 //
 // After SwitchTo(), reads are held until the next seek completes, and the first
 // read after the seek returns kConfigChanged.

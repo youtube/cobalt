@@ -237,11 +237,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltInPlaceMediaSourceParser);
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kCobaltInPlaceMediaSourceParserBorrowMode);
-// Enables or disables switching between SourceBuffers of a MediaSource by
-// selecting their tracks. Used by the Media.EnableMultiSourceBufferSwitching
-// H5VCC setting.
-MEDIA_EXPORT void SetEnableMultiSourceBufferSwitching(bool enable);
-MEDIA_EXPORT bool IsMultiSourceBufferSwitchingEnabled();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);

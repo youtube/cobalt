@@ -13,15 +13,22 @@
 // limitations under the License.
 
 // ChunkDemuxer and ChunkDemuxerStream methods for multi-SourceBuffer switching
-// (see SetEnableMultiSourceBufferSwitching).
+// (see ChunkDemuxer::SetEnableMultiSourceBufferSwitching()). ChunkDemuxer calls
+// them only when |multi_source_buffer_switching_| is true.
 
 // clang-format off
 #include "media/filters/chunk_demuxer.h"
 // clang-format on
 
+#include <atomic>
+#include <initializer_list>
+#include <memory>
+#include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "media/base/audio_codecs.h"
@@ -35,6 +42,9 @@
 namespace media {
 
 namespace {
+
+// Set by ChunkDemuxer::SetEnableMultiSourceBufferSwitching().
+std::atomic<bool> g_enable_multi_source_buffer_switching{false};
 
 // The codec of the current config of a stream, and the MIME type of the
 // SourceBuffer that the config comes from. The SbPlayer gets both with the
@@ -63,18 +73,27 @@ ChunkDemuxerStream::TakePendingRead() {
   return {std::move(read_cb_), count};
 }
 
-bool ChunkDemuxer::CanAddId_Locked() const {
-  lock_.AssertAcquired();
-  if (state_ == WAITING_FOR_INIT || state_ == INITIALIZING) {
-    return true;
-  }
-  // With multi-SourceBuffer switching, SourceBuffers of media that plays later
-  // can be added during playback.
-  return multi_source_buffer_switching_ && state_ == INITIALIZED;
+void ChunkDemuxerStream::SetWriteHead(base::TimeDelta time) {
+  base::AutoLock auto_lock(lock_);
+  write_head_ = time;
+}
+
+// static
+void ChunkDemuxer::SetEnableMultiSourceBufferSwitching(bool enable) {
+  LOG(INFO) << "Set multi-SourceBuffer switching: "
+            << (enable ? "enabled" : "disabled");
+  g_enable_multi_source_buffer_switching.store(enable,
+                                               std::memory_order_relaxed);
+}
+
+// static
+bool ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled() {
+  return g_enable_multi_source_buffer_switching.load(std::memory_order_relaxed);
 }
 
 bool ChunkDemuxer::CanCompleteTrackSwitches_Locked() const {
   lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
   for (SelectedTrackStream* selected_stream :
        {selected_audio_stream_.get(), selected_video_stream_.get()}) {
     if (!selected_stream) {
@@ -107,16 +126,111 @@ bool ChunkDemuxer::CanCompleteTrackSwitches_Locked() const {
   return true;
 }
 
-SelectedTrackStream* ChunkDemuxer::GetSelectedTrackStream_Locked(
-    DemuxerStream::Type type) const {
+std::vector<DemuxerStream*> ChunkDemuxer::GetSelectedTrackStreams_Locked()
+    const {
   lock_.AssertAcquired();
-  if (type == DemuxerStream::AUDIO) {
-    return selected_audio_stream_.get();
+  DCHECK(multi_source_buffer_switching_);
+  std::vector<DemuxerStream*> result;
+  if (selected_audio_stream_) {
+    result.push_back(selected_audio_stream_.get());
   }
-  if (type == DemuxerStream::VIDEO) {
-    return selected_video_stream_.get();
+  if (selected_video_stream_) {
+    result.push_back(selected_video_stream_.get());
   }
-  return nullptr;
+  return result;
+}
+
+void ChunkDemuxer::CreateSelectedTrackStreamIfNeeded_Locked(
+    ChunkDemuxerStream* stream) {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  // The pipeline reads the first stream of each type, and the streams of the
+  // tracks selected later, through a SelectedTrackStream.
+  std::unique_ptr<SelectedTrackStream>& selected_stream =
+      stream->type() == DemuxerStream::AUDIO ? selected_audio_stream_
+                                             : selected_video_stream_;
+  if (!selected_stream) {
+    selected_stream =
+        std::make_unique<SelectedTrackStream>(stream->type(), stream);
+  }
+}
+
+Demuxer::TrackChangeCB ChunkDemuxer::OnTracksChangedForSwitching_Locked(
+    DemuxerStream::Type track_type,
+    const std::set<ChunkDemuxerStream*>& enabled_streams,
+    base::TimeDelta curr_time,
+    TrackChangeCB change_completed_cb) {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  SelectedTrackStream* selected_stream = nullptr;
+  if (track_type == DemuxerStream::AUDIO) {
+    selected_stream = selected_audio_stream_.get();
+  } else if (track_type == DemuxerStream::VIDEO) {
+    selected_stream = selected_video_stream_.get();
+  }
+  if (!selected_stream) {
+    return change_completed_cb;
+  }
+
+  // OnTracksChanged() enables at most one stream of each type.
+  if (!enabled_streams.empty()) {
+    ChunkDemuxerStream* stream = *enabled_streams.begin();
+    if (selected_stream->stream() != stream) {
+      LOG(INFO) << "Switching to " << DemuxerStream::GetTypeName(track_type)
+                << " stream " << stream << "; it plays from the next seek.";
+      selected_stream->SwitchTo(stream);
+      // As in Seek(), the stream is read again from |curr_time|.
+      stream->SetWriteHead(curr_time);
+    }
+  }
+
+  // The pipeline only knows the SelectedTrackStream of each type.
+  return base::BindOnce(
+      [](DemuxerStream* selected_stream, TrackChangeCB change_completed_cb,
+         const std::vector<DemuxerStream*>& streams) {
+        if (streams.empty()) {
+          std::move(change_completed_cb).Run(streams);
+          return;
+        }
+        std::move(change_completed_cb).Run({selected_stream});
+      },
+      // OnTracksChanged() runs the callback before it returns.
+      base::Unretained(selected_stream), std::move(change_completed_cb));
+}
+
+void ChunkDemuxer::StartSelectedTrackStreamsReturningData_Locked() {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  returning_data_ = true;
+  for (SelectedTrackStream* selected_stream :
+       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
+    if (selected_stream) {
+      selected_stream->StartReturningData();
+    }
+  }
+}
+
+void ChunkDemuxer::AbortSelectedTrackStreamReads_Locked() {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  returning_data_ = false;
+  for (SelectedTrackStream* selected_stream :
+       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
+    if (selected_stream) {
+      selected_stream->AbortReads();
+    }
+  }
+}
+
+void ChunkDemuxer::ShutdownSelectedTrackStreams_Locked() {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  for (SelectedTrackStream* selected_stream :
+       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
+    if (selected_stream) {
+      selected_stream->Shutdown();
+    }
+  }
 }
 
 void ChunkDemuxer::InitializeLateSource_Locked(
@@ -161,7 +275,8 @@ bool ChunkDemuxer::IsSourceActive_Locked(const std::string& source_id) const {
 bool ChunkDemuxer::IsSourceUsedForPlayback_Locked(
     const std::string& source_id) const {
   lock_.AssertAcquired();
-  if (!multi_source_buffer_switching_ || IsSourceActive_Locked(source_id)) {
+  DCHECK(multi_source_buffer_switching_);
+  if (IsSourceActive_Locked(source_id)) {
     return true;
   }
   // If no SourceBuffer is active, all are used, as without switching.

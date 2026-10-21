@@ -38,8 +38,9 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/media_switches.h"
+#include "media/filters/chunk_demuxer.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
@@ -236,7 +237,9 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
           if (!ExposeAudioVideoTracks(ExecutionContext::From(script_state))) {
             return false;
           }
-          ::media::SetEnableMultiSourceBufferSwitching(true);
+          // Pass the setting to the media and Blink code that it gates.
+          ::media::ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
+          HTMLMediaElement::SetEnableMultiSourceBufferSwitching(true);
           return true;
         });
   }

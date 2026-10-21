@@ -5027,12 +5027,12 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
  protected:
   ChunkDemuxerMultiSourceBufferTest() {
     // The demuxer reads the setting when it is created.
-    SetEnableMultiSourceBufferSwitching(true);
+    ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
     CreateNewDemuxer();
   }
 
   ~ChunkDemuxerMultiSourceBufferTest() override {
-    SetEnableMultiSourceBufferSwitching(false);
+    ChunkDemuxer::SetEnableMultiSourceBufferSwitching(false);
   }
 
   // Appends an initialization segment with one track to the SourceBuffer |id|
@@ -5079,11 +5079,13 @@ class ChunkDemuxerMultiSourceBufferTest : public ChunkDemuxerTest {
 
   // Selects the track |track_id| of |type| and returns the streams that the
   // demuxer reports as enabled.
-  std::vector<DemuxerStream*> SelectTrack(DemuxerStream::Type type,
-                                          const MediaTrack::Id& track_id) {
+  std::vector<DemuxerStream*> SelectTrack(
+      DemuxerStream::Type type,
+      const MediaTrack::Id& track_id,
+      base::TimeDelta curr_time = base::TimeDelta()) {
     std::vector<DemuxerStream*> enabled_streams;
     demuxer_->OnTracksChanged(
-        type, {track_id}, base::TimeDelta(),
+        type, {track_id}, curr_time,
         base::BindLambdaForTesting(
             [&enabled_streams](const std::vector<DemuxerStream*>& streams) {
               enabled_streams = streams;
@@ -5187,6 +5189,28 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchTakesEffectAtNextSeek) {
   CheckExpectedBuffers(audio_stream, "0K 20K 40K");
   CheckExpectedBuffers(video_stream, "0K 40K 80K");
   CheckExpectedRangesForMediaSource("{ [0,60) }");
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchSetsWriteHead) {
+  InitWithFirstSourceBuffers();
+  AddSecondSourceBuffers();
+  EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::TimeDelta());
+
+  // The stream switched to is read again from the current time, as after a
+  // seek.
+  SelectTrack(DemuxerStream::VIDEO, video2_, base::Milliseconds(50));
+  EXPECT_EQ(demuxer_->GetWriteHead("video2"), base::Milliseconds(50));
+}
+
+TEST_F(ChunkDemuxerTest, EnablingTrackWithoutSwitchingKeepsWriteHead) {
+  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
+  ASSERT_TRUE(InitDemuxer(HAS_VIDEO));
+  const MediaTrack::Id video_track_id("1");
+  demuxer_->OnTracksChanged(DemuxerStream::VIDEO, {}, base::TimeDelta(),
+                            base::DoNothing());
+  demuxer_->OnTracksChanged(DemuxerStream::VIDEO, {video_track_id},
+                            base::Milliseconds(50), base::DoNothing());
+  EXPECT_EQ(demuxer_->GetWriteHead(kSourceId), base::TimeDelta());
 }
 
 TEST_F(ChunkDemuxerMultiSourceBufferTest, TrackSwitchHoldsPendingRead) {

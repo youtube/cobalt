@@ -24,8 +24,6 @@
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <atomic>
-
 #include "starboard/player.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -553,26 +551,6 @@ BASE_FEATURE_PARAM(bool,
                    &kCobaltInPlaceMediaSourceParser,
                    "borrow_mode",
                    false);
-namespace {
-// Set by SetEnableMultiSourceBufferSwitching().
-std::atomic<bool> g_enable_multi_source_buffer_switching{false};
-}  // namespace
-
-// When enabled, a page can buffer media in additional SourceBuffers of a
-// MediaSource and switch playback between them on the same media element,
-// MediaSource, and SbPlayer by selecting their tracks and seeking.
-//
-// NOTE: This deviates from the MSE specification: SourceBuffers can be added
-// after initialization, tracks of queued SourceBuffers start disabled, and a
-// track switch takes effect at the next seek.
-void SetEnableMultiSourceBufferSwitching(bool enable) {
-  g_enable_multi_source_buffer_switching.store(enable,
-                                               std::memory_order_relaxed);
-}
-
-bool IsMultiSourceBufferSwitchingEnabled() {
-  return g_enable_multi_source_buffer_switching.load(std::memory_order_relaxed);
-}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

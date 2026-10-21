@@ -22,7 +22,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/media_switches.h"
+#include "media/filters/chunk_demuxer.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::base::test::RunOnceClosure;
@@ -590,7 +590,7 @@ TEST_F(PipelineControllerTest, PreservesPitch) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST_F(PipelineControllerTest,
        MultiSourceBufferSwitchingDispatchesTrackChangesAndSeekRightAway) {
-  SetEnableMultiSourceBufferSwitching(true);
+  ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
   Complete(StartPipeline());
   was_seeked_ = false;
 
@@ -624,7 +624,7 @@ TEST_F(PipelineControllerTest,
   EXPECT_TRUE(was_seeked_);
   EXPECT_TRUE(last_seeked_time_updated_);
   EXPECT_TRUE(pipeline_controller_.IsStable());
-  SetEnableMultiSourceBufferSwitching(false);
+  ChunkDemuxer::SetEnableMultiSourceBufferSwitching(false);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

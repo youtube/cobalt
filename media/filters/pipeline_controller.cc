@@ -8,7 +8,7 @@
 #include "media/base/demuxer.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/media_switches.h"
+#include "media/filters/chunk_demuxer.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
@@ -294,7 +294,7 @@ void PipelineController::Dispatch() {
   // Dispatch track changes and a following seek without waiting for each track
   // change callback on the main thread, which may be busy during a switch. The
   // media thread still runs them in order.
-  if (IsMultiSourceBufferSwitchingEnabled() &&
+  if (ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled() &&
       (state_ == State::PLAYING || state_ == State::SUSPENDED ||
        state_ == State::SWITCHING_TRACKS)) {
     if (pending_audio_track_change_ || pending_video_track_change_) {

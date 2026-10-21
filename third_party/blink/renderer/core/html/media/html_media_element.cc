@@ -129,6 +129,8 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <atomic>
+
 #include "base/strings/string_util.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -2665,8 +2667,7 @@ void HTMLMediaElement::Seek(double time) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Report pending audio track changes before the seek that completes a
   // multi-SourceBuffer switch, rather than waiting for the timer task.
-  if (audio_tracks_timer_.IsActive() &&
-      media::IsMultiSourceBufferSwitchingEnabled()) {
+  if (IsMultiSourceBufferSwitchingEnabled() && audio_tracks_timer_.IsActive()) {
     audio_tracks_timer_.Stop();
     AudioTracksTimerFired(&audio_tracks_timer_);
   }
@@ -3453,6 +3454,24 @@ VideoTrackList& HTMLMediaElement::videoTracks() {
   return *video_tracks_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+// Set by HTMLMediaElement::SetEnableMultiSourceBufferSwitching().
+std::atomic<bool> g_enable_multi_source_buffer_switching{false};
+}  // namespace
+
+// static
+void HTMLMediaElement::SetEnableMultiSourceBufferSwitching(bool enable) {
+  g_enable_multi_source_buffer_switching.store(enable,
+                                               std::memory_order_relaxed);
+}
+
+// static
+bool HTMLMediaElement::IsMultiSourceBufferSwitchingEnabled() {
+  return g_enable_multi_source_buffer_switching.load(std::memory_order_relaxed);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
   DVLOG(3) << "selectedVideoTrackChanged(" << *this << ") selectedTrackId="
            << (track->selected() ? String(track->id()) : "none");
@@ -3462,8 +3481,8 @@ void HTMLMediaElement::SelectedVideoTrackChanged(VideoTrack* track) {
   // MediaSource. Notify it so the previous SourceBuffer leaves
   // activeSourceBuffers.
   VideoTrack* deselected_track = nullptr;
-  if (track->selected() && media_source_attachment_ &&
-      media::IsMultiSourceBufferSwitchingEnabled()) {
+  if (IsMultiSourceBufferSwitchingEnabled() && track->selected() &&
+      media_source_attachment_) {
     for (unsigned i = 0; i < videoTracks().length(); ++i) {
       VideoTrack* other_track = videoTracks().AnonymousIndexedGetter(i);
       if (other_track != track && other_track->selected()) {

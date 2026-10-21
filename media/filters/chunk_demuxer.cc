@@ -383,10 +383,6 @@ void ChunkDemuxerStream::SetEnabled(bool enabled, base::TimeDelta timestamp) {
   is_enabled_ = enabled;
   if (enabled) {
     DCHECK(stream_);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // As in Seek(), the stream is read again from |timestamp|.
-    write_head_ = timestamp;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     stream_->Seek(timestamp);
   } else if (read_cb_) {
     DVLOG(1) << "Read from disabled stream, returning EOS";
@@ -606,7 +602,7 @@ void ChunkDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
   // Track switches take effect at this seek. Fail it instead of switching to
   // a stream whose codec the SbPlayer can't change to. ReportError_Locked()
   // runs |seek_cb_| with the error.
-  if (!CanCompleteTrackSwitches_Locked()) {
+  if (multi_source_buffer_switching_ && !CanCompleteTrackSwitches_Locked()) {
     ReportError_Locked(PIPELINE_ERROR_DECODE);
     return;
   }
@@ -634,19 +630,13 @@ base::Time ChunkDemuxer::GetTimelineOffset() const {
 
 std::vector<DemuxerStream*> ChunkDemuxer::GetAllStreams() {
   base::AutoLock auto_lock(lock_);
-  std::vector<DemuxerStream*> result;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (multi_source_buffer_switching_) {
     // The pipeline reads the streams of the selected tracks through these.
-    if (selected_audio_stream_) {
-      result.push_back(selected_audio_stream_.get());
-    }
-    if (selected_video_stream_) {
-      result.push_back(selected_video_stream_.get());
-    }
-    return result;
+    return GetSelectedTrackStreams_Locked();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::vector<DemuxerStream*> result;
   // Put enabled streams at the beginning of the list so that
   // MediaResource::GetFirstStream returns the enabled stream if there is one.
   // TODO(servolk): Revisit this after media track switching is supported.
@@ -751,20 +741,12 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(
   if (!audio_config->IsValidConfig())
     return ChunkDemuxer::kNotSupported;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!CanAddId_Locked() || IsValidId_Locked(id)) {
-    return kReachedIdLimit;
-  }
-
-  DCHECK(init_cb_ || state_ == INITIALIZED);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) ||
       IsValidId_Locked(id)) {
     return kReachedIdLimit;
   }
 
   DCHECK(init_cb_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return AddIdInternal(id, StreamParserFactory::Create(std::move(audio_config)),
                        std::nullopt);
 }
@@ -782,20 +764,12 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(
   if (!video_config->IsValidConfig())
     return ChunkDemuxer::kNotSupported;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!CanAddId_Locked() || IsValidId_Locked(id)) {
-    return kReachedIdLimit;
-  }
-
-  DCHECK(init_cb_ || state_ == INITIALIZED);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) ||
       IsValidId_Locked(id)) {
     return kReachedIdLimit;
   }
 
   DCHECK(init_cb_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return AddIdInternal(id, StreamParserFactory::Create(std::move(video_config)),
                        std::nullopt);
 }
@@ -815,11 +789,17 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   base::AutoLock auto_lock(lock_);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!CanAddId_Locked() || IsValidId_Locked(id)) {
+  // With multi-SourceBuffer switching, SourceBuffers of media that plays later
+  // can also be added after initialization.
+  const bool adding_after_init =
+      multi_source_buffer_switching_ && state_ == INITIALIZED;
+  if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING &&
+       !adding_after_init) ||
+      IsValidId_Locked(id)) {
     return kReachedIdLimit;
   }
 
-  CHECK(init_cb_ || state_ == INITIALIZED);
+  CHECK(init_cb_ || adding_after_init);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) ||
       IsValidId_Locked(id)) {
@@ -856,20 +836,12 @@ ChunkDemuxer::Status ChunkDemuxer::AddAutoDetectedCodecsId(
   DVLOG(1) << __func__ << " id=" << id
            << " content_type=" << static_cast<int>(mime_type);
   base::AutoLock auto_lock(lock_);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!CanAddId_Locked() || IsValidId_Locked(id)) {
-    return kReachedIdLimit;
-  }
-
-  CHECK(init_cb_ || state_ == INITIALIZED);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) ||
       IsValidId_Locked(id)) {
     return kReachedIdLimit;
   }
 
   CHECK(init_cb_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<media::StreamParser> stream_parser =
       StreamParserFactory::CreateRelaxedParser(mime_type);
@@ -1049,19 +1021,17 @@ void ChunkDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
       continue;
     }
     enabled_streams.insert(stream);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // Switch before the previous stream is disabled below, so that a read
-    // pending on it is held for |stream| instead of returning end of stream.
-    SelectedTrackStream* selected_stream =
-        GetSelectedTrackStream_Locked(track_type);
-    if (selected_stream && selected_stream->stream() != stream) {
-      LOG(INFO) << "Switching to " << DemuxerStream::GetTypeName(track_type)
-                << " track " << id << "; it plays from the next seek.";
-      selected_stream->SwitchTo(stream);
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     stream->SetEnabled(true, curr_time);
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (multi_source_buffer_switching_) {
+    // Before the previous stream is disabled below, so that a read pending on
+    // it is held instead of returning end of stream.
+    change_completed_cb = OnTracksChangedForSwitching_Locked(
+        track_type, enabled_streams, curr_time, std::move(change_completed_cb));
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool is_audio = track_type == DemuxerStream::AUDIO;
   for (const auto& stream : is_audio ? audio_streams_ : video_streams_) {
@@ -1073,14 +1043,6 @@ void ChunkDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
 
   std::vector<DemuxerStream*> streams(enabled_streams.begin(),
                                       enabled_streams.end());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // The pipeline only knows the SelectedTrackStream of each type.
-  SelectedTrackStream* selected_stream =
-      GetSelectedTrackStream_Locked(track_type);
-  if (selected_stream && !streams.empty()) {
-    streams = {selected_stream};
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::move(change_completed_cb).Run(streams);
 }
 
@@ -1704,7 +1666,8 @@ bool ChunkDemuxer::IsSeekWaitingForData_Locked() const {
        ++itr) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     // SourceBuffers of media that plays later don't hold back seeks.
-    if (!IsSourceUsedForPlayback_Locked(itr->first)) {
+    if (multi_source_buffer_switching_ &&
+        !IsSourceUsedForPlayback_Locked(itr->first)) {
       continue;
     }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1729,7 +1692,8 @@ void ChunkDemuxer::OnSourceInitDone(
   CHECK(pending_source_init_ids_.find(source_id) !=
         pending_source_init_ids_.end());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (state_ == INITIALIZED || state_ == ENDED) {
+  if (multi_source_buffer_switching_ &&
+      (state_ == INITIALIZED || state_ == ENDED)) {
     InitializeLateSource_Locked(source_id, params);
     return;
   }
@@ -1766,11 +1730,13 @@ void ChunkDemuxer::OnSourceInitDone(
   // Wait until all streams have initialized.
   pending_source_init_ids_.erase(source_id);
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Complete initialization once audio and video exist so queued SourceBuffers
-  // do not delay playback. Later SourceBuffers use InitializeLateSource_Locked.
-  if (!pending_source_init_ids_.empty() &&
-      (!multi_source_buffer_switching_ || audio_streams_.empty() ||
-       video_streams_.empty())) {
+  // With multi-SourceBuffer switching, complete initialization once audio and
+  // video exist so that queued SourceBuffers don't delay playback. They
+  // initialize later, in InitializeLateSource_Locked().
+  const bool can_initialize_before_all_sources =
+      multi_source_buffer_switching_ && !audio_streams_.empty() &&
+      !video_streams_.empty();
+  if (!pending_source_init_ids_.empty() && !can_initialize_before_all_sources) {
     return;
   }
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1832,15 +1798,7 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   owning_vector->push_back(std::move(stream));
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (multi_source_buffer_switching_) {
-    // The pipeline reads the first stream of each type, and the streams of
-    // the tracks selected later, through a SelectedTrackStream.
-    std::unique_ptr<SelectedTrackStream>& selected_stream =
-        type == DemuxerStream::AUDIO ? selected_audio_stream_
-                                     : selected_video_stream_;
-    if (!selected_stream) {
-      selected_stream = std::make_unique<SelectedTrackStream>(
-          type, owning_vector->back().get());
-    }
+    CreateSelectedTrackStreamIfNeeded_Locked(owning_vector->back().get());
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return owning_vector->back().get();
@@ -1916,7 +1874,9 @@ Ranges<base::TimeDelta> ChunkDemuxer::GetBufferedRanges_Locked() const {
   for (auto itr = source_state_map_.begin(); itr != source_state_map_.end();
        ++itr) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (!IsSourceUsedForPlayback_Locked(itr->first)) {
+    // SourceBuffers of media that plays later don't count toward buffered.
+    if (multi_source_buffer_switching_ &&
+        !IsSourceUsedForPlayback_Locked(itr->first)) {
       continue;
     }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1932,14 +1892,9 @@ void ChunkDemuxer::StartReturningData() {
     itr->second->StartReturningData();
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // After the ChunkDemuxerStreams, which the reads held by the
-  // SelectedTrackStreams go to.
-  returning_data_ = true;
-  for (SelectedTrackStream* selected_stream :
-       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
-    if (selected_stream) {
-      selected_stream->StartReturningData();
-    }
+  if (multi_source_buffer_switching_) {
+    // After the ChunkDemuxerStreams, which the held reads go to.
+    StartSelectedTrackStreamsReturningData_Locked();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
@@ -1950,12 +1905,8 @@ void ChunkDemuxer::AbortPendingReads_Locked() {
     itr->second->AbortReads();
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  returning_data_ = false;
-  for (SelectedTrackStream* selected_stream :
-       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
-    if (selected_stream) {
-      selected_stream->AbortReads();
-    }
+  if (multi_source_buffer_switching_) {
+    AbortSelectedTrackStreamReads_Locked();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
@@ -1980,11 +1931,8 @@ void ChunkDemuxer::ShutdownAllStreams() {
     itr->second->Shutdown();
   }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  for (SelectedTrackStream* selected_stream :
-       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
-    if (selected_stream) {
-      selected_stream->Shutdown();
-    }
+  if (multi_source_buffer_switching_) {
+    ShutdownSelectedTrackStreams_Locked();
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }

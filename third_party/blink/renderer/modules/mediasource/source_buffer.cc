@@ -1788,7 +1788,7 @@ bool SourceBuffer::InitializationSegmentReceived(
     // NOTE: This deviates from the MSE specification, which enables or selects
     // the first track of each type in every SourceBuffer.
     const bool multi_source_buffer_switching =
-        media::IsMultiSourceBufferSwitchingEnabled();
+        HTMLMediaElement::IsMultiSourceBufferSwitchingEnabled();
     const bool may_enable_audio_track =
         !multi_source_buffer_switching ||
         !IsAudioTrackEnabledInOtherSourceBuffer(source_, this);

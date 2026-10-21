@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/strings/strcat.h"
+#include "build/build_config.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -21,6 +22,9 @@
 #include "url/gurl.h"
 
 namespace cobalt {
+
+// The H5VCC media settings take effect only with Starboard media.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 
 // Evaluates to true if the page has the audio and video track APIs, which it
@@ -61,5 +65,6 @@ IN_PROC_BROWSER_TEST_F(H5vccSettingsBrowserTest,
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), kHasTrackApis).ExtractBool());
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace cobalt
