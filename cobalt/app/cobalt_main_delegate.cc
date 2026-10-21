@@ -41,10 +41,12 @@
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "cobalt/app/cobalt_crash_reporter_client.h"
+#include "components/crash/core/app/crashpad.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
-#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/public/app/initialize_mojo_core.h"
@@ -248,6 +250,7 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 }
 
 void CobaltMainDelegate::PreSandboxStartup() {
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
   const bool initialize_crashpad = true;
 #else
@@ -285,6 +288,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
 #endif
     }
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   ShellMainDelegate::PreSandboxStartup();
 }

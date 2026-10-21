@@ -256,13 +256,18 @@ source_set("common") {
     "app/app_event_delegate.h",
     "app/app_event_runner.cc",
     "app/app_event_runner.h",
-    "app/cobalt_crash_reporter_client.cc",
-    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
     "app/cobalt_switch_defaults.h",
   ]
+
+  if (!is_cobalt_hermetic_build) {
+    sources += [
+      "app/cobalt_crash_reporter_client.cc",
+      "app/cobalt_crash_reporter_client.h",
+    ]
+  }
 
   if (is_starboard) {
     sources += [ "app/cobalt_switch_defaults_starboard.cc" ]

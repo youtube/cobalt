@@ -84,17 +84,11 @@ static_library("app") {
     "//third_party/crashpad/crashpad/util",
   ]
 
-  if (is_linux || is_chromeos) {
+  # Hermetic Cobalt doesn't link this target, but upstream targets still
+  # reference it, and crashpad_linux.cc can't be built in that toolchain.
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
     sources += [ "crashpad_linux.cc" ]
     data_deps = [ ":chrome_crashpad_handler" ]
-  }
-
-  if (is_cobalt_hermetic_build) {
-    if (is_linux || is_chromeos) {
-      sources -= [ "crashpad_linux.cc" ]
-      data_deps -= [ ":chrome_crashpad_handler" ]
-    }
-    sources += [ "crashpad_starboard.cc" ]
   }
 
   if (is_ios) {
