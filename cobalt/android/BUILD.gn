@@ -509,6 +509,7 @@ android_library("cobalt_testing_java") {
   deps = [
     ":cobalt_main_java",
     "//base:base_java",
+    "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
     "//testing/android/native_test:native_test_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
