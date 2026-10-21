@@ -54,12 +54,12 @@
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
-            {# Always enable debuggable=true for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
-            android:debuggable="true"
+            android:debuggable="{{ debuggable }}"
             android:enableOnBackInvokedCallback="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
-        {# Always enable profileable for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
+        {% if debuggable == 'true' %}
         <profileable android:shell="true" android:enabled="true" />
+        {% endif %}
         {% block main_activity %}
         <activity android:name="dev.cobalt.app.MainActivity"
                   android:launchMode="singleTask"
