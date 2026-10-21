@@ -20,14 +20,17 @@
 #include <string_view>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
+#include "cobalt/browser/features.h"
 
 namespace cobalt {
 
@@ -38,6 +41,11 @@ struct PmaFileInfo {
   base::Time timestamp;
   int64_t size;
 };
+
+void RecordPriorPmaFileAction(StabilityPmaFileAction action) {
+  base::UmaHistogramEnumeration("Cobalt.StabilityMetrics.PriorPmaFileAction",
+                                action);
+}
 
 }  // namespace
 
@@ -115,6 +123,10 @@ void ClearOtherStabilityMetricsPmaFiles(
     const base::FilePath& metrics_dir,
     const std::string& expected_allocator_name,
     base::ProcessId current_pid) {
+  const bool deduplicate = base::FeatureList::IsEnabled(
+      features::kCobaltStabilityMetricsDeduplication);
+  int merged_files_count = 0;
+
   base::FileEnumerator file_iter(metrics_dir, /*recursive=*/false,
                                  base::FileEnumerator::FILES);
   for (base::FilePath file = file_iter.Next(); !file.empty();
@@ -130,6 +142,7 @@ void ClearOtherStabilityMetricsPmaFiles(
         file, &name, &stamp, &file_pid);
     if (!valid || name != expected_allocator_name || file_pid <= 0) {
       base::DeleteFile(file);
+      RecordPriorPmaFileAction(StabilityPmaFileAction::kInvalidFileNameDeleted);
       continue;
     }
 
@@ -137,32 +150,66 @@ void ClearOtherStabilityMetricsPmaFiles(
       continue;
     }
 
-    // Read prior session PMA file into memory and merge to StatisticsRecorder.
     {
       auto mapped = std::make_unique<base::MemoryMappedFile>();
-      if (mapped->Initialize(file, base::MemoryMappedFile::READ_ONLY) &&
+      const auto access_mode = deduplicate ? base::MemoryMappedFile::READ_WRITE
+                                           : base::MemoryMappedFile::READ_ONLY;
+      if (mapped->Initialize(file, access_mode) &&
           base::FilePersistentMemoryAllocator::IsFileAcceptable(
-              *mapped, /*read_only=*/true)) {
+              *mapped, /*read_only=*/!deduplicate)) {
+        const auto alloc_mode =
+            deduplicate
+                ? base::FilePersistentMemoryAllocator::kReadWriteExisting
+                : base::FilePersistentMemoryAllocator::kReadOnly;
         auto memory_allocator =
             std::make_unique<base::FilePersistentMemoryAllocator>(
-                std::move(mapped), 0, 0, std::string_view(),
-                base::FilePersistentMemoryAllocator::kReadOnly);
-        if (memory_allocator->GetMemoryState() !=
-                base::PersistentMemoryAllocator::MEMORY_DELETED &&
-            !memory_allocator->IsCorrupt()) {
+                std::move(mapped), 0, 0, std::string_view(), alloc_mode);
+        if (memory_allocator->IsCorrupt()) {
+          RecordPriorPmaFileAction(
+              StabilityPmaFileAction::kCorruptOrUnacceptableDeleted);
+        } else if (memory_allocator->GetMemoryState() ==
+                   base::PersistentMemoryAllocator::MEMORY_DELETED) {
+          RecordPriorPmaFileAction(
+              StabilityPmaFileAction::kAlreadyMarkedDeleted);
+        } else {
+          if (deduplicate) {
+            // Mark header deleted before consuming unlogged deltas so that
+            // even if the process crashes mid-merge or another reader inspects
+            // the file before unmap, samples can never be merged twice.
+            memory_allocator->SetMemoryState(
+                base::PersistentMemoryAllocator::MEMORY_DELETED);
+          }
           base::PersistentHistogramAllocator allocator(
               std::move(memory_allocator));
           base::PersistentHistogramAllocator::Iterator histogram_iter(
               &allocator);
           while (auto histogram = histogram_iter.GetNext()) {
+<<<<<<< HEAD
             allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
                 histogram.get(), /*name_override=*/"");
+=======
+            if (deduplicate) {
+              allocator.MergeHistogramDeltaToStatisticsRecorder(
+                  histogram.get());
+            } else {
+              allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
+                  histogram.get());
+            }
+>>>>>>> a4fca6b1d9 (cobalt/metrics: Fix stability PMA double-logging and exit reason deduplication (#13477))
           }
+          ++merged_files_count;
+          RecordPriorPmaFileAction(StabilityPmaFileAction::kMergedAndDeleted);
         }
+      } else {
+        RecordPriorPmaFileAction(
+            StabilityPmaFileAction::kCorruptOrUnacceptableDeleted);
       }
     }
     base::DeleteFile(file);
   }
+
+  base::UmaHistogramCounts100(
+      "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", merged_files_count);
 }
 
 }  // namespace cobalt
