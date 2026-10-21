@@ -535,17 +535,12 @@ public class AudioTrackBridge {
         int rawFramePosition = (int) mRawAudioTimestamp.framePosition;
 
         if (!mHasRawFramePosition) {
-          // The raw frame position counts from the creation or the last flush() of the
-          // AudioTrack, so the first sample is used as the absolute position.
           mHasRawFramePosition = true;
           mUnwrappedFramePosition = Integer.toUnsignedLong(rawFramePosition);
         } else {
-          // 32-bit int subtraction wraps, so the signed delta is correct across a rollover.
           mUnwrappedFramePosition += rawFramePosition - mLastRawFramePosition;
         }
         mLastRawFramePosition = rawFramePosition;
-        // Backward jitter lowers mUnwrappedFramePosition, but the reported position never
-        // regresses.
         mMaxFramePositionSoFar = Math.max(mMaxFramePositionSoFar, mUnwrappedFramePosition);
         mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
         mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
