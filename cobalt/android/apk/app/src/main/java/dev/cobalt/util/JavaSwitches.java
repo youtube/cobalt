@@ -81,6 +81,7 @@ public class JavaSwitches {
    * StartupGuard watchdog timeout in seconds.
    *
    * <p>Defined in Java because it is consumed only in Java (CobaltActivity.setupStartupGuard()).
+   * Ignored in crash-streak safe mode (see shouldApplyExperimentConfigs()).
    */
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
