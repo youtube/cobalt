@@ -26,7 +26,9 @@
 
 namespace content {
 
-// An enum for UMA histogram to indicate the state of retrieving splash screen
+// An enum for UMA histogram to indicate the state of retrieving splash screen.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class SplashScreenFetchedState {
   kOkBuiltIn = 0,
   kOkCache = 1,
@@ -34,7 +36,11 @@ enum class SplashScreenFetchedState {
   kErrorOnCacheFileOversize = 3,
   kErrorOnReadCache = 4,
   kErrorOnResourceNotFound = 5,
-  kMaxValue = kErrorOnResourceNotFound,
+  // The built-in resource, without reading the cache, as
+  // kEnableCachedSplashFile is disabled. Unlike kOkBuiltIn, this isn't a
+  // cache miss.
+  kSkippedCachedAssetsDisabled = 6,
+  kMaxValue = kSkippedCachedAssetsDisabled,
 };
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles

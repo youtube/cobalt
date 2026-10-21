@@ -19,6 +19,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -145,10 +146,32 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 
 const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
 const char kBuiltinSplash[] = "BUILTIN_SPLASH";
+const char kBuiltinSplash480[] = "BUILTIN_SPLASH_480";
 
 class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     : public H5vccSchemeURLLoaderFactoryBrowserTest {
  public:
+  H5vccSchemeURLLoaderFactoryCacheBrowserTest()
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+            /*enable_cached_splash_file=*/true) {}
+
+  void CreatedBrowserMainParts(BrowserMainParts* browser_main_parts) override {
+    H5vccSchemeURLLoaderFactoryBrowserTest::CreatedBrowserMainParts(
+        browser_main_parts);
+    // Cached splash assets are only read with kEnableCachedSplashFile, which
+    // is disabled by default. Set here rather than in the constructor, as
+    // BrowserTestBase::SetUp() resets base::FeatureList before entering
+    // ContentMain(), and ShellMainDelegate doesn't re-create it from the
+    // command-line switches.
+    cached_splash_feature_list_.InitWithFeatureState(
+        cobalt::features::kEnableCachedSplashFile, enable_cached_splash_file_);
+  }
+
+  void TearDownOnMainThread() override {
+    cached_splash_feature_list_.Reset();
+    H5vccSchemeURLLoaderFactoryBrowserTest::TearDownOnMainThread();
+  }
+
   // Verifies that the splash video is correctly loaded from the cache (or
   // falls back).
   // |cache_name|: The name of the cache storage to use.
@@ -179,6 +202,7 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     LoaderEmbeddedResources::GenerateMap(*test_resource_map_);
     (*test_resource_map_)["splash.html"] = safe_contents_;
     (*test_resource_map_)["splash.webm"] = builtin_contents_;
+    (*test_resource_map_)["splash_480.webm"] = builtin_480_contents_;
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
         test_resource_map_.get());
 
@@ -281,12 +305,32 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
   }
 
  protected:
+  explicit H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+      bool enable_cached_splash_file)
+      : enable_cached_splash_file_(enable_cached_splash_file) {}
+
   FileContents safe_contents_ = {
       reinterpret_cast<const unsigned char*>(kSafeSplashHtml),
       sizeof(kSafeSplashHtml) - 1};
   FileContents builtin_contents_ = {
       reinterpret_cast<const unsigned char*>(kBuiltinSplash),
       sizeof(kBuiltinSplash) - 1};
+  FileContents builtin_480_contents_ = {
+      reinterpret_cast<const unsigned char*>(kBuiltinSplash480),
+      sizeof(kBuiltinSplash480) - 1};
+
+ private:
+  const bool enable_cached_splash_file_;
+  base::test::ScopedFeatureList cached_splash_feature_list_;
+};
+
+// As in Finch's crash safe mode, or with the kill switch.
+class H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest
+    : public H5vccSchemeURLLoaderFactoryCacheBrowserTest {
+ public:
+  H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest()
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(
+            /*enable_cached_splash_file=*/false) {}
 };
 
 // TODO(478334656): Support Media source for Android's
@@ -441,4 +485,25 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheBrowserTest,
       /*expected_uma_state=*/
       SplashScreenFetchedState::kErrorOnCacheFileOversize);
 }
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
+                       IgnoresCachedSplashVideo) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"default", /*query_param=*/"", /*content=*/"aaabbbccc",
+      /*expected_content=*/"BUILTIN_SPLASH",
+      /*expected_uma_state=*/
+      SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+}
+
+// The "fallback" query param still chooses the built-in resource.
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
+                       UsesFallbackParameter) {
+  VerifySplashVideoFromCacheWithContent(
+      /*cache_name=*/"other",
+      /*query_param=*/"?cache=other&fallback=splash_480.webm",
+      /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH_480",
+      /*expected_uma_state=*/
+      SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+}
+
 }  // namespace content

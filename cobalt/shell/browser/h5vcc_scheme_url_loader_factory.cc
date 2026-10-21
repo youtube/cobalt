@@ -21,10 +21,12 @@
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
@@ -243,6 +245,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     if (supports_splash_caching && browser_context_) {
+      if (!base::FeatureList::IsEnabled(
+              cobalt::features::kEnableCachedSplashFile)) {
+        // As on a cache miss: the built-in resource, which the "fallback"
+        // query param may have chosen, e.g., the 480p video.
+        LOG(INFO) << "Cached splash assets are disabled. Using built-in "
+                  << resource_key << ".";
+        SendResponse(SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+        return;
+      }
       ReadSplashCache(key);
       return;
     }
