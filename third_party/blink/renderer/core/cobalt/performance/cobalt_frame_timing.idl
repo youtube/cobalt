@@ -61,6 +61,16 @@ interface CobaltFrameTiming : PerformanceEntry {
     readonly attribute DOMHighResTimeStamp? gpuQueueDuration;
     readonly attribute DOMHighResTimeStamp? gpuDrawDuration;
 
+    // --- Main-thread input path (null for compositor-only frames). The two
+    // stages are consecutive and do not overlap.
+    // mainFrameQueueDuration: VSync frame time -> BeginMainFrame task started
+    //   on the main thread (cc scheduling + waiting behind other main-thread
+    //   tasks such as keydown handlers and JS).
+    // handleInputEventsDuration: rAF-aligned input dispatch at the start of
+    //   this frame; 0 when there was none.
+    readonly attribute DOMHighResTimeStamp? mainFrameQueueDuration;
+    readonly attribute DOMHighResTimeStamp? handleInputEventsDuration;
+
     // Blink's bindings do not support [Default] toJSON, and a PerformanceEntry
     // subclass has to be an interface (not a dictionary), so toJSON follows
     // the same pattern as the other PerformanceEntry types.
