@@ -136,6 +136,34 @@ class SbPlayerBenchmarkHelper {
   std::atomic_bool error_occurred_{false};
 };
 
+// Tracks the asynchronous initialization of a player created with
+// PlayerStatusFunc() and PlayerErrorFunc() as its status and error callbacks,
+// and a pointer to this object as the callback context. The object has to
+// outlive the player, as the callbacks may be invoked until SbPlayerDestroy()
+// returns.
+class PlayerInitializationWaiter {
+ public:
+  static void PlayerStatusFunc(SbPlayer player,
+                               void* context,
+                               SbPlayerState state,
+                               int ticket);
+  static void PlayerErrorFunc(SbPlayer player,
+                              void* context,
+                              SbPlayerError error,
+                              const char* message);
+
+  // Blocks until the player reports kSbPlayerStateInitialized, reports an
+  // error, or the timeout expires. Returns true only if the player was
+  // initialized without an error.
+  bool WaitForInitialization(int64_t timeout_us = 5000000);
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  bool initialized_ = false;
+  bool error_occurred_ = false;
+};
+
 }  // namespace benchmark
 }  // namespace starboard
 

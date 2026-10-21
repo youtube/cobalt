@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #include <chrono>
-#include <condition_variable>  // NOLINT(build/c++11)
-#include <mutex>               // NOLINT(build/c++11)
 
 #include "starboard/benchmark/player/player_benchmark_helper.h"
 #include "starboard/player.h"
@@ -24,36 +22,6 @@ namespace starboard {
 namespace benchmark {
 
 namespace {
-
-struct AsyncCreateContext {
-  std::mutex mutex;
-  std::condition_variable cv;
-  bool initialized = false;
-  bool failed = false;
-};
-
-void AsyncPlayerStatusFunc(SbPlayer player,
-                           void* context,
-                           SbPlayerState state,
-                           int ticket) {
-  AsyncCreateContext* ctx = static_cast<AsyncCreateContext*>(context);
-  if (state == kSbPlayerStateInitialized) {
-    std::unique_lock<std::mutex> lock(ctx->mutex);
-    ctx->initialized = true;
-    ctx->cv.notify_one();
-  }
-}
-
-void AsyncPlayerErrorFunc(SbPlayer player,
-                          void* context,
-                          SbPlayerError error,
-                          const char* message) {
-  AsyncCreateContext* ctx = static_cast<AsyncCreateContext*>(context);
-  std::unique_lock<std::mutex> lock(ctx->mutex);
-  ctx->initialized = true;
-  ctx->failed = true;
-  ctx->cv.notify_one();
-}
 
 void BM_PlayerCreateSync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
@@ -92,28 +60,27 @@ void BM_PlayerCreateAsync(::benchmark::State& state) {
   helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
 
   for (auto _ : state) {
-    AsyncCreateContext ctx;
+    PlayerInitializationWaiter waiter;
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    SbPlayer player = SbPlayerCreate(
-        helper.GetWindow(), &creation_param,
-        SbPlayerBenchmarkHelper::DummyDeallocateSampleFunc,
-        SbPlayerBenchmarkHelper::DummyDecoderStatusFunc, AsyncPlayerStatusFunc,
-        AsyncPlayerErrorFunc, &ctx, helper.GetDecoderTargetProvider());
+    SbPlayer player =
+        SbPlayerCreate(helper.GetWindow(), &creation_param,
+                       SbPlayerBenchmarkHelper::DummyDeallocateSampleFunc,
+                       SbPlayerBenchmarkHelper::DummyDecoderStatusFunc,
+                       PlayerInitializationWaiter::PlayerStatusFunc,
+                       PlayerInitializationWaiter::PlayerErrorFunc, &waiter,
+                       helper.GetDecoderTargetProvider());
 
     if (!SbPlayerIsValid(player)) {
       state.SkipWithError("SbPlayerCreate failed");
       break;
     }
 
-    {
-      std::unique_lock<std::mutex> lock(ctx.mutex);
-      ctx.cv.wait(lock, [&ctx] { return ctx.initialized; });
-    }
+    bool initialized = waiter.WaitForInitialization();
 
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    if (ctx.failed) {
+    if (!initialized) {
       state.SkipWithError("SbPlayer initialization failed");
       SbPlayerDestroy(player);
       break;

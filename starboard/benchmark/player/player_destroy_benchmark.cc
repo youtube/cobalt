@@ -29,13 +29,17 @@ void BM_PlayerDestroySync(::benchmark::State& state) {
   helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
 
   for (auto _ : state) {
-    // 1. Create player (not timed)
+    // 1. Create the player and wait until it is fully initialized (not timed).
+    //    SbPlayerDestroy() blocks until all pending work of the player has
+    //    completed, so destroying a player that is still initializing would
+    //    measure the remainder of its initialization instead of its teardown.
+    PlayerInitializationWaiter waiter;
     SbPlayer player =
         SbPlayerCreate(helper.GetWindow(), &creation_param,
                        SbPlayerBenchmarkHelper::DummyDeallocateSampleFunc,
                        SbPlayerBenchmarkHelper::DummyDecoderStatusFunc,
-                       SbPlayerBenchmarkHelper::DummyPlayerStatusFunc,
-                       SbPlayerBenchmarkHelper::DummyPlayerErrorFunc, nullptr,
+                       PlayerInitializationWaiter::PlayerStatusFunc,
+                       PlayerInitializationWaiter::PlayerErrorFunc, &waiter,
                        helper.GetDecoderTargetProvider());
 
     if (!SbPlayerIsValid(player)) {
@@ -43,7 +47,13 @@ void BM_PlayerDestroySync(::benchmark::State& state) {
       break;
     }
 
-    // 2. Measure only the destruction time
+    if (!waiter.WaitForInitialization()) {
+      state.SkipWithError("SbPlayer initialization failed");
+      SbPlayerDestroy(player);
+      break;
+    }
+
+    // 2. Measure only the destruction time of the initialized player.
     auto start_time = std::chrono::high_resolution_clock::now();
     SbPlayerDestroy(player);
     auto end_time = std::chrono::high_resolution_clock::now();
