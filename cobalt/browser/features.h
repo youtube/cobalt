@@ -205,6 +205,11 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kProcessStateSummaryMinFlushIntervalParam);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Deduplicates prior-session BrowserStabilityMetrics .pma files (single
+// authoritative startup reader/merger) and Android ApplicationExitInfo records
+// across sessions.
+BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
+
 }  // namespace features
 }  // namespace cobalt
 
