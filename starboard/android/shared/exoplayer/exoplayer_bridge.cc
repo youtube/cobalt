@@ -339,10 +339,11 @@ void ExoPlayerBridge::WriteEOS(SbMediaType type) {
   }
 }
 
-int ExoPlayerBridge::ReadSample(JNIEnv* env,
-                                int type_int,
-                                jobject j_buffer,
-                                jlongArray j_metadata) {
+int ExoPlayerBridge::ReadSample(
+    JNIEnv* env,
+    int type_int,
+    const jni_zero::JavaRef<jobject>& j_buffer,
+    const jni_zero::JavaRef<jlongArray>& j_metadata) {
   SbMediaType type = static_cast<SbMediaType>(type_int);
   std::lock_guard lock(mutex_);
   auto& pending_samples = type == kSbMediaTypeAudio ? pending_audio_samples_
@@ -353,7 +354,8 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   if (pending_samples.empty()) {
     if (eos_pending) {
       jlong metadata[3] = {0, 0, kBufferFlagEndOfStream};
-      env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
+      env->SetLongArrayRegion(j_metadata.obj(), 0, std::size(metadata),
+                              metadata);
       return kResultBufferRead;
     }
     return kResultNothingRead;
@@ -382,16 +384,17 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   // The metadata array schema is: [0] = timestampUs, [1] = sizeBytes, [2] =
   // flags.
   jlong metadata[3] = {input_buffer->timestamp(), size, flags};
-  env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
+  env->SetLongArrayRegion(j_metadata.obj(), 0, std::size(metadata), metadata);
 
   // If ExoPlayer passes a null buffer, or if the provided buffer is too small,
   // it's querying for the required buffer size. We embed the needed size into
   // the metadata array (done above) and request reallocation.
-  if (!j_buffer || env->GetDirectBufferCapacity(j_buffer) < size) {
+  if (j_buffer.is_null() ||
+      env->GetDirectBufferCapacity(j_buffer.obj()) < size) {
     return kResultNeedsAllocation;
   }
 
-  void* direct_buffer = env->GetDirectBufferAddress(j_buffer);
+  void* direct_buffer = env->GetDirectBufferAddress(j_buffer.obj());
   if (!direct_buffer) {
     ReportError("Failed to get direct buffer address");
     return kResultNothingRead;
@@ -487,7 +490,8 @@ void ExoPlayerBridge::OnReady(JNIEnv*) {
   }
 }
 
-void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
+void ExoPlayerBridge::OnError(JNIEnv* env,
+                              const jni_zero::JavaRef<jstring>& msg) {
   playback_error_occurred_.store(true);
   std::string error_msg = ConvertJavaStringToUTF8(env, msg);
   SB_LOG(ERROR) << "Reporting playback error: " << error_msg;
@@ -531,3 +535,5 @@ void ExoPlayerBridge::ReportError(const std::string& msg) const {
 }
 
 }  // namespace starboard
+
+DEFINE_JNI(ExoPlayerBridge)
