@@ -80,6 +80,17 @@ class MultiSourceMemoryPressureMonitor
 
   std::unique_ptr<SystemMemoryPressureEvaluator> system_evaluator_;
 
+#if BUILDFLAG(IS_COBALT)
+  base::TimeDelta GetCooldownPeriod() const;
+
+  // The timestamp of the last dispatched notification.
+  base::TimeTicks last_dispatch_time_;
+
+  // The pressure level of the last dispatched notification.
+  MemoryPressureLevel last_dispatched_level_ =
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+#endif
+
   // The timestamp of the last pressure change event.
   base::TimeTicks last_pressure_change_timestamp_;
 
