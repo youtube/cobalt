@@ -507,8 +507,7 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
       return mAudioTimestamp;
     }
-    // The `synchronized` is required as `mMaxFramePositionSoFar` can also be modified in
-    // flush().
+    // The `synchronized` is required as `mMaxFramePositionSoFar` can also be modified in flush().
     // TODO: Consider refactor the code to remove the dependency on `synchronized`.
     synchronized (mPositionLock) {
       boolean success = false;
@@ -530,10 +529,10 @@ public class AudioTrackBridge {
             mWrapCount++;
           }
         } else if (rawFramePosition > mLastRawFramePosition) {
-          // A jump of more than 2^31 frames indicates a backward jitter across the rollover
-          // boundary. As the raw position is now behind the rollover boundary, decrement the wrap
-          // count.
           if ((rawFramePosition - mLastRawFramePosition) > 0x7FFFFFFFL && mWrapCount > 0) {
+            // A jump of more than 2^31 frames indicates a backward jitter across the rollover
+            // boundary. As the raw position is now behind the rollover boundary, decrement the wrap
+            // count.
             mWrapCount--;
           }
         }
