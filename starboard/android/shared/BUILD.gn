@@ -389,25 +389,41 @@ config("symbolize_config") {
   ]
 }
 
-static_library("starboard_base_symbolize") {
-  sources = [
-    "//base/third_party/symbolize/demangle.cc",
-    "//base/third_party/symbolize/symbolize.cc",
-  ]
-  configs += [ ":symbolize_config" ]
-
-  deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common:common_headers_only",
-  ]
-  if (is_starboard) {
-    public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+if (is_partner_toolchain) {
+  # //base is //copied_base/base in partner toolchains, and it links its own
+  # copy of symbolize. Use that copy here too: linking both copies fails with
+  # duplicate symbols once their APIs differ.
+  group("starboard_base_symbolize") {
+    public_deps = [ "//copied_base/base/third_party/symbolize" ]
+    if (is_starboard) {
+      public_deps += [ "//starboard/elf_loader:evergreen_info" ]
+    }
   }
+} else {
+  static_library("starboard_base_symbolize") {
+    sources = [
+      "//base/third_party/symbolize/demangle.cc",
+      "//base/third_party/symbolize/symbolize.cc",
+    ]
+    configs += [ ":symbolize_config" ]
 
-  # TODO(cobalt, 377295011): enable dependency checking. A dependency on
-  # //base/third_party/symbolize:symbolize is needed but introduces a duplicate
-  # symbol error.
-  check_includes = false
+    # Third-party code: build it like //base/third_party/symbolize does.
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_headers_only",
+    ]
+    if (is_starboard) {
+      public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+    }
+
+    # TODO(cobalt, 377295011): enable dependency checking. A dependency on
+    # //base/third_party/symbolize:symbolize is needed but introduces a
+    # duplicate symbol error.
+    check_includes = false
+  }
 }
 
 static_library("media_codec_video_decoder_helpers") {
