@@ -68,6 +68,9 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
     Holder<Activity> activityHolder = new Holder<>();
     activityHolder.set(this);
     mTestStarboardBridge = new TestStarboardBridge(getApplicationContext(), activityHolder);
+    // Keep the screen on so a screen timeout or screensaver can't stop this activity and
+    // destroy the surface during tests.
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     addContentView(
         new VideoSurfaceView(this),
