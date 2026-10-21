@@ -1,8 +1,0 @@
-features:
-- name: streams
-  files:
-    - "*"
-    - "!cancel.any.js"
-- name: transformstream-transformer-cancel
-  files:
-    - cancel.any.js

@@ -1,7 +1,0 @@
-features:
-- name: alignment-baseline
-  files:
-  - alignment-baseline-*
-- name: baseline-shift
-  files:
-  - baseline-shift-*

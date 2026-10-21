@@ -1,3 +1,0 @@
-Tests that Bluetooth is unavailable when simulateCentral is set to absent
-false
-

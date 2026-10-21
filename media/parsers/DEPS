@@ -1,7 +1,0 @@
-include_rules = [
-  "+base",
-  "+build/build_config.h",
-  "+media/base",
-  "+media/parsers",
-  "+ui/gfx"
-]

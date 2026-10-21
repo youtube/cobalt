@@ -1,2 +1,0 @@
-CONSOLE ERROR: Uncaught SyntaxError: Failed to read the 'onclick' property from 'HTMLElement': Unexpected token ';'
-Test passes if it does not crash.

@@ -1,6 +1,0 @@
-include_rules = [
-  "+components/optimization_guide",
-  "+services/on_device_model",
-  "+third_party/tflite_support",
-  "+third_party/sentencepiece/src/src",
-]

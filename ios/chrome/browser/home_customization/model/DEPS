@@ -1,4 +1,0 @@
-include_rules = [
-  "+components/themes",
-  "+components/application_locale_storage",
-]

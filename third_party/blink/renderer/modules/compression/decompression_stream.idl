@@ -1,7 +1,0 @@
-[
-    Exposed=(Window,Worker,ShadowRealm) // TODO(crbug.com/41480387): This should be Exposed=*
-] interface DecompressionStream {
-    [CallWith=ScriptState, RaisesException, MeasureAs=DecompressionStreamConstructor] constructor(DOMString format);
-    readonly attribute ReadableStream readable;
-    readonly attribute WritableStream writable;
-};

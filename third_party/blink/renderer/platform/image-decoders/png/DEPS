@@ -1,4 +1,0 @@
-include_rules = [
-    "+skia/buildflags.h",
-    "+skia/rusty_png_feature.h",
-]

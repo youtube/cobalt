@@ -1,8 +1,0 @@
-AXWebArea
-++AXGroup
-++++AXGroup
-++++++AXLink AXDescription='Interactive fallback'
-++++++++AXStaticText AXValue='Interactive fallback'
-++++AXGroup
-++++++AXLink AXDescription='Interactive fallback'
-++++++++AXStaticText AXValue='Interactive fallback'

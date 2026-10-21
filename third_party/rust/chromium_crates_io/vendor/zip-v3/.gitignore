@@ -1,6 +1,0 @@
-Cargo.lock
-target
-.DS_Store
-\.idea/
-/fuzz_read/out/
-/fuzz_write/out/

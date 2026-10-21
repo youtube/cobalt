@@ -1,4 +1,0 @@
-Tests that Bluetooth is available when simulateCentral is re-enabled.
-true
-true
-

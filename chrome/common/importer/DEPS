@@ -1,4 +1,0 @@
-include_rules = [
-  "+components/favicon_base",
-  "+components/user_data_importer/common",
-]

@@ -1,3 +1,0 @@
-Tests Page.reload together with a history navigation
-Waiting for navigation to be reported.
-

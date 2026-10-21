@@ -1,4 +1,0 @@
-Tests DOM.getDetachedDomNodes command.
-Amount of Nodes should be 0:
-0
-

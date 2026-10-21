@@ -1,3 +1,0 @@
-Tests sequence of input event processing.
-requested url: http://example.com/
-PASSED

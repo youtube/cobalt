@@ -1,3 +1,0 @@
-include_rules = [
-  "+ios/chrome/browser/price_insights/model/price_insights_feature.h",
-]

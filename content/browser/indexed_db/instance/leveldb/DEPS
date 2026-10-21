@@ -1,5 +1,0 @@
-include_rules = [
-  "+content/browser/indexed_db/instance/leveldb",
-  "+components/services/storage/indexed_db/leveldb",
-  "+components/services/storage/indexed_db/transactional_leveldb",
-]

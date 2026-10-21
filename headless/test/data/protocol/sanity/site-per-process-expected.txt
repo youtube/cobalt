@@ -1,2 +1,0 @@
-Tests cross origin iframe with and withhout --site-per-process.
-PASS

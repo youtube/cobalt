@@ -1,5 +1,0 @@
-features:
-- name: messageerror
-  files:
-  - messageerror.html
-  - postMessage_CryptoKey_insecure.sub.html

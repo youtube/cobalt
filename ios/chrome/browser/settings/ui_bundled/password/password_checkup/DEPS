@@ -1,4 +1,0 @@
-include_rules = [
-  "+ios/chrome/browser/push_notification/ui_bundled",
-  "+ios/chrome/browser/safety_check_notifications/utils",
-]

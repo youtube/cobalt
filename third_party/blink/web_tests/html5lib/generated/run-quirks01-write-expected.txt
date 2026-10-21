@@ -1,1 +1,0 @@
-../resources/quirks01.dat: PASS

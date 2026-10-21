@@ -1,5 +1,0 @@
-include_rules = [
-  "+components/unexportable_keys",
-  "+components/sqlite_proto",
-  "+sql"
-]

@@ -1,1 +1,0 @@
-import "{{GET[name]}}";

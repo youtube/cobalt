@@ -1,7 +1,0 @@
-features:
-- name: streams
-  files:
-    - strategy-worker.js
-- name: readablestream-from
-  files:
-    - from-cross-realm.https.html

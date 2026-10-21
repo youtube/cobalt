@@ -1,1 +1,0 @@
-window.operations.push("script");

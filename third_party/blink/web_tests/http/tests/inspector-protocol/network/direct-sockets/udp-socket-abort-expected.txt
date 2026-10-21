@@ -1,7 +1,0 @@
-UDP DirectSockets abort
-socket created
-   remoteAddr: fakedomain.com
-   remotePort: 100
-socket aborted
-   errorMessage: NameNotResolved
-

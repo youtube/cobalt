@@ -1,2 +1,0 @@
-CONSOLE ERROR: Uncaught SyntaxError: Failed to read the 'onmousedown' property from 'HTMLElement': Unexpected token '}'
-Test passes if it doesn't crash.

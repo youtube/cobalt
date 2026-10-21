@@ -1,3 +1,0 @@
-Content-Security-Policy: sandbox;
-Content-Security-Policy: trusted-types AllowedPolicyName default;
-Content-Security-Policy: require-trusted-types-for 'script';

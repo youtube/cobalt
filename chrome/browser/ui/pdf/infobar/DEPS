@@ -1,4 +1,0 @@
-include_rules = [
-  "+components/pdf/common",
-  "+content/public/test",
-]

@@ -1,3 +1,0 @@
-Tests that Bluetooth.simulateCentral sets Bluetooth availability
-true
-

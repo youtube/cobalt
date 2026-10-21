@@ -1,3 +1,0 @@
-Tests removing a non-existent virtual pressure source is a no-op
-PASS: Removing virtual pressure source does not fail
-

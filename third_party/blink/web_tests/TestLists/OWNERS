@@ -1,4 +1,0 @@
-*
-
-per-file content_shell.filter=set noparent
-per-file content_shell.filter=file://third_party/blink/web_tests/HEADLESS_OWNERS

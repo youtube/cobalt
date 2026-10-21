@@ -1,5 +1,0 @@
-specific_include_rules = {
-    "screen_win_headless.*\.cc": [
-      "+components/headless/screen_info"
-    ]
-  }

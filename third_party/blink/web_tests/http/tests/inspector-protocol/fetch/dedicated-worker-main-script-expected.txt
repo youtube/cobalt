@@ -1,4 +1,0 @@
-Tests that Fetch.requestPaused is emitted for the main script of dedciated worker
-Extra-Header:Extra-Value
-PASSED: intercepted script
-

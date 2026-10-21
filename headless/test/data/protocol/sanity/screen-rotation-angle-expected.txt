@@ -1,3 +1,0 @@
-Tests screen rotation angle.
-Screen: 0,0 800x600
-angle: 180

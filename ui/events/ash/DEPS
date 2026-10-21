@@ -1,5 +1,0 @@
-include_rules = [
-  "+ash/constants",
-  "+device/udev_linux",
-  "+ui/base",
-]

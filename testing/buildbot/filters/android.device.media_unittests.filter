@@ -1,4 +1,0 @@
-# # crbug.com/328195295
--AllNdkEncoderTests/NdkVideoEncoderAcceleratorTest.HandleEncodingError/*
--ImageReaderGLOwnerInsecureSurfaceControlTest.MaxImageExpectation
--ImageReaderGLOwnerSecureSurfaceControlTest.MaxImageExpectation

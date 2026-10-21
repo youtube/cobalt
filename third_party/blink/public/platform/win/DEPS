@@ -1,3 +1,0 @@
-include_rules = [
-    "+base/win/windows_types.h",
-]

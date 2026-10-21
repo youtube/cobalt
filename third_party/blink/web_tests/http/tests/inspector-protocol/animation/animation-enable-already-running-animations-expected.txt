@@ -1,3 +1,0 @@
-Tests that after calling `enable` animation domain emits animation created & started events for already running animations.
-Animation created & started is emitted for an already running animation
-

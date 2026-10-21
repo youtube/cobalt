@@ -1,4 +1,0 @@
-Tests removing an overridden virtual pressure source works
-PASS: Creating pressure source override
-PASS: Removing virtual pressure source does not fail
-

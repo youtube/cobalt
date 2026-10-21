@@ -81,12 +81,17 @@ runs:
           commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
           author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
           author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
+          author_name="${author_name:-${COMMIT_AUTHOR_NAME:-github-actions[bot]}}"
+          author_email="${author_email:-${COMMIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}}"
 
           git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
-          git -C "${DEST_PATH}" merge --squash "${REF}"
           git -C "${DEST_PATH}" \
-            -c user.name="${author_name}" \
-            -c user.email="${author_email}" \
+            -c "user.name=${author_name}" \
+            -c "user.email=${author_email}" \
+            merge --squash "${REF}"
+          git -C "${DEST_PATH}" \
+            -c "user.name=${author_name}" \
+            -c "user.email=${author_email}" \
             commit --quiet --allow-empty \
             --date="${commit_date}" \
             --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"

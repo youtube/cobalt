@@ -1,4 +1,0 @@
-features:
-- name: font-metric-overrides
-  files:
-  - fontface-override-descriptor-getter-setter.sub.html

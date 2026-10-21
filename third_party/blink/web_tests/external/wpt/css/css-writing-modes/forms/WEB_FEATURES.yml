@@ -1,6 +1,0 @@
-features:
-- name: vertical-form-controls
-  files:
-  - "*vertical*"
-  - "*vlr*"
-  - "*vrl*"

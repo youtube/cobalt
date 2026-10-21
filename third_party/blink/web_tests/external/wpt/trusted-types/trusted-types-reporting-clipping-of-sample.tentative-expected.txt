@@ -1,7 +1,0 @@
-This is a testharness.js-based test.
-[FAIL] Clipping of violation sample for createPolicy(H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇)
-  assert_equals: expected "H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇" but got "H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇U+d835"
-[FAIL] Clipping of violation sample for Element.innerHTML = "H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇"
-  assert_equals: expected "Element innerHTML|H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇" but got "Element innerHTML|H𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇𝐇U+d835"
-Harness: the test ran to completion.
-

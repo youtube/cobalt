@@ -1,1 +1,0 @@
-Blocked access to external URL http://www.example.org/test#red

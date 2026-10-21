@@ -1,8 +1,0 @@
-Check that type-to-select in unopened popups works with Hebrew.
-
-ש
-ד
-ג
-כ
-ע
-SUCCESS

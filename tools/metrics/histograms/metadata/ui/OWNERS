@@ -1,7 +1,0 @@
-per-file OWNERS=file://tools/metrics/histograms/metadata/METRIC_REVIEWER_OWNERS
-
-# For Views histograms:
-file://ui/views/OWNERS
-
-# For WebUI histograms:
-file://ui/webui/PLATFORM_OWNERS
