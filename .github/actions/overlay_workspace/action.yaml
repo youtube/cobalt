@@ -129,7 +129,7 @@ runs:
           rm -rf "${STAGING_DIR}" && mkdir -p "${STAGING_DIR}"
           COMPUTED=$( (gcloud storage cat "gs://${BUCKET}/${key}/${EXPECTED}.tar.zst" \
             | tee /dev/fd/3 \
-            | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") \
+            | tar --no-same-owner --use-compress-program="zstd -d -T0" -xf - -C "${STAGING_DIR}") 3>&1 \
             | sha256sum | awk '{print $1}') || true
           wait || true
 
@@ -206,9 +206,6 @@ runs:
         git config --global --add safe.directory "${MERGED_DIR}"
         git config --global --add safe.directory "${MERGED_DIR}/src"
         git config --global --add safe.directory "${MERGED_DIR}/depot_tools"
-
-        echo "UPPER_DIR=${UPPER_DIR}" >> "${GITHUB_ENV}"
-        echo "SRC_DIR=${LOWER_DIR##*:}" >> "${GITHUB_ENV}"
 
         echo "UPPER_DIR=${UPPER_DIR}" >> "${GITHUB_ENV}"
         echo "SRC_DIR=${LOWER_DIR##*:}" >> "${GITHUB_ENV}"
