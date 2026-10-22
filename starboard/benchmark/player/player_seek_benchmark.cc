@@ -27,20 +27,49 @@ constexpr char kVideoFile[] = "vertical_1080p_30_fps_137_avc.dmp";
 constexpr int64_t kFeedDurationUs = 2000000;  // 2 seconds
 constexpr int64_t kSeekTargetUs = 1000000;    // 1 second
 
+// Initializes |helper|'s player and prerolls it until it is presenting. On
+// failure the error is reported to |state| and false is returned.
+bool InitializeAndPreroll(SbPlayerBenchmarkHelper* helper,
+                          ::benchmark::State* state) {
+  if (!helper->InitializePlayer(kAudioFile, kVideoFile,
+                                kSbPlayerOutputModeDecodeToTexture)) {
+    state->SkipWithError("Player initialization failed");
+    return false;
+  }
+  if (!helper->FeedData(kFeedDurationUs)) {
+    state->SkipWithError("Failed to feed the initial preroll data");
+    return false;
+  }
+  if (!helper->WaitForPlayerState(kSbPlayerStatePresenting,
+                                  helper->GetCurrentTicket())) {
+    state->SkipWithError("Player did not start presenting");
+    return false;
+  }
+  return true;
+}
+
+// Feeds data from the seek target onwards and waits until the player presents
+// again for |ticket|. On failure the error is reported to |state| and false is
+// returned.
+bool FeedAndWaitForPresenting(SbPlayerBenchmarkHelper* helper,
+                              int ticket,
+                              ::benchmark::State* state) {
+  if (!helper->FeedData(kSeekTargetUs + kFeedDurationUs)) {
+    state->SkipWithError("Failed to feed data after the seek");
+    return false;
+  }
+  if (!helper->WaitForPlayerState(kSbPlayerStatePresenting, ticket)) {
+    state->SkipWithError("Player did not resume presenting after the seek");
+    return false;
+  }
+  return true;
+}
+
 void BM_PlayerSeekSync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
-  if (!helper.InitializePlayer(kAudioFile, kVideoFile,
-                               kSbPlayerOutputModeDecodeToTexture)) {
-    state.SkipWithError("Player initialization failed");
+  if (!InitializeAndPreroll(&helper, &state)) {
     return;
   }
-
-  // Initial preroll
-  helper.FeedData(kFeedDurationUs);
-
-  // Wait for initial presenting to ensure player is stable
-  int ticket = helper.GetCurrentTicket();
-  helper.WaitForPlayerState(kSbPlayerStatePresenting, ticket);
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -52,8 +81,9 @@ void BM_PlayerSeekSync(::benchmark::State& state) {
 
     state.PauseTiming();
     // Feed data from seek target (1s) to target + 2s (3s)
-    helper.FeedData(kSeekTargetUs + kFeedDurationUs);
-    helper.WaitForPlayerState(kSbPlayerStatePresenting, next_ticket);
+    if (!FeedAndWaitForPresenting(&helper, next_ticket, &state)) {
+      break;
+    }
     state.ResumeTiming();
   }
 }
@@ -61,16 +91,9 @@ BENCHMARK(BM_PlayerSeekSync)->Iterations(20);
 
 void BM_PlayerSeekAsync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
-  if (!helper.InitializePlayer(kAudioFile, kVideoFile,
-                               kSbPlayerOutputModeDecodeToTexture)) {
-    state.SkipWithError("Player initialization failed");
+  if (!InitializeAndPreroll(&helper, &state)) {
     return;
   }
-
-  // Initial preroll
-  helper.FeedData(kFeedDurationUs);
-  int ticket = helper.GetCurrentTicket();
-  helper.WaitForPlayerState(kSbPlayerStatePresenting, ticket);
 
   for (auto _ : state) {
     int next_ticket = helper.PrepareSeek(kSeekTargetUs);
@@ -79,8 +102,9 @@ void BM_PlayerSeekAsync(::benchmark::State& state) {
     auto start = std::chrono::high_resolution_clock::now();
 
     SbPlayerSeek(helper.GetPlayer(), kSeekTargetUs, next_ticket);
-    helper.FeedData(kSeekTargetUs + kFeedDurationUs);
-    helper.WaitForPlayerState(kSbPlayerStatePresenting, next_ticket);
+    if (!FeedAndWaitForPresenting(&helper, next_ticket, &state)) {
+      break;
+    }
 
     auto end = std::chrono::high_resolution_clock::now();
 
