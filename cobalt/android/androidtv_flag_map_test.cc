@@ -90,10 +90,10 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceDeviceScaleFactor));
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-  EXPECT_EQ("64",
-            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+  EXPECT_EQ("64", cmd_line.GetSwitchValueASCII(
+                      blink::switches::kForceGpuMemAvailableMb));
 #else
-  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceGpuMemAvailableMb));
+  EXPECT_FALSE(cmd_line.HasSwitch(blink::switches::kForceGpuMemAvailableMb));
 #endif
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableFeatures));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableFeatures));
@@ -141,8 +141,8 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
   EXPECT_TRUE(cmd_line.HasSwitch(
       ::switches::kDisableGpuMemoryBufferCompositorResources));
-  EXPECT_EQ("256",
-            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+  EXPECT_EQ("256", cmd_line.GetSwitchValueASCII(
+                       blink::switches::kForceGpuMemAvailableMb));
   EXPECT_EQ("500",
             cmd_line.GetSwitchValueASCII(::switches::kCCImageCacheLimitItems));
   EXPECT_EQ("32",
@@ -212,8 +212,8 @@ TEST(AndroidTvFlagMapTest, UserProvidedSwitchesTakePrecedence) {
               "DisableLessAggressiveParkableString,V8MaxOldSpaceSize=1024"),
       &cmd_line);
 
-  EXPECT_EQ("128",
-            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
+  EXPECT_EQ("128", cmd_line.GetSwitchValueASCII(
+                       blink::switches::kForceGpuMemAvailableMb));
   EXPECT_EQ("UserFeature,CobaltMmapFontCache",
             cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ("UserDisabledFeature,LessAggressiveParkableString",
