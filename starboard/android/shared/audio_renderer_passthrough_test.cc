@@ -95,8 +95,7 @@ class ThrottledAudioTrack : public FakeAudioTrack {
 
   int WriteSample(span<const uint8_t> buffer, int64_t sync_time) override {
     size_t bytes_to_write = std::min(buffer.size(), max_bytes_per_write_);
-    return FakeAudioTrack::WriteSample(make_span(buffer.data(), bytes_to_write),
-                                       sync_time);
+    return FakeAudioTrack::WriteSample(buffer.first(bytes_to_write), sync_time);
   }
 
  private:
