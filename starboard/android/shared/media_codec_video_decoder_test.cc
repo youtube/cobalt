@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/media_codec_video_decoder.h"
 
+#include <android/api-level.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -23,9 +25,12 @@
 
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/testing/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -91,8 +96,20 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     // Setup sink to avoid crashes in Tick() on decoder thread
     auto sink = decoder_->GetSink();
     ASSERT_NE(sink, nullptr);
-    sink->SetRenderCB(
-        [](const VideoRendererSink::DrawFrameCB& draw_frame_cb) {});
+    sink->SetRenderCB([this](
+                          const VideoRendererSink::DrawFrameCB& draw_frame_cb) {
+      std::lock_guard lock(render_mutex_);
+      while (!frames_to_draw_.empty()) {
+        scoped_refptr<VideoFrame> frame = std::move(frames_to_draw_.front());
+        frames_to_draw_.pop_front();
+        draw_frame_cb(frame, frame->timestamp() * 1000);
+      }
+    });
+  }
+
+  void QueueFrameForDraw(const scoped_refptr<VideoFrame>& frame) {
+    std::lock_guard lock(render_mutex_);
+    frames_to_draw_.push_back(frame);
   }
 
   scoped_refptr<InputBuffer> CreateDummyVideoInputBuffer(
@@ -137,6 +154,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   std::atomic<bool> error_called_{false};
 
   std::mutex callback_mutex_;
+  std::mutex render_mutex_;
+  std::deque<scoped_refptr<VideoFrame>> frames_to_draw_;
   int need_more_input_count_ = 0;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
@@ -404,6 +423,270 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
   EXPECT_FALSE(error_called_);
 }
+
+#if !BUILDFLAG(IS_STARBOARD)
+class TestVideoSurfaceObserver : public VideoSurfaceHolder::TestObserver {
+ public:
+  TestVideoSurfaceObserver() {
+    VideoSurfaceHolder::SetTestObserverForTesting(this);
+  }
+  ~TestVideoSurfaceObserver() override {
+    VideoSurfaceHolder::SetTestObserverForTesting(nullptr);
+  }
+
+  void OnCleanUpVideoSurface() override { clean_up_count_++; }
+  void OnSetVideoSurfaceVisible(bool visible) override {
+    std::lock_guard lock(mutex_);
+    visibility_changes_.push_back(visible);
+  }
+  void OnShowVideoSurfaceWithNextFrame() override {
+    show_with_next_frame_count_++;
+  }
+
+  int clean_up_count() const { return clean_up_count_.load(); }
+  int show_with_next_frame_count() const {
+    return show_with_next_frame_count_.load();
+  }
+  std::vector<bool> visibility_changes() const {
+    std::lock_guard lock(mutex_);
+    return visibility_changes_;
+  }
+
+ private:
+  std::atomic<int> clean_up_count_{0};
+  std::atomic<int> show_with_next_frame_count_{0};
+  mutable std::mutex mutex_;
+  std::vector<bool> visibility_changes_;
+};
+
+TEST_F(MediaCodecVideoDecoderTest,
+       SurfaceCleanupDefaultUsesCleanUpVideoSurface) {
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  auto released = fake_codec->ConsumeReleasedOutputs();
+  ASSERT_EQ(released.size(), 1U);
+  EXPECT_TRUE(released[0].render);
+  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
+  EXPECT_TRUE(observer.visibility_changes().empty());
+
+  decoder_.reset();
+  EXPECT_EQ(observer.clean_up_count(), 1);
+  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    ApplyTransactionToFrameOnSurfaceCleanupHidesOnTeardownAndShowsOnFirstDraw) {
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  std::atomic<bool> draw_frames{false};
+  decoder_->Initialize(
+      [this, &draw_frames](VideoDecoder::Status status,
+                           const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream() && draw_frames.load()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  // Frame 0 is dropped without drawing: should not trigger
+  // ShowVideoSurfaceWithNextFrame().
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  auto released = fake_codec->ConsumeReleasedOutputs();
+  ASSERT_EQ(released.size(), 1U);
+  EXPECT_FALSE(released[0].render);
+  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
+
+  // Frame 1 is drawn: should trigger ShowVideoSurfaceWithNextFrame() on API 34+
+  // and Frame 2 should not trigger it a second time.
+  draw_frames.store(true);
+  fake_codec->SimulateOutputAvailable(1, 0, 0, 20000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  released = fake_codec->ConsumeReleasedOutputs();
+  ASSERT_EQ(released.size(), 1U);
+  EXPECT_TRUE(released[0].render);
+
+  fake_codec->SimulateOutputAvailable(2, 0, 0, 30000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  released = fake_codec->ConsumeReleasedOutputs();
+  ASSERT_EQ(released.size(), 1U);
+  EXPECT_TRUE(released[0].render);
+
+  if (android_get_device_api_level() >= 34) {
+    EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+    EXPECT_TRUE(observer.visibility_changes().empty());
+
+    decoder_.reset();
+    EXPECT_EQ(observer.clean_up_count(), 0);
+    EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  } else {
+    EXPECT_EQ(observer.show_with_next_frame_count(), 0);
+    decoder_.reset();
+    EXPECT_EQ(observer.clean_up_count(), 1);
+    EXPECT_TRUE(observer.visibility_changes().empty());
+  }
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    ApplyTransactionToFrameOnSurfaceCleanupHidesOnceAcrossResetForTeardownAndDestruction) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  // With enable_flush_during_seek=false, ResetForTeardown() tears down the
+  // codec and releases the surface before ~MediaCodecVideoDecoder() runs.
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/false);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+
+  decoder_->ResetForTeardown();
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+
+  decoder_.reset();
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ApplyTransactionToFrameOnSurfaceCleanupHidesAfterSeekResetBeforeReinit) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/false);
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+
+  // A seek with enable_flush_during_seek=false tears down the codec (setting
+  // owns_video_surface_=false). If the decoder is then destroyed before the
+  // next input buffer re-initializes the codec, the surface must still be
+  // hidden because a frame was drawn and the surface was not destroyed.
+  decoder_->Reset();
+  EXPECT_TRUE(observer.visibility_changes().empty());
+
+  decoder_.reset();
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    ApplyTransactionToFrameOnSurfaceCleanupDoesNotHideAfterSurfaceDestroyed) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+
+  // Simulate Android destroying the SurfaceView surface (e.g. on app suspend).
+  decoder_->OnSurfaceDestroyed();
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
+}
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 }  // namespace starboard
