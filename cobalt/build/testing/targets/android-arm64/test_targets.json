@@ -202,14 +202,12 @@
     "target": "testing/maneki/cobalt/kimono_tests:yts_dom_document_shield_custom_test",
     "runs_on": "device",
     "test_type": "yts_test",
-    "required": false,
     "build": false
   },
   {
     "target": "testing/maneki/cobalt/kimono_tests:yts_html_dom_element_shield_custom_test",
     "runs_on": "device",
     "test_type": "yts_test",
-    "required": false,
     "build": false
   }
 ]

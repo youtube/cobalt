@@ -179,7 +179,7 @@ runs:
             for json_report in "${json_reports[@]}"; do
               if [ -f "${json_report}" ]; then
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
-                  "${json_report}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" || true
+                  "${json_report}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
                 break
               fi
             done
@@ -199,7 +199,7 @@ runs:
                 has_logs=1
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
                   "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
-                  --fallback-suite "${test_target}" || true
+                  --fallback-suite "${test_target}"
                 break
               fi
             done
@@ -210,7 +210,7 @@ runs:
               echo "Logs exist for ${test_target} but no XML produced. Marking whole suite as crashed."
               python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
                 "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
-                --fallback-suite "${test_target}" || true
+                --fallback-suite "${test_target}"
               xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
             fi
           fi
