@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
-#if BUILDFLAG(IS_ANDROID)
-// The dependency is only added on Android.
-#include "starboard/shared/starboard/features_test_util.h"  // nogncheck
-#endif
 #include "starboard/system.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {
-#if BUILDFLAG(IS_ANDROID)
-  starboard::features::InitializeStarboardFeatureListWithDefaults();
-#endif
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;

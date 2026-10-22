@@ -15,8 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/command_line.h"
-#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -44,28 +42,43 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
   }
 };
 
+// Returns the --benchmark_* flags of the test command line, so that e.g.
+// --benchmark_filter can be passed through the test runner. gtest keeps a
+// copy of the original command line, and InitGoogleTest() leaves the flags it
+// does not recognize in it. Other flags are dropped as Google Benchmark
+// rejects flags it does not know. Runs only the player benchmarks unless a
+// filter is given explicitly.
+std::vector<std::string> GetBenchmarkArgs() {
+  std::vector<std::string> args = {"player_benchmarks"};
+  bool has_filter = false;
+  for (const std::string& arg : ::testing::internal::GetArgvs()) {
+    if (arg.rfind("--benchmark_", 0) == 0) {
+      args.push_back(arg);
+      has_filter |= arg.rfind("--benchmark_filter", 0) == 0;
+    }
+  }
+  if (!has_filter) {
+    args.push_back("--benchmark_filter=BM_Player");
+  }
+  return args;
+}
+
 }  // namespace
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
-  // Run only the player benchmarks unless a filter is passed explicitly.
-  std::string filter = "BM_Player";
-  const starboard::CommandLine* command_line =
-      starboard::testing::GetTestCommandLine();
-  if (command_line && command_line->HasSwitch("benchmark_filter")) {
-    filter = command_line->GetSwitchValue("benchmark_filter");
-  }
-
+  std::vector<std::string> args = GetBenchmarkArgs();
   // Google Benchmark may modify argc/argv.
-  std::string program_name = "player_benchmarks";
-  std::string filter_arg = "--benchmark_filter=" + filter;
-  std::vector<char*> argv = {program_name.data(), filter_arg.data(), nullptr};
+  std::vector<char*> argv;
+  for (std::string& arg : args) {
+    argv.push_back(arg.data());
+  }
+  argv.push_back(nullptr);
   int argc = static_cast<int>(argv.size()) - 1;
 
   ::benchmark::Initialize(&argc, argv.data());
   FailOnBenchmarkErrorReporter reporter;
   size_t benchmarks_run = ::benchmark::RunSpecifiedBenchmarks(&reporter);
-  EXPECT_GT(benchmarks_run, 0u)
-      << "No benchmark matched the filter '" << filter << "'";
+  EXPECT_GT(benchmarks_run, 0u) << "No benchmark matched the filter";
 }
 
 }  // namespace benchmark

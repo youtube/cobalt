@@ -67,11 +67,6 @@ target(_benchmark_type, "benchmark") {
   ]
   deps = cobalt_platform_dependencies
 
-  if (is_android) {
-    # benchmark_main.cc initializes the feature list on Android.
-    deps += [ "//starboard/shared/starboard:features_test_util" ]
-  }
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
