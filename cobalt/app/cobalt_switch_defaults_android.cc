@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/strings/string_util.h"
 #include "cc/base/features.h"
+#include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "content/common/features.h"  // nogncheck
@@ -69,6 +70,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Autoplay video with url.
       {::switches::kAutoplayPolicy,
        ::switches::autoplay::kNoUserGestureRequiredPolicy},
+      // Set default raster threads to 2 for smoother performance.
+      {::switches::kNumRasterThreads, "2"},
       // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
       {switches::kMaxHttpCacheSize, "26214400"},
       {blink::switches::kJavaScriptFlags,

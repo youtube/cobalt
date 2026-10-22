@@ -20,6 +20,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "media/base/media_switches.h"
@@ -44,6 +45,7 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
 
   EXPECT_EQ("no-user-gesture-required",
             cmd_line.GetSwitchValueASCII(::switches::kAutoplayPolicy));
+  EXPECT_EQ("2", cmd_line.GetSwitchValueASCII(::switches::kNumRasterThreads));
   EXPECT_EQ("26214400",
             cmd_line.GetSwitchValueASCII(switches::kMaxHttpCacheSize));
   EXPECT_EQ("--no-decommit-pooled-pages,--no-concurrent-marking",
