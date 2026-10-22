@@ -88,15 +88,12 @@ public class JavaSwitches {
   public static final String STARTUP_GUARD_INTERVAL_IN_SECONDS = "StartupGuardIntervalInSeconds";
 
   /**
-   * Enables Starboard lifecycle migration.
+   * Command-line switch set by C++ when the AndroidTvFlags.USE_STARBOARD_LIFECYCLE Java switch is
+   * enabled.
    *
-   * <p>Consumed in both layers: C++ expands it into USE_STARBOARD_LIFECYCLE_SWITCH, and Java
-   * (CobaltActivity) also reads the key directly. The key itself is defined in
-   * cobalt/android/androidtv_flags.h and aliased here for Java callers.
+   * <p>Java code must query this switch on the CommandLine instead of reading the Java switch key,
+   * so that it agrees with native (e.g. the key is ignored in crash-streak safe mode).
    */
-  public static final String USE_STARBOARD_LIFECYCLE = AndroidTvFlags.USE_STARBOARD_LIFECYCLE;
-
-  /** Command-line switch set by C++ when USE_STARBOARD_LIFECYCLE is enabled. */
   public static final String USE_STARBOARD_LIFECYCLE_SWITCH =
       CobaltSwitches.USE_STARBOARD_LIFECYCLE;
 
