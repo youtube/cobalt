@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
@@ -23,22 +21,26 @@
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/common/command_line.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-
-namespace starboard {
-namespace testing {
-std::unique_ptr<CommandLine> g_test_command_line;
-const CommandLine* GetTestCommandLine() {
-  return g_test_command_line.get();
-}
-}  // namespace testing
-}  // namespace starboard
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace testing {
+
+// Intentionally leaked, as objects with static storage duration have to be
+// trivially destructible.
+CommandLine* g_test_command_line = nullptr;
+
+const CommandLine* GetTestCommandLine() {
+  return g_test_command_line;
+}
+
+}  // namespace testing
+}  // namespace starboard
 
 extern "C" {
 bool IsTestExecutable() {
@@ -55,7 +57,7 @@ int RunTests(int argc, char** argv) {
 
 int InitAndRunAllTests(int argc, char** argv) {
   starboard::testing::g_test_command_line =
-      std::make_unique<starboard::CommandLine>(argc, argv);
+      new starboard::CommandLine(argc, argv);
 #if BUILDFLAG(IS_IOS_TVOS)
   std::vector<std::string> arg_strings;
   std::vector<char*> new_argv;
