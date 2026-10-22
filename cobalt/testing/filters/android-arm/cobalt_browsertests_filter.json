@@ -19,6 +19,7 @@
     "All/NavigationBrowserTestPaintHoldingSubframe.CrossOrigin/0",
     "All/NavigationBrowserTestPaintHoldingSubframe.CrossOrigin/1",
     "CobaltMetricsBrowserTest.*",
+    "CobaltMetricsDeduplicationEnabledBrowserTest.*",
     "CommitNavigationRaceBrowserTest.*",
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DocumentPolicyBrowserTest.FragmentAnchorEnabledByDocumentPolicy",
