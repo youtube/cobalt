@@ -398,6 +398,7 @@ public class CobaltActivityTest {
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
     CobaltContentBrowserClientJni.setInstanceForTesting(null);
+    JavaSwitches.setOverrideForTesting(null);
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -453,6 +454,7 @@ public class CobaltActivityTest {
   public void testSetupStartupGuard_CustomTimeout() throws Exception {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "45");
+    JavaSwitches.setOverrideForTesting(true);
     CobaltActivity activity = createActivityWithSwitches(switches);
 
     activity.setupStartupGuard();
@@ -485,6 +487,41 @@ public class CobaltActivityTest {
             .getNextScheduledTaskTime()
             .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_SafeMode_IgnoresCustomTimeout() throws Exception {
+    // Crash-streak safe mode: experiment configs are not applied, so a (possibly bad) interval
+    // from an experiment must not keep killing the app.
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "1");
+    JavaSwitches.setOverrideForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue(
+        "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay =
+        shadowLooper
+            .getNextScheduledTaskTime()
+            .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_SafeMode_DisabledStillHonored() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_STARTUP_GUARD, "");
+    JavaSwitches.setOverrideForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertFalse(
+        "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
   }
 
   // --- checkAndRetryOnNetworkOnline(), b/572816285 ---
