@@ -91,6 +91,7 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kCobaltRemoveUiPlaneDuringFullscreenVideo,
                    "destroy_buffers_delay",
                    base::Seconds(5));
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // When enabled, Cobalt persists Skia's compiled shaders (GrShaderCache) to the
 // GPU shader disk cache instead of disabling the disk cache. The other GPU disk
@@ -110,7 +111,27 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltGpuShaderDiskCache,
                    "CobaltGpuShaderDiskCache_size_kb",
                    2048);
-#endif  // BUILDFLAG(IS_ANDROID)
+
+// Delay in milliseconds before GpuDiskCacheReadHelper::LoadCache() starts
+// reading cached shader blobs from disk after the SimpleCache backend opens.
+// Deferring past the cold-start critical path avoids eMMC read and Mojo IPC
+// contention during initial startup while queueing any new Cache() writes until
+// the disk read finishes. Non-positive values load immediately.
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuShaderDiskCacheLoadDelayMs,
+                   &kCobaltGpuShaderDiskCache,
+                   "CobaltGpuShaderDiskCache_load_delay_ms",
+                   0);
+
+// Maximum number of cached shader entries to preload from disk during
+// GpuDiskCacheReadHelper::LoadCache(). Bounding the preload count caps
+// cold-start eMMC reads and browser-to-GPU Mojo IPCs when the on-disk cache
+// grows large. Non-positive values preload all entries.
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuShaderDiskCacheMaxPreloadEntries,
+                   &kCobaltGpuShaderDiskCache,
+                   "CobaltGpuShaderDiskCache_max_preload_entries",
+                   0);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // More aggressive behavior for the shader cache: increase size, and do not

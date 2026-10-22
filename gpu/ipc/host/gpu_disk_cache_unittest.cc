@@ -15,6 +15,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 namespace {
 
@@ -313,5 +319,79 @@ TEST_F(GpuDiskCacheTest, DestroyedCallbackCalledMultipleInstance) {
   run_loop.Run();
   EXPECT_TRUE(destroyed);
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(GpuDiskCacheTest, CobaltMaxPreloadEntriesAndHistograms) {
+  InitCache();
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+  net::TestCompletionCallback available_cb;
+  int rv = cache->SetAvailableCallback(available_cb.callback());
+  ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+
+  const std::string blob_1kb(1024, 'a');
+  cache->Cache(kCacheKey, blob_1kb);
+  cache->Cache(kCacheKey2, blob_1kb);
+  net::TestCompletionCallback complete_cb;
+  rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+  ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  EXPECT_EQ(2, cache->Size());
+
+  // Re-open with max_preload_entries = 1 and verify only 1 entry (1 KB) is
+  // preloaded at startup.
+  cache = nullptr;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeaturesAndParameters(
+      {{::features::kCobaltGpuShaderDiskCache,
+        {{::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.name, "1"}}}},
+      {});
+  base::HistogramTester histogram_tester;
+  int loaded_calls = 0;
+  cache = factory()->Create(
+      handle_,
+      base::BindLambdaForTesting(
+          [&loaded_calls](const GpuDiskCacheHandle&, const std::string&,
+                          const std::string&) { ++loaded_calls; }));
+  ASSERT_TRUE(cache.get() != nullptr);
+  net::TestCompletionCallback available_cb2;
+  int rv2 = cache->SetAvailableCallback(available_cb2.callback());
+  ASSERT_EQ(net::OK, available_cb2.GetResult(rv2));
+  EXPECT_EQ(1, loaded_calls);
+
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.GpuShaderCache.LoadDuration", 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.GpuShaderCache.LoadedEntriesCount", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Storage.GpuShaderCache.LoadedBytesKB", 1, 1);
+}
+
+TEST_F(GpuDiskCacheTest, CobaltQueuesWritesDuringDeferredLoadCache) {
+  InitCache();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeaturesAndParameters(
+      {{::features::kCobaltGpuShaderDiskCache,
+        {{::features::kCobaltGpuShaderDiskCacheLoadDelayMs.name, "10"}}}},
+      {});
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+
+  // Queue a Cache() write before LoadCache() completes (while
+  // !cache_available_).
+  cache->Cache(kCacheKey, kCacheValue);
+
+  net::TestCompletionCallback available_cb;
+  int rv = cache->SetAvailableCallback(available_cb.callback());
+  ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+
+  net::TestCompletionCallback complete_cb;
+  rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+  ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  EXPECT_EQ(1, cache->Size());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu

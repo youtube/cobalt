@@ -11,9 +11,15 @@
 #include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
+#include "build/build_config.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
 #include "gpu/ipc/common/gpu_preferences.mojom.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gpu {
 
@@ -51,19 +57,28 @@ size_t GetDefaultGpuDiskCacheSize() {
   cache_size = base::SysInfo::IsLowEndDevice()
                    ? kLowEndMaxProgramCacheMemoryBytes
                    : kDefaultMaxProgramCacheMemoryBytes;
+#endif  // !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+  const bool cobalt_shader_disk_cache_enabled =
+      base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache);
+  if (cobalt_shader_disk_cache_enabled) {
     const int size_kb = ::features::kCobaltGpuShaderDiskCacheSizeKb.Get();
     if (size_kb > 0) {
       cache_size = static_cast<size_t>(size_kb) * 1024;
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   if (base::FeatureList::IsEnabled(::features::kAggressiveShaderCacheLimits)) {
     cache_size *= 2;
   }
+#if BUILDFLAG(IS_COBALT)
+  base::UmaHistogramCounts100000(
+      "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB",
+      cobalt_shader_disk_cache_enabled
+          ? base::saturated_cast<int>(cache_size / 1024)
+          : 0);
+#endif  // BUILDFLAG(IS_COBALT)
   return cache_size;
 }
 

@@ -31,9 +31,15 @@ GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
 GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                       kCobaltRemoveUiPlaneDestroyBuffersDelay);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuShaderDiskCache);
 GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuShaderDiskCacheSizeKb);
-#endif  // BUILDFLAG(IS_ANDROID)
+GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kCobaltGpuShaderDiskCacheLoadDelayMs);
+GPU_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltGpuShaderDiskCacheMaxPreloadEntries);
 #endif  // BUILDFLAG(IS_COBALT)
 
 // All features in alphabetical order. The features should be documented
