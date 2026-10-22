@@ -406,10 +406,7 @@ public class AudioTrackBridge {
       mAvSyncHeader = null;
       mAvSyncPacketBytesRemaining = 0;
       synchronized (mPositionLock) {
-        mHasRawFramePosition = false;
-        mLastRawFramePosition = 0;
-        mUnwrappedFramePosition = 0;
-        mMaxFramePositionSoFar = 0;
+        resetFramePosition();
       }
     } catch (Throwable t) {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
@@ -528,21 +525,7 @@ public class AudioTrackBridge {
       }
 
       if (success) {
-        // Only the low-order 32 bits of AudioTrack.getTimestamp() are valid, and the counter wraps
-        // at 2^32. Casting to int keeps those 32 bits, and 32-bit two's complement subtraction
-        // yields the correct signed distance across a wrap, e.g. 0x00000002 - 0xFFFFFFFE == 4.
-        // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-        int rawFramePosition = (int) mRawAudioTimestamp.framePosition;
-
-        if (!mHasRawFramePosition) {
-          mHasRawFramePosition = true;
-          mUnwrappedFramePosition = Integer.toUnsignedLong(rawFramePosition);
-        } else {
-          mUnwrappedFramePosition += rawFramePosition - mLastRawFramePosition;
-        }
-        mLastRawFramePosition = rawFramePosition;
-        mMaxFramePositionSoFar = Math.max(mMaxFramePositionSoFar, mUnwrappedFramePosition);
-        mAudioTimestamp.mFramePosition = mMaxFramePositionSoFar;
+        mAudioTimestamp.mFramePosition = updateFramePosition(mRawAudioTimestamp.framePosition);
         mAudioTimestamp.mNanoTime = mRawAudioTimestamp.nanoTime;
       } else {
         // Time stamps haven't been updated yet, or transient failure; return last known
@@ -553,6 +536,33 @@ public class AudioTrackBridge {
     }
 
     return mAudioTimestamp;
+  }
+
+  @GuardedBy("mPositionLock")
+  private long updateFramePosition(long rawFramePosition) {
+    // Only the low-order 32 bits of AudioTrack.getTimestamp() are valid, and the counter wraps
+    // at 2^32. Casting to int keeps those 32 bits, and 32-bit two's complement subtraction
+    // yields the correct signed distance across a wrap, e.g. 0x00000002 - 0xFFFFFFFE == 4.
+    // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
+    int raw = (int) rawFramePosition;
+    if (!mHasRawFramePosition) {
+      // The first sample after creation or flush() is the absolute position.
+      mHasRawFramePosition = true;
+      mUnwrappedFramePosition = Integer.toUnsignedLong(raw);
+    } else {
+      mUnwrappedFramePosition += raw - mLastRawFramePosition;
+    }
+    mLastRawFramePosition = raw;
+    mMaxFramePositionSoFar = Math.max(mMaxFramePositionSoFar, mUnwrappedFramePosition);
+    return mMaxFramePositionSoFar;
+  }
+
+  @GuardedBy("mPositionLock")
+  private void resetFramePosition() {
+    mHasRawFramePosition = false;
+    mLastRawFramePosition = 0;
+    mUnwrappedFramePosition = 0;
+    mMaxFramePositionSoFar = 0;
   }
 
   @CalledByNative
