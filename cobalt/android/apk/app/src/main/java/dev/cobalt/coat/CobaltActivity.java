@@ -873,11 +873,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return this.mJavaSwitches;
   }
 
+  /**
+   * Returns whether the Starboard lifecycle is in use.
+   *
+   * <p>Reads only the command-line switch, which C++ sets from the USE_STARBOARD_LIFECYCLE Java
+   * switch. Do not read the Java switch key directly: in crash-streak safe mode the key is still
+   * present but no experiment switches are applied, so native starts with the default lifecycle.
+   * Driving the Starboard lifecycle from Java in that state crashes the browser on every launch.
+   * All callers run after the native library is loaded, when CommandLine is native-backed.
+   */
   @Override
   public boolean useStarboardLifeCycle() {
-    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)
-        || (CommandLine.isInitialized()
-            && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
+    return CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
   }
 
   /**
