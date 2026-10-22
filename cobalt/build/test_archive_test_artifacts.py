@@ -171,6 +171,46 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     tar_cmd = mock_call.call_args_list[1][0][0]
     self.assertIn('tar', tar_cmd)
 
+  @mock.patch('os.path.getsize', return_value=1024)
+  @mock.patch('subprocess.check_call')
+  def test_create_archive_browsertests_loader_android(self, mock_call,
+                                                      unused_mock_getsize):
+    target_path = 'cobalt/testing/browser_tests'
+    target_name = 'cobalt_browsertests_loader'
+    deps_dir = os.path.join(self.out_dir, 'starboard', 'gen.runtime',
+                            target_path)
+    os.makedirs(deps_dir, exist_ok=True)
+    deps_file = os.path.join(deps_dir,
+                             f'{target_name}__test_runner_script.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('cobalt_browsertests_loader_apk/cobalt_browsertests_loader.apk\n')
+      f.write('./libcobalt_browsertests.so\n')
+      f.write('cobalt_shell.pak.info\n')
+      f.write('starboard/obj/cobalt/aosp/cobalt_apk_java.javac.jar\n')
+      f.write('../../cobalt/test/data/file.txt\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'{target_path}:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=True,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertEqual(mock_call.call_count, 2)
+    collect_cmd = mock_call.call_args_list[0][0][0]
+    self.assertIn('collect_test_artifacts.py', collect_cmd[1])
+    self.assertIn('cobalt_browsertests_host_deps.tar.gz', collect_cmd)
+
+    tar_cmd = mock_call.call_args_list[1][0][0]
+    self.assertIn('tar', tar_cmd)
+    self.assertIn(
+        os.path.join(self.dest_dir, 'cobalt_browsertests_loader_deps.tar.gz'),
+        tar_cmd)
+
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_relative_paths(self, mock_make_tar):
     # Regression test for relative paths.

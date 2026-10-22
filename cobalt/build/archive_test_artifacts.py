@@ -38,6 +38,8 @@ _EXCLUDE_DIRS_JUNIT = [
 
 _EXCLUDE_EXTENSIONS = ('.map',)
 
+_EXCLUDE_EXTENSIONS_ANDROID = ('.apk', '.jar', '.pak.info', '.so')
+
 # Secondary toolchains write their outputs to a subfolder of the out dir.
 _TOOLCHAIN_SUBDIRS = ('starboard', 'native_target')
 
@@ -202,7 +204,9 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests'):
+    if target.endswith(':cobalt_browsertests') or (
+        use_android_deps_path and
+        target.endswith(':cobalt_browsertests_loader')):
       if not use_android_deps_path:
         _handle_browsertests(source_dir, out_dir, destination_dir, compression)
         # If this was the only target, we are done.
@@ -278,6 +282,9 @@ def create_archive(
           continue
 
         if line.endswith(_EXCLUDE_EXTENSIONS):
+          continue
+
+        if use_android_deps_path and line.endswith(_EXCLUDE_EXTENSIONS_ANDROID):
           continue
 
         # Skip redundant compressed libraries if uncompressed .so is included.
