@@ -204,7 +204,7 @@ void MediaCodecBridge::Initialize(
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
+span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -273,7 +273,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
+span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
