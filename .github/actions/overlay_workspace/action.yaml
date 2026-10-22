@@ -3,7 +3,6 @@ description: Layers a pre-warmed golden workspace using fuse-overlayfs for zero-
 
 inputs:
   path:
-    # TODO: Verify destination path changes / remove temporary test modifications before production
     description: Destination path (e.g. cobalt).
     required: true
   platform:

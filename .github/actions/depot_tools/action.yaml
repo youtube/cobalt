@@ -173,7 +173,6 @@ runs:
       # Publish only when a sync actually happened (DEPS or .gclient changed, or
       # no usable snapshot existed), and only from one config per platform: the
       # snapshot is taken before the build, so its content is config-independent.
-      # TODO: Remove workflow_dispatch testing condition before production
       id: publish-snapshot
       if: |
         inputs.run_sync == 'true' &&
