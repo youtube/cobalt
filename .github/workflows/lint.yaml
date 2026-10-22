@@ -12,6 +12,7 @@ on:
       - main
       - experimental/*
       - feature/*
+  merge_group:
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -82,7 +83,7 @@ jobs:
   lint:
     name: Pre-Commit
     needs: initialize
-    if: github.event_name == 'pull_request' && github.event.action != 'edited'
+    if: (github.event_name == 'pull_request' && github.event.action != 'edited') || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/youtube/cobalt/pre-commit:${{ needs.initialize.outputs.docker_content_sha }}
@@ -110,13 +111,25 @@ jobs:
 
   check-bug-id:
     name: Bug ID Check
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Bug ID Check
+        if: github.event_name == 'pull_request'
         uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee # v2.0.0
         with:
           accessToken: ${{ secrets.GITHUB_TOKEN }}
           pattern: '^(Bug|Fix|Fixed|Fixes|Issue): \d+$'
           flags: 'gm'
           error: 'PR title or description should include at least one bug ID.'
+      - name: Bug ID Check (Merge Queue)
+        if: github.event_name == 'merge_group'
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.merge_group.head_commit.message }}
+        run: |
+          set -euo pipefail
+          if ! grep -Eq '^(Bug|Fix|Fixed|Fixes|Issue): [0-9]+$' <<< "${COMMIT_MESSAGE//$'\r'/}"; then
+            echo "::error::Commit message should include at least one bug ID."
+            exit 1
+          fi

@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'stack/**'
+  merge_group:
   workflow_dispatch:
     inputs:
       nightly:
