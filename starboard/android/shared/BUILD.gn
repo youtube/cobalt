@@ -435,13 +435,14 @@ static_library("test_support") {
 
   deps = [
     ":starboard_platform",
-    "//starboard/shared/starboard:features_test_util",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
   ]
 
   sources = [
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
     "fake_audio_track.cc",
     "fake_audio_track.h",
     "fake_media_codec.cc",
