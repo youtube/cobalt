@@ -94,12 +94,6 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
           "A SourceBuffer isn't in this MediaSource's sourceBuffers.");
       return EmptyPromise();
     }
-    if (source_buffer->updating()) {
-      LogAndThrowDOMException(exception_state,
-                              DOMExceptionCode::kInvalidStateError,
-                              "A SourceBuffer is updating.");
-      return EmptyPromise();
-    }
   }
 
   // Switch the streams that playback reads.
