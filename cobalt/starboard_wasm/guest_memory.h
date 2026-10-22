@@ -34,6 +34,7 @@ namespace starboard_wasm {
 // bound with bindMemory(), for the duration of one import call. Memory can
 // grow between calls, so the backing store is looked up once per call, on
 // first use. Reads copy, so the guest can't change what was validated.
+// Stack-allocated for one call, on the calling thread.
 class GuestMemory {
   STACK_ALLOCATED();
 

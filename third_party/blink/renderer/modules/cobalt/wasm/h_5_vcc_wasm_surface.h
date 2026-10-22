@@ -26,7 +26,8 @@ namespace blink {
 class H5vccWasmImports;
 
 // Implements h_5_vcc_wasm_surface.idl on
-// cobalt::starboard_wasm::WasmPlayerHost.
+// cobalt::starboard_wasm::WasmPlayerHost. Owned by H5vccWasmImports and used
+// only on its ExecutionContext's thread.
 class H5vccWasmSurface final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
