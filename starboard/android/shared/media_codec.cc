@@ -94,7 +94,10 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   }
 
   const bool must_support_secure = platform_options.require_secured_decoder;
-  const bool must_support_hdr = color_metadata;
+  // MediaCapabilitiesCache uses the HDR profiles to tell whether a decoder
+  // supports 10-bit, so 10-bit SDR video asks for one too.
+  const bool must_support_hdr =
+      color_metadata || platform_options.is_high_bit_depth;
   const bool must_support_tunnel_mode =
       platform_options.tunnel_mode_audio_session_id.has_value();
 
@@ -102,7 +105,7 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
           mime, must_support_secure, must_support_hdr,
           platform_options.require_software_codec, must_support_tunnel_mode);
-  if (decoder_name.empty() && color_metadata) {
+  if (decoder_name.empty() && must_support_hdr) {
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /*must_support_hdr=*/false,
         platform_options.require_software_codec, must_support_tunnel_mode);

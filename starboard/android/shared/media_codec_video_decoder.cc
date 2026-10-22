@@ -885,6 +885,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       video_stream_info.codec, video_stream_info.frame_size, max_video_size_,
       video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      video_stream_info.color_metadata.bits_per_channel > 8,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
