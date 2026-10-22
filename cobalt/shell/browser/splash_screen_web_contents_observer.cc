@@ -83,6 +83,9 @@ void SplashScreenWebContentsObserver::MediaStartedPlaying(
     const MediaPlayerId& id) {
   if (video_type.has_video) {
     NotifyStartupEvent(SplashScreenMetrics::Event::kSplashVideoStarted);
+    if (on_video_started_) {
+      on_video_started_.Run();
+    }
   }
 }
 
