@@ -17,7 +17,6 @@ on: # zizmor: ignore[dangerous-triggers]
         required: true
         type: choice
         options: [android, aosp, evergreen, linux, tvos]
-      # TODO: Remove workflow_run_id testing input before production
       workflow_run_id:
         description: 'Workflow run ID to publish golden refs from'
         required: false
@@ -321,7 +320,6 @@ jobs:
   publish-golden-workspace:
     name: Publish Golden Workspace Refs
     runs-on: ubuntu-latest
-    # TODO: Revert workflow_dispatch testing condition to push/main before production
     if: |
       (github.event.action || inputs.action) == 'completed' &&
       ((github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')) &&
@@ -334,7 +332,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          # TODO: Remove inputs.workflow_run_id fallback once experimental testing is complete
           WORKFLOW_ID: ${{ github.event.workflow_run.id || inputs.workflow_run_id }}
           GIT_USER: "github-actions[bot]"
           GIT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
