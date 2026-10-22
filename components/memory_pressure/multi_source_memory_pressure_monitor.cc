@@ -13,6 +13,11 @@
 #include "base/tracing_buildflags.h"
 #include "components/memory_pressure/system_memory_pressure_evaluator.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif
+
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/trace_event/memory_pressure_level_proto.h"  // no-presubmit-check
 #endif
@@ -53,6 +58,18 @@ MultiSourceMemoryPressureMonitor::CreateVoter() {
   return aggregator_.CreateVoter();
 }
 
+#if BUILDFLAG(IS_COBALT)
+base::TimeDelta MultiSourceMemoryPressureMonitor::GetCooldownPeriod() const {
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMemoryPressureCooldown)) {
+    int cooldown_sec =
+        base::features::kCobaltMemoryPressureCooldownSeconds.Get();
+    return base::Seconds(std::max(1, cooldown_sec));
+  }
+  return base::Seconds(60);
+}
+#endif
+
 void MultiSourceMemoryPressureMonitor::OnMemoryPressureLevelChanged(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -74,6 +91,23 @@ void MultiSourceMemoryPressureMonitor::OnMemoryPressureLevelChanged(
 
 void MultiSourceMemoryPressureMonitor::OnNotifyListenersRequested() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeDelta cooldown_period = GetCooldownPeriod();
+  bool is_in_cooldown = !last_dispatch_time_.is_null() &&
+                        (now - last_dispatch_time_) < cooldown_period;
+
+  // If memory pressure escalates to a higher severity than the last dispatched
+  // level, bypass the cooldown window immediately.
+  bool is_escalation = current_pressure_level_ > last_dispatched_level_;
+
+  if (is_in_cooldown && !is_escalation) {
+    return;
+  }
+
+  last_dispatch_time_ = now;
+  last_dispatched_level_ = current_pressure_level_;
+#endif
   dispatch_callback_.Run(current_pressure_level_);
 }
 

@@ -33,6 +33,7 @@ import android.view.KeyEvent;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
+import dev.cobalt.util.AndroidTvFlags;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -398,6 +399,9 @@ public class CobaltActivityTest {
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
     CobaltContentBrowserClientJni.setInstanceForTesting(null);
+    JavaSwitches.setOverrideForTesting(null);
+    // RobolectricTestRunner doesn't run ResettersForTesting, so reset CommandLine explicitly.
+    CommandLine.resetForTesting(false);
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -453,6 +457,7 @@ public class CobaltActivityTest {
   public void testSetupStartupGuard_CustomTimeout() throws Exception {
     Map<String, String> switches = new HashMap<>();
     switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "45");
+    JavaSwitches.setOverrideForTesting(true);
     CobaltActivity activity = createActivityWithSwitches(switches);
 
     activity.setupStartupGuard();
@@ -485,6 +490,76 @@ public class CobaltActivityTest {
             .getNextScheduledTaskTime()
             .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_SafeMode_IgnoresCustomTimeout() throws Exception {
+    // Crash-streak safe mode: experiment configs are not applied, so a (possibly bad) interval
+    // from an experiment must not keep killing the app.
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS, "1");
+    JavaSwitches.setOverrideForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertTrue(
+        "StartupGuard should be armed", StartupGuard.getInstance().isArmed());
+
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay =
+        shadowLooper
+            .getNextScheduledTaskTime()
+            .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
+    org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  @Test
+  public void testSetupStartupGuard_SafeMode_DisabledStillHonored() throws Exception {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(JavaSwitches.DISABLE_STARTUP_GUARD, "");
+    JavaSwitches.setOverrideForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(switches);
+
+    activity.setupStartupGuard();
+
+    org.junit.Assert.assertFalse(
+        "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
+  }
+
+  // --- useStarboardLifeCycle() ---
+
+  private static Map<String, String> createStarboardLifecycleSwitches() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(AndroidTvFlags.USE_STARBOARD_LIFECYCLE, "1");
+    return switches;
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_SwitchOnCommandLine_ReturnsTrue() {
+    CommandLine.resetForTesting(true);
+    CommandLine.getInstance().appendSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertTrue(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_KeyWithoutSwitch_ReturnsFalse() {
+    // Crash-streak safe mode: the Java switch key is still set, but no experiment switches are
+    // applied, so the command-line switch is absent and native uses the default lifecycle.
+    CommandLine.resetForTesting(true);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_CommandLineNotInitialized_ReturnsFalse() {
+    CommandLine.resetForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
   }
 
   // --- checkAndRetryOnNetworkOnline(), b/572816285 ---
