@@ -22,10 +22,23 @@ static_library("feature_list") {
     "features_extension.h",
   ]
 
-  deps = [
-    "//starboard/common",
-    "//starboard/extension:feature_config_header",
+  # features.h includes feature_config.h.
+  public_deps = [ "//starboard/extension:feature_config_header" ]
+  deps = [ "//starboard/common" ]
+}
+
+# Initializes the Starboard feature list with the defaults from
+# //starboard/extension/feature_config.h, for test and benchmark binaries that
+# run without the browser layer that normally provides the feature values.
+source_set("features_test_util") {
+  testonly = true
+
+  sources = [
+    "features_test_util.cc",
+    "features_test_util.h",
   ]
+
+  public_deps = [ ":feature_list" ]
 }
 
 source_set("starboard_test") {
