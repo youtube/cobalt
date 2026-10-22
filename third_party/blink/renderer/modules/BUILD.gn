@@ -218,6 +218,7 @@ component("modules") {
     if (use_starboard_media) {
       sub_modules += [
         "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
+        "//third_party/blink/renderer/modules/cobalt/wasm",
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
@@ -848,6 +849,11 @@ source_set("unit_tests") {
     "//ui/strings:ax_strings_grit",
     "//v8",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "cobalt/wasm/h_5_vcc_wasm_imports_test.cc" ]
+    deps += [ "//cobalt/starboard_wasm" ]
+  }
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.

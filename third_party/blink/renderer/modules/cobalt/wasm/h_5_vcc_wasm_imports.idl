@@ -1,0 +1,46 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Starboard APIs for WebAssembly. A Wasm module imports the operations
+// directly, with the receiver as the import's first (externref) parameter:
+//   const call = Function.prototype.call;
+//   const imports = {sb_player: {
+//     destroy: call.bind(H5vccWasmPlayer.prototype.destroy), ...}};
+//   // Wasm: (import "sb_player" "destroy" (func (param externref i32)))
+// With V8's --wasm-fast-api, optimized Wasm code calls these
+// [NoAllocDirectCall] operations without going through JavaScript.
+// Pointer arguments are byte offsets into the WebAssembly.Memory passed to
+// bindMemory(); without bound memory, or for an out-of-bounds range, the
+// operation fails. Records are defined in
+// cobalt/starboard_wasm/wasm_starboard_abi.h.
+// Disabled by default (see H5vccWasmImports in runtime_enabled_features.json5).
+// When enabled, only the outermost main frame and dedicated workers
+// same-origin with it get an instance; the attribute is null elsewhere.
+[
+    Exposed=(Window,DedicatedWorker),
+    RuntimeEnabled=H5vccWasmImports,
+    SecureContext
+]
+interface H5vccWasmImports : EventTarget {
+  [SameObject] readonly attribute H5vccWasmPlayer player;
+  [SameObject] readonly attribute H5vccWasmSurface surface;
+
+  // `object` stands in for WebAssembly.Memory, which Blink IDL cannot name;
+  // bindMemory() validates the type at runtime.
+  [CallWith=ScriptState, RaisesException] undefined bindMemory(object memory);
+
+  // Fired once after each player.requestWake(): as soon as an event is queued
+  // for player.pollEvents(), or right away if one already is.
+  attribute EventHandler onwake;
+};
