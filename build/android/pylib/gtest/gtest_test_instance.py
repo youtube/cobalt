@@ -44,8 +44,7 @@ RUN_IN_SUB_THREAD_TEST_SUITES = [
     'ipc_tests',
     'mojo_perftests',
     'mojo_unittests',
-    'net_unittests',
-    'player_benchmarks_gtest'
+    'net_unittests'
 ]
 
 
