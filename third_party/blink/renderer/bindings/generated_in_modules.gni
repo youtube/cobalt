@@ -3220,6 +3220,12 @@ if (is_cobalt && use_starboard_media) {
   generated_interface_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_oesegl_image_external.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_imports.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_imports.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_player.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_player.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_surface.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_wasm_surface.h",
   ]
 }
 if (is_cobalt && use_starboard_media && target_os_is_android) {

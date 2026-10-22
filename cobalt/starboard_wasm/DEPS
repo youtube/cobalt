@@ -1,0 +1,16 @@
+include_rules = [
+  "+cobalt/media/service/mojom",
+  "+media/base/starboard/sbmedia_interface.h",
+  "+media/starboard/sbplayer_interface.h",
+  "+mojo/public/cpp/bindings",
+  "+starboard",
+  "+ui/gfx/geometry",
+  "+v8/include",
+]
+
+specific_include_rules = {
+  ".*_unittest\\.cc": [
+    "+gin",
+    "+media/starboard/mock_sbplayer_interface.h",
+  ],
+}

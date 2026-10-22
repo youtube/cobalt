@@ -1,0 +1,134 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// SbPlayer and the SbMedia queries it needs, one operation per Starboard
+// function. Records are defined in cobalt/starboard_wasm/wasm_starboard_abi.h.
+// Inputs that would crash the process are rejected (false or 0) without
+// calling Starboard (see wasm_starboard_abi.h); the rest of Starboard's API
+// contract is the caller's to keep.
+// See h_5_vcc_wasm_imports.idl.
+[
+    Exposed=(Window,DedicatedWorker),
+    RuntimeEnabled=H5vccWasmImports,
+    SecureContext
+]
+interface H5vccWasmPlayer {
+  // StarboardExtensionExperimentalFeaturesConfigurationApi's
+  // SetExperimentalFeaturesForCurrentThread() with `count`
+  // WasmStarboardExperimentalFeatureEntry records at `entries`; call it before
+  // create() on the same thread, as for a native SbPlayer. False if the
+  // platform lacks the extension.
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean setExperimentalFeaturesForCurrentThread(unsigned long entries,
+                                                  unsigned long count);
+
+  // StarboardExtensionPlayerSettingsApi's functions of the same name; call
+  // them before create() on the same thread. An empty resolution clears it.
+  // False if the platform lacks the function. The settings, like the
+  // experimental features, are reset when the context is destroyed.
+  // SetVideoSurfaceViewForCurrentThread isn't exposed: it takes a JNI jobject.
+  [NoAllocDirectCall]
+  boolean setMaxVideoInputSizeForCurrentThread(long maxVideoInputSize);
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean setMaxVideoResolutionForCurrentThread(
+      unsigned long maxVideoResolution,
+      unsigned long maxVideoResolutionSize);
+
+  // SbPlayerCreate() with a WasmSbPlayerCreationParam, whose output mode must
+  // be kSbPlayerOutputModePunchOut. `surface` (0 for none)
+  // plays the role of SbWindow: it ties the player to a <video> element (see
+  // H5vccWasmSurface). Returns a player handle, or 0, e.g. while a previous
+  // player still holds the video surface; retry after its
+  // kWasmSbEventPlayerDestroyed. Handles aren't reused.
+  [CallWith=Isolate, NoAllocDirectCall]
+  unsigned long create(unsigned long surface,
+                       unsigned long creationParam,
+                       unsigned long creationParamSize);
+  // Afterwards the player reports only kWasmSbEventPlayerDestroyed.
+  [NoAllocDirectCall] undefined destroy(unsigned long player);
+
+  // `seekToTimestamp` is in microseconds, at most 2^53 in magnitude.
+  [NoAllocDirectCall]
+  boolean seek(unsigned long player, double seekToTimestamp, long ticket);
+
+  // Writes `count` WasmSbPlayerSampleInfo records starting at `sampleInfos`.
+  // Like writeEndOfStream(), allowed once per kSbPlayerDecoderStateNeedsData
+  // for the stream type; false otherwise, or if `count` exceeds
+  // getMaximumNumberOfSamplesPerWrite(). This limits writes to what Starboard
+  // asked for, counted in samples; a rejected write keeps the request.
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean writeSamples(unsigned long player,
+                       long sampleType,
+                       unsigned long sampleInfos,
+                       unsigned long count);
+  [NoAllocDirectCall]
+  boolean writeEndOfStream(unsigned long player, long streamType);
+
+  // Ignored once a <video> element has positioned the player's surface, except
+  // for `zIndex`, until the surface is destroyed.
+  [NoAllocDirectCall]
+  undefined setBounds(unsigned long player,
+                      long zIndex,
+                      long x,
+                      long y,
+                      long width,
+                      long height);
+  [NoAllocDirectCall]
+  boolean setPlaybackRate(unsigned long player, double playbackRate);
+  [NoAllocDirectCall]
+  undefined setVolume(unsigned long player, double volume);
+
+  // Writes a WasmSbPlayerInfo at `info`.
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean getInfo(unsigned long player, unsigned long info);
+  // Writes a WasmSbMediaAudioConfiguration at `out`; false also when
+  // Starboard has no output `index`.
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean getAudioConfiguration(unsigned long player,
+                                long index,
+                                unsigned long out);
+  // Copies up to `outSize` bytes of the message of the player's last
+  // kWasmSbEventPlayerError to `out` (not NUL-terminated) and returns its full
+  // length; 0 if there is none or `out` is out of bounds. Read it after the
+  // event; it is kept until destroy().
+  [CallWith=Isolate, NoAllocDirectCall]
+  unsigned long getErrorMessage(unsigned long player,
+                                unsigned long out,
+                                unsigned long outSize);
+  [NoAllocDirectCall]
+  long getMaximumNumberOfSamplesPerWrite(unsigned long player,
+                                         long sampleType);
+  [CallWith=Isolate, NoAllocDirectCall]
+  long getPreferredOutputMode(unsigned long creationParam,
+                              unsigned long creationParamSize);
+
+  [CallWith=Isolate, NoAllocDirectCall]
+  long canPlayMimeAndKeySystem(unsigned long mime,
+                               unsigned long mimeSize,
+                               unsigned long keySystem,
+                               unsigned long keySystemSize);
+  [CallWith=Isolate, NoAllocDirectCall]
+  boolean canChangeType(unsigned long currentMime,
+                        unsigned long currentMimeSize,
+                        unsigned long newMime,
+                        unsigned long newMimeSize);
+
+  // Arms one onwake of H5vccWasmImports.
+  [NoAllocDirectCall] undefined requestWake();
+
+  // Moves up to `count` queued WasmSbEvent records to `events`; returns how
+  // many.
+  [CallWith=Isolate, NoAllocDirectCall]
+  unsigned long pollEvents(unsigned long events, unsigned long count);
+};

@@ -145,6 +145,12 @@ RenderProcessImpl::RenderProcessImpl()
       std::string_view optimize_flag("--optimize-for-size");
       v8::V8::SetFlagsFromString(optimize_flag.data(), optimize_flag.size());
     }
+    // Lets Wasm call H5vccWasmImports' [NoAllocDirectCall] operations without
+    // going through JavaScript.
+    if (base::FeatureList::IsEnabled(blink::features::kH5vccWasmImports)) {
+      std::string_view fast_api_flag("--wasm-fast-api");
+      v8::V8::SetFlagsFromString(fast_api_flag.data(), fast_api_flag.size());
+    }
 #else
     if (base::SysInfo::IsLowEndDevice()) {
       std::string_view optimize_flag("--optimize-for-size");
