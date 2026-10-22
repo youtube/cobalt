@@ -100,6 +100,7 @@
     "H5vccMemory",
     "H5vccMetrics",
     "H5vccRuntime",
+    "H5vccWasmImports",
     "OnScreenKeyboard",
   ],
 }
