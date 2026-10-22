@@ -21,10 +21,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/filters/chunk_demuxer.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 using ::base::test::RunOnceClosure;
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -586,46 +582,5 @@ TEST_F(PipelineControllerTest, PreservesPitch) {
   EXPECT_CALL(*pipeline_, SetPreservesPitch(true));
   pipeline_controller_.SetPreservesPitch(true);
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-TEST_F(PipelineControllerTest,
-       MultiSourceBufferSwitchingDispatchesTrackChangesAndSeekRightAway) {
-  ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
-  Complete(StartPipeline());
-  was_seeked_ = false;
-
-  // Neither the second track change nor the seek waits for the track changes
-  // before them to complete.
-  base::OnceClosure video_track_change_cb;
-  base::OnceClosure audio_track_change_cb;
-  EXPECT_CALL(*pipeline_, OnSelectedVideoTrackChanged(_, _))
-      .WillOnce(MoveArg<1>(&video_track_change_cb));
-  pipeline_controller_.OnSelectedVideoTrackChanged(MediaTrack::Id("2"));
-  EXPECT_CALL(*pipeline_, OnEnabledAudioTracksChanged(_, _))
-      .WillOnce(MoveArg<1>(&audio_track_change_cb));
-  pipeline_controller_.OnEnabledAudioTracksChanged({MediaTrack::Id("1")});
-
-  const base::TimeDelta seek_time = base::TimeDelta();
-  PipelineStatusCallback seek_cb;
-  EXPECT_CALL(demuxer_, StartWaitingForSeek(seek_time));
-  EXPECT_CALL(*pipeline_, OnSeek(seek_time, _)).WillOnce(MoveArg<1>(&seek_cb));
-  pipeline_controller_.Seek(seek_time, true);
-  Mock::VerifyAndClear(pipeline_);
-  ASSERT_TRUE(seek_cb);
-
-  // The track changes complete during the seek, which then completes.
-  std::move(video_track_change_cb).Run();
-  std::move(audio_track_change_cb).Run();
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(was_seeked_);
-  EXPECT_FALSE(pipeline_controller_.IsStable());
-
-  Complete(std::move(seek_cb));
-  EXPECT_TRUE(was_seeked_);
-  EXPECT_TRUE(last_seeked_time_updated_);
-  EXPECT_TRUE(pipeline_controller_.IsStable());
-  ChunkDemuxer::SetEnableMultiSourceBufferSwitching(false);
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

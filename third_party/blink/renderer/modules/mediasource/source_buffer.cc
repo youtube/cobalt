@@ -225,36 +225,6 @@ bool GetAppendFirstSegmentSynchronouslySetting(
   return false;
 }
 
-// Returns true if a SourceBuffer of |source| other than |source_buffer| has an
-// enabled audio track.
-bool IsAudioTrackEnabledInOtherSourceBuffer(MediaSource* source,
-                                            const SourceBuffer* source_buffer) {
-  SourceBufferList* source_buffers = source->sourceBuffers();
-  for (unsigned i = 0; i < source_buffers->length(); ++i) {
-    SourceBuffer* other_source_buffer = source_buffers->item(i);
-    if (other_source_buffer != source_buffer &&
-        other_source_buffer->audioTracks().HasEnabledTrack()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Returns true if a SourceBuffer of |source| other than |source_buffer| has a
-// selected video track.
-bool IsVideoTrackSelectedInOtherSourceBuffer(
-    MediaSource* source,
-    const SourceBuffer* source_buffer) {
-  SourceBufferList* source_buffers = source->sourceBuffers();
-  for (unsigned i = 0; i < source_buffers->length(); ++i) {
-    SourceBuffer* other_source_buffer = source_buffers->item(i);
-    if (other_source_buffer != source_buffer &&
-        other_source_buffer->videoTracks().selectedIndex() != -1) {
-      return true;
-    }
-  }
-  return false;
-}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
@@ -1783,18 +1753,10 @@ bool SourceBuffer::InitializationSegmentReceived(
     // This is done in Chromium code, see MediaSourceState::OnNewConfigs.
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // Leave tracks of a queued SourceBuffer disabled until the page selects
-    // them so they do not replace the playing tracks.
-    // NOTE: This deviates from the MSE specification, which enables or selects
-    // the first track of each type in every SourceBuffer.
-    const bool multi_source_buffer_switching =
-        HTMLMediaElement::IsMultiSourceBufferSwitchingEnabled();
-    const bool may_enable_audio_track =
-        !multi_source_buffer_switching ||
-        !IsAudioTrackEnabledInOtherSourceBuffer(source_, this);
-    const bool may_select_video_track =
-        !multi_source_buffer_switching ||
-        !IsVideoTrackSelectedInOtherSourceBuffer(source_, this);
+    // The tracks of a standby SourceBuffer (MediaSource.addSourceBuffer(type,
+    // {standby: true})) stay disabled until MediaSource.changeTo() selects it.
+    const bool may_enable_audio_track = !standby_;
+    const bool may_select_video_track = !standby_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     // 5.2 For each audio track in the initialization segment, run following
@@ -2045,6 +2007,19 @@ bool SourceBuffer::PrepareAppend(double media_time,
                                     TRACE_ID_LOCAL(this));
     return false;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // MediaSource.changeTo() makes the SourceBuffers it switches away from
+  // read-only.
+  if (switched_away_) {
+    MediaSource::LogAndThrowDOMException(
+        exception_state, DOMExceptionCode::kInvalidStateError,
+        "This SourceBuffer was switched away from by MediaSource.changeTo().");
+    TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::prepareAppend",
+                                    TRACE_ID_LOCAL(this));
+    return false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 4. If the readyState attribute of the parent media source is in the "ended"
   //    state then run the following steps:

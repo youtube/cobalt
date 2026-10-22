@@ -55,10 +55,8 @@ enum AppendMode {
     // Applies an offset to media segment timestamps.
     [RaisesException=Setter] attribute double timestampOffset;
 
-    // Cobalt: CobaltAudioVideoTracks is on whenever AudioVideoTracks is, and is
-    // also enabled by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`.
-    [RuntimeEnabled=CobaltAudioVideoTracks] readonly attribute AudioTrackList audioTracks;
-    [RuntimeEnabled=CobaltAudioVideoTracks] readonly attribute VideoTrackList videoTracks;
+    [RuntimeEnabled=AudioVideoTracks] readonly attribute AudioTrackList audioTracks;
+    [RuntimeEnabled=AudioVideoTracks] readonly attribute VideoTrackList videoTracks;
 
     // Presentation timestamp for the start of append window.
     [RaisesException=Setter] attribute double appendWindowStart;

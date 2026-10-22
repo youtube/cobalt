@@ -569,21 +569,6 @@
       name: "AudioVideoTracks",
       status: "experimental",
     },
-    // Cobalt: gates the audio and video track APIs (the AudioTrack(List) and
-    // VideoTrack(List) interfaces and the audioTracks, videoTracks and
-    // sourceBuffer attributes), which pages use to switch between
-    // SourceBuffers. Disabled by default unless AudioVideoTracks is enabled;
-    // enabled at runtime through the H5VCC setting
-    // `Media.EnableMultiSourceBufferSwitching`, which force-enables the
-    // (token-less) origin trial on the calling document and flips the global
-    // flag for contexts created afterwards.
-    {
-      name: "CobaltAudioVideoTracks",
-      base_feature: "none",
-      implied_by: ["AudioVideoTracks"],
-      origin_trial_feature_name: "CobaltAudioVideoTracks",
-      public: true,
-    },
     {
       name: "AutoDarkMode",
       base_feature: "none",
@@ -3111,6 +3096,18 @@
     // trial on the calling document and flips the global flag for contexts
     // created afterwards.
     // TODO(b/571981376): Remove once experiments have run.
+    // Cobalt: MediaSource.changeTo() and standby SourceBuffers
+    // (addSourceBuffer(type, {standby})), for switching between SourceBuffers.
+    // Enabled at runtime through the H5VCC setting
+    // `Media.EnableMultiSourceBufferSwitching`, which force-enables the
+    // (token-less) origin trial on the calling document and the global flag
+    // for contexts created afterwards.
+    {
+      name: "MediaSourceChangeTo",
+      base_feature: "none",
+      origin_trial_feature_name: "MediaSourceChangeTo",
+      public: true,
+    },
     {
       name: "MediaSourceChangeType",
       base_feature: "none",

@@ -87,10 +87,8 @@ enum CanPlayTypeResult { "" /* empty string */, "maybe", "probably" };
     [CEReactions, Reflect=muted] attribute boolean defaultMuted;
 
     // tracks
-    // Cobalt: CobaltAudioVideoTracks is on whenever AudioVideoTracks is, and is
-    // also enabled by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`.
-    [SameObject, RuntimeEnabled=CobaltAudioVideoTracks] readonly attribute AudioTrackList audioTracks;
-    [SameObject, RuntimeEnabled=CobaltAudioVideoTracks] readonly attribute VideoTrackList videoTracks;
+    [SameObject, RuntimeEnabled=AudioVideoTracks] readonly attribute AudioTrackList audioTracks;
+    [SameObject, RuntimeEnabled=AudioVideoTracks] readonly attribute VideoTrackList videoTracks;
     [SameObject] readonly attribute TextTrackList textTracks;
     [RaisesException] TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
 

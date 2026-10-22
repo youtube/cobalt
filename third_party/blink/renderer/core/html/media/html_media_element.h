@@ -35,7 +35,6 @@
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "build/build_config.h"
 #include "media/mojo/mojom/media_player.mojom-blink.h"
 #include "media/renderers/remote_playback_client_wrapper.h"
 #include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
@@ -333,14 +332,6 @@ class CORE_EXPORT HTMLMediaElement
 
   static void SetTextTrackKindUserPreferenceForAllMediaElements(Document*);
   void AutomaticTrackSelectionForUpdatedUserPreference();
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Set by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`, which
-  // also enables media::ChunkDemuxer::SetEnableMultiSourceBufferSwitching().
-  // Gates the Blink side of switching between SourceBuffers of a MediaSource.
-  static void SetEnableMultiSourceBufferSwitching(bool enable);
-  static bool IsMultiSourceBufferSwitchingEnabled();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns the MediaControls, or null if they have not been added yet.
   // Note that this can be non-null even if there is no controls attribute.

@@ -27,43 +27,178 @@ namespace cobalt {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace {
 
-// Evaluates to true if the page has the audio and video track APIs, which it
-// uses to switch between SourceBuffers.
-constexpr char kHasTrackApis[] =
-    "['AudioTrack', 'AudioTrackList', 'VideoTrack', 'VideoTrackList'].every("
-    "    name => name in window) &&"
-    "['AudioTrack', 'VideoTrack'].every("
-    "    name => 'sourceBuffer' in window[name].prototype) &&"
-    "['audioTracks', 'videoTracks'].every("
-    "    name => name in HTMLMediaElement.prototype &&"
-    "            name in SourceBuffer.prototype)";
+// Evaluates to true if the page has the MediaSource API that it uses to switch
+// between SourceBuffers.
+constexpr char kHasChangeTo[] = "'changeTo' in MediaSource.prototype";
+
+// Loads the first of two items, buffers the second in standby SourceBuffers,
+// and switches to it with MediaSource.changeTo(). Evaluates to "OK", or throws.
+constexpr char kChangeToPlayback[] = R"JS(
+(async () => {
+'use strict';
+const video = document.createElement('video');
+document.body.appendChild(video);
+const AUDIO_TYPE = 'audio/webm; codecs="opus"';
+const VIDEO_TYPE = 'video/webm; codecs="vp9"';
+// The second item starts here, so the switch shows that playback starts over
+// where its media starts.
+const SECOND_START = 5;
+
+function check(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+async function fetchMedia(file) {
+  const response = await fetch(file);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+function append(sourceBuffer, data) {
+  return new Promise((resolve, reject) => {
+    sourceBuffer.addEventListener('updateend', resolve, {once: true});
+    sourceBuffer.addEventListener('error', reject, {once: true});
+    sourceBuffer.appendBuffer(data);
+  });
+}
+
+function waitFor(predicate, message) {
+  return new Promise((resolve, reject) => {
+    const deadline = performance.now() + 10000;
+    const poll = () => {
+      if (predicate()) {
+        resolve();
+      } else if (performance.now() > deadline) {
+        reject(new Error('Timed out waiting for ' + message));
+      } else {
+        setTimeout(poll, 20);
+      }
+    };
+    poll();
+  });
+}
+
+function activeSourceBuffers(mediaSource) {
+  return Array.from({length: mediaSource.activeSourceBuffers.length},
+                    (_, i) => mediaSource.activeSourceBuffers[i]);
+}
+
+async function run() {
+  await h5vcc.settings.set('Media.EnableMultiSourceBufferSwitching', 1);
+  check('changeTo' in MediaSource.prototype, 'changeTo() is not exposed');
+
+  const mediaSource = new MediaSource();
+  video.src = URL.createObjectURL(mediaSource);
+  await new Promise(
+      resolve => mediaSource.addEventListener('sourceopen', resolve,
+                                              {once: true}));
+  const audioData = await fetchMedia('/bear-opus.webm');
+  const videoData = await fetchMedia('/bear-vp9.webm');
+
+  // The first item plays now.
+  const audio1 = mediaSource.addSourceBuffer(AUDIO_TYPE);
+  const video1 = mediaSource.addSourceBuffer(VIDEO_TYPE);
+  await append(audio1, audioData);
+  await append(video1, videoData);
+
+  // The second item buffers in standby SourceBuffers.
+  const audio2 = mediaSource.addSourceBuffer(AUDIO_TYPE, {standby: true});
+  const video2 = mediaSource.addSourceBuffer(VIDEO_TYPE, {standby: true});
+  audio2.timestampOffset = SECOND_START;
+  video2.timestampOffset = SECOND_START;
+  await append(audio2, audioData);
+  await append(video2, videoData);
+  let active = activeSourceBuffers(mediaSource);
+  check(active.length == 2 && active.includes(audio1) &&
+            active.includes(video1),
+        'Standby SourceBuffers are active');
+
+  // The browser test environment doesn't render video, so the test switches
+  // while paused, once the pipeline has started.
+  await waitFor(() => video.readyState >= HTMLMediaElement.HAVE_METADATA,
+                'the first item to load');
+
+  // Two SourceBuffers of the same type can't be changed to.
+  let rejected = false;
+  try {
+    await mediaSource.changeTo([video1, video2]);
+  } catch (e) {
+    rejected = e.name == 'NotSupportedError';
+  }
+  check(rejected, 'changeTo() with two video SourceBuffers did not reject');
+
+  // Switch to the second item.
+  await mediaSource.changeTo([audio2, video2]);
+  active = activeSourceBuffers(mediaSource);
+  check(active.length == 2 && active.includes(audio2) &&
+            active.includes(video2),
+        'activeSourceBuffers was not updated');
+
+  // The SourceBuffers switched away from are read-only.
+  let threw = false;
+  try {
+    audio1.appendBuffer(audioData);
+  } catch (e) {
+    threw = e.name == 'InvalidStateError';
+  }
+  check(threw, 'appendBuffer() on a switched-away SourceBuffer did not throw');
+
+  // Playback starts over where the second item's media starts: changeTo()
+  // seeks there. (The seek doesn't complete here: the browser test environment
+  // doesn't preroll video.)
+  check(video.seeking, 'changeTo() did not seek');
+  check(video.currentTime >= SECOND_START && video.currentTime < SECOND_START + 1,
+        'Playback did not start over at the second item: ' + video.currentTime);
+  check(!video.error, 'The video element has an error');
+
+  // The SourceBuffers switched away from can be removed.
+  mediaSource.removeSourceBuffer(audio1);
+  mediaSource.removeSourceBuffer(video1);
+  return 'OK';
+}return await run();
+})()
+)JS";
 
 }  // namespace
 
 using H5vccSettingsBrowserTest = content::ContentBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(H5vccSettingsBrowserTest,
-                       MultiSourceBufferSwitchingExposesTrackApis) {
+                       MultiSourceBufferSwitchingExposesChangeTo) {
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(),
                             embedded_test_server()->GetURL("/title1.html")));
   EXPECT_FALSE(
-      content::EvalJs(shell()->web_contents(), kHasTrackApis).ExtractBool());
+      content::EvalJs(shell()->web_contents(), kHasChangeTo).ExtractBool());
 
-  // The setting exposes the track APIs on the current page.
+  // The setting exposes changeTo() on the current page.
   EXPECT_TRUE(content::EvalJs(
                   shell()->web_contents(),
                   base::StrCat({"h5vcc.settings.set("
                                 "'Media.EnableMultiSourceBufferSwitching', 1)"
                                 ".then(() => ",
-                                kHasTrackApis, ")"}))
+                                kHasChangeTo, ")"}))
                   .ExtractBool());
 
   // And on pages loaded afterwards.
   ASSERT_TRUE(NavigateToURL(shell()->web_contents(),
                             embedded_test_server()->GetURL("/title2.html")));
   EXPECT_TRUE(
-      content::EvalJs(shell()->web_contents(), kHasTrackApis).ExtractBool());
+      content::EvalJs(shell()->web_contents(), kHasChangeTo).ExtractBool());
+}
+
+// With the setting on, a page can buffer the next item in standby
+// SourceBuffers and switch to it with MediaSource.changeTo(). Playback starts
+// over where the next item's media starts.
+IN_PROC_BROWSER_TEST_F(H5vccSettingsBrowserTest,
+                       MultiSourceBufferSwitchingChangeTo) {
+  // The media test files, in codecs that every Starboard platform decodes.
+  embedded_test_server()->ServeFilesFromSourceDirectory("media/test/data");
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(),
+                            embedded_test_server()->GetURL("/title1.html")));
+  EXPECT_EQ(content::EvalJs(shell()->web_contents(), kChangeToPlayback), "OK");
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

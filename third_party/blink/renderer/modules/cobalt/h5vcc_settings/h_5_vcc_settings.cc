@@ -39,7 +39,6 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/filters/chunk_demuxer.h"
 #include "media/starboard/decoder_buffer_allocator.h"
-#include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
@@ -154,10 +153,10 @@ bool ExposeSourceBufferChangeType(ExecutionContext* execution_context) {
   return true;
 }
 
-// Exposes the audio and video track APIs, which pages use to switch between
-// SourceBuffers. They are hidden by default behind the CobaltAudioVideoTracks
-// runtime feature.
-bool ExposeAudioVideoTracks(ExecutionContext* execution_context) {
+// Exposes MediaSource.changeTo() and standby SourceBuffers, which pages use to
+// switch between SourceBuffers. They are hidden by default behind the
+// MediaSourceChangeTo runtime feature.
+bool ExposeMediaSourceChangeTo(ExecutionContext* execution_context) {
   if (!execution_context) {
     return false;
   }
@@ -166,10 +165,10 @@ bool ExposeAudioVideoTracks(ExecutionContext* execution_context) {
     return false;
   }
 
-  WebRuntimeFeatures::EnableCobaltAudioVideoTracks(true);
-  // Installs the track APIs into the already-created global and prototypes.
+  WebRuntimeFeatures::EnableMediaSourceChangeTo(true);
+  // Installs the API into the already-created MediaSource.prototype.
   origin_trial_context->AddFeature(
-      mojom::blink::OriginTrialFeature::kCobaltAudioVideoTracks);
+      mojom::blink::OriginTrialFeature::kMediaSourceChangeTo);
   return true;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -223,14 +222,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   if (name == "Media.EnableMultiSourceBufferSwitching") {
     return ProcessSettingAsEnableOnly(
         script_state, exception_context, name, *value, [script_state] {
-          // The page switches by selecting tracks, so only enable switching
-          // if it can reach the track APIs.
-          if (!ExposeAudioVideoTracks(ExecutionContext::From(script_state))) {
+          // The page switches with MediaSource.changeTo(), so only enable
+          // switching if it can reach it.
+          if (!ExposeMediaSourceChangeTo(
+                  ExecutionContext::From(script_state))) {
             return false;
           }
-          // Pass the setting to the media and Blink code that it gates.
           ::media::ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
-          HTMLMediaElement::SetEnableMultiSourceBufferSwitching(true);
           return true;
         });
   }

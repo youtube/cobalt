@@ -7,10 +7,6 @@
 #include "base/functional/bind.h"
 #include "media/base/demuxer.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/filters/chunk_demuxer.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 PipelineController::PipelineController(std::unique_ptr<Pipeline> pipeline,
@@ -289,47 +285,6 @@ void PipelineController::Dispatch() {
     demuxer_->CancelPendingSeek(pending_seek_time_);
     return;
   }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Dispatch track changes and a following seek without waiting for each track
-  // change callback on the main thread, which may be busy during a switch. The
-  // media thread still runs them in order.
-  if (ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled() &&
-      (state_ == State::PLAYING || state_ == State::SUSPENDED ||
-       state_ == State::SWITCHING_TRACKS)) {
-    if (pending_audio_track_change_ || pending_video_track_change_) {
-      if (state_ != State::SWITCHING_TRACKS) {
-        previous_track_change_state_ = state_;
-        state_ = State::SWITCHING_TRACKS;
-      }
-
-      if (pending_audio_track_change_) {
-        pending_audio_track_change_ = false;
-        pipeline_->OnEnabledAudioTracksChanged(
-            pending_audio_track_change_ids_,
-            base::BindOnce(&PipelineController::OnTrackChangeComplete,
-                           weak_factory_.GetWeakPtr()));
-      }
-
-      if (pending_video_track_change_) {
-        pending_video_track_change_ = false;
-        pipeline_->OnSelectedVideoTrackChanged(
-            pending_video_track_change_id_,
-            base::BindOnce(&PipelineController::OnTrackChangeComplete,
-                           weak_factory_.GetWeakPtr()));
-      }
-    }
-
-    if (state_ == State::SWITCHING_TRACKS) {
-      if (!pending_seek_ || previous_track_change_state_ != State::PLAYING) {
-        return;
-      }
-      // Seek right away, below. Track changes that complete after this leave
-      // the state alone, see OnTrackChangeComplete().
-      state_ = State::PLAYING;
-    }
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // We can only switch tracks if we are not in a transitioning state already.
   if ((pending_audio_track_change_ || pending_video_track_change_) &&
