@@ -5223,7 +5223,7 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToHoldsPendingRead) {
   EXPECT_FALSE(read_done);
 
   // Switching away from "video1" doesn't end the stream the pipeline reads.
-  ASSERT_TRUE(demuxer_->ChangeTo({"video2"}));
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio2", "video2"}));
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(read_done);
 
@@ -5231,6 +5231,67 @@ TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToHoldsPendingRead) {
   EXPECT_TRUE(read_done);
   ExpectConfigChanged(DemuxerStream::VIDEO);
   CheckExpectedBuffers(video_stream, "0K 40K 80K");
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, ChangeToRejectsPartialSwitch) {
+  InitWithFirstSourceBuffers();
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  AddSecondSourceBuffers(/*standby=*/true);
+
+  // The timeline starts over for every media type, so all switch at once.
+  EXPECT_FALSE(demuxer_->ChangeTo({"video2"}));
+  EXPECT_FALSE(demuxer_->ChangeTo({"audio2"}));
+
+  Seek(base::TimeDelta());
+  CheckExpectedBuffers(video_stream, "0K 33K 66K");
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, InitWaitsForSourcesThatPlayNow) {
+  bool initialized = false;
+  EXPECT_CALL(*this, DemuxerOpened());
+  EXPECT_CALL(host_, SetDuration(kDefaultDuration()));
+  demuxer_->Initialize(&host_,
+                       base::BindLambdaForTesting([&](PipelineStatus status) {
+                         EXPECT_EQ(status, PIPELINE_OK);
+                         initialized = true;
+                       }));
+  ASSERT_EQ(AddId("audio2", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_TRUE(demuxer_->SetStandby("audio2"));
+
+  // Only standby SourceBuffers have initialized, so nothing plays yet.
+  AppendInitSegmentWithOneTrack("audio2", HAS_AUDIO);
+  EXPECT_FALSE(initialized);
+
+  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
+  EXPECT_TRUE(initialized);
+  EXPECT_EQ(demuxer_->GetAllStreams().size(), 1u);
+  AppendSingleStreamCluster("audio2", kAudioTrackNum, "0K 20K 40D20K");
+  AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
+  CheckExpectedBuffers(GetStream(DemuxerStream::AUDIO), "0K 23K 46K");
+}
+
+TEST_F(ChunkDemuxerMultiSourceBufferTest, RemoveIdForgetsStandby) {
+  bool initialized = false;
+  EXPECT_CALL(*this, DemuxerOpened());
+  EXPECT_CALL(host_, SetDuration(kDefaultDuration()));
+  demuxer_->Initialize(&host_,
+                       base::BindLambdaForTesting([&](PipelineStatus status) {
+                         EXPECT_EQ(status, PIPELINE_OK);
+                         initialized = true;
+                       }));
+  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_TRUE(demuxer_->SetStandby("audio1"));
+  demuxer_->RemoveId("audio1");
+
+  // A SourceBuffer that reuses the id isn't standby.
+  ASSERT_EQ(AddId("audio1", HAS_AUDIO), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddId("video1", HAS_VIDEO), ChunkDemuxer::kOk);
+  AppendInitSegmentWithOneTrack("video1", HAS_VIDEO);
+  EXPECT_FALSE(initialized);
+  AppendInitSegmentWithOneTrack("audio1", HAS_AUDIO);
+  EXPECT_TRUE(initialized);
+  EXPECT_EQ(demuxer_->GetAllStreams().size(), 2u);
 }
 
 TEST_F(ChunkDemuxerTest, ChangeToAndStandbyNeedSwitching) {

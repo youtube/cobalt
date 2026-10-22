@@ -172,7 +172,10 @@ void MediaSource::UpdateTracksAfterChangeTo(
 
   // Disable the audio of the SourceBuffers switched away from, then enable or
   // select the first track of each type of |source_buffers|. The demuxer has
-  // already switched, so the resulting track changes don't switch streams.
+  // already switched, so update the tracks without notifying the media
+  // element: a track change would reach the pipeline, which would switch
+  // streams again and cancel the seek that completes this switch.
+  HTMLMediaElement* element = nullptr;
   for (unsigned i = 0; i < source_buffers_->length(); ++i) {
     SourceBuffer* source_buffer = source_buffers_->item(i);
     if (source_buffers.Contains(source_buffer)) {
@@ -180,26 +183,39 @@ void MediaSource::UpdateTracksAfterChangeTo(
     }
     AudioTrackList& audio_tracks = source_buffer->audioTracks();
     for (unsigned j = 0; j < audio_tracks.length(); ++j) {
-      AudioTrack* audio_track = audio_tracks.AnonymousIndexedGetter(j);
-      if (audio_track->enabled()) {
-        audio_track->setEnabled(false);
-      }
+      audio_tracks.AnonymousIndexedGetter(j)->ClearEnabled();
+    }
+    VideoTrackList& video_tracks = source_buffer->videoTracks();
+    for (unsigned j = 0; j < video_tracks.length(); ++j) {
+      video_tracks.AnonymousIndexedGetter(j)->ClearSelected();
     }
   }
   for (const Member<SourceBuffer>& source_buffer : source_buffers) {
     AudioTrackList& audio_tracks = source_buffer->audioTracks();
     if (audio_tracks.length() > 0) {
-      audio_tracks.AnonymousIndexedGetter(0)->setEnabled(true);
+      AudioTrack* audio_track = audio_tracks.AnonymousIndexedGetter(0);
+      HTMLMediaElement* track_element = audio_track->MediaElement();
+      audio_track->SetMediaElement(nullptr);
+      audio_track->setEnabled(true);
+      audio_track->SetMediaElement(track_element);
+      element = element ? element : track_element;
     }
     VideoTrackList& video_tracks = source_buffer->videoTracks();
     if (video_tracks.length() > 0) {
-      video_tracks.AnonymousIndexedGetter(0)->setSelected(true);
+      VideoTrack* video_track = video_tracks.AnonymousIndexedGetter(0);
+      HTMLMediaElement* track_element = video_track->MediaElement();
+      video_track->SetMediaElement(nullptr);
+      video_track->setSelected(true);
+      video_track->SetMediaElement(track_element);
+      element = element ? element : track_element;
     }
   }
+  if (element) {
+    element->audioTracks().ScheduleChangeEvent();
+    element->videoTracks().ScheduleChangeEvent();
+  }
 
-  // Selecting a video track deselects the element's other video tracks
-  // without telling this MediaSource, so update activeSourceBuffers for every
-  // SourceBuffer.
+  // Update activeSourceBuffers for every SourceBuffer.
   for (unsigned i = 0; i < source_buffers_->length(); ++i) {
     SourceBuffer* source_buffer = source_buffers_->item(i);
     const bool is_active = source_buffer->videoTracks().selectedIndex() != -1 ||

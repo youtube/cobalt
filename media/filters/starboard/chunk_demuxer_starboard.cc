@@ -20,6 +20,7 @@
 #include "media/filters/chunk_demuxer.h"
 // clang-format on
 
+#include <algorithm>
 #include <atomic>
 #include <initializer_list>
 #include <memory>
@@ -230,6 +231,18 @@ bool ChunkDemuxer::ChangeTo(const std::vector<std::string>& ids) {
   }
   if (switches.empty()) {
     return false;
+  }
+  // Every media type switches at once, because the timeline starts over where
+  // the media of |ids| starts.
+  for (SelectedTrackStream* selected_stream :
+       {selected_audio_stream_.get(), selected_video_stream_.get()}) {
+    if (selected_stream &&
+        !std::any_of(switches.begin(), switches.end(),
+                     [selected_stream](const auto& entry) {
+                       return entry.first == selected_stream;
+                     })) {
+      return false;
+    }
   }
 
   for (const auto& [selected_stream, stream] : switches) {

@@ -940,6 +940,9 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
 
   source_state_map_.erase(id);
   pending_source_init_ids_.erase(id);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  standby_ids_.erase(id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Remove demuxer streams created for this id.
   for (const ChunkDemuxerStream* s : id_to_streams_map_[id]) {
     bool stream_found = false;
@@ -1692,8 +1695,12 @@ void ChunkDemuxer::OnSourceInitDone(
   CHECK(pending_source_init_ids_.find(source_id) !=
         pending_source_init_ids_.end());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Standby SourceBuffers don't set the duration or the timeline offset, so
+  // they initialize like the SourceBuffers added after the demuxer
+  // initialized.
   if (multi_source_buffer_switching_ &&
-      (state_ == INITIALIZED || state_ == ENDED)) {
+      (state_ == INITIALIZED || state_ == ENDED ||
+       standby_ids_.contains(source_id))) {
     InitializeLateSource_Locked(source_id, params);
     return;
   }
@@ -1732,10 +1739,9 @@ void ChunkDemuxer::OnSourceInitDone(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // With multi-SourceBuffer switching, standby SourceBuffers don't delay
   // playback. They initialize later, in InitializeLateSource_Locked().
-  const bool can_initialize_before_all_sources =
-      multi_source_buffer_switching_ &&
-      CanInitializeBeforeStandbySources_Locked();
-  if (!pending_source_init_ids_.empty() && !can_initialize_before_all_sources) {
+  if (multi_source_buffer_switching_
+          ? !CanInitializeBeforeStandbySources_Locked()
+          : !pending_source_init_ids_.empty()) {
     return;
   }
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
