@@ -20,15 +20,12 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "build/build_config.h"
-#include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_features.h"
-#include "ui/gl/gl_switches.h"
 
 namespace cobalt {
 namespace {
@@ -47,14 +44,8 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
 
   EXPECT_EQ("no-user-gesture-required",
             cmd_line.GetSwitchValueASCII(::switches::kAutoplayPolicy));
-  EXPECT_EQ("2", cmd_line.GetSwitchValueASCII(::switches::kNumRasterThreads));
   EXPECT_EQ("26214400",
             cmd_line.GetSwitchValueASCII(switches::kMaxHttpCacheSize));
-#if !defined(ARCH_CPU_ARM64)
-  EXPECT_EQ("gles", cmd_line.GetSwitchValueASCII(::switches::kUseANGLE));
-#else
-  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kUseANGLE));
-#endif
   EXPECT_EQ("--no-decommit-pooled-pages,--no-concurrent-marking",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_EQ("PreciseMemoryInfo",
@@ -71,7 +62,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       "DomStorageSmartFlushing",
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
-      "PartitionAllocBackupRefPtr,"
       "UseAAudioInput,"
       "FontSrcLocalMatching,"
       "DeferAudioFocusUntilAudible",
@@ -105,7 +95,6 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "TestFeature3,"
-      "PartitionAllocBackupRefPtr,"
       "UseAAudioInput,"
       "FontSrcLocalMatching,"
       "DeferAudioFocusUntilAudible",

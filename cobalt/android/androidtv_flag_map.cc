@@ -26,7 +26,6 @@
 #include "base/features.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/android/androidtv_flags.h"
@@ -51,10 +50,6 @@ constexpr char kAreaBasedVideoBufferBudgetFeature[] =
 
 // Experiment-controlled defaults, used when the experiment key is absent.
 constexpr char kDefaultInitialOldSpaceSizeMb[] = "64";
-constexpr char kDefaultMaxOldSpaceSizeMb[] = "512";
-#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-constexpr char kDefaultForceGpuMemAvailableMb[] = "64";
-#endif
 
 std::string KeepDigits(std::string_view value) {
   std::string digits;
@@ -203,22 +198,12 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     js_flags.push_back(v8_switches::kNoSparkplug);
   }
 
-  js_flags.push_back(
-      base::StrCat({v8_switches::kMaxOldSpaceSize,
-                    flag_map.GetNumeric(flags::kV8MaxOldSpaceSize)
-                        .value_or(kDefaultMaxOldSpaceSizeMb)}));
-
-  if (const auto gpu_mem =
-          flag_map.GetNumeric(flags::kForceGpuMemAvailableMb)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kForceGpuMemAvailableMb,
-                         *gpu_mem);
-  } else {
-#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-    AppendSwitchIfAbsent(cmd_line, ::switches::kForceGpuMemAvailableMb,
-                         kDefaultForceGpuMemAvailableMb);
-#endif
+  if (const auto max_old = flag_map.GetNumeric(flags::kV8MaxOldSpaceSize)) {
+    js_flags.push_back(base::StrCat({v8_switches::kMaxOldSpaceSize, *max_old}));
   }
 
+  append_numeric_switch(flags::kForceGpuMemAvailableMb,
+                        ::switches::kForceGpuMemAvailableMb);
   append_switch_if_set(flags::kDisableGpuMemoryBufferCompositorResources,
                        ::switches::kDisableGpuMemoryBufferCompositorResources);
   append_numeric_switch(flags::kGpuImageCacheLimitItems,

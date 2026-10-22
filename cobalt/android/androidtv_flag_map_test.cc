@@ -23,7 +23,6 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/strings/string_split.h"
-#include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
@@ -84,17 +83,12 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   // Low-end device mode is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableLowEndDeviceMode));
-  EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
+  EXPECT_EQ("--initial-old-space-size=64",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   // The device scale factor is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceDeviceScaleFactor));
-#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-  EXPECT_EQ("64",
-            cmd_line.GetSwitchValueASCII(::switches::kForceGpuMemAvailableMb));
-#else
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kForceGpuMemAvailableMb));
-#endif
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableFeatures));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableFeatures));
   EXPECT_FALSE(cmd_line.HasSwitch(switches::kUseStarboardLifecycle));
@@ -192,7 +186,7 @@ TEST(AndroidTvFlagMapTest, MojoPipeSizingWithoutParams) {
 TEST(AndroidTvFlagMapTest, NonNumericValuesFallBackToDefaults) {
   const base::CommandLine cmd_line =
       ExpandWith("V8InitialOldSpaceSize=abc,GpuImageCacheLimitItems");
-  EXPECT_EQ("--initial-old-space-size=64,--max-old-space-size=512",
+  EXPECT_EQ("--initial-old-space-size=64",
             cmd_line.GetSwitchValueASCII(blink::switches::kJavaScriptFlags));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kCCImageCacheLimitItems));
 }
