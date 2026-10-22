@@ -229,13 +229,14 @@ tests through the APK's instrumentation with `adb`:
    ```
 
 2. On the machine with the device, unpack it, install the APK, let it write
-   its output to shared storage and push the runtime dependencies:
+   its output to shared storage and push the test data:
 
    ```bash
    mkdir nplb && tar xzf nplb_loader_deps.tar.gz -C nplb
    adb install -r nplb/nplb_loader_apk/nplb_loader-debug.apk
    adb shell appops set dev.cobalt.coat MANAGE_EXTERNAL_STORAGE allow
-   adb push nplb/. /sdcard/chromium_tests_root/
+   adb shell rm -rf /sdcard/chromium_tests_root/
+   adb push nplb/test/ /sdcard/chromium_tests_root/test/
    ```
 
 3. Run the tests. `-w` waits until the run ends. The test output goes to the
