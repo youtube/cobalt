@@ -153,7 +153,7 @@ MediaDrmBridge::~MediaDrmBridge() {
 }
 
 DrmOperationResult MediaDrmBridge::CreateSession(int ticket,
-                                                 Span<const uint8_t> init_data,
+                                                 span<const uint8_t> init_data,
                                                  std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
@@ -174,7 +174,7 @@ std::string MediaDrmBridge::GenerateProvisionRequest() const {
 }
 
 DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
-    Span<const uint8_t> response) const {
+    span<const uint8_t> response) const {
   JNIEnv* env = AttachCurrentThread();
   return ToOperationResult(
       env, Java_MediaDrmBridge_provideProvisionResponse(
@@ -184,7 +184,7 @@ DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
 
 DrmOperationResult MediaDrmBridge::UpdateSession(
     int ticket,
-    Span<const uint8_t> key,
+    span<const uint8_t> key,
     std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 

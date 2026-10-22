@@ -91,13 +91,13 @@ class MediaDrmBridge {
   }
 
   OperationResult CreateSession(int ticket,
-                                Span<const uint8_t> init_data,
+                                span<const uint8_t> init_data,
                                 std::string_view mime) const;
   std::string GenerateProvisionRequest() const;
-  OperationResult ProvideProvisionResponse(Span<const uint8_t> response) const;
+  OperationResult ProvideProvisionResponse(span<const uint8_t> response) const;
 
   OperationResult UpdateSession(int ticket,
-                                Span<const uint8_t> key,
+                                span<const uint8_t> key,
                                 std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   std::optional<std::string_view> GetMetrics();
