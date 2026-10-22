@@ -510,8 +510,10 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
 
 // The reader of the video played natively, with NativeVideoSplashScreen.
 class SplashCacheReaderBrowserTest
-    : public H5vccSchemeURLLoaderFactoryBrowserTest {
+    : public H5vccSchemeURLLoaderFactoryCacheBrowserTest {
  public:
+  SplashCacheReaderBrowserTest() = default;
+
   // Puts `content` as splash.webm in the cache `cache_name` of the splash
   // domain.
   void PutSplashVideoInCache(const std::string& cache_name,
@@ -550,6 +552,19 @@ class SplashCacheReaderBrowserTest
     run_loop.Run();
     return result;
   }
+
+ protected:
+  explicit SplashCacheReaderBrowserTest(bool enable_cached_splash_file)
+      : H5vccSchemeURLLoaderFactoryCacheBrowserTest(enable_cached_splash_file) {
+  }
+};
+
+// As in Finch's crash safe mode, or with the kill switch.
+class SplashCacheReaderCacheDisabledBrowserTest
+    : public SplashCacheReaderBrowserTest {
+ public:
+  SplashCacheReaderCacheDisabledBrowserTest()
+      : SplashCacheReaderBrowserTest(/*enable_cached_splash_file=*/false) {}
 };
 
 IN_PROC_BROWSER_TEST_F(SplashCacheReaderBrowserTest, ReadsCachedVideo) {
@@ -576,4 +591,14 @@ IN_PROC_BROWSER_TEST_F(SplashCacheReaderBrowserTest, ReadsNothingIfTooLarge) {
                       std::string()));
   H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(std::nullopt);
 }
+
+IN_PROC_BROWSER_TEST_F(SplashCacheReaderCacheDisabledBrowserTest,
+                       IgnoresCachedVideo) {
+  PutSplashVideoInCache("music", "aaabbbccc");
+
+  EXPECT_EQ(
+      ReadSplashVideo(u"music"),
+      std::pair(SplashScreenFetchedState::kSkippedCachedAssets, std::string()));
+}
+
 }  // namespace content

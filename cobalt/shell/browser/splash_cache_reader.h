@@ -58,8 +58,9 @@ void RecordSplashScreenFetchedState(SplashScreenFetchedState state);
 class SplashCacheReader {
  public:
   // `content` is empty unless `state` is SplashScreenFetchedState::kOkCache,
-  // e.g., if the resource isn't cached, can't be read, or is larger than the
-  // limit, in which case the built-in resource is the fallback.
+  // e.g., if cached assets are disabled, or the resource isn't cached, can't be
+  // read, or is larger than the limit, in which case the built-in resource is
+  // the fallback.
   using Callback = base::OnceCallback<void(SplashScreenFetchedState state,
                                            std::string content)>;
 
@@ -75,7 +76,10 @@ class SplashCacheReader {
   ~SplashCacheReader();
 
   // Reads `name` from the cache `cache_name`, and runs `callback` once, from a
-  // task of its own, unless `this` is destroyed first.
+  // task of its own, unless `this` is destroyed first. Without
+  // kEnableCachedSplashFile, runs `callback` with
+  // SplashScreenFetchedState::kSkippedCachedAssets instead of reading
+  // the cache.
   void Read(const std::string& name,
             const std::u16string& cache_name,
             Callback callback);
