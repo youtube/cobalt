@@ -88,18 +88,13 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
   ]
 
-  if (!use_evergreen) {
-    sources += [
-      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
-      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
-    ]
-  }
-
   if (is_starboard) {
     sources +=
         [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java" ]
   } else {
     sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
       "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
       "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
       "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
@@ -180,16 +175,6 @@ android_library("cobalt_main_java") {
     "//third_party/jni_zero:jni_zero_java",
   ]
 
-  if (!use_evergreen) {
-    deps += [
-      "//cobalt/browser/crash_annotator/public/mojom:mojom_java",
-      "//mojo/public/java:base_java",
-      "//mojo/public/java:bindings_java",
-      "//mojo/public/java:system_java",
-      "//services/service_manager/public/java:service_manager_java",
-    ]
-  }
-
   srcjar_deps = [
     ":cobalt_build_info_srcjar",
     ":cobalt_crash_streak_thresholds_java",
@@ -258,14 +243,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
   ]
 
-  if (!use_evergreen) {
-    sources += [
-      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
-      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
-      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
-    ]
-  }
-
   if (is_starboard) {
     # AOSP versions of StarboardBridge and PlatformError, since the Android TV
     # ones depend on classes AOSP doesn't build.
@@ -277,6 +254,9 @@ android_library("cobalt_main_java") {
     ]
   } else {
     sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
       "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
       "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
       "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
@@ -295,15 +275,20 @@ android_library("cobalt_main_java") {
       ":cobalt_browser_java",
       "//base:process_launcher_java",
       "//base/version_info/android:version_constants_java",
+      "//cobalt/browser/crash_annotator/public/mojom:mojom_java",
       "//cobalt/shell/android:cobalt_shell_assets",
       "//cobalt/shell/android:cobalt_shell_java",
       "//cobalt/shell/android:cobalt_shell_jni_headers",
       "//components/embedder_support/android:view_java",
       "//content/public/android:content_java",
       "//media/capture/video/android:capture_java",
+      "//mojo/public/java:base_java",
+      "//mojo/public/java:bindings_java",
+      "//mojo/public/java:system_java",
       "//net/android:net_java",
       "//services/media_session/public/cpp/android:media_session_java",
       "//services/media_session/public/mojom:mojom_java",
+      "//services/service_manager/public/java:service_manager_java",
       "//ui/android:ui_java",
       "//url:gurl_java",
     ]

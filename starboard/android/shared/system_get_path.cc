@@ -26,8 +26,11 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/elf_loader/evergreen_config.h"
 #include "third_party/jni_zero/jni_zero.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/elf_loader/evergreen_config.h"
+#endif
 
 using ::starboard::g_app_assets_dir;
 using ::starboard::g_app_cache_dir;

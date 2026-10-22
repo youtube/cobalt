@@ -20,20 +20,17 @@
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
-#include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_settings.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
-#include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
-#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_info.h"
@@ -42,8 +39,16 @@
 #include "starboard/extension/system_info.h"
 #include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features_extension.h"
-#include "starboard/shared/starboard/loader_app_metrics.h"
 #include "starboard/shared/starboard/native_stability.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/elf_loader/evergreen_config.h"
+#include "starboard/extension/loader_app_metrics.h"
+#include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
+#else  // BUILDFLAG(IS_STARBOARD)
+#include "starboard/android/shared/crash_handler.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 const void* SbSystemGetExtension(const char* name) {
 #if BUILDFLAG(IS_STARBOARD)
