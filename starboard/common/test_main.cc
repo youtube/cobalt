@@ -20,27 +20,12 @@
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "starboard/common/command_line.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-namespace starboard {
-namespace testing {
-
-// Intentionally leaked, as objects with static storage duration have to be
-// trivially destructible.
-CommandLine* g_test_command_line = nullptr;
-
-const CommandLine* GetTestCommandLine() {
-  return g_test_command_line;
-}
-
-}  // namespace testing
-}  // namespace starboard
 
 extern "C" {
 bool IsTestExecutable() {
@@ -56,8 +41,6 @@ int RunTests(int argc, char** argv) {
 }
 
 int InitAndRunAllTests(int argc, char** argv) {
-  starboard::testing::g_test_command_line =
-      new starboard::CommandLine(argc, argv);
 #if BUILDFLAG(IS_IOS_TVOS)
   std::vector<std::string> arg_strings;
   std::vector<char*> new_argv;
