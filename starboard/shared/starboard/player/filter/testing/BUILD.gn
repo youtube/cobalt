@@ -93,6 +93,11 @@ if (current_toolchain == starboard_toolchain) {
 
     deps = cobalt_platform_dependencies
     deps += [ "//$starboard_path:starboard_platform" ]
+    if (is_android) {
+      # //starboard/common/benchmark_main.cc initializes the feature list on
+      # Android.
+      deps += [ "//starboard/shared/starboard:features_test_util" ]
+    }
   }
 
   static_library("test_util") {

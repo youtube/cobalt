@@ -21,69 +21,80 @@ if (is_cobalt_hermetic_build) {
   _benchmark_type = "executable"
 }
 
+# The SbPlayer benchmarks. This is a source_set rather than a static library so
+# that the BENCHMARK() registrations are always linked into the dependents.
+source_set("player_benchmarks") {
+  testonly = true
+
+  sources = [
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
+    "//third_party/google_benchmark",
+  ]
+
+  # The .dmp files played back by the seek benchmarks.
+  data_deps = [ "//starboard/shared/starboard/player:player_test_data" ]
+}
+
 target(_benchmark_type, "benchmark") {
   testonly = true
 
   sources = [
     "//starboard/common/benchmark_main.cc",
     "memory_benchmark.cc",
-    "player/player_benchmark_helper.cc",
-    "player/player_benchmark_helper.h",
-    "player/player_create_benchmark.cc",
-    "player/player_destroy_benchmark.cc",
-    "player/player_seek_benchmark.cc",
     "thread_benchmark.cc",
     "thread_id_benchmark.cc",
   ]
 
   public_deps = [
+    ":player_benchmarks",
     "//starboard:starboard_group",
     "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//starboard/testing:fake_graphics_context_provider",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
 
   if (is_android) {
-    sources += [
-      "//starboard/shared/starboard/features_test_util.cc",
-      "//starboard/shared/starboard/features_test_util.h",
-    ]
-    deps += [ "//starboard/shared/starboard:feature_list" ]
+    # benchmark_main.cc initializes the feature list on Android.
+    deps += [ "//starboard/shared/starboard:features_test_util" ]
   }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
+# Runs the SbPlayer benchmarks inside a gtest so that they can be executed
+# through the standard test runner, in particular on Android where a test APK
+# provides the Java side of the player and the activity with the video surface.
 test("player_benchmarks_gtest") {
   testonly = true
 
-  sources = [
-    "player/player_benchmark_gtest_wrapper.cc",
-    "player/player_benchmark_helper.cc",
-    "player/player_benchmark_helper.h",
-    "player/player_create_benchmark.cc",
-    "player/player_destroy_benchmark.cc",
-    "player/player_seek_benchmark.cc",
-  ]
+  sources = [ "player/player_benchmark_gtest_wrapper.cc" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
+    ":player_benchmarks",
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//starboard/testing:fake_graphics_context_provider",
-    "//testing/gmock",
     "//testing/gtest",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
-  deps += [ "//starboard/shared/starboard/player:player_test_data" ]
+
   if (is_android) {
     deps += [
       "//cobalt/android:cobalt_testing_java",
