@@ -34,6 +34,7 @@ HttpCache.Pattern
 V8.CompileScript.CacheBehaviour
 SimpleCache.Code.DiskOpenLatency
 SimpleCache.Code.DiskWriteLatency
+Cobalt.V8CodeCache.DeferredWriteDelayMs
 
 # --- 3. Flash wear and write batching ---
 Cobalt.Storage.ProcessIo.StartupReadKB
@@ -47,6 +48,8 @@ DOMStorage.CommitMeasuredDelay
 # --- 4. Disk & RAM footprint vs. partner quota (USER_DATA 1 MB, DIR_CACHE 24 MB) ---
 Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
+Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB
+Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB
 # Browser-process RAM used by LevelDB and SQLite instances (verifies in-memory
 # database switches do not bloat memory).
 Memory.Experimental.Browser2.Small.LevelDatabase

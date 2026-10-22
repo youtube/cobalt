@@ -102,6 +102,19 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // experimentation (--enable-features=CobaltStorageCleanup).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 
+// When enabled, optimizes Cobalt's V8 generated code cache and HTTP disk cache
+// quotas and cold-start write scheduling: increases the generated code cache
+// size cap (default 10 MiB, up from 5 MiB) to prevent cold-start SimpleCache
+// watermark eviction of compiled Kabuki bytecode, aligns the Android HTTP disk
+// cache quota (default 12 MiB, down from the legacy 25 MiB switch override)
+// with the 24 MiB base::DIR_CACHE partner budget, and defers V8 code cache
+// idle writes past the cold-start critical path (default 5000 ms).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCodeCacheAndHttpCacheOptimization);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeMb);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltNonHttpCacheReserveMb);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeMb);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8CodeCacheIdleDelayMs);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

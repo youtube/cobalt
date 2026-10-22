@@ -721,6 +721,18 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the configured maximum capacity in kilobytes for Cobalt's generated
+    V8 JavaScript and WebAssembly code caches (base::DIR_CACHE/Code Cache),
+    emitted when CobaltContentBrowserClient::GetGeneratedCodeCacheSettings() is
+    queried during StoragePartition initialization.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
@@ -802,6 +814,18 @@ Always run the pretty print utility on this file after editing:
     `Flush()` is an asynchronous operation, this metric captures the time until
     the commit is scheduled, not the completion of the data write to persistent
     storage.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the configured maximum capacity in kilobytes for Cobalt's on-disk
+    HTTP cache (base::DIR_CACHE/Cache), emitted when
+    CobaltContentBrowserClient::ConfigureNetworkContextParams() configures a
+    non-in-memory NetworkContext.
   </summary>
 </histogram>
 
@@ -968,6 +992,18 @@ Always run the pretty print utility on this file after editing:
   <owner>colinliang@google.com</owner>
   <summary>
     Records the result of writing the migration sentinel file to disk.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.V8CodeCache.DeferredWriteDelayMs" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the configured idle task delay in milliseconds before V8 script
+    bytecode serialization and SimpleCache disk writing are scheduled via
+    ThreadScheduler::PostDelayedIdleTask() in V8ScriptRunner::CompileAndRunScript
+    (0 ms when run synchronously).
   </summary>
 </histogram>
 
