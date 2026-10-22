@@ -63,19 +63,6 @@ enum EndOfStreamError {
         CallWith=ExecutionContext
     ] SourceBuffer addSourceBuffer(SourceBufferConfig config);
 
-    // Cobalt: multi-SourceBuffer switching. A standby SourceBuffer buffers
-    // media that plays later, and changeTo() hands playback over to it.
-    [
-        RaisesException,
-        RuntimeEnabled=MediaSourceChangeTo,
-        ImplementedAs=AddSourceBufferWithInit
-    ] SourceBuffer addSourceBuffer(DOMString type, SourceBufferInit init);
-    [
-        CallWith=ScriptState,
-        RaisesException,
-        RuntimeEnabled=MediaSourceChangeTo
-    ] Promise<undefined> changeTo(sequence<SourceBuffer> sourceBuffers);
-
     [RaisesException] void removeSourceBuffer(SourceBuffer buffer);
     readonly attribute DOMString readyState;
     [RaisesException] void endOfStream(optional EndOfStreamError error);

@@ -461,7 +461,6 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/mediasource/media_source_handle.idl",
   "//third_party/blink/renderer/modules/mediasource/source_buffer.idl",
   "//third_party/blink/renderer/modules/mediasource/source_buffer_config.idl",
-  "//third_party/blink/renderer/modules/mediasource/source_buffer_init.idl",
   "//third_party/blink/renderer/modules/mediasource/source_buffer_list.idl",
   "//third_party/blink/renderer/modules/mediasource/track_default.idl",
   "//third_party/blink/renderer/modules/mediasource/track_default_list.idl",
@@ -1341,6 +1340,8 @@ if (is_cobalt) {
             [
               "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/mediasource/media_source_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_init.idl",
             ],
             "abspath")
   }
