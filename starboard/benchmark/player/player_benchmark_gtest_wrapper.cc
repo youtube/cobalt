@@ -22,6 +22,24 @@
 
 namespace starboard {
 namespace benchmark {
+namespace {
+
+// Console reporter that additionally fails the enclosing gtest for every
+// benchmark that reported an error through State::SkipWithError(), which
+// RunSpecifiedBenchmarks() would otherwise only print.
+class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
+ public:
+  void ReportRuns(const std::vector<Run>& reports) override {
+    for (const Run& run : reports) {
+      if (run.skipped == ::benchmark::internal::SkippedWithError) {
+        ADD_FAILURE() << run.benchmark_name() << ": " << run.skip_message;
+      }
+    }
+    ConsoleReporter::ReportRuns(reports);
+  }
+};
+
+}  // namespace
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
   // Run only the player benchmarks unless a filter is passed explicitly.
@@ -39,7 +57,10 @@ TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
   int argc = static_cast<int>(argv.size()) - 1;
 
   ::benchmark::Initialize(&argc, argv.data());
-  ::benchmark::RunSpecifiedBenchmarks();
+  FailOnBenchmarkErrorReporter reporter;
+  size_t benchmarks_run = ::benchmark::RunSpecifiedBenchmarks(&reporter);
+  EXPECT_GT(benchmarks_run, 0u)
+      << "No benchmark matched the filter '" << filter << "'";
 }
 
 }  // namespace benchmark

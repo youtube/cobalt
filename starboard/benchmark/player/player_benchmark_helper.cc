@@ -102,7 +102,7 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
   SbPlayer player =
       SbPlayerCreate(GetWindow(), &creation_param, DummyDeallocateSampleFunc,
                      DecoderStatusCallback, PlayerStatusCallback,
-                     DummyPlayerErrorFunc, this, GetDecoderTargetProvider());
+                     PlayerErrorCallback, this, GetDecoderTargetProvider());
 
   if (!SbPlayerIsValid(player)) {
     SB_LOG(ERROR) << "SbPlayerCreate failed";
@@ -117,7 +117,7 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
   // Wait for the kSbPlayerStateInitialized callback
   if (!WaitForPlayerState(kSbPlayerStateInitialized,
                           SB_PLAYER_INITIAL_TICKET)) {
-    SB_LOG(ERROR) << "Timeout waiting for kSbPlayerStateInitialized";
+    SB_LOG(ERROR) << "Player failed to reach kSbPlayerStateInitialized";
     return false;
   }
 
@@ -144,7 +144,7 @@ void SbPlayerBenchmarkHelper::DestroyPlayer() {
   video_reader_.reset();
 }
 
-bool SbPlayerBenchmarkHelper::FeedData(int64_t duration_us,
+bool SbPlayerBenchmarkHelper::FeedData(int64_t target_media_time_us,
                                        int64_t timeout_us) {
   const auto timeout = std::chrono::microseconds(timeout_us);
   // The deadline is pushed out whenever samples are written, so it bounds the
@@ -167,15 +167,9 @@ bool SbPlayerBenchmarkHelper::FeedData(int64_t duration_us,
       }
 
       if (audio_reader_) {
-        int64_t last_audio_ts = 0;
-        if (next_audio_sample_index_ > 0) {
-          last_audio_ts =
-              audio_reader_
-                  ->GetPlayerSampleInfo(kSbMediaTypeAudio,
-                                        next_audio_sample_index_ - 1)
-                  .timestamp;
-        }
-        if (audio_eos_written_ || last_audio_ts >= duration_us) {
+        if (audio_eos_written_ ||
+            (last_written_audio_timestamp_ &&
+             *last_written_audio_timestamp_ >= target_media_time_us)) {
           audio_done = true;
         } else if (audio_needs_data_) {
           write_audio = true;
@@ -185,15 +179,9 @@ bool SbPlayerBenchmarkHelper::FeedData(int64_t duration_us,
       }
 
       if (video_reader_) {
-        int64_t last_video_ts = 0;
-        if (next_video_sample_index_ > 0) {
-          last_video_ts =
-              video_reader_
-                  ->GetPlayerSampleInfo(kSbMediaTypeVideo,
-                                        next_video_sample_index_ - 1)
-                  .timestamp;
-        }
-        if (video_eos_written_ || last_video_ts >= duration_us) {
+        if (video_eos_written_ ||
+            (last_written_video_timestamp_ &&
+             *last_written_video_timestamp_ >= target_media_time_us)) {
           video_done = true;
         } else if (video_needs_data_) {
           write_video = true;
@@ -242,6 +230,8 @@ int SbPlayerBenchmarkHelper::PrepareSeek(int64_t seek_time_us) {
   video_eos_written_ = false;
   audio_needs_data_ = false;
   video_needs_data_ = false;
+  last_written_audio_timestamp_.reset();
+  last_written_video_timestamp_.reset();
 
   next_audio_sample_index_ = FindAudioStartIndex(seek_time_us);
   next_video_sample_index_ = FindVideoStartIndex(seek_time_us);
@@ -255,9 +245,12 @@ bool SbPlayerBenchmarkHelper::WaitForPlayerState(SbPlayerState state,
                                                  int64_t timeout_us) {
   std::unique_lock<std::mutex> lock(mutex_);
   auto timeout = std::chrono::microseconds(timeout_us);
-  return cv_.wait_for(lock, timeout, [this, state, ticket] {
-    return player_state_ == state && player_state_ticket_ == ticket;
+  cv_.wait_for(lock, timeout, [this, state, ticket] {
+    return error_occurred_ ||
+           (player_state_ == state && player_state_ticket_ == ticket);
   });
+  return !error_occurred_ && player_state_ == state &&
+         player_state_ticket_ == ticket;
 }
 
 void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
@@ -293,6 +286,9 @@ void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
         is_audio ? next_audio_sample_index_ : next_video_sample_index_;
     bool& eos_written = is_audio ? audio_eos_written_ : video_eos_written_;
     bool& needs_data = is_audio ? audio_needs_data_ : video_needs_data_;
+    std::optional<int64_t>& last_written_timestamp =
+        is_audio ? last_written_audio_timestamp_
+                 : last_written_video_timestamp_;
     const size_t total_samples = is_audio ? reader->number_of_audio_buffers()
                                           : reader->number_of_video_buffers();
 
@@ -310,6 +306,7 @@ void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
         sample_infos.push_back(
             reader->GetPlayerSampleInfo(type, next_sample_index++));
       }
+      last_written_timestamp = sample_infos.back().timestamp;
     }
     needs_data = false;
   }
@@ -340,17 +337,20 @@ size_t SbPlayerBenchmarkHelper::FindVideoStartIndex(int64_t target_time_us) {
   if (!video_reader_) {
     return 0;
   }
+  // Video access units are stored in decoding order, so only the timestamps of
+  // key frames are guaranteed to be monotonic. Pick the last key frame at or
+  // before the target time.
   size_t num_samples = video_reader_->number_of_video_buffers();
   size_t best_index = 0;
   for (size_t i = 0; i < num_samples; ++i) {
     auto sample_info = video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, i);
-    if (sample_info.timestamp <= target_time_us) {
-      if (sample_info.video_sample_info.is_key_frame) {
-        best_index = i;
-      }
-    } else {
+    if (!sample_info.video_sample_info.is_key_frame) {
+      continue;
+    }
+    if (sample_info.timestamp > target_time_us) {
       break;
     }
+    best_index = i;
   }
   return best_index;
 }
@@ -432,18 +432,25 @@ void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
   helper->cv_.notify_all();
 }
 
+// static
 void SbPlayerBenchmarkHelper::DummyPlayerErrorFunc(SbPlayer player,
                                                    void* context,
                                                    SbPlayerError error,
                                                    const char* message) {
   SB_LOG(ERROR) << "Player error " << error << ": " << (message ? message : "");
+}
+
+// static
+void SbPlayerBenchmarkHelper::PlayerErrorCallback(SbPlayer player,
+                                                  void* context,
+                                                  SbPlayerError error,
+                                                  const char* message) {
+  SB_LOG(ERROR) << "Player error " << error << ": " << (message ? message : "");
   SbPlayerBenchmarkHelper* helper =
       static_cast<SbPlayerBenchmarkHelper*>(context);
-  // The benchmarks that only exercise creation and destruction pass a null
-  // context.
-  if (!helper) {
-    return;
-  }
+  // Set the flag under the mutex so that the notification cannot slip in
+  // between a waiter's predicate check and its wait.
+  std::lock_guard<std::mutex> lock(helper->mutex_);
   helper->error_occurred_ = true;
   helper->cv_.notify_all();
 }
