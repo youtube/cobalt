@@ -123,10 +123,11 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 // directly instead of through a <video> element and Media Source Extensions in
 // the splash screen WebContents, which then only stays transparent so that the
 // punch-out video shows through. Plays the same video as
-// ForceVideoSplashScreen, i.e., the one that the WebApp cached or the built-in
-// one, and takes precedence over it. If the video can't be played this way,
-// e.g., where Starboard media isn't used, or fails before its first frame, the
-// main WebContents shows right away instead.
+// ForceVideoSplashScreen, i.e., the one that the WebApp cached, with
+// EnableCachedSplashFile, or the built-in one, and takes precedence over it. If
+// the video can't be played this way, e.g., where Starboard media isn't used,
+// or fails before its first frame, the main WebContents shows right away
+// instead.
 // Locally: --enable-features=NativeVideoSplashScreen
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 

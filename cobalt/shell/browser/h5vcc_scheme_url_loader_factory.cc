@@ -176,7 +176,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (state == SplashScreenFetchedState::kOkCache) {
       content_ = std::move(content);
     }
-    // Otherwise, `content_` is the built-in resource.
+    // Otherwise, `content_` is the built-in resource, which the "fallback"
+    // query param may have chosen, e.g., the 480p video.
     SendResponse(state);
   }
 

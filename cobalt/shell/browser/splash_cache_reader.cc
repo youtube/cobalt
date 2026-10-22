@@ -23,6 +23,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/public/browser/browser_context.h"
@@ -170,6 +171,14 @@ void SplashCacheReader::Read(const std::string& name,
                              Callback callback) {
   DCHECK(!callback_);
   callback_ = std::move(callback);
+
+  if (!H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled()) {
+    // As on a cache miss, the caller falls back to the built-in resource.
+    LOG(INFO) << "Cached splash assets are disabled. Skipping the cached "
+              << name << ".";
+    Finish(SplashScreenFetchedState::kSkippedCachedAssets, std::string());
+    return;
+  }
 
   auto spc = StoragePartitionConfig::CreateDefault(browser_context_);
   StoragePartition* storage_partition =
