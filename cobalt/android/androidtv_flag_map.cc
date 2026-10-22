@@ -210,11 +210,11 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
 
   if (const auto gpu_mem =
           flag_map.GetNumeric(flags::kForceGpuMemAvailableMb)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kForceGpuMemDiscardableLimitMb,
+    AppendSwitchIfAbsent(cmd_line, blink::switches::kForceGpuMemAvailableMb,
                          *gpu_mem);
   } else {
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
-    AppendSwitchIfAbsent(cmd_line, ::switches::kForceGpuMemDiscardableLimitMb,
+    AppendSwitchIfAbsent(cmd_line, blink::switches::kForceGpuMemAvailableMb,
                          kDefaultForceGpuMemAvailableMb);
 #endif
   }
