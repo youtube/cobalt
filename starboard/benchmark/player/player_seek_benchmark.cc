@@ -22,10 +22,10 @@ namespace benchmark {
 
 namespace {
 
-const char* kAudioFile = "beneath_the_canopy_aac_stereo.dmp";
-const char* kVideoFile = "vertical_1080p_30_fps_137_avc.dmp";
-const int64_t kFeedDurationUs = 2000000;  // 2 seconds
-const int64_t kSeekTargetUs = 1000000;    // 1 second
+constexpr char kAudioFile[] = "beneath_the_canopy_aac_stereo.dmp";
+constexpr char kVideoFile[] = "vertical_1080p_30_fps_137_avc.dmp";
+constexpr int64_t kFeedDurationUs = 2000000;  // 2 seconds
+constexpr int64_t kSeekTargetUs = 1000000;    // 1 second
 
 void BM_PlayerSeekSync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;

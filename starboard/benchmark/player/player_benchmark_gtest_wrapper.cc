@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <vector>
+
 #include "starboard/common/command_line.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,20 +24,21 @@ namespace starboard {
 namespace benchmark {
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
-  // Run only the player benchmarks.
-  // Google Benchmark modifies argc/argv.
-  int argc = 2;
+  // Run only the player benchmarks unless a filter is passed explicitly.
   std::string filter = "BM_Player";
   const starboard::CommandLine* command_line =
       starboard::testing::GetTestCommandLine();
   if (command_line && command_line->HasSwitch("benchmark_filter")) {
     filter = command_line->GetSwitchValue("benchmark_filter");
   }
-  std::string filter_arg = "--benchmark_filter=" + filter;
-  char* argv[] = {(char*)"player_benchmarks",
-                  const_cast<char*>(filter_arg.c_str())};
 
-  ::benchmark::Initialize(&argc, argv);
+  // Google Benchmark may modify argc/argv.
+  std::string program_name = "player_benchmarks";
+  std::string filter_arg = "--benchmark_filter=" + filter;
+  std::vector<char*> argv = {program_name.data(), filter_arg.data(), nullptr};
+  int argc = static_cast<int>(argv.size()) - 1;
+
+  ::benchmark::Initialize(&argc, argv.data());
   ::benchmark::RunSpecifiedBenchmarks();
 }
 
