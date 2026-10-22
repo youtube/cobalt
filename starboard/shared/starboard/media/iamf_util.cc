@@ -32,7 +32,7 @@ constexpr uint8_t kIamfSequenceHeaderObu = 31;
 // A lightweight, forward-only reader for a raw byte buffer.
 class BufferReader {
  public:
-  explicit BufferReader(Span<const uint8_t> buffer)
+  explicit BufferReader(span<const uint8_t> buffer)
       : view_(reinterpret_cast<const char*>(buffer.data()), buffer.size()) {}
 
   std::optional<uint8_t> ReadByte() {
@@ -198,7 +198,7 @@ IamfMimeUtil::IamfMimeUtil(uint32_t primary_profile,
 // static.
 Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     const std::vector<uint8_t>& data) {
-  BufferReader reader({data.data(), data.size()});
+  BufferReader reader(data);
 
   auto header_byte_opt = reader.ReadByte();
   if (!header_byte_opt) {

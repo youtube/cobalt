@@ -23,7 +23,7 @@ mkdir ~/cobalt && cd ~/cobalt
 git clone --single-branch https://github.com/youtube/cobalt.git src
 gclient config --name=src https://github.com/youtube/cobalt.git
 cd src
-gclient sync --no-history -r $(git rev-parse @)
+gclient sync --no-history
 ```
 
 If you prefer, you can instead complete the instructions for

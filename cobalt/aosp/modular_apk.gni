@@ -96,7 +96,7 @@ template("modular_apk") {
       deps += [ "//third_party/icu:icudata($default_toolchain)" ]
     }
 
-    if (!_testonly) {
+    if (!_testonly || _name == "cobalt_browsertests") {
       renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
       renaming_destinations += [ "app/${_name}/content/cobalt_shell.pak" ]
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
