@@ -388,6 +388,10 @@ bool ChunkDemuxer::IsSourceUsedForPlayback_Locked(
     const std::string& source_id) const {
   lock_.AssertAcquired();
   DCHECK(multi_source_buffer_switching_);
+  // Standby SourceBuffers play only after ChangeTo() selects them.
+  if (standby_ids_.contains(source_id)) {
+    return false;
+  }
   if (IsSourceActive_Locked(source_id)) {
     return true;
   }

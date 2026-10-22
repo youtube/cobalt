@@ -128,6 +128,28 @@ async function run() {
   }
   check(rejected, 'changeTo() with two video SourceBuffers did not reject');
 
+  // All media types switch at once.
+  rejected = false;
+  try {
+    await mediaSource.changeTo([video2]);
+  } catch (e) {
+    rejected = e.name == 'NotSupportedError';
+  }
+  check(rejected, 'changeTo() of only video did not reject');
+
+  // SourceBuffers without buffered media can't be changed to.
+  const audio3 = mediaSource.addSourceBuffer(AUDIO_TYPE, {standby: true});
+  const video3 = mediaSource.addSourceBuffer(VIDEO_TYPE, {standby: true});
+  rejected = false;
+  try {
+    await mediaSource.changeTo([audio3, video3]);
+  } catch (e) {
+    rejected = e.name == 'InvalidStateError';
+  }
+  check(rejected, 'changeTo() of empty SourceBuffers did not reject');
+  mediaSource.removeSourceBuffer(audio3);
+  mediaSource.removeSourceBuffer(video3);
+
   // Switch to the second item.
   await mediaSource.changeTo([audio2, video2]);
   active = activeSourceBuffers(mediaSource);

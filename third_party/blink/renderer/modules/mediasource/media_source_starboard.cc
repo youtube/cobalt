@@ -94,6 +94,32 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
           "A SourceBuffer isn't in this MediaSource's sourceBuffers.");
       return EmptyPromise();
     }
+    // The seek that completes the switch needs media to seek to.
+    TimeRanges* ranges = source_buffer->buffered(ASSERT_NO_EXCEPTION);
+    if (!ranges || ranges->length() == 0) {
+      LogAndThrowDOMException(exception_state,
+                              DOMExceptionCode::kInvalidStateError,
+                              "A SourceBuffer has no buffered media.");
+      return EmptyPromise();
+    }
+  }
+  // Before the media element has metadata, setting its currentTime doesn't
+  // seek, so the switch wouldn't complete.
+  HTMLMediaElement* media_element = nullptr;
+  {
+    auto [attachment, tracer] = AttachmentAndTracer();
+    // Only a same-thread attachment has a tracer.
+    if (tracer) {
+      media_element =
+          static_cast<SameThreadMediaSourceTracer*>(tracer)->GetMediaElement();
+    }
+  }
+  if (!media_element ||
+      media_element->getReadyState() == HTMLMediaElement::kHaveNothing) {
+    LogAndThrowDOMException(exception_state,
+                            DOMExceptionCode::kInvalidStateError,
+                            "The media element has no metadata yet.");
+    return EmptyPromise();
   }
 
   // Switch the streams that playback reads.
@@ -133,15 +159,7 @@ ScriptPromise<IDLUndefined> MediaSource::changeTo(
   if (!std::isfinite(start)) {
     start = 0;
   }
-  auto [attachment, tracer] = AttachmentAndTracer();
-  // Only a same-thread attachment has a tracer.
-  if (tracer) {
-    if (HTMLMediaElement* element =
-            static_cast<SameThreadMediaSourceTracer*>(tracer)
-                ->GetMediaElement()) {
-      element->setCurrentTime(start);
-    }
-  }
+  media_element->setCurrentTime(start);
   return ToResolvedUndefinedPromise(script_state);
 }
 
@@ -176,42 +194,72 @@ void MediaSource::UpdateTracksAfterChangeTo(
   // element: a track change would reach the pipeline, which would switch
   // streams again and cancel the seek that completes this switch.
   HTMLMediaElement* element = nullptr;
+  bool audio_changed = false;
+  bool video_changed = false;
   for (unsigned i = 0; i < source_buffers_->length(); ++i) {
     SourceBuffer* source_buffer = source_buffers_->item(i);
     if (source_buffers.Contains(source_buffer)) {
       continue;
     }
     AudioTrackList& audio_tracks = source_buffer->audioTracks();
+    bool changed = false;
     for (unsigned j = 0; j < audio_tracks.length(); ++j) {
-      audio_tracks.AnonymousIndexedGetter(j)->ClearEnabled();
+      AudioTrack* audio_track = audio_tracks.AnonymousIndexedGetter(j);
+      if (audio_track->enabled()) {
+        audio_track->ClearEnabled();
+        element = element ? element : audio_track->MediaElement();
+        changed = true;
+      }
+    }
+    if (changed) {
+      audio_tracks.ScheduleChangeEvent();
+      audio_changed = true;
     }
     VideoTrackList& video_tracks = source_buffer->videoTracks();
+    changed = false;
     for (unsigned j = 0; j < video_tracks.length(); ++j) {
-      video_tracks.AnonymousIndexedGetter(j)->ClearSelected();
+      VideoTrack* video_track = video_tracks.AnonymousIndexedGetter(j);
+      if (video_track->selected()) {
+        video_track->ClearSelected();
+        element = element ? element : video_track->MediaElement();
+        changed = true;
+      }
+    }
+    if (changed) {
+      video_tracks.ScheduleChangeEvent();
+      video_changed = true;
     }
   }
   for (const Member<SourceBuffer>& source_buffer : source_buffers) {
     AudioTrackList& audio_tracks = source_buffer->audioTracks();
-    if (audio_tracks.length() > 0) {
+    if (audio_tracks.length() > 0 &&
+        !audio_tracks.AnonymousIndexedGetter(0)->enabled()) {
       AudioTrack* audio_track = audio_tracks.AnonymousIndexedGetter(0);
       HTMLMediaElement* track_element = audio_track->MediaElement();
       audio_track->SetMediaElement(nullptr);
       audio_track->setEnabled(true);
       audio_track->SetMediaElement(track_element);
       element = element ? element : track_element;
+      audio_tracks.ScheduleChangeEvent();
+      audio_changed = true;
     }
     VideoTrackList& video_tracks = source_buffer->videoTracks();
-    if (video_tracks.length() > 0) {
+    if (video_tracks.length() > 0 &&
+        !video_tracks.AnonymousIndexedGetter(0)->selected()) {
       VideoTrack* video_track = video_tracks.AnonymousIndexedGetter(0);
       HTMLMediaElement* track_element = video_track->MediaElement();
       video_track->SetMediaElement(nullptr);
       video_track->setSelected(true);
       video_track->SetMediaElement(track_element);
       element = element ? element : track_element;
+      video_tracks.ScheduleChangeEvent();
+      video_changed = true;
     }
   }
-  if (element) {
+  if (element && audio_changed) {
     element->audioTracks().ScheduleChangeEvent();
+  }
+  if (element && video_changed) {
     element->videoTracks().ScheduleChangeEvent();
   }
 

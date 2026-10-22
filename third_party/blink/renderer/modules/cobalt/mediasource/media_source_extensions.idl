@@ -18,6 +18,7 @@
 // `Media.EnableMultiSourceBufferSwitching` exposes these.
 
 [
+    Exposed=Window,
     ImplementedAs=MediaSourceChangeTo
 ] partial interface MediaSource {
     [
