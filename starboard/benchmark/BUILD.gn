@@ -39,6 +39,7 @@ target(_benchmark_type, "benchmark") {
   public_deps = [
     "//starboard:starboard_group",
     "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",
     "//third_party/google_benchmark",
@@ -74,6 +75,7 @@ test("player_benchmarks_gtest") {
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",

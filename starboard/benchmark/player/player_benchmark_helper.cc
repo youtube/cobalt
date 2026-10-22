@@ -14,21 +14,32 @@
 
 #include "starboard/benchmark/player/player_benchmark_helper.h"
 
+#include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <limits>
+#include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace benchmark {
 
 SbPlayerBenchmarkHelper::SbPlayerBenchmarkHelper() {
-  StarboardExtensionExperimentalFeatures experimental_features = {};
-  experimental_features.entries = nullptr;
-  experimental_features.entry_count = 0;
-  starboard::SetExperimentalFeaturesForCurrentThread(&experimental_features);
+  // Mirror what the media pipeline does before creating a player. Go through
+  // the Starboard extension rather than the internal C++ function so that the
+  // benchmarks also link against a shared Starboard library.
+  auto* experimental_features_extension = static_cast<
+      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+      SbSystemGetExtension(
+          kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures experimental_features = {nullptr, 0};
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &experimental_features);
+  }
 }
 
 SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
@@ -38,10 +49,6 @@ SbPlayerBenchmarkHelper::~SbPlayerBenchmarkHelper() {
 bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
                                                const char* video_file,
                                                SbPlayerOutputMode output_mode) {
-  std::cout << "[HELPER] InitializePlayer start: audio="
-            << (audio_file ? audio_file : "none")
-            << ", video=" << (video_file ? video_file : "none")
-            << ", mode=" << output_mode << std::endl;
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = kSbDrmSystemInvalid;
   creation_param.output_mode = output_mode;
@@ -58,12 +65,9 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
     ticket_ = SB_PLAYER_INITIAL_TICKET;
 
     if (audio_file) {
-      std::cout << "[HELPER] Loading audio DMP..." << std::endl;
       audio_reader_.reset(
           new VideoDmpReader(audio_file, VideoDmpReader::kEnableReadOnDemand));
       if (audio_reader_->number_of_audio_buffers() == 0) {
-        std::cout << "[HELPER] Failed to load audio DMP (0 buffers)"
-                  << std::endl;
         SB_LOG(ERROR) << "Failed to load audio DMP: " << audio_file;
         return false;
       }
@@ -78,12 +82,9 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
     }
 
     if (video_file) {
-      std::cout << "[HELPER] Loading video DMP..." << std::endl;
       video_reader_.reset(
           new VideoDmpReader(video_file, VideoDmpReader::kEnableReadOnDemand));
       if (video_reader_->number_of_video_buffers() == 0) {
-        std::cout << "[HELPER] Failed to load video DMP (0 buffers)"
-                  << std::endl;
         SB_LOG(ERROR) << "Failed to load video DMP: " << video_file;
         return false;
       }
@@ -98,15 +99,12 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
     }
   }
 
-  std::cout << "[HELPER] Calling SbPlayerCreate..." << std::endl;
   SbPlayer player =
       SbPlayerCreate(GetWindow(), &creation_param, DummyDeallocateSampleFunc,
                      DecoderStatusCallback, PlayerStatusCallback,
                      DummyPlayerErrorFunc, this, GetDecoderTargetProvider());
 
   if (!SbPlayerIsValid(player)) {
-    std::cout << "[HELPER] SbPlayerCreate failed (returned invalid player)"
-              << std::endl;
     SB_LOG(ERROR) << "SbPlayerCreate failed";
     return false;
   }
@@ -116,22 +114,18 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
     player_ = player;
   }
 
-  std::cout << "[HELPER] Waiting for player to be Initialized..." << std::endl;
   // Wait for the kSbPlayerStateInitialized callback
   if (!WaitForPlayerState(kSbPlayerStateInitialized,
                           SB_PLAYER_INITIAL_TICKET)) {
-    std::cout << "[HELPER] Timeout waiting for Initialized state" << std::endl;
     SB_LOG(ERROR) << "Timeout waiting for kSbPlayerStateInitialized";
     return false;
   }
 
-  std::cout << "[HELPER] Calling initial Seek(0)..." << std::endl;
   // Call Seek(0) to start the playback pipelines and decoders!
   Seek(0);
   SbPlayerSetPlaybackRate(player_, 1.0);
   SbPlayerSetVolume(player_, 1.0);
 
-  std::cout << "[HELPER] InitializePlayer success!" << std::endl;
   return true;
 }
 
@@ -151,7 +145,6 @@ void SbPlayerBenchmarkHelper::DestroyPlayer() {
 }
 
 void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
-  SB_LOG(INFO) << "FeedData: start, target duration=" << duration_us;
   while (true) {
     bool write_audio = false;
     bool write_video = false;
@@ -202,17 +195,11 @@ void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
       }
 
       if (audio_done && video_done) {
-        SB_LOG(INFO) << "FeedData: done! (audio_done=" << audio_done
-                     << ", video_done=" << video_done << ")";
         break;
       }
 
       if (!write_audio && !write_video) {
-        SB_LOG(INFO) << "FeedData: waiting... (audio_needs_data="
-                     << audio_needs_data_
-                     << ", video_needs_data=" << video_needs_data_ << ")";
         cv_.wait(lock);
-        SB_LOG(INFO) << "FeedData: woke up!";
         continue;
       }
     }
@@ -256,72 +243,64 @@ bool SbPlayerBenchmarkHelper::WaitForPlayerState(SbPlayerState state,
 }
 
 void SbPlayerBenchmarkHelper::WriteSamples(SbMediaType type) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  if (player_ == kSbPlayerInvalid) {
+  SbPlayer player = kSbPlayerInvalid;
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    player = player_;
+  }
+  if (!SbPlayerIsValid(player)) {
     return;
   }
 
-  int max_samples = SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, type);
+  int max_samples = SbPlayerGetMaximumNumberOfSamplesPerWrite(player, type);
   if (max_samples <= 0) {
     max_samples = 1;
   }
 
-  if (type == kSbMediaTypeAudio) {
-    if (!audio_reader_) {
+  // Collect the samples under the lock, but call into the player without
+  // holding it: the player callbacks acquire the same mutex, so holding it
+  // across SbPlayerWriteSamples() would deadlock with an implementation that
+  // invokes the callbacks synchronously.
+  bool write_end_of_stream = false;
+  std::vector<SbPlayerSampleInfo> sample_infos;
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    const bool is_audio = type == kSbMediaTypeAudio;
+    VideoDmpReader* reader =
+        is_audio ? audio_reader_.get() : video_reader_.get();
+    if (!reader) {
       return;
     }
-    size_t total_samples = audio_reader_->number_of_audio_buffers();
-    if (next_audio_sample_index_ >= total_samples) {
-      if (!audio_eos_written_) {
-        SB_LOG(INFO) << "WriteSamples: writing audio EOS";
-        SbPlayerWriteEndOfStream(player_, kSbMediaTypeAudio);
-        audio_eos_written_ = true;
-        audio_needs_data_ = false;
-      }
-      return;
-    }
+    size_t& next_sample_index =
+        is_audio ? next_audio_sample_index_ : next_video_sample_index_;
+    bool& eos_written = is_audio ? audio_eos_written_ : video_eos_written_;
+    bool& needs_data = is_audio ? audio_needs_data_ : video_needs_data_;
+    const size_t total_samples = is_audio ? reader->number_of_audio_buffers()
+                                          : reader->number_of_video_buffers();
 
-    int samples_to_write = std::min(static_cast<size_t>(max_samples),
-                                    total_samples - next_audio_sample_index_);
-    SB_LOG(INFO) << "WriteSamples: writing " << samples_to_write
-                 << " audio samples, next index=" << next_audio_sample_index_;
-    std::vector<SbPlayerSampleInfo> sample_infos;
-    sample_infos.reserve(samples_to_write);
-    for (int i = 0; i < samples_to_write; ++i) {
-      sample_infos.push_back(audio_reader_->GetPlayerSampleInfo(
-          kSbMediaTypeAudio, next_audio_sample_index_++));
+    if (next_sample_index >= total_samples) {
+      if (eos_written) {
+        return;
+      }
+      eos_written = true;
+      write_end_of_stream = true;
+    } else {
+      const size_t samples_to_write = std::min(
+          static_cast<size_t>(max_samples), total_samples - next_sample_index);
+      sample_infos.reserve(samples_to_write);
+      for (size_t i = 0; i < samples_to_write; ++i) {
+        sample_infos.push_back(
+            reader->GetPlayerSampleInfo(type, next_sample_index++));
+      }
     }
-    SbPlayerWriteSamples(player_, kSbMediaTypeAudio, sample_infos.data(),
-                         samples_to_write);
-    audio_needs_data_ = false;
+    needs_data = false;
+  }
+
+  if (write_end_of_stream) {
+    SbPlayerWriteEndOfStream(player, type);
   } else {
-    if (!video_reader_) {
-      return;
-    }
-    size_t total_samples = video_reader_->number_of_video_buffers();
-    if (next_video_sample_index_ >= total_samples) {
-      if (!video_eos_written_) {
-        SB_LOG(INFO) << "WriteSamples: writing video EOS";
-        SbPlayerWriteEndOfStream(player_, kSbMediaTypeVideo);
-        video_eos_written_ = true;
-        video_needs_data_ = false;
-      }
-      return;
-    }
-
-    int samples_to_write = std::min(static_cast<size_t>(max_samples),
-                                    total_samples - next_video_sample_index_);
-    SB_LOG(INFO) << "WriteSamples: writing " << samples_to_write
-                 << " video samples, next index=" << next_video_sample_index_;
-    std::vector<SbPlayerSampleInfo> sample_infos;
-    sample_infos.reserve(samples_to_write);
-    for (int i = 0; i < samples_to_write; ++i) {
-      sample_infos.push_back(video_reader_->GetPlayerSampleInfo(
-          kSbMediaTypeVideo, next_video_sample_index_++));
-    }
-    SbPlayerWriteSamples(player_, kSbMediaTypeVideo, sample_infos.data(),
-                         samples_to_write);
-    video_needs_data_ = false;
+    SbPlayerWriteSamples(player, type, sample_infos.data(),
+                         static_cast<int>(sample_infos.size()));
   }
 }
 
@@ -407,9 +386,6 @@ void SbPlayerBenchmarkHelper::DecoderStatusCallback(SbPlayer player,
   SbPlayerBenchmarkHelper* helper =
       static_cast<SbPlayerBenchmarkHelper*>(context);
   std::unique_lock<std::mutex> lock(helper->mutex_);
-  SB_LOG(INFO) << "DecoderStatusCallback: type=" << type << ", state=" << state
-               << ", ticket=" << ticket
-               << " (current helper ticket=" << helper->ticket_ << ")";
   if (ticket != helper->ticket_) {
     return;
   }
@@ -430,9 +406,6 @@ void SbPlayerBenchmarkHelper::PlayerStatusCallback(SbPlayer player,
   SbPlayerBenchmarkHelper* helper =
       static_cast<SbPlayerBenchmarkHelper*>(context);
   std::unique_lock<std::mutex> lock(helper->mutex_);
-  SB_LOG(INFO) << "PlayerStatusCallback: state=" << state
-               << ", ticket=" << ticket
-               << " (current helper ticket=" << helper->ticket_ << ")";
   if (ticket != helper->ticket_) {
     return;
   }
@@ -445,10 +418,14 @@ void SbPlayerBenchmarkHelper::DummyPlayerErrorFunc(SbPlayer player,
                                                    void* context,
                                                    SbPlayerError error,
                                                    const char* message) {
-  SB_LOG(ERROR) << "DummyPlayerErrorFunc: error=" << error
-                << ", message=" << message;
+  SB_LOG(ERROR) << "Player error " << error << ": " << (message ? message : "");
   SbPlayerBenchmarkHelper* helper =
       static_cast<SbPlayerBenchmarkHelper*>(context);
+  // The benchmarks that only exercise creation and destruction pass a null
+  // context.
+  if (!helper) {
+    return;
+  }
   helper->error_occurred_ = true;
   helper->cv_.notify_all();
 }
