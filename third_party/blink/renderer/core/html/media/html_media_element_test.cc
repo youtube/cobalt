@@ -2673,8 +2673,6 @@ TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
       features::kCobaltSkipHiddenMediaControlsWork);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -2687,8 +2685,6 @@ TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsWork);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();

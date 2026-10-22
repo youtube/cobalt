@@ -335,6 +335,7 @@ component("core") {
       "inspector/cobalt/inspector_event_breakpoints_agent_stub.cc",
       "inspector/cobalt/inspector_media_agent_stub.cc",
       "inspector/cobalt/inspector_performance_timeline_agent_stub.cc",
+      "inspector/cobalt/inspector_web_mcp_agent_stub.cc",
       "inspector/cobalt/inspector_preload_agent_stub.cc",
       "inspector/cobalt/inspector_overlay_agent_stub.cc",
       "inspector/cobalt/main_thread_debugger_stub.cc",
