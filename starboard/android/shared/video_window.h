@@ -25,6 +25,16 @@ namespace starboard {
 
 class VideoSurfaceHolder {
  public:
+  class TestObserver {
+   public:
+    virtual ~TestObserver() = default;
+    virtual void OnCleanUpVideoSurface() {}
+    virtual void OnSetVideoSurfaceVisible(bool visible) {}
+    virtual void OnShowVideoSurfaceWithNextFrame() {}
+  };
+
+  static void SetTestObserverForTesting(TestObserver* observer);
+
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -46,6 +56,14 @@ class VideoSurfaceHolder {
 
   // Cleans up the video surface, and posts the task to |gpu_provider|.
   void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  // Sets the visibility of the video surface immediately via SurfaceControl.
+  void SetVideoSurfaceVisible(bool visible);
+
+  // Shows the video surface together with the next frame rendered to it via
+  // SurfaceView.applyTransactionToFrame(), falling back to showing it
+  // immediately if attaching to the next frame fails.
+  void ShowVideoSurfaceWithNextFrame();
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();

@@ -139,6 +139,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void SetPlaybackRate(double playback_rate);
 
   void OnFrameAvailable() override;
+  void OnSurfaceDestroyed() override;
 
  private:
   // Attempt to initialize the codec.
@@ -161,9 +162,10 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFirstTunnelFrameReady();
   void OnTunnelModeCheckForNeedMoreInput();
 
+  void OnVideoFrameDraw();
   void OnVideoFrameRelease();
+  void MaybeHideVideoSurfaceOnTeardown();
 
-  void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
   void ResetInternal(bool skip_flush);
@@ -217,6 +219,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  const bool apply_transaction_to_frame_on_surface_cleanup_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -267,11 +270,13 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool end_of_stream_written_ = false;
   volatile int64_t first_buffer_timestamp_;  // microseconds
   std::atomic_bool has_new_texture_available_{false};
+  std::atomic_bool has_drawn_first_frame_{false};
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
+  bool has_hidden_video_surface_on_teardown_ = false;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
