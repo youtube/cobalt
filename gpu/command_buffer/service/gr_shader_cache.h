@@ -34,6 +34,12 @@ class RASTER_EXPORT GrShaderCache
 
     virtual void StoreShader(const std::string& key,
                              const std::string& shader) = 0;
+#if BUILDFLAG(IS_COBALT)
+    // Touches an already-persisted shader entry in the host disk cache when it
+    // is reused in RAM so its on-disk LRU/MRU timestamp is refreshed without
+    // rewriting the shader blob.
+    virtual void TouchShaderOnDisk(const std::string& key) {}
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   class RASTER_EXPORT ScopedCacheUse {
@@ -110,6 +116,13 @@ class RASTER_EXPORT GrShaderCache
     // Indicates that this cache entry was loaded from the disk and hasn't been
     // read yet.
     bool prefetched_but_not_read = false;
+#if BUILDFLAG(IS_COBALT)
+    // Indicates that an already-persisted entry was hit by Skia in load() and
+    // needs its disk-cache LRU timestamp refreshed (immediately in WriteToDisk
+    // when !defer_disk_writes_, or on the next idle/background flush when
+    // defer_disk_writes_ is enabled).
+    bool pending_disk_touch = false;
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   struct CacheKeyHash {

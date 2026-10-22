@@ -568,6 +568,14 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
  public:
   explicit SimpleIterator(base::WeakPtr<SimpleBackendImpl> backend)
       : backend_(backend) {}
+#if BUILDFLAG(IS_COBALT)
+  SimpleIterator(base::WeakPtr<SimpleBackendImpl> backend,
+                 size_t max_entries,
+                 base::Time min_last_used_time)
+      : backend_(backend),
+        max_entries_(max_entries),
+        min_last_used_time_(min_last_used_time) {}
+#endif  // BUILDFLAG(IS_COBALT)
 
   // From Backend::Iterator:
   EntryResult OpenNextEntry(EntryResultCallback callback) override {
@@ -591,8 +599,18 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
           static_cast<net::Error>(index_initialization_error_code)));
       return;
     }
-    if (!hashes_to_enumerate_)
+    if (!hashes_to_enumerate_) {
+#if BUILDFLAG(IS_COBALT)
+      if (max_entries_.has_value()) {
+        hashes_to_enumerate_ = backend_->index()->GetMostRecentHashes(
+            *max_entries_, min_last_used_time_);
+      } else {
+        hashes_to_enumerate_ = backend_->index()->GetAllHashes();
+      }
+#else
       hashes_to_enumerate_ = backend_->index()->GetAllHashes();
+#endif  // BUILDFLAG(IS_COBALT)
+    }
 
     while (!hashes_to_enumerate_->empty()) {
       uint64_t entry_hash = hashes_to_enumerate_->back();
@@ -627,6 +645,10 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
 
  private:
   base::WeakPtr<SimpleBackendImpl> backend_;
+#if BUILDFLAG(IS_COBALT)
+  std::optional<size_t> max_entries_;
+  base::Time min_last_used_time_;
+#endif  // BUILDFLAG(IS_COBALT)
   std::unique_ptr<std::vector<uint64_t>> hashes_to_enumerate_;
   base::WeakPtrFactory<SimpleIterator> weak_factory_{this};
 };
@@ -634,6 +656,15 @@ class SimpleBackendImpl::SimpleIterator final : public Iterator {
 std::unique_ptr<Backend::Iterator> SimpleBackendImpl::CreateIterator() {
   return std::make_unique<SimpleIterator>(weak_ptr_factory_.GetWeakPtr());
 }
+
+#if BUILDFLAG(IS_COBALT)
+std::unique_ptr<Backend::Iterator> SimpleBackendImpl::CreateMostRecentIterator(
+    size_t max_entries,
+    base::Time min_last_used_time) {
+  return std::make_unique<SimpleIterator>(weak_ptr_factory_.GetWeakPtr(),
+                                          max_entries, min_last_used_time);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void SimpleBackendImpl::GetStats(base::StringPairs* stats) {
   std::pair<std::string, std::string> item;

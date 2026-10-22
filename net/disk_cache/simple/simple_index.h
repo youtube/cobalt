@@ -208,6 +208,16 @@ class NET_EXPORT_PRIVATE SimpleIndex final {
   // Returns the list of all entries key hash.
   std::unique_ptr<HashList> GetAllHashes();
 
+#if BUILDFLAG(IS_COBALT)
+  // Returns at most `max_entries` hashes with last-used time >=
+  // `min_last_used_time` (when non-null), ordered ascending by last-used
+  // timestamp so `SimpleIterator` (`pop_back()`) enumerates Most-Recently-Used
+  // first.
+  std::unique_ptr<HashList> GetMostRecentHashes(
+      size_t max_entries,
+      base::Time min_last_used_time = base::Time());
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Returns number of indexed entries.
   int32_t GetEntryCount() const;
 

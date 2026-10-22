@@ -1867,6 +1867,63 @@ TEST_F(DiskCacheBackendTest, ShaderCacheEnumerationReadData) {
   entry2->Close();
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Verify that SimpleCache's CreateMostRecentIterator() bounds enumeration to
+// top-K MRU entries, skips ReadData() LRU refreshes in SHADER_CACHE mode, and
+// promotes entries on OnExternalCacheHit() without altering CreateIterator().
+TEST_F(DiskCacheBackendTest, SimpleShaderCacheEnumerationReadDataAndHitRank) {
+  SetSimpleCacheMode();
+  SetCacheType(net::SHADER_CACHE);
+  InitCache();
+
+  const std::string first("first");
+  const std::string second("second");
+  disk_cache::Entry* entry1 = nullptr;
+  disk_cache::Entry* entry2 = nullptr;
+  const int kSize = 50;
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(kSize);
+  std::ranges::fill(buffer->span(), 'x');
+
+  ASSERT_THAT(CreateEntry(first, &entry1), IsOk());
+  EXPECT_EQ(kSize, WriteData(entry1, 1, 0, buffer.get(), kSize, false));
+  entry1->Close();
+
+  AddDelay();
+  ASSERT_THAT(CreateEntry(second, &entry2), IsOk());
+  EXPECT_EQ(kSize, WriteData(entry2, 1, 0, buffer.get(), kSize, false));
+  entry2->Close();
+
+  AddDelay();
+  // Blind startup ReadData() on |first| must not promote it ahead of |second|.
+  ASSERT_THAT(OpenEntry(first, &entry1), IsOk());
+  EXPECT_EQ(kSize, ReadData(entry1, 1, 0, buffer.get(), kSize));
+  entry1->Close();
+
+  {
+    TestIterator iter(cache_->CreateMostRecentIterator(/*max_entries=*/1));
+    ASSERT_THAT(iter.OpenNextEntry(&entry2), IsOk());
+    EXPECT_EQ(second, entry2->GetKey());
+    entry2->Close();
+    EXPECT_THAT(iter.OpenNextEntry(&entry1), IsError(net::ERR_FAILED));
+  }
+
+  AddDelay();
+  // An actual in-memory shader hit via OnExternalCacheHit() promotes |first|
+  // to the front of MRU enumeration.
+  OnExternalCacheHit(first);
+
+  {
+    TestIterator iter(cache_->CreateMostRecentIterator(/*max_entries=*/2));
+    ASSERT_THAT(iter.OpenNextEntry(&entry1), IsOk());
+    EXPECT_EQ(first, entry1->GetKey());
+    entry1->Close();
+    ASSERT_THAT(iter.OpenNextEntry(&entry2), IsOk());
+    EXPECT_EQ(second, entry2->GetKey());
+    entry2->Close();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if !defined(LEAK_SANITIZER)
 // Verify handling of invalid entries while doing enumerations.
 // We'll be leaking memory from this test.

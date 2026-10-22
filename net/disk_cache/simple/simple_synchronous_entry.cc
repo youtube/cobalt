@@ -607,7 +607,13 @@ void SimpleSynchronousEntry::ReadData(const ReadRequest& in_entry_op,
       file_offset,
       out_buf->first(base::checked_cast<size_t>(in_entry_op.buf_len)));
   if (bytes_read.value_or(0) > 0) {
+#if BUILDFLAG(IS_COBALT)
+    if (cache_type_ != net::SHADER_CACHE) {
+      entry_stat->set_last_used(Time::Now());
+    }
+#else
     entry_stat->set_last_used(Time::Now());
+#endif  // BUILDFLAG(IS_COBALT)
     if (in_entry_op.request_update_crc) {
       out_result->updated_crc32 = simple_util::IncrementalCrc32(
           in_entry_op.previous_crc32, out_buf->data(), *bytes_read);

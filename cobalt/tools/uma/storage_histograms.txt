@@ -29,6 +29,8 @@ SimpleCache.Code.MaxCacheSizeOnInit
 Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB
 Cobalt.Storage.GpuShaderCache.LoadedEntriesCount
 Cobalt.Storage.GpuShaderCache.LoadedBytesKB
+Gpu.GrShaderCacheLoadHitInCache
+GPU.ShaderLoadPrefixOK
 V8.CompileScript.CacheBehaviour
 WebCore.Scripts.V8CodeCacheMetadata.Get
 WebCore.Scripts.V8CodeCacheMetadata.Set
