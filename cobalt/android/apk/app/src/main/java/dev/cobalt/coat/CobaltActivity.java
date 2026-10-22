@@ -468,7 +468,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
 
     long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
-    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    // DISABLE_STARTUP_GUARD above is honored even in crash-streak safe mode, since disabling the
+    // watchdog cannot cause crashes. A custom interval can (e.g. one that is too short kills every
+    // launch), so ignore it in safe mode and use the default timeout.
+    String intervalStr =
+        JavaSwitches.shouldApplyExperimentConfigs()
+            ? switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS)
+            : null;
     if (intervalStr != null) {
       try {
         long parsedTimeout = Long.parseLong(intervalStr);
