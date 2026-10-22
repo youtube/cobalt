@@ -73,6 +73,13 @@ ChunkDemuxerStream::TakePendingRead() {
   return {std::move(read_cb_), count};
 }
 
+void ChunkDemuxerStream::SetEnabledAtCreation(bool enabled) {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(!stream_);
+  DCHECK(!read_cb_);
+  is_enabled_ = enabled;
+}
+
 void ChunkDemuxerStream::SetWriteHead(base::TimeDelta time) {
   base::AutoLock auto_lock(lock_);
   write_head_ = time;
@@ -140,16 +147,24 @@ std::vector<DemuxerStream*> ChunkDemuxer::GetSelectedTrackStreams_Locked()
   return result;
 }
 
-void ChunkDemuxer::CreateSelectedTrackStreamIfNeeded_Locked(
+void ChunkDemuxer::OnDemuxerStreamCreatedForSwitching_Locked(
+    const std::string& source_id,
     ChunkDemuxerStream* stream) {
   lock_.AssertAcquired();
   DCHECK(multi_source_buffer_switching_);
-  // The pipeline reads the first stream of each type, and the streams of the
-  // tracks selected later, through a SelectedTrackStream.
+  if (standby_ids_.contains(source_id)) {
+    // CreateDemuxerStream() enables the first stream of each type, which can
+    // be a standby SourceBuffer's.
+    stream->SetEnabledAtCreation(false);
+    return;
+  }
+  // The pipeline reads the first stream of each type that plays now, and the
+  // streams selected later by ChangeTo(), through a SelectedTrackStream.
   std::unique_ptr<SelectedTrackStream>& selected_stream =
       stream->type() == DemuxerStream::AUDIO ? selected_audio_stream_
                                              : selected_video_stream_;
   if (!selected_stream) {
+    stream->SetEnabledAtCreation(true);
     selected_stream =
         std::make_unique<SelectedTrackStream>(stream->type(), stream);
     if (!returning_data_) {
@@ -157,6 +172,84 @@ void ChunkDemuxer::CreateSelectedTrackStreamIfNeeded_Locked(
       selected_stream->AbortReads();
     }
   }
+}
+
+bool ChunkDemuxer::CanInitializeBeforeStandbySources_Locked() const {
+  lock_.AssertAcquired();
+  DCHECK(multi_source_buffer_switching_);
+  if (!selected_audio_stream_ && !selected_video_stream_) {
+    return false;
+  }
+  for (const std::string& id : pending_source_init_ids_) {
+    if (!standby_ids_.contains(id)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ChunkDemuxer::SetStandby(const std::string& id) {
+  base::AutoLock auto_lock(lock_);
+  if (!multi_source_buffer_switching_ || !IsValidId_Locked(id)) {
+    return false;
+  }
+  // The streams don't exist until the initialization segment arrives.
+  DCHECK(!id_to_streams_map_.contains(id));
+  standby_ids_.insert(id);
+  return true;
+}
+
+bool ChunkDemuxer::ChangeTo(const std::vector<std::string>& ids) {
+  base::AutoLock auto_lock(lock_);
+  if (!multi_source_buffer_switching_ ||
+      (state_ != INITIALIZED && state_ != ENDED)) {
+    return false;
+  }
+
+  // The stream of each type to switch to, and the SelectedTrackStream that
+  // the pipeline reads it through.
+  std::vector<std::pair<SelectedTrackStream*, ChunkDemuxerStream*>> switches;
+  for (const std::string& id : ids) {
+    if (!IsValidId_Locked(id) || pending_source_init_ids_.contains(id)) {
+      return false;
+    }
+    for (ChunkDemuxerStream* stream : id_to_streams_map_[id]) {
+      SelectedTrackStream* selected_stream =
+          stream->type() == DemuxerStream::AUDIO ? selected_audio_stream_.get()
+                                                 : selected_video_stream_.get();
+      if (!selected_stream) {
+        return false;
+      }
+      for (const auto& [other_selected_stream, other_stream] : switches) {
+        if (other_selected_stream == selected_stream) {
+          return false;
+        }
+      }
+      switches.emplace_back(selected_stream, stream);
+    }
+  }
+  if (switches.empty()) {
+    return false;
+  }
+
+  for (const auto& [selected_stream, stream] : switches) {
+    ChunkDemuxerStream* const previous_stream = selected_stream->stream();
+    if (previous_stream == stream) {
+      continue;
+    }
+    LOG(INFO) << "Switching to " << DemuxerStream::GetTypeName(stream->type())
+              << " stream " << stream << "; it plays from the next seek.";
+    // Switch before the previous stream is disabled, so that a read pending
+    // on it is held for |stream| instead of returning end of stream. The seek
+    // that follows positions |stream| and its write head.
+    selected_stream->SwitchTo(stream);
+    stream->SetEnabled(true, base::TimeDelta());
+    previous_stream->SetEnabled(false, base::TimeDelta());
+  }
+  for (const std::string& id : ids) {
+    standby_ids_.erase(id);
+  }
+  return true;
 }
 
 Demuxer::TrackChangeCB ChunkDemuxer::OnTracksChangedForSwitching_Locked(

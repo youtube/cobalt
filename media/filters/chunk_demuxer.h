@@ -161,6 +161,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Sets the write head, as Seek() does, for a stream that a track switch
   // makes read from |time|.
   void SetWriteHead(base::TimeDelta time);
+
+  // Enables or disables a stream that was just created, before it has a
+  // config. Unlike SetEnabled(), it doesn't seek: the demuxer seeks every
+  // stream when it initializes, or when the stream's SourceBuffer does.
+  void SetEnabledAtCreation(bool enabled);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Sets the memory limit, in bytes, on the SourceBufferStream.
@@ -469,18 +474,30 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
 
   // Set by the H5VCC setting `Media.EnableMultiSourceBufferSwitching`. When
-  // enabled, a page can buffer media in additional SourceBuffers of a
-  // MediaSource and switch playback between them on the same media element,
-  // MediaSource, and SbPlayer by selecting their tracks and seeking. Demuxers
-  // read the setting when they are created.
+  // enabled, a page can buffer media in additional "standby" SourceBuffers of
+  // a MediaSource and hand playback over to them with MediaSource.changeTo(),
+  // on the same media element, MediaSource, and SbPlayer. Demuxers read the
+  // setting when they are created.
   //
-  // NOTE: This deviates from the MSE specification: SourceBuffers can be added
-  // after initialization, tracks of queued SourceBuffers start disabled, and a
-  // track switch takes effect at the next seek.
-  //
-  // Defined in starboard/chunk_demuxer_starboard.cc.
+  // The methods below are defined in starboard/chunk_demuxer_starboard.cc.
   static void SetEnableMultiSourceBufferSwitching(bool enable);
   static bool IsMultiSourceBufferSwitchingEnabled();
+
+  // With multi-SourceBuffer switching, marks the SourceBuffer |id| as standby:
+  // it buffers media that plays later. Its streams stay disabled, and it
+  // doesn't hold back initialization, buffered ranges or seeks, until
+  // ChangeTo() selects it. Call it right after adding |id|. Returns false if
+  // switching is off or |id| is unknown.
+  [[nodiscard]] bool SetStandby(const std::string& id);
+
+  // With multi-SourceBuffer switching, makes the pipeline read the streams of
+  // the SourceBuffers |ids|, at most one per media type, instead of the
+  // current ones, from the next seek. The caller then seeks to where the new
+  // media starts. Returns false, and changes nothing, if switching is off, the
+  // demuxer isn't initialized, an id is unknown or not initialized yet, two
+  // ids have streams of the same type, or there is no stream of that type to
+  // switch from.
+  [[nodiscard]] bool ChangeTo(const std::vector<std::string>& ids);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
@@ -581,9 +598,15 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // ChunkDemuxerStreams.
   std::vector<DemuxerStream*> GetSelectedTrackStreams_Locked() const;
 
-  // Creates the SelectedTrackStream of the type of |stream|, reading from
-  // |stream|, if there is none yet.
-  void CreateSelectedTrackStreamIfNeeded_Locked(ChunkDemuxerStream* stream);
+  // Sets up |stream|, just created for the SourceBuffer |source_id|: a standby
+  // SourceBuffer's stream starts disabled, and the first other stream of each
+  // type is enabled and read through a new SelectedTrackStream.
+  void OnDemuxerStreamCreatedForSwitching_Locked(const std::string& source_id,
+                                                 ChunkDemuxerStream* stream);
+
+  // Returns true if every SourceBuffer still waiting for its initialization
+  // segment is standby, and a SourceBuffer that plays now has initialized.
+  bool CanInitializeBeforeStandbySources_Locked() const;
 
   // Switches the SelectedTrackStream of |track_type| to the stream in
   // |enabled_streams|, if it changed. Returns |change_completed_cb| wrapped to
@@ -743,6 +766,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // True from StartReturningData() until the next AbortPendingReads_Locked(),
   // while the streams return data instead of waiting for a seek.
   bool returning_data_ = false;
+
+  // The SourceBuffers set to standby by SetStandby() and not selected by
+  // ChangeTo() yet.
+  std::set<std::string> standby_ids_;
 
   // Declared after the ChunkDemuxerStreams they refer to, so that they are
   // destroyed first.

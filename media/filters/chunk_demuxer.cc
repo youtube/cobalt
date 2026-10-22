@@ -1730,12 +1730,11 @@ void ChunkDemuxer::OnSourceInitDone(
   // Wait until all streams have initialized.
   pending_source_init_ids_.erase(source_id);
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // With multi-SourceBuffer switching, complete initialization once audio and
-  // video exist so that queued SourceBuffers don't delay playback. They
-  // initialize later, in InitializeLateSource_Locked().
+  // With multi-SourceBuffer switching, standby SourceBuffers don't delay
+  // playback. They initialize later, in InitializeLateSource_Locked().
   const bool can_initialize_before_all_sources =
-      multi_source_buffer_switching_ && !audio_streams_.empty() &&
-      !video_streams_.empty();
+      multi_source_buffer_switching_ &&
+      CanInitializeBeforeStandbySources_Locked();
   if (!pending_source_init_ids_.empty() && !can_initialize_before_all_sources) {
     return;
   }
@@ -1798,7 +1797,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   owning_vector->push_back(std::move(stream));
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (multi_source_buffer_switching_) {
-    CreateSelectedTrackStreamIfNeeded_Locked(owning_vector->back().get());
+    OnDemuxerStreamCreatedForSwitching_Locked(source_id,
+                                              owning_vector->back().get());
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return owning_vector->back().get();
