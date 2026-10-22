@@ -986,4 +986,31 @@ TEST_F(SimpleIndexAppCacheTest, DiskWriteQueued) {
   EXPECT_FALSE(index()->HasPendingWrite());
 }
 
+#if BUILDFLAG(IS_COBALT)
+class SimpleIndexShaderCacheTest : public SimpleIndexTest {
+ protected:
+  net::CacheType CacheType() const override { return net::SHADER_CACHE; }
+};
+
+TEST_F(SimpleIndexShaderCacheTest, GetAllHashesSortedForMruIteration) {
+  const base::Time base_time = base::Time::Now();
+  const uint64_t kStaleHash = hashes_.at<1>();
+  const uint64_t kMiddleHash = hashes_.at<2>();
+  const uint64_t kNewestHash = hashes_.at<3>();
+
+  InsertIntoIndexFileReturn(kMiddleHash, base_time + base::Seconds(10), 100u);
+  InsertIntoIndexFileReturn(kNewestHash, base_time + base::Seconds(20), 100u);
+  InsertIntoIndexFileReturn(kStaleHash, base_time, 100u);
+  ReturnIndexFile();
+
+  // SimpleIterator pops from back(), so GetAllHashes() must sort ascending by
+  // last-used timestamp (stalest first, most-recently-used at back()).
+  std::unique_ptr<SimpleIndex::HashList> all_hashes = index()->GetAllHashes();
+  ASSERT_EQ(3u, all_hashes->size());
+  EXPECT_EQ(kStaleHash, (*all_hashes)[0]);
+  EXPECT_EQ(kMiddleHash, (*all_hashes)[1]);
+  EXPECT_EQ(kNewestHash, (*all_hashes)[2]);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace disk_cache

@@ -349,6 +349,25 @@ std::unique_ptr<SimpleIndex::HashList> SimpleIndex::GetEntriesBetween(
 }
 
 std::unique_ptr<SimpleIndex::HashList> SimpleIndex::GetAllHashes() {
+#if BUILDFLAG(IS_COBALT)
+  if (cache_type_ == net::SHADER_CACHE) {
+    DCHECK_EQ(true, initialized_);
+    std::vector<std::pair<uint32_t, uint64_t>> timed_hashes;
+    timed_hashes.reserve(entries_set_.size());
+    for (const auto& [entry_hash, metadata] : entries_set_) {
+      timed_hashes.emplace_back(metadata.RawTimeForSorting(), entry_hash);
+    }
+    // SimpleIterator pops from the back of the returned vector, so sort
+    // ascending by last-used timestamp to enumerate Most-Recently-Used first.
+    std::sort(timed_hashes.begin(), timed_hashes.end());
+    auto ret_hashes = std::make_unique<HashList>();
+    ret_hashes->reserve(timed_hashes.size());
+    for (const auto& [raw_time, entry_hash] : timed_hashes) {
+      ret_hashes->push_back(entry_hash);
+    }
+    return ret_hashes;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   return GetEntriesBetween(base::Time(), base::Time());
 }
 

@@ -18,8 +18,10 @@
 #include "net/base/net_errors.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
+#include "gpu/config/gpu_finch_features.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace gpu {
@@ -113,6 +115,7 @@ class GpuDiskCacheReadHelper {
   raw_ptr<disk_cache::Entry, AcrossTasksDanglingUntriaged> entry_;
 #if BUILDFLAG(IS_COBALT)
   base::TimeTicks load_start_time_;
+  int max_preload_entries_ = 0;
   int loaded_entries_count_ = 0;
   size_t loaded_bytes_ = 0;
 #endif  // BUILDFLAG(IS_COBALT)
@@ -311,6 +314,10 @@ void GpuDiskCacheReadHelper::LoadCache() {
   load_start_time_ = base::TimeTicks::Now();
   loaded_entries_count_ = 0;
   loaded_bytes_ = 0;
+  max_preload_entries_ =
+      base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)
+          ? ::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.Get()
+          : 0;
 #endif  // BUILDFLAG(IS_COBALT)
   OnOpComplete(net::OK);
 }
@@ -348,6 +355,13 @@ void GpuDiskCacheReadHelper::OnEntryOpenComplete(
 
 int GpuDiskCacheReadHelper::OpenNextEntry() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  if (max_preload_entries_ > 0 &&
+      loaded_entries_count_ >= max_preload_entries_) {
+    op_type_ = ITERATION_FINISHED;
+    return net::OK;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   op_type_ = OPEN_NEXT_COMPLETE;
   if (!iter_)
     iter_ = cache_->backend()->CreateIterator();
@@ -737,6 +751,15 @@ void GpuDiskCache::Init() {
 void GpuDiskCache::Cache(const std::string& key, const std::string& blob) {
   if (!cache_available_)
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  if (blob.empty()) {
+    // Empty blob signals an in-memory GrShaderCache hit; update the disk-cache
+    // index's last-used timestamp directly in RAM without opening disk files.
+    backend_->OnExternalCacheHit(key);
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   auto shim = std::make_unique<GpuDiskCacheEntry>(this, key, blob);
   shim->Cache();
