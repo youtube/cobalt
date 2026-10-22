@@ -102,6 +102,16 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // experimentation (--enable-features=CobaltStorageCleanup).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 
+// When enabled, gates Cobalt LocalStorage LevelDB write-amplification and
+// data-wipe prevention optimizations (replacing the 1s aggressive commit
+// delay with a 30s rate-limited batching window, decoupling periodic timer
+// commit sync from lifecycle Flush/ShutDown sync, repairing missing CURRENT
+// or recoverable LevelDB open errors before recreating, and restricting
+// DeleteAndRecreateDatabase to genuine corruption). Disabled by default to
+// allow controlled Finch/Mendel A/B experimentation
+// (--enable-features=CobaltLocalStorageOptimization).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltLocalStorageOptimization);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

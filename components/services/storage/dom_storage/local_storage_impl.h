@@ -20,6 +20,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
@@ -126,7 +127,13 @@ class LocalStorageImpl : public base::trace_event::MemoryDumpProvider,
   void OnGotDatabaseVersion(leveldb::Status status,
                             DomStorageDatabase::Value value);
   void OnConnectionFinished();
+#if BUILDFLAG(IS_COBALT)
+  void DeleteAndRecreateDatabase(LocalStorageDatabaseResetReason reason =
+                                     LocalStorageDatabaseResetReason::kUnknown);
+  void ReopenDatabaseWithoutDestroy();
+#else
   void DeleteAndRecreateDatabase();
+#endif
   void OnDBDestroyed(bool recreate_in_memory, leveldb::Status status);
 
   StorageAreaHolder* GetOrCreateStorageArea(

@@ -123,13 +123,18 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="8" label="Other GL Error"/>
 </enum>
 
+<!-- LINT.IfChange(LocalStorageDatabaseResetReason) -->
+
 <enum name="LocalStorageDatabaseResetReason">
   <int value="0" label="Failure to open the database"/>
   <int value="1" label="Schema version mismatch"/>
   <int value="2" label="Database corruption or read errors"/>
   <int value="3" label="Excessive commit errors"/>
   <int value="4" label="Unknown"/>
+  <int value="5" label="Missing CURRENT file in non-empty database directory"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/services/storage/dom_storage/dom_storage_database.h:LocalStorageDatabaseResetReason) -->
 
 <enum name="MigrationOutcome">
   <int value="0" label="FastPath"/>

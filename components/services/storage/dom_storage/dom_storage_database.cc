@@ -26,7 +26,10 @@
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/timer/elapsed_timer.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -61,6 +64,21 @@ leveldb_env::Options MakeOptions() {
   // Default write_buffer_size is 4 MB but that might leave a 3.999
   // memory allocation in RAM from a log file recovery.
   options.write_buffer_size = 64 * 1024;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageOptimization)) {
+    // On low-end TV devices, leveldb_env::Options defaults `reuse_logs` to
+    // false (forcing a synchronous .log -> .ldb compaction, MANIFEST rewrite,
+    // and CURRENT rename on every DB::Open) and sets `write_buffer_size` to
+    // 64 KiB (causing frequent in-session .ldb compactions and extra fsyncs).
+    // Reusing the WAL/MANIFEST on open and using a 512 KiB write buffer with
+    // a small TableCache avoids cold-start and in-session compaction churn
+    // while keeping every 1s commit synchronous (`sync = true`).
+    options.reuse_logs = true;
+    options.write_buffer_size = 512 * 1024;
+    options.max_open_files = 32;
+  }
+#endif
 
   // We disable caching because all reads are one-offs such as in
   // `LocalStorageImpl::OnDatabaseOpened()`, or they are bulk scans (as in
@@ -80,6 +98,30 @@ leveldb::WriteOptions CreateSyncWriteOptions() {
   options.sync = true;
   return options;
 }
+
+bool HasExistingLevelDBFilesWhenCurrentMissing(
+    const leveldb_env::Options& options,
+    const std::string& name) {
+  if (name.empty() || !options.env || leveldb_chrome::IsMemEnv(options.env)) {
+    return false;
+  }
+  if (!options.env->FileExists(name) ||
+      options.env->FileExists(name + "/CURRENT") ||
+      options.env->FileExists(name + ".migrate")) {
+    return false;
+  }
+  std::vector<std::string> children;
+  if (!options.env->GetChildren(name, &children).ok()) {
+    return false;
+  }
+  for (const std::string& child : children) {
+    if (base::EndsWith(child, ".ldb") || base::EndsWith(child, ".sst") ||
+        base::EndsWith(child, ".log") || base::StartsWith(child, "MANIFEST-")) {
+      return true;
+    }
+  }
+  return false;
+}
 #endif
 
 std::unique_ptr<leveldb::DB> TryOpenDB(
@@ -88,7 +130,33 @@ std::unique_ptr<leveldb::DB> TryOpenDB(
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     DomStorageDatabase::StatusCallback callback) {
   std::unique_ptr<leveldb::DB> db;
+#if BUILDFLAG(IS_COBALT)
+  const bool is_persistent_db =
+      !name.empty() && options.env && !leveldb_chrome::IsMemEnv(options.env);
+  const bool optimize_local_storage = base::FeatureList::IsEnabled(
+      base::features::kCobaltLocalStorageOptimization);
+  if (is_persistent_db &&
+      HasExistingLevelDBFilesWhenCurrentMissing(options, name)) {
+    base::UmaHistogramEnumeration(
+        "Cobalt.LocalStorage.DatabaseResetReason",
+        LocalStorageDatabaseResetReason::kMissingCurrentFile);
+    if (optimize_local_storage) {
+      // Recover existing .ldb/.log files into a valid MANIFEST and CURRENT
+      // before OpenDB's create_if_missing=true calls NewDB() and silently
+      // orphans/deletes existing .ldb table files.
+      leveldb::RepairDB(name, options);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
+#if BUILDFLAG(IS_COBALT)
+  if (!status.ok() && is_persistent_db && optimize_local_storage) {
+    leveldb::Status repair_status = leveldb::RepairDB(name, options);
+    if (repair_status.ok()) {
+      status = leveldb_env::OpenDB(options, name, &db);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   callback_task_runner->PostTask(FROM_HERE,
                                  base::BindOnce(std::move(callback), status));
   return db;
@@ -361,13 +429,26 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
     leveldb::WriteBatch* batch) const {
   if (!db_)
     return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  if (fail_commits_with_corruption_for_testing_) {
+    return Status::Corruption("Simulated Corruption");
+  }
+#endif
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
 #if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageOptimization) &&
+      batch->ApproximateSize() <= leveldb::WriteBatch().ApproximateSize()) {
+    return Status::OK();
+  }
   base::ElapsedTimer commit_timer;
   Status status = db_->Write(CreateSyncWriteOptions(), batch);
-  base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
-                          commit_timer.Elapsed());
+  if (!IsInMemory()) {
+    base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
+                            commit_timer.Elapsed());
+  }
+  ++total_commit_count_for_testing_;
   return status;
 #else
   return db_->Write(leveldb::WriteOptions(), batch);
