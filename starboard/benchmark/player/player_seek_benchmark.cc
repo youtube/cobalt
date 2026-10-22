@@ -72,22 +72,24 @@ void BM_PlayerSeekSync(::benchmark::State& state) {
   }
 
   for (auto _ : state) {
-    state.PauseTiming();
     int next_ticket = helper.PrepareSeek(kSeekTargetUs);
-    state.ResumeTiming();
 
-    // Measure ONLY the SbPlayerSeek call
+    // Measure ONLY the SbPlayerSeek call.
+    auto start = std::chrono::high_resolution_clock::now();
     SbPlayerSeek(helper.GetPlayer(), kSeekTargetUs, next_ticket);
+    auto end = std::chrono::high_resolution_clock::now();
 
-    state.PauseTiming();
-    // Feed data from seek target (1s) to target + 2s (3s)
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    state.SetIterationTime(elapsed.count());
+
+    // Bring the player back to presenting before the next iteration.
     if (!FeedAndWaitForPresenting(&helper, next_ticket, &state)) {
       break;
     }
-    state.ResumeTiming();
   }
 }
-BENCHMARK(BM_PlayerSeekSync)->Iterations(20);
+BENCHMARK(BM_PlayerSeekSync)->UseManualTime()->Iterations(20);
 
 void BM_PlayerSeekAsync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;

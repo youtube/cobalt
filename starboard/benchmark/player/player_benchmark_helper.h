@@ -15,10 +15,10 @@
 #ifndef STARBOARD_BENCHMARK_PLAYER_PLAYER_BENCHMARK_HELPER_H_
 #define STARBOARD_BENCHMARK_PLAYER_PLAYER_BENCHMARK_HELPER_H_
 
-#include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include "starboard/media.h"
@@ -52,11 +52,12 @@ class SbPlayerBenchmarkHelper {
   void GetCreationParam(SbPlayerCreationParam* out_creation_param,
                         SbPlayerOutputMode output_mode);
 
-  // Feed audio/video samples up to the specified media time (in microseconds).
-  // Blocks the calling thread until target duration is written or EOS is
-  // reached. Returns false if the player reports an error, or if it does not
-  // request more data for |timeout_us|.
-  bool FeedData(int64_t duration_us, int64_t timeout_us = kDefaultTimeoutUs);
+  // Feed audio/video samples until a sample at or past |target_media_time_us|
+  // (in microseconds) has been written for every stream, or EOS is reached.
+  // Blocks the calling thread. Returns false if the player reports an error,
+  // or if it does not request more data for |timeout_us|.
+  bool FeedData(int64_t target_media_time_us,
+                int64_t timeout_us = kDefaultTimeoutUs);
 
   // Trigger seek on the player to the specified target time.
   void Seek(int64_t seek_time_us);
@@ -65,7 +66,7 @@ class SbPlayerBenchmarkHelper {
   int PrepareSeek(int64_t seek_time_us);
 
   // Wait for the player to reach a specific state for a given ticket.
-  // Returns false if timeout expires.
+  // Returns false if the player reports an error or the timeout expires.
   bool WaitForPlayerState(SbPlayerState state,
                           int ticket,
                           int64_t timeout_us = kDefaultTimeoutUs);
@@ -79,7 +80,10 @@ class SbPlayerBenchmarkHelper {
     return fake_graphics_context_provider_.decoder_target_provider();
   }
 
-  // JNI and player callbacks
+  // Player callbacks. The Dummy*Func() callbacks ignore their context and can
+  // be used by benchmarks that do not track the player state; the *Callback()
+  // callbacks expect a pointer to the owning SbPlayerBenchmarkHelper as the
+  // context.
   static void DummyDeallocateSampleFunc(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer);
@@ -92,6 +96,10 @@ class SbPlayerBenchmarkHelper {
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {}
+  static void DummyPlayerErrorFunc(SbPlayer player,
+                                   void* context,
+                                   SbPlayerError error,
+                                   const char* message);
   static void DecoderStatusCallback(SbPlayer player,
                                     void* context,
                                     SbMediaType type,
@@ -101,10 +109,10 @@ class SbPlayerBenchmarkHelper {
                                    void* context,
                                    SbPlayerState state,
                                    int ticket);
-  static void DummyPlayerErrorFunc(SbPlayer player,
-                                   void* context,
-                                   SbPlayerError error,
-                                   const char* message);
+  static void PlayerErrorCallback(SbPlayer player,
+                                  void* context,
+                                  SbPlayerError error,
+                                  const char* message);
 
  private:
   void WriteSamples(SbMediaType type);
@@ -124,10 +132,15 @@ class SbPlayerBenchmarkHelper {
   size_t next_audio_sample_index_ = 0;
   size_t next_video_sample_index_ = 0;
 
+  // Timestamps of the last samples written since the last seek, if any.
+  std::optional<int64_t> last_written_audio_timestamp_;
+  std::optional<int64_t> last_written_video_timestamp_;
+
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
 
-  // Thread synchronization and state tracking
+  // Thread synchronization and state tracking. All the state below is guarded
+  // by |mutex_|, and every change is signalled through |cv_|.
   std::mutex mutex_;
   std::condition_variable cv_;
 
@@ -139,7 +152,7 @@ class SbPlayerBenchmarkHelper {
   bool video_needs_data_ = false;
   int video_ticket_ = 0;
 
-  std::atomic_bool error_occurred_{false};
+  bool error_occurred_ = false;
 };
 
 // Tracks the asynchronous initialization of a player created with
