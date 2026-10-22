@@ -105,7 +105,8 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool use_dual_threads,
       bool skip_video_frames_over_60_fps,
       bool enable_ndk_video,
-      bool enable_trivial_optimizations);
+      bool enable_trivial_optimizations,
+      bool enable_codec_thread_improvements);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     MediaCodec::Factory& media_codec_factory,
@@ -139,6 +140,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       bool skip_video_frames_over_60_fps,
       bool enable_ndk_video,
       bool enable_trivial_optimizations,
+      bool enable_codec_thread_improvements,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -241,6 +243,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   const int64_t video_decoder_poll_interval_us_;
   const bool use_dual_threads_ = false;
   const bool enable_trivial_optimizations_ = false;
+  // Set from the h5vcc setting "Media.EnableCodecThreadImprovements".  Has no
+  // effect unless |use_dual_threads_| is also true.
+  const bool enable_codec_thread_improvements_ = false;
 
   ErrorCB error_cb_;
 

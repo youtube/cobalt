@@ -195,6 +195,13 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
+// Enables improvements to the threading of the Android video MediaCodecDecoder
+// (thread priorities, wakeup and signaling behavior of the decoder threads).
+// Only takes effect for playbacks that use dual decoder threads, i.e. clear
+// content with libopus audio unless kMediaForceDualThreads is also set.
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaEnableCodecThreadImprovements("Media.EnableCodecThreadImprovements");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 

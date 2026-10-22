@@ -136,7 +136,8 @@ MediaCodecDecoder::CreateForVideo(
     bool use_dual_threads,
     bool skip_video_frames_over_60_fps,
     bool enable_ndk_video,
-    bool enable_trivial_optimizations) {
+    bool enable_trivial_optimizations,
+    bool enable_codec_thread_improvements) {
   std::string error_message;
   auto decoder = std::make_unique<MediaCodecDecoder>(
       PassKey<MediaCodecDecoder>(), media_codec_factory, job_queue, host,
@@ -145,7 +146,8 @@ MediaCodecDecoder::CreateForVideo(
       first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
       enable_frame_renderer_listener, max_video_input_size, flush_delay_usec,
       use_dual_threads, skip_video_frames_over_60_fps, enable_ndk_video,
-      enable_trivial_optimizations, &error_message);
+      enable_trivial_optimizations, enable_codec_thread_improvements,
+      &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -218,6 +220,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     bool skip_video_frames_over_60_fps,
     bool enable_ndk_video,
     bool enable_trivial_optimizations,
+    bool enable_codec_thread_improvements,
     std::string* error_message)
     : JobOwner(job_queue),
       media_type_(kSbMediaTypeVideo),
@@ -231,7 +234,8 @@ MediaCodecDecoder::MediaCodecDecoder(
           tunnel_mode_enabled_ ? kDefaultVideoDecoderTunnelPollIntervalUs
                                : kDefaultVideoDecoderPollIntervalUs),
       use_dual_threads_(use_dual_threads),
-      enable_trivial_optimizations_(enable_trivial_optimizations) {
+      enable_trivial_optimizations_(enable_trivial_optimizations),
+      enable_codec_thread_improvements_(enable_codec_thread_improvements) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -266,7 +270,9 @@ MediaCodecDecoder::MediaCodecDecoder(
                << video_decoder_poll_interval_us_ / 1'000
                << ", use_dual_threads=" << ToString(use_dual_threads_)
                << ", enable_trivial_optimizations="
-               << ToString(enable_trivial_optimizations_);
+               << ToString(enable_trivial_optimizations_)
+               << ", enable_codec_thread_improvements="
+               << ToString(enable_codec_thread_improvements_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -319,8 +325,16 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (use_dual_threads_) {
     SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
     if (!video_input_thread_) {
+      // The input thread makes synchronous JNI/Binder calls into the codec on
+      // every frame.  With the codec thread improvements it runs at the same
+      // priority as the output thread and the player worker, so it isn't
+      // preempted by them while queueing input; otherwise it keeps the default
+      // priority.
       video_input_thread_ = std::make_unique<DecoderThread>(
-          "VidDecIn", [this] { InputThreadFunc(); });
+          "VidDecIn", [this] { InputThreadFunc(); },
+          enable_codec_thread_improvements_
+              ? std::make_optional(ThreadPriority::kHigh)
+              : std::nullopt);
       video_input_thread_->Start();
       video_output_thread_ = std::make_unique<DecoderThread>(
           "VidDecOut", [this] { OutputThreadFunc(); }, ThreadPriority::kHigh);
