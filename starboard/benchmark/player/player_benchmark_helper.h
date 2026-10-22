@@ -31,6 +31,11 @@ namespace benchmark {
 
 class SbPlayerBenchmarkHelper {
  public:
+  // Default upper bound for the waits on player callbacks. Hitting it means
+  // that the player has stalled, so the benchmark should report an error
+  // rather than hang.
+  static constexpr int64_t kDefaultTimeoutUs = 5'000'000;  // 5 seconds
+
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
 
@@ -49,8 +54,9 @@ class SbPlayerBenchmarkHelper {
 
   // Feed audio/video samples up to the specified media time (in microseconds).
   // Blocks the calling thread until target duration is written or EOS is
-  // reached.
-  void FeedData(int64_t duration_us);
+  // reached. Returns false if the player reports an error, or if it does not
+  // request more data for |timeout_us|.
+  bool FeedData(int64_t duration_us, int64_t timeout_us = kDefaultTimeoutUs);
 
   // Trigger seek on the player to the specified target time.
   void Seek(int64_t seek_time_us);
@@ -62,7 +68,7 @@ class SbPlayerBenchmarkHelper {
   // Returns false if timeout expires.
   bool WaitForPlayerState(SbPlayerState state,
                           int ticket,
-                          int64_t timeout_us = 5000000);
+                          int64_t timeout_us = kDefaultTimeoutUs);
 
   SbPlayer GetPlayer() const { return player_; }
   int GetCurrentTicket() const { return ticket_; }
@@ -155,7 +161,8 @@ class PlayerInitializationWaiter {
   // Blocks until the player reports kSbPlayerStateInitialized, reports an
   // error, or the timeout expires. Returns true only if the player was
   // initialized without an error.
-  bool WaitForInitialization(int64_t timeout_us = 5000000);
+  bool WaitForInitialization(
+      int64_t timeout_us = SbPlayerBenchmarkHelper::kDefaultTimeoutUs);
 
  private:
   std::mutex mutex_;

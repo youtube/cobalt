@@ -144,7 +144,15 @@ void SbPlayerBenchmarkHelper::DestroyPlayer() {
   video_reader_.reset();
 }
 
-void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
+bool SbPlayerBenchmarkHelper::FeedData(int64_t duration_us,
+                                       int64_t timeout_us) {
+  const auto timeout = std::chrono::microseconds(timeout_us);
+  // The deadline is pushed out whenever samples are written, so it bounds the
+  // time the player may go without requesting more data rather than the total
+  // time spent feeding.
+  auto deadline = std::chrono::steady_clock::now() + timeout;
+  bool timed_out = false;
+
   while (true) {
     bool write_audio = false;
     bool write_video = false;
@@ -154,8 +162,8 @@ void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
     {
       std::unique_lock<std::mutex> lock(mutex_);
       if (error_occurred_) {
-        SB_LOG(ERROR) << "Error occurred during FeedData";
-        break;
+        SB_LOG(ERROR) << "Player reported an error while feeding data";
+        return false;
       }
 
       if (audio_reader_) {
@@ -195,11 +203,19 @@ void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
       }
 
       if (audio_done && video_done) {
-        break;
+        return true;
       }
 
       if (!write_audio && !write_video) {
-        cv_.wait(lock);
+        // Re-evaluate the state once more after a timeout, in case a callback
+        // raced with the deadline.
+        if (timed_out) {
+          SB_LOG(ERROR) << "Timed out waiting for the player to request data"
+                        << " (audio_needs_data=" << audio_needs_data_
+                        << ", video_needs_data=" << video_needs_data_ << ")";
+          return false;
+        }
+        timed_out = cv_.wait_until(lock, deadline) == std::cv_status::timeout;
         continue;
       }
     }
@@ -210,6 +226,8 @@ void SbPlayerBenchmarkHelper::FeedData(int64_t duration_us) {
     if (write_video) {
       WriteSamples(kSbMediaTypeVideo);
     }
+    timed_out = false;
+    deadline = std::chrono::steady_clock::now() + timeout;
   }
 }
 
