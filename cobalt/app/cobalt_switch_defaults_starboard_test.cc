@@ -17,11 +17,9 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -147,12 +145,9 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   std::vector<const char*> always_on_switches{
       ::switches::kSingleProcess,
       ::switches::kIgnoreGpuBlocklist,
-#if BUILDFLAG(IS_ANDROID)
-      ::switches::kUserLevelMemoryPressureSignalParams,
-      ::switches::kDisableQuic,
-#endif  // BUILDFLAG(IS_ANDROID)
       sandbox::policy::switches::kNoSandbox,
-      ::switches::kHideScrollbars};
+      ::switches::kHideScrollbars,
+  };
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));

@@ -157,7 +157,8 @@ class VoidifyStream {
 #define SB_LOG_IF(severity, condition) \
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
-#define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
+#define SB_EAT_STREAM_PARAMETERS \
+  true ? (void)0 : ::starboard::LogMessageVoidify() & SB_LOG_STREAM(INFO)
 #define SB_EAT_CHECK_STREAM_PARAMS(expr) \
   true ? (void)0 : ::starboard::VoidifyStream(expr) & SB_LOG_STREAM(INFO)
 #define SB_STACK_IF(severity, condition) \
@@ -171,8 +172,9 @@ class VoidifyStream {
 #define SB_CHECK(condition) \
   __analysis_assume(condition), SB_EAT_STREAM_PARAMETERS
 #else
-#define SB_CHECK(condition) \
-  SB_LOG_IF(FATAL, !(condition)) << "Check failed: " #condition ". "
+#define SB_CHECK(condition)                          \
+  SB_LAZY_STREAM(SB_LOG_STREAM(FATAL), !(condition)) \
+      << "Check failed: " #condition ". "
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
