@@ -29,6 +29,11 @@ namespace {
 // RunSpecifiedBenchmarks() would otherwise only print.
 class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
  public:
+  // The output is consumed by test runners rather than a terminal, so never
+  // emit color escape sequences, which would also corrupt the gtest result
+  // lines printed right after the benchmark table.
+  FailOnBenchmarkErrorReporter() : ConsoleReporter(OO_Tabular) {}
+
   void ReportRuns(const std::vector<Run>& reports) override {
     for (const Run& run : reports) {
       if (run.skipped == ::benchmark::internal::SkippedWithError) {
