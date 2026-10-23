@@ -52,11 +52,11 @@ group("gn_all") {
     deps += [
       "//starboard/benchmark",
 
-      # Built so that the gtest wrapper around the player benchmarks keeps
-      # compiling on all platforms. It is intentionally not listed in
-      # cobalt/build/testing/targets/*/test_targets.json, so it is not run
+      # Built so that the SbPlayer benchmarks keep compiling on all platforms.
+      # Intentionally not listed in
+      # cobalt/build/testing/targets/*/test_targets.json, so they are not run
       # automatically.
-      "//starboard/benchmark:player_benchmarks_gtest",
+      "//starboard/benchmark:player_benchmarks",
     ]
   }
   if (!cobalt_is_release_build) {
