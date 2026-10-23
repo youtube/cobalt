@@ -377,8 +377,7 @@ TEST_F(SbUrlPlayerPrepareTest, PrepareFailureIsReportedWithoutInitialized) {
   ASSERT_NO_FATAL_FAILURE(WaitForError(kPrepareTimeout));
 
   ASSERT_FALSE(errors().empty());
-  EXPECT_EQ(errors()[0],
-            static_cast<SbPlayerError>(kSbUrlPlayerErrorSrcNotSupported));
+  EXPECT_EQ(errors()[0], kSbPlayerErrorSrcNotSupported);
   EXPECT_FALSE(HasReceivedPlayerState(kSbPlayerStateInitialized));
 }
 

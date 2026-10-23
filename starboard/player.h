@@ -72,6 +72,13 @@ typedef enum SbPlayerError {
   // decoding with an external GPU. When the external GPU is detached, this
   // error code can signal the app to retry the playback, possibly with h264.
   kSbPlayerErrorCapabilityChanged,
+  // The media could not be loaded because of a network failure. Only
+  // reported by players created with SbUrlPlayerCreate().
+  kSbPlayerErrorNetwork,
+  // The media source is not supported, for example because its container or
+  // codec cannot be played. Only reported by players created with
+  // SbUrlPlayerCreate().
+  kSbPlayerErrorSrcNotSupported,
   // The max value of SbPlayer error type. It should always at the bottom
   // of SbPlayerError and never be used.
   kSbPlayerErrorMax,

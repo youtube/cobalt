@@ -333,10 +333,8 @@ static NSTimeInterval kAccessLogTimerInterval = 1;
                             << "[UrlPlayer] Failed to load the asset tracks: "
                             <<
                             [NSString stringWithFormat:@"%@", error].UTF8String;
-                        [self
-                            updatePlayerError:
-                                (SbPlayerError)kSbUrlPlayerErrorSrcNotSupported
-                                      message:@"AV key value is not loaded."];
+                        [self updatePlayerError:kSbPlayerErrorSrcNotSupported
+                                        message:@"AV key value is not loaded."];
                       });
                     }];
 }
