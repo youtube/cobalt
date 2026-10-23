@@ -69,6 +69,10 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
+  bool IsMetricsStateManagerCreated() const {
+    return metrics_state_manager_ != nullptr;
+  }
+
   void ClearMetricsServiceClientRawPtrForTest() {
     metrics_service_client_ = nullptr;
   }

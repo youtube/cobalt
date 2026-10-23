@@ -25,6 +25,7 @@
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -55,6 +56,8 @@ ShellBrowserContext::ShellBrowserContext(bool off_the_record,
 }
 
 ShellBrowserContext::~ShellBrowserContext() {
+  h5vcc_scheme_url_loader_factory_.reset();
+
   NotifyWillBeDestroyed();
 
   // The SimpleDependencyManager should always be passed after the
@@ -68,6 +71,15 @@ ShellBrowserContext::~ShellBrowserContext() {
   SimpleKeyMap::GetInstance()->Dissociate(this);
 
   ShutdownStoragePartitions();
+}
+
+H5vccSchemeURLLoaderFactory*
+ShellBrowserContext::GetH5vccSchemeURLLoaderFactory() {
+  if (!h5vcc_scheme_url_loader_factory_) {
+    h5vcc_scheme_url_loader_factory_ =
+        std::make_unique<H5vccSchemeURLLoaderFactory>(this);
+  }
+  return h5vcc_scheme_url_loader_factory_.get();
 }
 
 void ShellBrowserContext::InitWhileIOAllowed() {
