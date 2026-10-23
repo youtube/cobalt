@@ -137,7 +137,7 @@ runs:
         echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
-      if: always()
+      if: always() && inputs.test_type == 'unit_test'
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         PLATFORM: ${{ matrix.platform }}
@@ -229,7 +229,7 @@ runs:
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-      if: always()
+      if: always() && inputs.test_type == 'unit_test'
       with:
         name: ${{ inputs.test_results_key }}_${{ github.run_attempt }}
         path: ${{ env.test_output }}/*

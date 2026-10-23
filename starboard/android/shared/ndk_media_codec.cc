@@ -232,7 +232,7 @@ NdkMediaCodec::~NdkMediaCodec() {
   AMediaCodec_delete(codec_);
 }
 
-Span<uint8_t> NdkMediaCodec::GetInputBufferAddress(jint index) {
+span<uint8_t> NdkMediaCodec::GetInputBufferAddress(jint index) {
   size_t capacity = 0;
   uint8_t* address = AMediaCodec_getInputBuffer(codec_, index, &capacity);
   return {address, capacity};
@@ -259,7 +259,7 @@ jint NdkMediaCodec::QueueSecureInputBuffer(
   return MEDIA_CODEC_ERROR;
 }
 
-Span<uint8_t> NdkMediaCodec::GetOutputBufferAddress(jint index) {
+span<uint8_t> NdkMediaCodec::GetOutputBufferAddress(jint index) {
   size_t capacity = 0;
   uint8_t* address = AMediaCodec_getOutputBuffer(codec_, index, &capacity);
   return {address, capacity};

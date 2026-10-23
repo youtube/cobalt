@@ -37,8 +37,10 @@ _PLATFORM_TO_SERVICE_MAP = {
     'android-arm64': 'linux',
     'linux-x64x11-internal': 'linux',
     'evergreen-arm64-sbversion-18': 'linux',
+    'evergreen-arm64-aosp-sbversion-18': 'linux',
     'evergreen-arm-hardfp-rdk-sbversion-18': 'rdk',
     'evergreen-arm-softfp-sbversion-18': 'linux',
+    'evergreen-arm-softfp-aosp-sbversion-18': 'linux',
     'evergreen-x64-sbversion-18': 'linux',
 }
 

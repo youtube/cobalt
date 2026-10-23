@@ -113,11 +113,13 @@ extern const base::Feature kForceVideoSplashScreen;
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 
-// How long after the splash screen finishes loading Cobalt switches to the main
-// WebContents, once that has loaded (default: 1500ms). If SplashScreenConfig is
-// enabled, it is also passed to the splash screen as the "timeout" query param
-// (in ms), and the built-in splash screen stays up until then instead of
-// closing when its animation ends. Values need a unit, e.g., "3s" or "2500ms".
+// How long after the splash screen starts Cobalt switches to the main
+// WebContents, once that has loaded (default: 1500ms). The splash screen starts
+// when its page finishes loading or, for a video, when the video starts
+// playing, within 2s. If SplashScreenConfig is enabled, it is also passed
+// to the splash screen as the "timeout" query param (in ms), and the built-in
+// splash screen stays up until then instead of closing when its animation
+// ends. Values need a unit, e.g., "3s" or "2500ms".
 // Locally: --enable-features=SplashScreenConfig:timeout/3s
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSplashScreenTimeoutParam);
 
@@ -154,8 +156,8 @@ extern const base::FeatureParam<int> kGpuMemoryAblationSizeMBParam;
 // Delay before performing GPU memory ablation (default: 0s).
 extern const base::FeatureParam<base::TimeDelta> kGpuMemoryAblationDelayParam;
 
-// Enables Cobalt System Memory Pressure Evaluator on Starboard platforms.
-extern const base::Feature kCobaltSystemMemoryPressureEvaluator;
+// Enables Cobalt memory pressure evaluators.
+extern const base::Feature kEnableCobaltMemoryPressureEvaluator;
 
 // Threshold fraction of process memory budget for moderate memory pressure.
 extern const base::FeatureParam<double>
@@ -172,10 +174,6 @@ extern const base::FeatureParam<int> kCobaltMemoryPressureBudgetMBParam;
 // Polling interval in seconds for memory pressure evaluation.
 extern const base::FeatureParam<int>
     kCobaltMemoryPressurePollIntervalSecondsParam;
-
-// Cooldown period in seconds before re-notifying listeners of sustained
-// pressure.
-extern const base::FeatureParam<int> kCobaltMemoryPressureCooldownSecondsParam;
 
 // Hands the Cobalt client hint headers to the network service once, through
 // NetworkContextParams, instead of installing a TrustedURLLoaderHeaderClient

@@ -276,20 +276,10 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
-          TEST_E2E: ${{ steps.set-internal-tests.outputs.test_e2e }}
-          TEST_YTS: ${{ steps.set-internal-tests.outputs.test_yts }}
-          TEST_YTS_PLAYBACK: ${{ steps.set-internal-tests.outputs.test_yts_playback }}
-          TEST_YTS_WPT: ${{ steps.set-internal-tests.outputs.test_yts_wpt }}
-          TEST_YTS_FINCH: ${{ steps.set-internal-tests.outputs.test_yts_finch }}
           LABELS: ${{ steps.get-labels.outputs.labels }}
         run: |
           set -x
           run_on_device_test="false"
-          run_e2e_test="false"
-          run_yts_test="false"
-          run_yts_playback_test="false"
-          run_yts_wpt_test="false"
-          run_yts_finch_test="false"
           expected_tests="[]"
 
           first_platform=$(jq -r '.platforms[0]' "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json")
@@ -297,7 +287,6 @@ jobs:
 
           if [ -f "${test_targets_json_file}" ]; then
             has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
-            has_yts_playback_label=$(echo "${LABELS}" | jq 'any(. == "yts_playback_test")')
 
             is_odt_enabled="false"
             if [[ "${IS_NON_DRAFT_PULL_REQUEST}" == "true" ||
@@ -308,21 +297,11 @@ jobs:
             fi
 
             [[ "${TEST_ON_DEVICE}" == "true" && "${is_odt_enabled}" == "true" ]] && run_on_device_test="true"
-            [[ "${TEST_E2E}" == "true" && "${is_odt_enabled}" == "true" ]] && run_e2e_test="true"
-            [[ "${TEST_YTS}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_test="true"
-            [[ "${TEST_YTS_PLAYBACK}" == "true" && "${has_yts_playback_label}" == "true" ]] && run_yts_playback_test="true"
-            [[ "${TEST_YTS_WPT}" == "true" && ( "${IS_NON_DRAFT_PULL_REQUEST}" == "true" || "${RUN_ODT_ON_NIGHTLY}" == "true" || "${RUN_ODT_ON_PUSH}" == "true" ) ]] && run_yts_wpt_test="true"
-            [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
 
             # Filter expected test targets for results processing and reporting.
             active_test_types=()
             [[ "${TEST_ON_HOST}" == "true" ]] && active_test_types+=(gtest:host junit:host)
             [[ "${run_on_device_test}" == "true" ]] && active_test_types+=(gtest:device junit:device)
-            [[ "${run_e2e_test}" == "true" ]] && active_test_types+=(e2e_test)
-            [[ "${run_yts_test}" == "true" ]] && active_test_types+=(yts_test)
-            [[ "${run_yts_playback_test}" == "true" ]] && active_test_types+=(yts_playback_test)
-            [[ "${run_yts_wpt_test}" == "true" ]] && active_test_types+=(yts_wpt_test)
-            [[ "${run_yts_finch_test}" == "true" ]] && active_test_types+=(yts_finch_test)
 
             active_types_json=$(printf '%s\n' "${active_test_types[@]}" | jq -R . | jq -cs .)
             expected_tests=$(jq -c --argjson active "${active_types_json}" '[
