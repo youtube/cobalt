@@ -24,10 +24,12 @@
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
+#include "components/network_session_configurator/common/network_switches.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "content/common/features.h"  // nogncheck
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features.h"
@@ -63,6 +65,10 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on
       // startup.
       ::switches::kUseCustomAndroidFontsXml,
+      // Turn QUIC off by default. With QUIC on, downloads that pause
+      // mid-transfer get dropped (b/532158865). Suppressed by --enable-quic,
+      // which the EnableQUIC experiment sets.
+      ::switches::kDisableQuic,
   };
   return kCobaltToggleSwitches;
 }
@@ -87,7 +93,16 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        // fragmentation.
        "--no-decommit-pooled-pages,"
        // Disable v8 concurrent marking by default.
-       "--no-concurrent-marking"},
+       "--no-concurrent-marking,"
+       // V8 heap sizing. Overridden by the V8InitialOldSpaceSize and
+       // V8MaxOldSpaceSize experiments (V8 flags are last-wins).
+       "--initial-old-space-size=64,"
+       "--max-old-space-size=512"},
+#if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
+      // Cap available GPU memory on 32-bit builds. Overridden by the
+      // ForceGpuMemAvailableMb experiment. See b/549674099.
+      {::switches::kForceGpuMemAvailableMb, "64"},
+#endif
       // Enable precise memory info so we can make accurate client-side
       // measurements.
       {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
