@@ -141,6 +141,15 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
     std::lock_guard lock(mutex_);
     return last_video_color_metadata_;
   }
+  SbMediaVideoCodec last_video_codec() const {
+    std::lock_guard lock(mutex_);
+    return last_video_codec_;
+  }
+  // The output surface passed to the last CreateVideoMediaCodec() call.
+  jni_zero::ScopedJavaGlobalRef<jobject> last_video_surface() const {
+    std::lock_guard lock(mutex_);
+    return last_video_surface_;
+  }
 
  private:
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
@@ -149,6 +158,10 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   mutable std::mutex mutex_;
   std::optional<SbMediaColorMetadata>
       last_video_color_metadata_;  // Guarded by |mutex_|.
+  SbMediaVideoCodec last_video_codec_ =
+      kSbMediaVideoCodecNone;  // Guarded by |mutex_|.
+  jni_zero::ScopedJavaGlobalRef<jobject>
+      last_video_surface_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard
