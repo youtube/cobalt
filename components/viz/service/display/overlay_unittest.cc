@@ -85,6 +85,13 @@
 #include "components/viz/service/display/overlay_strategy_underlay_cast.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#endif
+
 #if BUILDFLAG(IS_APPLE)
 #include "components/viz/service/display/ca_layer_overlay.h"
 #endif
@@ -568,6 +575,16 @@ class UnderlayCastOverlayProcessor : public DefaultOverlayProcessor {
 };
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+class UnderlayStarboardOverlayProcessor : public DefaultOverlayProcessor {
+ public:
+  UnderlayStarboardOverlayProcessor() : DefaultOverlayProcessor() {
+    strategies_.push_back(
+        std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+  }
+};
+#endif
+
 class ChangeThresholdOnTopOverlayProcessor : public DefaultOverlayProcessor {
  public:
   ChangeThresholdOnTopOverlayProcessor() {
@@ -939,6 +956,9 @@ using TransparentUnderlayTest =
     OverlayTest<TransparentUnderlayOverlayProcessor>;
 #if BUILDFLAG(ENABLE_CAST_OVERLAY_STRATEGY)
 using UnderlayCastTest = OverlayTest<UnderlayCastOverlayProcessor>;
+#endif
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+using UnderlayStarboardTest = OverlayTest<UnderlayStarboardOverlayProcessor>;
 #endif
 using MultiOverlayTest = UseMultipleOverlaysTest<MultiOverlayProcessor>;
 using MultiUnderlayTest = UseMultipleOverlaysTest<MultiUnderlayProcessor>;
@@ -6911,6 +6931,76 @@ TEST_P(MultiUnderlayPromotedTest, UnderlaysBlendPrimaryPlane) {
 INSTANTIATE_TEST_SUITE_P(PromotedTrueFalse,
                          MultiUnderlayPromotedTest,
                          testing::Bool());
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
+class FakeVideoGeometrySetter
+    : public cobalt::media::mojom::VideoGeometrySetter {
+ public:
+  struct CommittedQuad {
+    base::UnguessableToken overlay_plane_id;
+    gfx::RectF rect_f;
+    int32_t z_index;
+  };
+
+  void SetVideoGeometry(const gfx::RectF& rect_f,
+                        gfx::OverlayTransform /*transform*/,
+                        const base::UnguessableToken& overlay_plane_id,
+                        int32_t z_index) override {
+    committed_quads.push_back({overlay_plane_id, rect_f, z_index});
+  }
+
+  std::vector<CommittedQuad> committed_quads;
+};
+
+TEST_F(UnderlayStarboardTest, CommitsVideoHoleQuadsBackToFront) {
+  FakeVideoGeometrySetter fake_setter;
+  mojo::Receiver<cobalt::media::mojom::VideoGeometrySetter> setter_receiver(
+      &fake_setter);
+  GetVideoGeometrySetter().reset();
+  ConnectVideoGeometrySetter(setter_receiver.BindNewPipeAndPassRemote());
+
+  auto pass = CreateRenderPass();
+  // |quad_list| is front-to-back: append secondary (front) quad first, then
+  // primary (back) quad second.
+  const base::UnguessableToken kSecondaryToken =
+      base::UnguessableToken::Create();
+  auto* secondary_quad = pass->CreateAndAppendDrawQuad<VideoHoleDrawQuad>();
+  secondary_quad->SetNew(pass->shared_quad_state_list.back(),
+                         kOverlayBottomRightRect, kOverlayBottomRightRect,
+                         kSecondaryToken);
+
+  const base::UnguessableToken kPrimaryToken = base::UnguessableToken::Create();
+  auto* primary_quad = pass->CreateAndAppendDrawQuad<VideoHoleDrawQuad>();
+  primary_quad->SetNew(pass->shared_quad_state_list.back(), kOverlayRect,
+                       kOverlayRect, kPrimaryToken);
+
+  OverlayCandidateList candidate_list;
+  OverlayProcessorInterface::FilterOperationsMap render_pass_filters;
+  OverlayProcessorInterface::FilterOperationsMap render_pass_backdrop_filters;
+  AggregatedRenderPassList pass_list;
+  pass_list.push_back(std::move(pass));
+  SurfaceDamageRectList surface_damage_rect_list;
+
+  overlay_processor_->ProcessForOverlays(
+      resource_provider(), &pass_list, GetIdentityColorMatrix(),
+      render_pass_filters, render_pass_backdrop_filters,
+      std::move(surface_damage_rect_list), nullptr, &candidate_list,
+      &damage_rect_, &content_bounds_);
+  GetVideoGeometrySetter().FlushForTesting();
+
+  ASSERT_EQ(fake_setter.committed_quads.size(), 2u);
+  EXPECT_EQ(fake_setter.committed_quads[0].overlay_plane_id, kPrimaryToken);
+  EXPECT_EQ(fake_setter.committed_quads[0].rect_f, gfx::RectF(kOverlayRect));
+  EXPECT_EQ(fake_setter.committed_quads[0].z_index, 0);
+  EXPECT_EQ(fake_setter.committed_quads[1].overlay_plane_id, kSecondaryToken);
+  EXPECT_EQ(fake_setter.committed_quads[1].rect_f,
+            gfx::RectF(kOverlayBottomRightRect));
+  EXPECT_EQ(fake_setter.committed_quads[1].z_index, 1);
+
+  GetVideoGeometrySetter().reset();
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 
 }  // namespace
 }  // namespace viz

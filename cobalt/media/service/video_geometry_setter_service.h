@@ -54,10 +54,10 @@ class VideoGeometrySetterService final
           client_pending_remote,
       SubscribeToVideoGeometryChangeCallback callback) override;
   // mojom::VideoGeometrySetter implementation.
-  void SetVideoGeometry(
-      const gfx::RectF& rect_f,
-      gfx::OverlayTransform transform,
-      const base::UnguessableToken& overlay_plane_id) override;
+  void SetVideoGeometry(const gfx::RectF& rect_f,
+                        gfx::OverlayTransform transform,
+                        const base::UnguessableToken& overlay_plane_id,
+                        int32_t z_index) override;
 
   void OnVideoGeometryChangeClientGone(
       const base::UnguessableToken overlay_plane_id);

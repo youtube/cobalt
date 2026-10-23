@@ -28,8 +28,9 @@ import "ui/gfx/mojom/overlay_transform.mojom";
 interface VideoGeometryChangeClient {
 // Implementation of VideoGeometryChangeClient sets the video geometry on
 // itself.
-  OnVideoGeometryChange(gfx.mojom.RectF rect_f, gfx.mojom.OverlayTransform
-    transform);
+  OnVideoGeometryChange(gfx.mojom.RectF rect_f,
+    gfx.mojom.OverlayTransform transform,
+    int32 z_index);
 };
 
 // A single instance of VideoGeometrySetterService provides both the interface
@@ -56,5 +57,6 @@ interface VideoGeometrySetter {
 // set to.
   SetVideoGeometry(gfx.mojom.RectF rect_f,
     gfx.mojom.OverlayTransform transform,
-    mojo_base.mojom.UnguessableToken overlay_plane_id);
+    mojo_base.mojom.UnguessableToken overlay_plane_id,
+    int32 z_index);
 };

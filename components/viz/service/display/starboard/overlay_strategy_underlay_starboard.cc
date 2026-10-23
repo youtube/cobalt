@@ -174,6 +174,7 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 #endif  // BUILDFLAG(IS_ANDROID)
 
   if (found_underlay) {
+    std::vector<OverlayProposedCandidate> candidates_to_commit;
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
       OverlayCandidate candidate;
       if (it->material != DrawQuad::Material::kVideoHole ||
@@ -182,8 +183,15 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
         continue;
       }
 
-      OverlayProposedCandidate proposed_to_commit(it, candidate, this);
-      CommitCandidate(proposed_to_commit, render_pass);
+      candidates_to_commit.emplace_back(it, candidate, this);
+    }
+
+    // |quad_list| is ordered front-to-back, so commit candidates in reverse
+    // (back-to-front) order to match their visual stacking order.
+    int z_index = 0;
+    for (const auto& candidate_to_commit :
+         base::Reversed(candidates_to_commit)) {
+      CommitCandidateWithZIndex(candidate_to_commit, render_pass, z_index++);
     }
   }
 
@@ -197,12 +205,20 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
+  CommitCandidateWithZIndex(proposed_candidate, render_pass, /*z_index=*/0);
+}
+
+void OverlayStrategyUnderlayStarboard::CommitCandidateWithZIndex(
+    const OverlayProposedCandidate& proposed_candidate,
+    AggregatedRenderPass* render_pass,
+    int z_index) {
   DCHECK(GetVideoGeometrySetter());
   GetVideoGeometrySetter()->SetVideoGeometry(
       proposed_candidate.candidate.display_rect,
       std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
       VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
-          ->overlay_plane_id);
+          ->overlay_plane_id,
+      z_index);
   if (proposed_candidate.candidate.has_mask_filter) {
     render_pass->ReplaceExistingQuadWithSolidColor(
         proposed_candidate.quad_iter, SkColors::kBlack, SkBlendMode::kDstOut);

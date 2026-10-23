@@ -65,6 +65,11 @@ class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
   OverlayStrategy GetUMAEnum() const override;
 
  private:
+  void CommitCandidateWithZIndex(
+      const OverlayProposedCandidate& proposed_candidate,
+      AggregatedRenderPass* render_pass,
+      int z_index);
+
   // Keep track if an overlay is being used on the previous frame.
   bool is_using_overlay_ = false;
   // True when the video underlay covers the whole root render pass and there
