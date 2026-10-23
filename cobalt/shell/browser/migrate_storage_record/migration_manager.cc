@@ -796,7 +796,7 @@ Task MigrationManager::LocalStorageTask(
 
           LOG(INFO) << "Put for key: " << key_str;
           shared_state->storage_area->Put(
-              key, value, std::nullopt, "migration",
+              key, value, std::nullopt, nullptr,
               base::BindOnce(
                   [](base::RepeatingClosure barrier, std::string key_str,
                      scoped_refptr<MigrationState> state,
