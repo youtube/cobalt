@@ -805,6 +805,49 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the configured maximum on-disk size in kilobytes of the GPU shader
+    disk cache (0 KB when the GPU shader disk cache feature is disabled, or the
+    configured limit in kilobytes when enabled). Emitted when
+    gpu::GetDefaultGpuDiskCacheSize() is queried.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent iterating and preloading cached
+    shader blobs from the on-disk SimpleCache backend into memory in
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedBytesKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total volume in kilobytes of shader blobs read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedEntriesCount"
+    units="entries" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total number of shader cache entries read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.LocalStorage.CommitDuration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
