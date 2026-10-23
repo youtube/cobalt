@@ -131,9 +131,23 @@ public class VideoSurfaceView extends SurfaceView {
 
   @RequiresApi(Build.VERSION_CODES.Q)
   private static class Api29Helper {
-    static void setVisibility(SurfaceControl sc, boolean visible) {
+    /**
+     * Sets the visibility of the video SurfaceControl {@code sc} in {@code transaction}.
+     *
+     * <p>Both the visibility and the alpha are set. SurfaceView keeps managing its SurfaceControl
+     * and shows it again on its own updates, e.g. when the player bounds change, which undoes
+     * setVisibility(false). However, it leaves the alpha alone unless it is z-ordered above its
+     * window, so the alpha is what keeps the surface hidden until it is shown again. Note that
+     * SurfaceView.getSurfaceControl() only documents reparenting as a supported usage.
+     */
+    static SurfaceControl.Transaction setVisibility(
+        SurfaceControl.Transaction transaction, SurfaceControl sc, boolean visible) {
+      return transaction.setVisibility(sc, visible).setAlpha(sc, visible ? 1.0f : 0.0f);
+    }
+
+    static void applyVisibility(SurfaceControl sc, boolean visible) {
       try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-        transaction.setVisibility(sc, visible).setAlpha(sc, visible ? 1.0f : 0.0f).apply();
+        setVisibility(transaction, sc, visible).apply();
       }
     }
   }
@@ -157,20 +171,28 @@ public class VideoSurfaceView extends SurfaceView {
       if (sc == null || !sc.isValid()) {
         return;
       }
-      Api29Helper.setVisibility(sc, visible);
+      Api29Helper.applyVisibility(sc, visible);
       Log.i(TAG, "setVideoSurfaceVisible: " + visible);
-    } catch (Exception e) {
-      Log.w(TAG, "Failed to set SurfaceControl visibility", e);
+    } catch (Throwable t) {
+      // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
+      // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
+      // in teardown. See b/455621481.
+      Log.w(TAG, "Failed to set SurfaceControl visibility", t);
     }
   }
 
   @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
   private static class Api34Helper {
-    static void setVisibilityWithNextFrame(
+    static void applyVisibilityWithNextFrame(
         VideoSurfaceView view, SurfaceControl sc, boolean visible) {
-      try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-        transaction.setVisibility(sc, visible).setAlpha(sc, visible ? 1.0f : 0.0f);
+      SurfaceControl.Transaction transaction =
+          Api29Helper.setVisibility(new SurfaceControl.Transaction(), sc, visible);
+      try {
+        // On success, the system takes ownership of the transaction, so don't close it.
         view.applyTransactionToFrame(transaction);
+      } catch (IllegalStateException e) {
+        transaction.close();
+        throw e;
       }
     }
   }
@@ -183,7 +205,8 @@ public class VideoSurfaceView extends SurfaceView {
    *
    * @return true if the change was attached to the next frame.
    */
-  public static boolean setVideoSurfaceVisibleWithNextFrame(boolean visible) {
+  @VisibleForTesting
+  static boolean setVideoSurfaceVisibleWithNextFrame(boolean visible) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
       return false;
     }
@@ -197,12 +220,14 @@ public class VideoSurfaceView extends SurfaceView {
       if (sc == null || !sc.isValid()) {
         return false;
       }
-      Api34Helper.setVisibilityWithNextFrame(view, sc, visible);
+      Api34Helper.applyVisibilityWithNextFrame(view, sc, visible);
       Log.i(TAG, "setVideoSurfaceVisible: " + visible + " (with next frame)");
       return true;
-    } catch (Exception e) {
-      // E.g., IllegalStateException if the surface does not exist.
-      Log.w(TAG, "Failed to attach SurfaceControl visibility to the next frame", e);
+    } catch (Throwable t) {
+      // E.g., IllegalStateException if the surface does not exist. Catch Throwable (both
+      // Exception and Error) to prevent JNI crashes if the JVM throws linkage errors (e.g.,
+      // NoClassDefFoundError) during ClassLoader unloading in teardown. See b/455621481.
+      Log.w(TAG, "Failed to attach SurfaceControl visibility to the next frame", t);
       return false;
     }
   }

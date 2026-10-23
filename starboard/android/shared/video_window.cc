@@ -173,6 +173,13 @@ void VideoSurfaceHolder::SetTestObserverForTesting(TestObserver* observer) {
 }
 
 // static
+void VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(
+    VideoSurfaceHolder* holder) {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  g_video_surface_holder = holder;
+}
+
+// static
 bool VideoSurfaceHolder::IsVideoSurfaceAvailable() {
   // We only consider video surface is available when there is a video
   // surface and it is not held by any decoder, i.e.
@@ -202,6 +209,11 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
+bool VideoSurfaceHolder::IsVideoSurfaceHeldByAnotherHolder() const {
+  std::lock_guard lock(*GetViewSurfaceMutex());
+  return g_video_surface_holder && g_video_surface_holder != this;
+}
+
 void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
@@ -210,6 +222,7 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
 
   if (auto* observer = g_test_observer.load()) {
     observer->OnCleanUpVideoSurface();
+    return;
   }
 
   if (!g_native_video_window) {
@@ -226,6 +239,7 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
 void VideoSurfaceHolder::SetVideoSurfaceVisible(bool visible) {
   if (auto* observer = g_test_observer.load()) {
     observer->OnSetVideoSurfaceVisible(visible);
+    return;
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -241,6 +255,7 @@ void VideoSurfaceHolder::SetVideoSurfaceVisible(bool visible) {
 void VideoSurfaceHolder::ShowVideoSurfaceWithNextFrame() {
   if (auto* observer = g_test_observer.load()) {
     observer->OnShowVideoSurfaceWithNextFrame();
+    return;
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -257,6 +272,11 @@ void VideoSurfaceHolder::ResetVideoSurface() {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
   std::lock_guard lock(*GetViewSurfaceMutex());
+
+  if (auto* observer = g_test_observer.load()) {
+    observer->OnResetVideoSurface();
+    return;
+  }
 
   JNIEnv* env = AttachCurrentThread();
   if (!env) {

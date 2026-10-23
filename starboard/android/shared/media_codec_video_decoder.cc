@@ -366,6 +366,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       apply_transaction_to_frame_on_surface_cleanup_(
+          output_mode_ == kSbPlayerOutputModePunchOut &&
           ShouldApplyTransactionToFrameOnSurfaceCleanup()),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
@@ -1184,8 +1185,9 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
   SB_DCHECK(tunnel_mode_audio_session_id_);
-  if (output_mode_ == kSbPlayerOutputModePunchOut &&
-      apply_transaction_to_frame_on_surface_cleanup_) {
+  if (apply_transaction_to_frame_on_surface_cleanup_) {
+    // A previous non-tunnel playback may have hidden the surface. The codec
+    // renders tunnel mode frames itself, so show the surface right away.
     SetVideoSurfaceVisible(true);
   }
 
@@ -1218,11 +1220,13 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 }
 
 void MediaCodecVideoDecoder::OnVideoFrameDraw() {
-  if (!has_drawn_first_frame_.exchange(true) &&
-      output_mode_ == kSbPlayerOutputModePunchOut &&
-      apply_transaction_to_frame_on_surface_cleanup_) {
-    ShowVideoSurfaceWithNextFrame();
+  // Check the const flag first to avoid an atomic exchange on every frame when
+  // the feature is disabled.
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      has_drawn_first_frame_.exchange(true)) {
+    return;
   }
+  ShowVideoSurfaceWithNextFrame();
 }
 
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
@@ -1233,22 +1237,39 @@ void MediaCodecVideoDecoder::OnVideoFrameRelease() {
 }
 
 void MediaCodecVideoDecoder::MaybeHideVideoSurfaceOnTeardown() {
-  bool should_hide_surface = false;
-  {
-    std::lock_guard lock(surface_destroy_mutex_);
-    if (!surface_destroyed_) {
-      should_hide_surface =
-          owns_video_surface_ || has_drawn_first_frame_.load();
+  SB_CHECK(BelongsToCurrentThread());
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      tunnel_mode_audio_session_id_.has_value() ||
+      has_hidden_video_surface_on_teardown_) {
+    return;
+  }
+
+  // |owns_video_surface_| is cleared in OnSurfaceDestroyed(), so the surface is
+  // alive while it is set, even if it was acquired after a previous surface was
+  // destroyed.
+  bool should_hide_surface = owns_video_surface_;
+  if (!should_hide_surface && has_drawn_first_frame_.load()) {
+    // The decoder released the surface after rendering to it, e.g. on a seek
+    // with |enable_flush_during_seek_| disabled, so its last frame may still be
+    // displayed. Hide it, unless the surface has been destroyed since, or has
+    // been acquired by another decoder that may be rendering to it already.
+    // Note that |surface_destroy_mutex_| must not be held while acquiring the
+    // video surface mutex, see JNI_VideoSurfaceView_OnVideoSurfaceChanged().
+    {
+      std::lock_guard lock(surface_destroy_mutex_);
+      should_hide_surface = !surface_destroyed_;
     }
+    should_hide_surface =
+        should_hide_surface && !IsVideoSurfaceHeldByAnotherHolder();
   }
-  if (should_hide_surface && !has_hidden_video_surface_on_teardown_ &&
-      !tunnel_mode_audio_session_id_.has_value() &&
-      output_mode_ == kSbPlayerOutputModePunchOut &&
-      apply_transaction_to_frame_on_surface_cleanup_) {
-    has_hidden_video_surface_on_teardown_ = true;
-    has_drawn_first_frame_.store(true);
-    SetVideoSurfaceVisible(false);
+  if (!should_hide_surface) {
+    return;
   }
+
+  has_hidden_video_surface_on_teardown_ = true;
+  // Don't show the surface again if a frame is drawn after this.
+  has_drawn_first_frame_.store(true);
+  SetVideoSurfaceVisible(false);
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
