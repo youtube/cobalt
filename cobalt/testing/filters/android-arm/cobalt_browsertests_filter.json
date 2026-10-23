@@ -15,6 +15,7 @@
     "All/NavigationBrowserTestPaintHoldingSubframe.CrossOrigin/0",
     "All/NavigationBrowserTestPaintHoldingSubframe.CrossOrigin/1",
     "CobaltMetricsBrowserTest.*",
+    "CobaltMetricsDeduplicationEnabledBrowserTest.*",
     "CommitNavigationRaceBrowserTest.*",
     "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
