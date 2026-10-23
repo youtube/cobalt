@@ -77,16 +77,18 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   static CobaltContentBrowserClient* Get();
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   // Display-compositor shader cache; its location follows
   // kCobaltStorageCleanup. With kCobaltGpuShaderDiskCache on, GpuHostImpl only
   // opens the GrShaderCache, so this cache is never created.
   base::FilePath GetShaderDiskCacheDirectory() override;
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache),
   // and only under base::DIR_CACHE. Returns an empty path while the feature is
-  // off.
+  // off. On Starboard the cache is enabled per launch instead (see
+  // CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache) and the location
+  // follows kCobaltStorageCleanup like ShaderCache.
   base::FilePath GetGrShaderDiskCacheDirectory() override;
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::VideoOverlayWindow>

@@ -397,6 +397,7 @@ test("cobalt_unittests") {
     sources += [
       "//cobalt/app/app_event_delegate_unittest.cc",
       "//cobalt/app/app_event_runner_unittest.cc",
+      "//cobalt/app/cobalt_main_delegate_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
