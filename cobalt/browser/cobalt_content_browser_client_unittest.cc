@@ -24,6 +24,8 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -32,11 +34,13 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "content/public/browser/overlay_window.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/isolation_info.h"
+#include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -130,6 +134,172 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+
+  // 4. Custom non-HTTP reserve parameter when
+  // kCobaltCodeCacheAndHttpCacheOptimization is enabled:
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization,
+        {{"non_http_reserve_mb", "14"}});
+    EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+                  24 * 1024 * 1024),
+              10u * 1024 * 1024);
+  }
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // 1. Feature disabled (default): 5 MiB (5120 KB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization);
+    base::HistogramTester histogram_tester;
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 5 * 1024 * 1024);
+    EXPECT_EQ(settings.path(), cache_dir);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB", 5 * 1024, 1);
+  }
+
+  // 2. Feature enabled (default parameter): 10 MiB (10240 KB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization);
+    base::HistogramTester histogram_tester;
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 10 * 1024 * 1024);
+    EXPECT_EQ(settings.path(), cache_dir);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB", 10 * 1024, 1);
+  }
+
+  // 3. Feature enabled with custom code_cache_size_mb parameter: 8 MiB.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization,
+        {{"code_cache_size_mb", "8"}});
+    base::HistogramTester histogram_tester;
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 8 * 1024 * 1024);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB", 8 * 1024, 1);
+  }
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       ConfigureNetworkContextParamsHttpCacheSizeAndAndroidSwitchAlignment) {
+  base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA);
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // 1. Feature disabled with Android's default --max-http-cache-size=26214400
+  // switch: preserves legacy 25 MiB (25600 KB) behavior.
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "26214400");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization);
+    base::HistogramTester histogram_tester;
+
+    auto network_params = network::mojom::NetworkContextParams::New();
+    auto cert_params = cert_verifier::mojom::CertVerifierCreationParams::New();
+    client.ConfigureNetworkContextParams(
+        /*context=*/nullptr, /*in_memory=*/false, base::FilePath(),
+        network_params.get(), cert_params.get());
+
+    EXPECT_EQ(network_params->http_cache_max_size, 25 * 1024 * 1024);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB", 25 * 1024, 1);
+  }
+
+  // 2. Feature enabled (default 12 MiB param) with Android's default
+  // --max-http-cache-size=26214400 switch: overrides the legacy 25 MiB switch
+  // default to 12 MiB (12288 KB) so DIR_CACHE stays within the 24 MiB partner
+  // quota.
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "26214400");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization);
+    base::HistogramTester histogram_tester;
+
+    auto network_params = network::mojom::NetworkContextParams::New();
+    auto cert_params = cert_verifier::mojom::CertVerifierCreationParams::New();
+    client.ConfigureNetworkContextParams(
+        /*context=*/nullptr, /*in_memory=*/false, base::FilePath(),
+        network_params.get(), cert_params.get());
+
+    EXPECT_EQ(network_params->http_cache_max_size, 12 * 1024 * 1024);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB", 12 * 1024, 1);
+  }
+
+  // 3. Feature enabled with custom http_cache_size_mb=10 and Android's default
+  // --max-http-cache-size=26214400 switch: uses 10 MiB (10240 KB).
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "26214400");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization,
+        {{"http_cache_size_mb", "10"}});
+    base::HistogramTester histogram_tester;
+
+    auto network_params = network::mojom::NetworkContextParams::New();
+    auto cert_params = cert_verifier::mojom::CertVerifierCreationParams::New();
+    client.ConfigureNetworkContextParams(
+        /*context=*/nullptr, /*in_memory=*/false, base::FilePath(),
+        network_params.get(), cert_params.get());
+
+    EXPECT_EQ(network_params->http_cache_max_size, 10 * 1024 * 1024);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB", 10 * 1024, 1);
+  }
+
+  // 4. Feature enabled with an explicit non-default --max-http-cache-size
+  // command-line override (16 MiB = 16777216): honors the explicit override.
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "16777216");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        base::features::kCobaltCodeCacheAndHttpCacheOptimization);
+    base::HistogramTester histogram_tester;
+
+    auto network_params = network::mojom::NetworkContextParams::New();
+    auto cert_params = cert_verifier::mojom::CertVerifierCreationParams::New();
+    client.ConfigureNetworkContextParams(
+        /*context=*/nullptr, /*in_memory=*/false, base::FilePath(),
+        network_params.get(), cert_params.get());
+
+    EXPECT_EQ(network_params->http_cache_max_size, 16 * 1024 * 1024);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB", 16 * 1024, 1);
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)

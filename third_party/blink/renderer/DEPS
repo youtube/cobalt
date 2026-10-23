@@ -25,6 +25,7 @@ include_rules = [
     "+base/dcheck_is_on.h",
     "+base/debug",
     "+base/feature_list.h",
+    "+base/features.h",
     "+base/format_macros.h",
     "+base/functional/bind.h",
     "+base/functional/overloaded.h",
