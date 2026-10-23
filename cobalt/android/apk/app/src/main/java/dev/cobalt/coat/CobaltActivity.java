@@ -57,6 +57,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
 import org.chromium.base.FeatureList;
@@ -760,7 +762,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   /**
    * Retries the startup URL load once the device is back online, if that load failed and hasn't
    * been retried yet. Called on connection-type changes and on resume; does nothing unless the
-   * network error dialog has been raised.
+   * network error dialog has been raised and the activity is resumed.
    */
   public void checkAndRetryOnNetworkOnline() {
     if (mHasHiddenSplashScreen) {
@@ -770,6 +772,14 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     StarboardBridge bridge = getStarboardBridge();
     PlatformError platformError = bridge != null ? bridge.getPlatformError() : null;
     if (platformError == null || !platformError.isRetryPending()) {
+      return;
+    }
+    // Only retry while the activity is resumed. NetworkChangeNotifier re-registers its
+    // connectivity callback as soon as ApplicationStatus sees an activity become visible, so a
+    // change that happened while the app was in the background is reported from inside
+    // super.onStart(), before the WebContents is shown; a load started there leaves the app on a
+    // blank page (b/576591970). onResume() retries instead.
+    if (ApplicationStatus.getStateForActivity(this) != ActivityState.RESUMED) {
       return;
     }
     if (!NetworkChangeNotifier.isOnline()) {
