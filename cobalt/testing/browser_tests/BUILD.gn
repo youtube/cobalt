@@ -267,7 +267,10 @@ test("cobalt_browsertests") {
   }
 
   if (is_starboard) {
-    sources += [ "cobalt_browser_tests_main.cc" ]
+    sources += [
+      "cobalt_browser_tests_main.cc",
+      "media_source_browsertest.cc",
+    ]
   }
 
   if (is_linux || is_android) {

@@ -18,6 +18,7 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/layers/video_frame_provider.h"
 #include "cc/metrics/video_playback_roughness_reporter.h"
 #include "cc/test/layer_test_common.h"
@@ -206,10 +207,16 @@ class VideoFrameSubmitterTest : public testing::Test {
 
   void MakeSubmitter(
       cc::VideoPlaybackRoughnessReporter::ReportingCallback reporting_cb) {
+    MakeSubmitter(base::DoNothing(), std::move(reporting_cb));
+  }
+
+  void MakeSubmitter(
+      WebContextProviderCallback context_provider_cb,
+      cc::VideoPlaybackRoughnessReporter::ReportingCallback reporting_cb) {
     resource_provider_ = new StrictMock<MockVideoFrameResourceProvider>(
         context_provider_.get(), nullptr);
     submitter_ = std::make_unique<VideoFrameSubmitter>(
-        base::DoNothing(), reporting_cb,
+        std::move(context_provider_cb), reporting_cb,
         base::WrapUnique<MockVideoFrameResourceProvider>(
             resource_provider_.get()));
 
@@ -1213,5 +1220,112 @@ TEST_F(VideoFrameSubmitterTest, OpaqueFramesNotifyEmbedder) {
   submitter_->DidReceiveFrame();
   DrainMainThread();
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(
+    VideoFrameSubmitterTest,
+    CobaltContextLostWhilePageHiddenDefersContextProviderRequestUntilPageVisible) {
+  int context_provider_requests = 0;
+  MakeSubmitter(
+      base::BindLambdaForTesting(
+          [&](scoped_refptr<viz::RasterContextProvider>,
+              base::OnceCallback<void(
+                  bool, scoped_refptr<viz::RasterContextProvider>,
+                  scoped_refptr<gpu::ClientSharedImageInterface>)>) {
+            ++context_provider_requests;
+          }),
+      base::DoNothing());
+  EXPECT_EQ(context_provider_requests, 1);
+
+  EXPECT_CALL(*sink_, SetNeedsBeginFrame(false));
+  submitter_->SetIsPageVisible(false);
+  task_environment_.RunUntilIdle();
+
+  // Losing the context while the page is concealed must not request a new
+  // ContextProvider immediately (which would block the renderer main thread in
+  // EstablishGpuChannelSync while the GPU service is backgrounded).
+  EXPECT_CALL(*video_frame_provider_, OnContextLost()).Times(1);
+  submitter_->OnContextLost();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 1);
+  EXPECT_FALSE(resource_provider_->IsInitialized());
+
+  // Revealing the page must now trigger the deferred ContextProvider request.
+  submitter_->SetIsPageVisible(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 2);
+}
+
+TEST_F(
+    VideoFrameSubmitterTest,
+    CobaltSetIsPageVisibleIgnoresRedundantCallsAndCancelsInFlightRequest) {
+  int context_provider_requests = 0;
+  base::OnceCallback<void(bool, scoped_refptr<viz::RasterContextProvider>,
+                          scoped_refptr<gpu::ClientSharedImageInterface>)>
+      pending_reply_cb;
+  MakeSubmitter(
+      base::BindLambdaForTesting(
+          [&](scoped_refptr<viz::RasterContextProvider>,
+              base::OnceCallback<void(
+                  bool, scoped_refptr<viz::RasterContextProvider>,
+                  scoped_refptr<gpu::ClientSharedImageInterface>)> reply_cb) {
+            ++context_provider_requests;
+            pending_reply_cb = std::move(reply_cb);
+          }),
+      base::DoNothing());
+  EXPECT_EQ(context_provider_requests, 1);
+
+  EXPECT_CALL(*sink_, SetNeedsBeginFrame(false));
+  submitter_->SetIsPageVisible(false);
+  task_environment_.RunUntilIdle();
+
+  // Redundant SetIsPageVisible(false) is a no-op.
+  submitter_->SetIsPageVisible(false);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(*video_frame_provider_, OnContextLost()).Times(1);
+  submitter_->OnContextLost();
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 1);
+  EXPECT_FALSE(resource_provider_->IsInitialized());
+
+  // Transitioning to visible starts an async ContextProvider request.
+  submitter_->SetIsPageVisible(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 2);
+  ASSERT_TRUE(pending_reply_cb);
+
+  // Redundant SetIsPageVisible(true) while the request is in flight must not
+  // trigger a duplicate request.
+  submitter_->SetIsPageVisible(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 2);
+
+  // A rapid Visible -> Hidden -> Visible toggle while the request is still in
+  // flight must not issue a duplicate request.
+  submitter_->SetIsPageVisible(false);
+  submitter_->SetIsPageVisible(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 2);
+
+  // Hiding the page while the request is in flight causes a late callback
+  // delivery while hidden to clear waiting_for_context_provider_ and abort
+  // without initializing resource_provider_.
+  submitter_->SetIsPageVisible(false);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_CALL(*resource_provider_, Initialize(_, _)).Times(0);
+  std::move(pending_reply_cb)
+      .Run(/*use_gpu_compositing=*/false, nullptr,
+           client_shared_image_interface_);
+  task_environment_.RunUntilIdle();
+  EXPECT_FALSE(resource_provider_->IsInitialized());
+
+  // Revealing the page again must issue a fresh ContextProvider request.
+  submitter_->SetIsPageVisible(true);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(context_provider_requests, 3);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
