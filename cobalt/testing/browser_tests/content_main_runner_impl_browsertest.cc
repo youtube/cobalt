@@ -276,13 +276,9 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
   void TestBasicStartupComplete() {
     // The PostEarlyInitialization test checks that ContentMainRunnerImpl set up
-    // the FeatureList.
-    // In standard multi-process tests, FeatureList should not exist yet
-    // (EXPECT_FALSE). However, on Starboard, we run in single-process mode
-    // where TestLauncher has already initialized the global FeatureList.
-    // ContentMainRunnerImpl correctly detects this and skips re-initialization,
-    // but the test must expect it to be present.
-    EXPECT_TRUE(base::FeatureList::GetInstance());
+    // the FeatureList. This test is invalid if it already exists
+    // before starting.
+    EXPECT_FALSE(base::FeatureList::GetInstance());
   }
 
   void TestPostEarlyInitialization() {
