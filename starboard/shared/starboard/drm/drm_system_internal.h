@@ -34,10 +34,10 @@ struct SbDrmSystemPrivate {
   virtual void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      starboard::span<const uint8_t> initialization_data) = 0;
+      starboard::Span<const uint8_t> initialization_data) = 0;
 
   virtual void UpdateSession(int ticket,
-                             starboard::span<const uint8_t> key,
+                             starboard::Span<const uint8_t> key,
                              std::string_view session_id) = 0;
 
   virtual void CloseSession(std::string_view session_id) = 0;
@@ -48,7 +48,7 @@ struct SbDrmSystemPrivate {
 
   virtual void UpdateServerCertificate(
       int ticket,
-      starboard::span<const uint8_t> certificate) = 0;
+      starboard::Span<const uint8_t> certificate) = 0;
 
   virtual std::optional<std::string_view> GetMetrics() = 0;
 };

@@ -37,7 +37,7 @@ size_t ReadSize(const uint8_t* data, size_t bytes_of_size) {
 
 }  // namespace
 
-Vp9FrameParser::Vp9FrameParser(span<const uint8_t> vp9_frame) {
+Vp9FrameParser::Vp9FrameParser(Span<const uint8_t> vp9_frame) {
   const uint8_t* frame_in_uint8 = vp9_frame.data();
   size_t size = vp9_frame.size();
 
@@ -53,7 +53,7 @@ Vp9FrameParser::Vp9FrameParser(span<const uint8_t> vp9_frame) {
   number_of_subframes_ = 1;
 }
 
-bool Vp9FrameParser::ParseSuperFrame(span<const uint8_t> frame) {
+bool Vp9FrameParser::ParseSuperFrame(Span<const uint8_t> frame) {
   const uint8_t* frame_data = frame.data();
   size_t size_of_superframe = frame.size();
   uint8_t last_byte = frame_data[size_of_superframe - 1];

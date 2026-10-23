@@ -148,7 +148,7 @@ class MediaCodec {
 
   virtual ~MediaCodec() = default;
 
-  virtual span<uint8_t> GetInputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetInputBufferAddress(jint index) = 0;
   virtual jint QueueInputBuffer(jint index,
                                 jint offset,
                                 jint size,
@@ -161,7 +161,7 @@ class MediaCodec {
                                       jlong presentation_time_microseconds,
                                       jboolean is_decode_only) = 0;
 
-  virtual span<uint8_t> GetOutputBufferAddress(jint index) = 0;
+  virtual Span<uint8_t> GetOutputBufferAddress(jint index) = 0;
   virtual void ReleaseOutputBuffer(jint index, jboolean render) = 0;
   virtual void ReleaseOutputBufferAtTimestamp(jint index,
                                               jlong render_timestamp_ns) = 0;

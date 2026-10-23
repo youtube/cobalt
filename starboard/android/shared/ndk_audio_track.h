@@ -68,9 +68,9 @@ class NdkAudioTrack final : public AudioTrack {
   void Stop() override;
   void PauseAndFlush() override;
 
-  int WriteSample(span<const float> samples) override;
-  int WriteSample(span<const uint16_t> samples, int64_t sync_time) override;
-  int WriteSample(span<const uint8_t> buffer, int64_t sync_time) override;
+  int WriteSample(Span<const float> samples) override;
+  int WriteSample(Span<const uint16_t> samples, int64_t sync_time) override;
+  int WriteSample(Span<const uint8_t> buffer, int64_t sync_time) override;
 
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;

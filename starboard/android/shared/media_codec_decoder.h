@@ -46,17 +46,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   using FrameRenderedCB = std::function<void(int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
-  // Experimental features of the video decoder, one per h5vcc setting
-  // ("Media.*", see starboard/shared/starboard/experimental_features.h), read
-  // and passed in by MediaCodecVideoDecoder.
-  struct VideoExperimentalOptions {
-    bool skip_video_frames_over_60_fps = false;
-    bool enable_ndk_video = false;
-    bool enable_trivial_optimizations = false;
-    // Only has an effect when dual decoder threads are used.
-    bool enable_codec_thread_improvements = false;
-  };
-
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
 
   // This class should be implemented by the users of MediaCodecDecoder to
@@ -114,7 +103,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       bool use_dual_threads,
-      const VideoExperimentalOptions& experimental_options);
+      bool skip_video_frames_over_60_fps,
+      bool enable_ndk_video,
+      bool enable_trivial_optimizations);
 
   MediaCodecDecoder(PassKey<MediaCodecDecoder>,
                     MediaCodec::Factory& media_codec_factory,
@@ -145,7 +136,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       bool use_dual_threads,
-      const VideoExperimentalOptions& experimental_options,
+      bool skip_video_frames_over_60_fps,
+      bool enable_ndk_video,
+      bool enable_trivial_optimizations,
       std::string* error_message);
   ~MediaCodecDecoder();
 
@@ -248,10 +241,6 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   const int64_t video_decoder_poll_interval_us_;
   const bool use_dual_threads_ = false;
   const bool enable_trivial_optimizations_ = false;
-  // VideoExperimentalOptions::enable_codec_thread_improvements, but only true
-  // when |use_dual_threads_| is also true, as the improvements only apply to
-  // the dual-thread video decoder.
-  const bool enable_codec_thread_improvements_ = false;
 
   ErrorCB error_cb_;
 

@@ -53,7 +53,7 @@ void FakeAudioTrack::PauseAndFlush() {
   ++pause_and_flush_count_;
 }
 
-int FakeAudioTrack::WriteSample(span<const float> samples) {
+int FakeAudioTrack::WriteSample(Span<const float> samples) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
     return write_error_code_;
@@ -65,7 +65,7 @@ int FakeAudioTrack::WriteSample(span<const float> samples) {
   return static_cast<int>(samples.size());
 }
 
-int FakeAudioTrack::WriteSample(span<const uint16_t> samples,
+int FakeAudioTrack::WriteSample(Span<const uint16_t> samples,
                                 int64_t sync_time) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
@@ -78,7 +78,7 @@ int FakeAudioTrack::WriteSample(span<const uint16_t> samples,
   return static_cast<int>(samples.size());
 }
 
-int FakeAudioTrack::WriteSample(span<const uint8_t> buffer, int64_t sync_time) {
+int FakeAudioTrack::WriteSample(Span<const uint8_t> buffer, int64_t sync_time) {
   std::lock_guard lock(mutex_);
   if (write_error_code_ != 0) {
     return write_error_code_;
