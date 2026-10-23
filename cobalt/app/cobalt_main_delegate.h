@@ -20,6 +20,7 @@
 #include <string>
 #include <variant>
 
+#include "base/command_line.h"
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/common/cobalt_thread_checker.h"
@@ -70,6 +71,14 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   void Shutdown();
 
   bool is_visible() const { return is_visible_; }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Removes --disable-gpu-shader-disk-cache from |command_line| for a preload
+  // launch: started concealed (kSbEventTypePreload, |is_visible| false) with
+  // launch=preload on the command line. All other launches keep the switch.
+  static void ApplyPreloadGpuShaderDiskCache(base::CommandLine* command_line,
+                                             bool is_visible);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   ~CobaltMainDelegate() override;
 

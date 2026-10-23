@@ -132,7 +132,7 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
   base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA);
   base::ScopedPathOverride cache_override(base::DIR_CACHE);
@@ -145,11 +145,16 @@ TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
                                     /*deep_link=*/"",
                                     /*is_visible=*/true);
   // By default (kCobaltStorageCleanup disabled), the shader disk cache
-  // directory remains in SHELL_DIR_USER_DATA. GetGrShaderDiskCacheDirectory()
-  // is gated on kCobaltGpuShaderDiskCache instead; see the
-  // GrShaderDiskCacheDirectory test.
+  // directory remains in SHELL_DIR_USER_DATA. On Android
+  // GetGrShaderDiskCacheDirectory() is gated on kCobaltGpuShaderDiskCache
+  // instead (see the GrShaderDiskCacheDirectory test); on Starboard it follows
+  // the same location rule as ShaderCache.
   EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
             user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+#if BUILDFLAG(IS_STARBOARD)
+  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+            user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   // When kCobaltStorageCleanup is enabled, the shader disk cache directory uses
   // base::DIR_CACHE.
@@ -157,8 +162,12 @@ TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
       base::features::kCobaltStorageCleanup);
   EXPECT_EQ(client.GetShaderDiskCacheDirectory(),
             cache_dir.Append(FILE_PATH_LITERAL("ShaderCache")));
+#if BUILDFLAG(IS_STARBOARD)
+  EXPECT_EQ(client.GetGrShaderDiskCacheDirectory(),
+            cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")));
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
 TEST_F(CobaltContentBrowserClientTest, DeleteOrphanedUserDataCacheDirectories) {
   base::ScopedTempDir temp_user_data_dir;

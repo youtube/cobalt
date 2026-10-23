@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -109,6 +110,23 @@ CobaltMainDelegate::~CobaltMainDelegate() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+// static
+void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
+    base::CommandLine* command_line,
+    bool is_visible) {
+  // A preload launch compiles the startup shaders while the user is not
+  // waiting; keep them on disk so the launches that follow skip the compile.
+  // Every other launch keeps the switch appended in BasicStartupComplete().
+  const bool is_preload_launch =
+      !is_visible && command_line->GetCommandLineString().find(
+                         "launch=preload") != std::string::npos;
+  if (is_preload_launch) {
+    command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -174,6 +192,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
         switches::kDisableGpuShaderDiskCache);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
+                                 is_visible_);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
