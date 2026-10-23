@@ -136,6 +136,10 @@ void FakeMediaCodec::SimulateOutputAvailable(int index,
   handler_->OnMediaCodecOutputBufferAvailable(index, flags, offset, pts, size);
 }
 
+void FakeMediaCodec::SimulateFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
 bool FakeMediaCodec::WaitForInputQueue(size_t num_packets, int timeout_ms) {
   std::unique_lock<std::mutex> lock(mutex_);
   return cv_.wait_for(
