@@ -616,22 +616,9 @@ bool CreatePriorSessionSparsePmaFile(const base::FilePath& file_path,
 class CobaltMetricsDeduplicationEnabledBrowserTest
     : public CobaltMetricsBrowserTest {
  public:
-  CobaltMetricsDeduplicationEnabledBrowserTest() = default;
-
-  void CreatedBrowserMainParts(
-      content::BrowserMainParts* browser_main_parts) override {
-    CobaltMetricsBrowserTest::CreatedBrowserMainParts(browser_main_parts);
-    // Initialize ScopedFeatureList here (before PreCreateThreads/SetupMetrics)
-    // rather than in the constructor because BrowserTestBase::SetUp() resets
-    // base::FeatureList before entering ContentMain(), and ShellMainDelegate
-    // does not re-create FeatureList from command-line switches.
+  CobaltMetricsDeduplicationEnabledBrowserTest() {
     feature_list_.InitAndEnableFeature(
         features::kCobaltStabilityMetricsDeduplication);
-  }
-
-  void TearDownOnMainThread() override {
-    feature_list_.Reset();
-    CobaltMetricsBrowserTest::TearDownOnMainThread();
   }
 
  private:
