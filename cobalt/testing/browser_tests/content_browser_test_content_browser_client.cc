@@ -63,7 +63,7 @@ void ContentBrowserTestContentBrowserClient::
         RenderFrameHost* render_frame_host,
         mojo::BinderMapWithContext<RenderFrameHost*>* map) {
   cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
-  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+  ShellContentBrowserTestClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
