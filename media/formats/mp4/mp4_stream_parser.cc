@@ -1462,7 +1462,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #endif
 
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   scoped_refptr<StreamParserBuffer> stream_buf;
 
   if (auto* media_client = GetMediaClient()) {

@@ -198,6 +198,6 @@ TEST(AudioDecoderConfigStructTraitsTest, WithMimeType) {
   EXPECT_EQ(output.mime_type(), "audio/mp4; codecs=\"mp4a.40.2\"");
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media

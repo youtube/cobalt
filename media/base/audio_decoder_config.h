@@ -183,7 +183,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Full mime string for the audio decoder config.
   std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.

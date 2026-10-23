@@ -287,5 +287,5 @@ const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
     &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
 #endif
 
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace features

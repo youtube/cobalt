@@ -244,7 +244,7 @@ SockaddrAny MakeSockAddr(SockFamily family, const std::string& socket_name) {
 #if defined(VMADDR_FLAG_TO_HOST)
 =======
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) && !defined(STARBOARD)
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       if (IsVirtualized()) {
         // VM-to-VM VSOCK communication requires messages to be
         // routed through the host.

@@ -568,7 +568,7 @@ config("compiler") {
       # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
       # on a local variable, which depends on LLVM 23.1.0.
       cflags += [ "-Wno-unknown-attributes" ]
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   }
 

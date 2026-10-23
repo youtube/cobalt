@@ -319,7 +319,7 @@ class TestRunnerBindings final : public gin::Wrappable<TestRunnerBindings> {
   gin::Dictionary GetClipboardReadState(v8::Isolate* isolate);
 =======
   #endif
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void GetManifestThen(v8::Local<v8::Function> callback);
   std::string GetWritableDirectory();
   void InsertStyleSheet(const std::string& source_code);
@@ -695,7 +695,7 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
                  &TestRunnerBindings::GetClipboardReadState)
 =======
 #endif
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       .SetMethod("getManifestThen", &TestRunnerBindings::GetManifestThen)
       // Returns the absolute path to a directory this test can write data in.
       // This returns the path to a fresh empty directory every time this method

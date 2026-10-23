@@ -494,7 +494,7 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     status.Log("Cobalt.LocalStorage.DatabaseOpenError", in_memory_);
 #endif
     DeleteAndRecreateDatabase();
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -711,7 +711,7 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     status.Log("Cobalt.LocalStorage.DatabaseCommitError", in_memory_);
 #endif
     DeleteAndRecreateDatabase();
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of bf6fa31b4c9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 
