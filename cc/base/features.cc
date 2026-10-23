@@ -273,11 +273,9 @@ BASE_FEATURE(kWebviewSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsScrollSnapAnimation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-=======
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltTileMemoryMetrics,
              "CobaltTileMemoryMetrics",
@@ -287,5 +285,4 @@ const base::FeatureParam<base::TimeDelta> kCobaltTileMemoryMetricsInterval{
     &kCobaltTileMemoryMetrics, "interval", base::Minutes(1)};
 #endif
 
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace features

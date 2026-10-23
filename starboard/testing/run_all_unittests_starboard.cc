@@ -15,6 +15,7 @@
 #include <signal.h>
 
 #include "base/functional/bind.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "build/build_config.h"
 #include "mojo/core/test/mojo_test_suite_base.h"
@@ -23,6 +24,7 @@
 
 namespace {
 int LaunchUnitTests(int argc, char** argv) {
+  base::test::AllowCheckIsTestForTesting();
   return mojo::core::test::MojoTestSuiteBase(argc, argv).Run();
 }
 }  // namespace
