@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -144,5 +145,47 @@ public class VideoSurfaceViewTest {
     VideoSurfaceView.showVideoSurfaceWithNextFrame();
 
     verify(view).applyTransactionToFrame(any(SurfaceControl.Transaction.class));
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+  public void testShowVideoSurfaceWithNextFrame_showsImmediatelyWhenAttachingFails() {
+    VideoSurfaceView view = mock(VideoSurfaceView.class);
+    SurfaceControl sc = new SurfaceControl.Builder().setName("test").build();
+    when(view.getSurfaceControl()).thenReturn(sc);
+    doThrow(new IllegalStateException("No surface"))
+        .when(view)
+        .applyTransactionToFrame(any(SurfaceControl.Transaction.class));
+    VideoSurfaceView.setInstanceForTesting(view);
+
+    VideoSurfaceView.showVideoSurfaceWithNextFrame();
+
+    // Queried once to attach the change to the next frame, and once more to apply it immediately.
+    verify(view, times(2)).getSurfaceControl();
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.Q)
+  public void testSetVideoSurfaceVisible_doesNotThrowOnError() {
+    VideoSurfaceView view = mock(VideoSurfaceView.class);
+    when(view.getSurfaceControl()).thenThrow(new NoClassDefFoundError("test"));
+    VideoSurfaceView.setInstanceForTesting(view);
+
+    // Called by native code, which crashes on any uncaught Throwable.
+    VideoSurfaceView.setVideoSurfaceVisible(false);
+  }
+
+  @Test
+  @Config(sdk = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+  public void testSetVideoSurfaceVisibleWithNextFrame_returnsFalseOnError() {
+    VideoSurfaceView view = mock(VideoSurfaceView.class);
+    SurfaceControl sc = new SurfaceControl.Builder().setName("test").build();
+    when(view.getSurfaceControl()).thenReturn(sc);
+    doThrow(new NoClassDefFoundError("test"))
+        .when(view)
+        .applyTransactionToFrame(any(SurfaceControl.Transaction.class));
+    VideoSurfaceView.setInstanceForTesting(view);
+
+    assertFalse(VideoSurfaceView.setVideoSurfaceVisibleWithNextFrame(true));
   }
 }

@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 #include "base/android/jni_string.h"
@@ -68,7 +69,8 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   void CreateDecoder(const std::string& max_video_capabilities = "",
                      const VideoStreamInfo* initial_stream_info = nullptr,
                      ExperimentalFeatures experimental_features = {},
-                     bool enable_flush_during_seek = false) {
+                     bool enable_flush_during_seek = false,
+                     std::optional<int> tunnel_mode_audio_session_id = {}) {
     auto factory = std::make_unique<FakeMediaCodecFactory>();
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
@@ -80,6 +82,7 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
         /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
+    tunnel_config.audio_session_id = tunnel_mode_audio_session_id;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
     pipeline_config.experimental_features = std::move(experimental_features);
     pipeline_config.enable_flush_during_seek = enable_flush_during_seek;
@@ -442,11 +445,13 @@ class TestVideoSurfaceObserver : public VideoSurfaceHolder::TestObserver {
   void OnShowVideoSurfaceWithNextFrame() override {
     show_with_next_frame_count_++;
   }
+  void OnResetVideoSurface() override { reset_count_++; }
 
   int clean_up_count() const { return clean_up_count_.load(); }
   int show_with_next_frame_count() const {
     return show_with_next_frame_count_.load();
   }
+  int reset_count() const { return reset_count_.load(); }
   std::vector<bool> visibility_changes() const {
     std::lock_guard lock(mutex_);
     return visibility_changes_;
@@ -455,8 +460,22 @@ class TestVideoSurfaceObserver : public VideoSurfaceHolder::TestObserver {
  private:
   std::atomic<int> clean_up_count_{0};
   std::atomic<int> show_with_next_frame_count_{0};
+  std::atomic<int> reset_count_{0};
   mutable std::mutex mutex_;
   std::vector<bool> visibility_changes_;
+};
+
+// Holds the video surface, like another decoder that has acquired it.
+class FakeVideoSurfaceHolder : public VideoSurfaceHolder {
+ public:
+  FakeVideoSurfaceHolder() {
+    VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(this);
+  }
+  ~FakeVideoSurfaceHolder() {
+    VideoSurfaceHolder::SetVideoSurfaceHolderForTesting(nullptr);
+  }
+
+  void OnSurfaceDestroyed() override {}
 };
 
 TEST_F(MediaCodecVideoDecoderTest,
@@ -685,6 +704,133 @@ TEST_F(
   EXPECT_EQ(observer.clean_up_count(), 0);
   EXPECT_TRUE(observer.visibility_changes().empty());
   EXPECT_FALSE(error_called_);
+}
+
+TEST_F(
+    MediaCodecVideoDecoderTest,
+    ApplyTransactionToFrameOnSurfaceCleanupHidesSurfaceAcquiredAfterDestroy) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+
+  // Simulate Android destroying the surface (e.g. on app suspend), and the
+  // decoder acquiring a new surface after a seek (e.g. on app resume).
+  decoder_->OnSurfaceDestroyed();
+  decoder_->Reset();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(20000, 1024)});
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 2);
+
+  // The decoder holds the new surface, so it must hide it on teardown.
+  decoder_.reset();
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ApplyTransactionToFrameOnSurfaceCleanupDoesNotHideSurfaceOfOtherHolder) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/false);
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+
+  // A seek with enable_flush_during_seek=false tears down the codec and
+  // releases the surface. If another decoder acquires the surface before this
+  // decoder is destroyed, this decoder must not hide it, as the other decoder
+  // may already be rendering to it.
+  decoder_->Reset();
+  FakeVideoSurfaceHolder other_holder;
+  decoder_.reset();
+
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_TRUE(observer.visibility_changes().empty());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ApplyTransactionToFrameOnSurfaceCleanupShowsOnFirstTunnelFrame) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/false,
+                /*tunnel_mode_audio_session_id=*/1);
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  // A previous non-tunnel playback may have hidden the surface, so it is shown
+  // when the first tunnel mode frame is ready.
+  fake_codec->SimulateFirstTunnelFrameReady();
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{true});
+
+  // Tunnel mode playbacks reset the surface on teardown, instead of hiding or
+  // cleaning it up.
+  decoder_.reset();
+  EXPECT_EQ(observer.reset_count(), 1);
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_EQ(observer.show_with_next_frame_count(), 0);
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{true});
 }
 #endif  // !BUILDFLAG(IS_STARBOARD)
 
