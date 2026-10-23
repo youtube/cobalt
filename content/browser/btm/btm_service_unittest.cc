@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -286,6 +287,41 @@ TEST_F(BtmServiceTest, MAYBE_DatabaseFileIsDeletedIfFeatureIsDisabled) {
     ASSERT_FALSE(base::PathExists(db_path));
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(BtmServiceTest, DatabaseFileIsDeletedIfCobaltStorageCleanupIsEnabled) {
+  base::FilePath user_data_dir;
+  base::FilePath db_path;
+
+  // First, create a browser context with kCobaltStorageCleanup disabled
+  // (default) and confirm the BTM database file is created.
+  {
+    TestBrowserContext browser_context;
+    db_path = GetBtmFilePath(&browser_context);
+    BrowserContextImpl::From(&browser_context)
+        ->GetBtmService()
+        ->storage()
+        ->FlushPostedTasksForTesting();
+    ASSERT_TRUE(base::PathExists(db_path));
+    user_data_dir = browser_context.TakePath();
+    BrowserContextImpl::From(&browser_context)->WaitForBtmCleanupForTesting();
+    ASSERT_TRUE(base::PathExists(db_path));
+  }
+
+  ASSERT_TRUE(base::PathExists(db_path));
+
+  // Re-open the same directory with kCobaltStorageCleanup enabled and confirm
+  // BtmService is not created and the existing DIPS database file is deleted.
+  {
+    base::test::ScopedFeatureList feature_list(
+        base::features::kCobaltStorageCleanup);
+    TestBrowserContext browser_context(user_data_dir);
+    ASSERT_FALSE(BrowserContextImpl::From(&browser_context)->GetBtmService());
+    BrowserContextImpl::From(&browser_context)->WaitForBtmCleanupForTesting();
+    ASSERT_FALSE(base::PathExists(db_path));
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 TEST_F(BtmServiceTest, EmptySiteEventsIgnored) {
   base::test::ScopedFeatureList feature_list;

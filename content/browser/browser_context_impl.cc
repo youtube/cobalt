@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/check_is_test.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -52,6 +53,15 @@ namespace content {
 
 namespace {
 
+bool IsBtmFeatureEnabled() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    return false;
+  }
+#endif
+  return base::FeatureList::IsEnabled(features::kBtm);
+}
+
 void NotifyContextWillBeDestroyed(StoragePartition* partition) {
   static_cast<StoragePartitionImpl*>(partition)
       ->OnBrowserContextWillBeDestroyed();
@@ -83,7 +93,7 @@ void BrowserContextImpl::MaybeCleanupBtm() {
   base::ScopedClosureRunner quit_runner(btm_cleanup_loop_.QuitClosure());
   // Don't attempt to delete the database if the BTM feature is enabled; we need
   // it.
-  if (base::FeatureList::IsEnabled(features::kBtm)) {
+  if (IsBtmFeatureEnabled()) {
     return;
   }
 
@@ -404,7 +414,7 @@ void BrowserContextImpl::WriteIntoTrace(
 
 namespace {
 bool ShouldEnableBtm(BrowserContext* browser_context) {
-  if (!base::FeatureList::IsEnabled(features::kBtm)) {
+  if (!IsBtmFeatureEnabled()) {
     return false;
   }
 
