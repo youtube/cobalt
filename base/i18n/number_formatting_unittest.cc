@@ -175,8 +175,14 @@ TEST(NumberFormattingTest, FormatPercent) {
     EXPECT_EQ(UTF8ToUTF16(i.expected_persian), FormatPercent(i.number));
     i18n::SetICUDefaultLocale("ar");
     EXPECT_EQ(UTF8ToUTF16(i.expected_arabic), FormatPercent(i.number));
+#if !BUILDFLAG(IS_COBALT)
+    // b/561702947: Disabled for unused functionality from ICU. Cobalt sets
+    // includeChildren: false in localeFilter to strip regional sub-locales not
+    // explicitly supported by YouTube TV (retaining 'ar' and 'ar_SA', which
+    // use European digits per Google CLDR patch, while stripping 'ar_EG').
     i18n::SetICUDefaultLocale("ar-EG");
     EXPECT_EQ(UTF8ToUTF16(i.expected_arabic_egypt), FormatPercent(i.number));
+#endif  // !BUILDFLAG(IS_COBALT)
   }
 }
 
