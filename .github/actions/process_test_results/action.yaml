@@ -28,8 +28,8 @@ runs:
         show: "fail, skip"
 
     - name: Populate GitHub Summary
-      if: steps.test_summary.outputs.failed > 0
-      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
+      if: steps.test-summary.outputs.failed > 0
+      run: cat test-report-summary.md >> "${GITHUB_STEP_SUMMARY}"
       shell: bash
 
     - name: Check Failed Tests
@@ -59,8 +59,10 @@ runs:
           shopt -s globstar
         fi
 
-        result_xmls=(${RESULTS_GLOB})
-        result_logs=(${LOG_GLOB})
+        result_xmls=()
+        result_logs=()
+        eval "result_xmls=(${RESULTS_GLOB})"
+        eval "result_logs=(${LOG_GLOB})"
 
         if [ "${#result_xmls[@]}" -ne "${GTEST_SHARDS}" ]; then
           if [ "${#result_logs[@]}" -gt "${#result_xmls[@]}" ]; then
@@ -140,5 +142,7 @@ runs:
         if [[ "$OSTYPE" != "darwin"* ]]; then
           shopt -s globstar
         fi
-        ./datadog-ci junit upload --service "${DD_SERVICE}" ${RESULTS_GLOB}
+        result_files=()
+        eval "result_files=(${RESULTS_GLOB})"
+        ./datadog-ci junit upload --service "${DD_SERVICE}" "${result_files[@]}"
       shell: bash

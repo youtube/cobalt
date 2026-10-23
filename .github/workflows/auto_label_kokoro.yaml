@@ -153,9 +153,11 @@ jobs:
           python3 cobalt/build/gn.py "${out}" -p tvos-arm64-simulator -C devel --no-rbe --no-check "${wrapper}"
 
           # gn analyze only knows headers listed in BUILD.gn, so add includers.
-          for header in $(grep -E "${HEADERS}" "${files}"); do
-            git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' >> "${files}" || true
-          done
+          if grep -qE "${HEADERS}" "${files}"; then
+            while IFS= read -r header; do
+              git grep -lF "\"${header}\"" -- '*.c' '*.cc' '*.cpp' '*.cxx' '*.m' '*.mm' '*.h' '*.hh' '*.hpp' '*.inc' '*.inl' '*.def' >> "${files}" || (( $? == 1 ))
+            done < <(grep -E "${HEADERS}" "${files}")
+          fi
 
           jq -nR --argjson targets "${TEST_TARGETS}" '{
             files: [inputs | select(. != "") | "//" + .] | unique,

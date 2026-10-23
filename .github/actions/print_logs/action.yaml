@@ -47,7 +47,8 @@ runs:
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=(${LOG_GLOB})
+        log_files=()
+        eval "log_files=(${LOG_GLOB})"
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
           exit 1

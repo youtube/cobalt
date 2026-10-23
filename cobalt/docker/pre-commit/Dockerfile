@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gn \
     python3 \
     python3-pip \
+    shellcheck \
     && curl -fsSL --retry 3 --retry-connrefused "https://github.com/google/google-java-format/releases/download/v${GJF_VERSION}/google-java-format_linux-x86-64" -o /usr/local/bin/google-java-format \
     && echo "${GJF_SHA256}  /usr/local/bin/google-java-format" | sha256sum -c - \
     && chmod +x /usr/local/bin/google-java-format \
