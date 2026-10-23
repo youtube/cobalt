@@ -40,6 +40,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
@@ -389,6 +391,7 @@ public class CobaltActivityTest {
   @Before
   public void setUp() {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
+    ApplicationStatus.initialize(RuntimeEnvironment.getApplication());
     AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
@@ -402,6 +405,7 @@ public class CobaltActivityTest {
     JavaSwitches.setOverrideForTesting(null);
     // RobolectricTestRunner doesn't run ResettersForTesting, so reset CommandLine explicitly.
     CommandLine.resetForTesting(false);
+    ApplicationStatus.destroyForJUnitTests();
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -573,6 +577,10 @@ public class CobaltActivityTest {
     when(bridge.getPlatformError()).thenReturn(platformError);
     CobaltActivity activity = mock(CobaltActivity.class);
     when(activity.getStarboardBridge()).thenReturn(bridge);
+    // ApplicationStatus only knows activities that went through the lifecycle callbacks; the
+    // retry gate reads it, so register the mock as resumed.
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.CREATED);
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.RESUMED);
     doCallRealMethod().when(activity).checkAndRetryOnNetworkOnline();
     // The retry throttle compares against elapsedRealtime(), which starts near 0 in Robolectric.
     ShadowSystemClock.advanceBy(Duration.ofSeconds(2));
