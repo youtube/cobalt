@@ -274,6 +274,7 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   const int path_key =
@@ -286,6 +287,7 @@ base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   }
   return base::FilePath();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache), and
@@ -293,16 +295,20 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // under storage pressure and it does not count against persistent app data,
   // unlike SHELL_DIR_USER_DATA, where Local Storage lives. This does not depend
   // on kCobaltStorageCleanup so that the kCobaltGpuShaderDiskCache treatment
-  // arm always uses the same location.
+  // arm always uses the same location. Starboard: always DIR_CACHE too.
+#if BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    return base::FilePath();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   base::FilePath cache_dir;
-  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache) &&
-      base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
       !cache_dir.empty()) {
     return cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(

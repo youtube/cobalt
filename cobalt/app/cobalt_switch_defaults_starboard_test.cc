@@ -17,10 +17,14 @@
 #include <vector>
 
 #include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
+#include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -195,6 +199,65 @@ TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
   EXPECT_EQ("https://www.youtube.com/tv",
             cmd_line_pxr.get_startup_url_for_test());
   EXPECT_EQ("", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+}
+
+// CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache.
+base::CommandLine ApplyPreloadGpuShaderDiskCache(bool is_visible) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line, is_visible);
+  return command_line;
+}
+
+bool DiskCacheEnabled(const base::CommandLine& command_line) {
+  return !command_line.HasSwitch(::switches::kDisableGpuShaderDiskCache);
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchEnablesGrShaderCacheOnly) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_TRUE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchSetsDefaultCacheSize) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/false);
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            base::NumberToString(
+                CobaltMainDelegate::kPreloadGrShaderDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, PreloadLaunchRespectsExplicitCacheSize) {
+  constexpr char kExplicitSizeKB[] = "512";
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB,
+                                 kExplicitSizeKB);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_TRUE(DiskCacheEnabled(command_line));
+  EXPECT_EQ(command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB),
+            kExplicitSizeKB);
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, VisibleLaunchLeavesCacheDisabled) {
+  const base::CommandLine command_line =
+      ApplyPreloadGpuShaderDiskCache(/*is_visible=*/true);
+  EXPECT_FALSE(DiskCacheEnabled(command_line));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
+}
+
+TEST(PreloadGpuShaderDiskCacheTest, DisableSwitchLeavesCacheDisabled) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  command_line.AppendSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line.AppendSwitch(::switches::kDisablePreloadGpuShaderDiskCache);
+  CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(&command_line,
+                                                     /*is_visible=*/false);
+  EXPECT_FALSE(DiskCacheEnabled(command_line));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuShaderDiskCacheGrOnly));
+  EXPECT_FALSE(command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB));
 }
 
 }  // namespace
