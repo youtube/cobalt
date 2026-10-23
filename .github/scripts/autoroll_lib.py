@@ -41,9 +41,9 @@ def cleanup_conflict_branch(branch):
     run(['git', 'push', 'origin', '--delete', branch])
 
   local_refs = set(
-      get_out([
-          'git', 'for-each-ref', '--format=%(refname:short)', 'refs/heads/'
-      ]).splitlines())
+      get_out(
+          ['git', 'for-each-ref', '--format=%(refname:short)',
+           'refs/heads/']).splitlines())
   if branch in local_refs:
     run(['git', 'branch', '-D', branch])
 

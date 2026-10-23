@@ -439,8 +439,9 @@ class TestAutorollIntegration(unittest.TestCase):
 
   def assert_conflict_branch(self, base, branch, pr, sha):
     """Verifies conflict branch commit, conflict markers, and cursor."""
-    self.assertTrue(self.get_branch_commit_titles(base, branch)[0].startswith(
-        f'CONFLICTED Cherry pick PR #{pr}:'))
+    self.assertTrue(
+        self.get_branch_commit_titles(
+            base, branch)[0].startswith(f'CONFLICTED Cherry pick PR #{pr}:'))
     self.assertIn('<<<<<<< HEAD',
                   self.git('show', f'{branch}:conflict.txt').stdout)
     self.assertEqual(
@@ -467,8 +468,7 @@ class TestAutorollIntegration(unittest.TestCase):
 
     # Main modifies line 2 differently
     self.git('checkout', 'main')
-    self.commit_file('conflict.txt', 'line 1\nmain edit\n',
-                     'Main edit (#101)')
+    self.commit_file('conflict.txt', 'line 1\nmain edit\n', 'Main edit (#101)')
     sha2 = self.commit_file('other.txt', 'other\n', 'Other commit (#102)')
 
     self.git('checkout', 'staging')
@@ -605,8 +605,7 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertEqual(autoroll_content, base_sha)
 
     cb = 'autoroll-main-to-27.lts-conflict-102'
-    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102',
-                                base_sha)
+    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102', base_sha)
 
   def test_cuj8_auto_resolvable_deleted_by_them_conflict(self):
     """CUJ 8: Auto-resolves deleted file conflict without failure."""
@@ -930,8 +929,7 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertTrue(commit_titles[1].startswith('Cherry pick PR #103:'))
 
     cb = 'autoroll-main-to-27.lts-conflict-102'
-    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102',
-                                base_sha)
+    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102', base_sha)
     self.assert_idempotent(cb, args)
 
   def test_cuj15_label_mode_new_pr_inserted_into_existing_base_pr(self):
@@ -1013,8 +1011,7 @@ class TestAutorollIntegration(unittest.TestCase):
     cb = 'autoroll-main-to-27.lts-conflict-102'
     local_branches = self.git('branch', '--list', cb).stdout
     self.assertIn(cb, local_branches)
-    self.assertIn('<<<<<<< HEAD',
-                  self.git('show', f'{cb}:context.txt').stdout)
+    self.assertIn('<<<<<<< HEAD', self.git('show', f'{cb}:context.txt').stdout)
 
     # Push conflict branch to origin to simulate remote PR creation
     self.git('push', 'origin', cb)

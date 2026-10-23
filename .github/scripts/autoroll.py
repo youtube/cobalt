@@ -60,8 +60,8 @@ def main():
   commits_added = []
   existing_refs = set(
       lib.get_out([
-          'git', 'for-each-ref', '--format=%(refname:short)',
-          'refs/heads/', 'refs/remotes/origin/'
+          'git', 'for-each-ref', '--format=%(refname:short)', 'refs/heads/',
+          'refs/remotes/origin/'
       ]).splitlines())
 
   for sha, title, pr_num in commits_to_target:
