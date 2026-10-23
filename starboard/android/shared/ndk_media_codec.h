@@ -69,7 +69,7 @@ class NdkMediaCodec : public MediaCodec {
   NdkMediaCodec(const NdkMediaCodec&) = delete;
   void operator=(const NdkMediaCodec&) = delete;
 
-  span<uint8_t> GetInputBufferAddress(jint index) override;
+  Span<uint8_t> GetInputBufferAddress(jint index) override;
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -82,7 +82,7 @@ class NdkMediaCodec : public MediaCodec {
                               jlong presentation_time_microseconds,
                               jboolean is_decode_only) override;
 
-  span<uint8_t> GetOutputBufferAddress(jint index) override;
+  Span<uint8_t> GetOutputBufferAddress(jint index) override;
   void ReleaseOutputBuffer(jint index, jboolean render) override;
   void ReleaseOutputBufferAtTimestamp(jint index,
                                       jlong render_timestamp_ns) override;

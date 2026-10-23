@@ -165,7 +165,7 @@ void AudioTrackBridge::PauseAndFlush() {
   Java_AudioTrackBridge_flush(env, j_audio_track_bridge_);
 }
 
-int AudioTrackBridge::WriteSample(span<const float> samples) {
+int AudioTrackBridge::WriteSample(Span<const float> samples) {
   JNIEnv* env = AttachCurrentThread();
   int num_of_samples = static_cast<int>(samples.size());
   SB_DCHECK_LE(num_of_samples, max_samples_per_write_);
@@ -182,7 +182,7 @@ int AudioTrackBridge::WriteSample(span<const float> samples) {
                                      num_of_samples);
 }
 
-int AudioTrackBridge::WriteSample(span<const uint16_t> samples,
+int AudioTrackBridge::WriteSample(Span<const uint16_t> samples,
                                   int64_t sync_time) {
   JNIEnv* env = AttachCurrentThread();
   int num_of_samples = static_cast<int>(samples.size());
@@ -209,7 +209,7 @@ int AudioTrackBridge::WriteSample(span<const uint16_t> samples,
   return bytes_written / sizeof(uint16_t);
 }
 
-int AudioTrackBridge::WriteSample(span<const uint8_t> buffer,
+int AudioTrackBridge::WriteSample(Span<const uint8_t> buffer,
                                   int64_t sync_time) {
   JNIEnv* env = AttachCurrentThread();
   int num_of_bytes = static_cast<int>(buffer.size());

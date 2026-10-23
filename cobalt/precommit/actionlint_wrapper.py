@@ -34,6 +34,13 @@ def _lint_composite_action(path: str) -> int:
   """Transpiles a composite action into a synthetic workflow for actionlint."""
   with open(path, encoding="utf-8") as f:
     data = yaml.safe_load(f)
+  if (
+      not isinstance(data, dict)
+      or "runs" not in data
+      or not isinstance(data["runs"], dict)
+      or "steps" not in data["runs"]
+  ):
+    return 1
   job = {
       "runs-on": "ubuntu-latest",
       "strategy": {

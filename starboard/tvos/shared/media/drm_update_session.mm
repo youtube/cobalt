@@ -67,7 +67,7 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->UpdateSession(
       ticket,
-      starboard::make_span(static_cast<const uint8_t*>(key),
-                           static_cast<size_t>(key_size)),
+      starboard::MakeSpan(static_cast<const uint8_t*>(key),
+                          static_cast<size_t>(key_size)),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
 }

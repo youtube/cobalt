@@ -74,15 +74,15 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      span<const uint8_t> initialization_data) override;
+      Span<const uint8_t> initialization_data) override;
   void CloseSession(std::string_view session_id) override;
   void UpdateSession(int ticket,
-                     span<const uint8_t> key,
+                     Span<const uint8_t> key,
                      std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               span<const uint8_t> certificate) override;
+                               Span<const uint8_t> certificate) override;
 
   std::optional<std::string_view> GetMetrics() override;
 

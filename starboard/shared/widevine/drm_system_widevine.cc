@@ -303,7 +303,7 @@ bool DrmSystemWidevine::IsDrmSystemWidevine(SbDrmSystem drm_system) {
 void DrmSystemWidevine::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    span<const uint8_t> initialization_data) {
+    Span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
   const std::string init_str(initialization_data.begin(),
@@ -335,7 +335,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
 }
 
 void DrmSystemWidevine::UpdateSession(int ticket,
-                                      span<const uint8_t> key,
+                                      Span<const uint8_t> key,
                                       std::string_view sb_drm_session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   const std::string str_key(key.begin(), key.end());
@@ -534,7 +534,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
 
 void DrmSystemWidevine::UpdateServerCertificate(
     int ticket,
-    span<const uint8_t> certificate) {
+    Span<const uint8_t> certificate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   const std::string str_certificate(certificate.begin(), certificate.end());
   wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);

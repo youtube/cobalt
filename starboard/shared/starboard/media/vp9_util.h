@@ -35,13 +35,13 @@ class Vp9FrameParser {
  public:
   static constexpr size_t kMaxNumberOfSubFrames = 8;
 
-  explicit Vp9FrameParser(span<const uint8_t> vp9_frame);
+  explicit Vp9FrameParser(Span<const uint8_t> vp9_frame);
 
   size_t number_of_subframes() const {
     SB_DCHECK_GT(number_of_subframes_, 0U);
     return number_of_subframes_;
   }
-  span<const uint8_t> subframe(size_t index) const {
+  Span<const uint8_t> subframe(size_t index) const {
     SB_DCHECK_LT(index, number_of_subframes_);
     return subframes_[index];
   }
@@ -51,9 +51,9 @@ class Vp9FrameParser {
   size_t size_of_subframe(size_t index) const { return subframe(index).size(); }
 
  private:
-  bool ParseSuperFrame(span<const uint8_t> frame);
+  bool ParseSuperFrame(Span<const uint8_t> frame);
 
-  span<const uint8_t> subframes_[kMaxNumberOfSubFrames];
+  Span<const uint8_t> subframes_[kMaxNumberOfSubFrames];
   size_t number_of_subframes_ = 0;
 };
 

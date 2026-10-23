@@ -4,6 +4,9 @@ inputs:
   targets:
     description: "JSON list of ninja targets for Cobalt build."
     required: true
+  test_root_target:
+    description: "The root target from which to deduce what tests to run."
+    required: true
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
@@ -12,10 +15,6 @@ inputs:
     default: 'false'
   sccache_gcs_key:
     description: GCS SA key to read/write to bucket
-outputs:
-  skip:
-    description: "Set to true when the platform build was skipped."
-    value: ${{ steps.filter-platform.outputs.skip }}
 runs:
   using: "composite"
   steps:
@@ -62,31 +61,25 @@ runs:
         id: changed-files
         env:
           CHANGED_FILES_LIST: changed_files.txt
-        working-directory: cobalt/src
         run: |
           set -x
-          git -c core.quotepath=off diff --name-only --no-renames HEAD~1 HEAD > "${CHANGED_FILES_LIST}"
-          cat "${CHANGED_FILES_LIST}"
+          cd cobalt/src
+          # GitHub's actions/checkout action, by default, checks out the merge commit when
+          # a pull request event triggers a workflow. This merge commit represents the state
+          # of the code as if the pull request had been merged into the base branch.
+          # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
+          # HEAD commit from the base branch (i.e. HEAD~1).
+          # TODO(b/382508397): Disabled for now.
+          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          # cat ${CHANGED_FILES_LIST}
         shell: bash
-      - name: Filter platform
-        id: filter-platform
-        working-directory: cobalt/src
-        shell: bash
-        run: |
-          set -ex
-          skip="false"
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            skip=$(python3 cobalt/build/filter_platform.py \
-              --out-dir "out/${{ matrix.platform }}_${{ matrix.config }}" \
-              --changed-files changed_files.txt \
-              --targets '${{ inputs.targets }}')
-          fi
-          echo "skip=${skip}" >> "${GITHUB_OUTPUT}"
       - name: Calculate test targets
-        if: steps.filter-platform.outputs.skip != 'true' && matrix.config == 'devel'
+        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
+        if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
+          ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
@@ -104,6 +97,25 @@ runs:
           # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
 
+          # gn desc out/${PLATFORM}_${CONFIG}/ "*" --format=json > gn_desc.json
+          # # Trim any warning gn printed before the json (all lines above the first curly brace).
+          # sed -n '/^{/,$p' -i gn_desc.json
+
+          # changed_files_arg=""
+
+          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
+          # Since the output of the script below isn't currently used the arg is disabled.
+          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
+          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
+          # fi
+
+          # vpython3 cobalt/build/test_targets.py \
+          #     --root-target "${ROOT_TARGET}" \
+          #     ${changed_files_arg} \
+          #     --gn-json gn_desc.json \
+          #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
+
+
           test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' "${TEST_TARGETS_JSON_FILE}")
           echo "test_targets_json=${test_targets_json}" >> "${GITHUB_OUTPUT}"
 
@@ -111,13 +123,12 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Archive test target JSON
-        if: steps.filter-platform.outputs.skip != 'true'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }}_test_targets_json
           path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
-        if: ${{ steps.filter-platform.outputs.skip != 'true' && matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
         working-directory: cobalt/src
         env:
@@ -130,7 +141,6 @@ runs:
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
-        if: steps.filter-platform.outputs.skip != 'true'
         working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -146,7 +156,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: steps.filter-platform.outputs.skip != 'true' && (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
+        if: (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }} APKs

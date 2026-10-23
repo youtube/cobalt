@@ -4366,7 +4366,6 @@ if (is_android) {
       ":base_jni",
       ":java_features_srcjar",
       ":java_switches_srcjar",
-      ":jni_android_jni",
     ]
 
     deps = [
@@ -4410,7 +4409,6 @@ if (is_android) {
       "android/java/src/org/chromium/base/JNIUtils.java",
       "android/java/src/org/chromium/base/JavaExceptionReporter.java",
       "android/java/src/org/chromium/base/JavaHandlerThread.java",
-      "android/java/src/org/chromium/base/JniAndroid.java",
       "android/java/src/org/chromium/base/LifetimeAssert.java",
       "android/java/src/org/chromium/base/LocaleUtils.java",
       "android/java/src/org/chromium/base/Log.java",

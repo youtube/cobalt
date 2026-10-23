@@ -66,6 +66,7 @@ runs:
       run: |
         set -x
 
+        # shellcheck disable=SC2153
         artifact_name="${ARTIFACT_NAME}"
         if [[ "${PLATFORM}" == *aosp* && "${artifact_name}" == "Cobalt.apk" ]]; then
           artifact_name="cobalt.apk"

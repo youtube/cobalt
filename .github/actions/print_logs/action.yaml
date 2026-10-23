@@ -47,8 +47,8 @@ runs:
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=()
-        eval "log_files=(${LOG_GLOB})"
+        # shellcheck disable=SC2206
+        log_files=(${LOG_GLOB})
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
           exit 1
@@ -56,7 +56,7 @@ runs:
           for log_file in "${log_files[@]}"; do
             if [ "${SYMBOLIZE}" == "true" ]; then
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
-              cat "../${log_file}" | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/
+              python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/"${PLATFORM}_${CONFIG}"/ < "../${log_file}"
             else
               echo "=== ${log_file} ==="
               cat "${log_file}"

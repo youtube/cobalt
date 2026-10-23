@@ -79,15 +79,15 @@ class AudioTrack {
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  virtual int WriteSample(span<const float> samples) = 0;
+  virtual int WriteSample(Span<const float> samples) = 0;
   // This method is called when tunnel mode is used.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
-  virtual int WriteSample(span<const uint16_t> samples, int64_t sync_time) = 0;
+  virtual int WriteSample(Span<const uint16_t> samples, int64_t sync_time) = 0;
   // This is used by passthrough, treating buffer as compressed bitstream bytes.
   // Returns zero or the positive number of bytes written, or a negative error
   // code.
-  virtual int WriteSample(span<const uint8_t> buffer, int64_t sync_time) = 0;
+  virtual int WriteSample(Span<const uint8_t> buffer, int64_t sync_time) = 0;
 
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void SetVolume(double volume) = 0;

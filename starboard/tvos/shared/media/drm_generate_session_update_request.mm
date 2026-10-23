@@ -105,6 +105,6 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->GenerateSessionUpdateRequest(
       ticket, type,
-      starboard::make_span(static_cast<const uint8_t*>(initialization_data),
-                           static_cast<size_t>(initialization_data_size)));
+      starboard::MakeSpan(static_cast<const uint8_t*>(initialization_data),
+                          static_cast<size_t>(initialization_data_size)));
 }

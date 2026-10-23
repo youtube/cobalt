@@ -547,6 +547,16 @@ constexpr auto make_span(Container&& container) noexcept {
   return span<T, N>(std::data(container), std::size(container));
 }
 
+// Starboard's name for span.
+template <typename T, size_t Extent = dynamic_extent>
+using Span = span<T, Extent>;
+
+// Helper function analogous to absl::MakeSpan or base::make_span.
+template <class T>
+constexpr Span<T> MakeSpan(T* data, size_t size) {
+  return Span<T>(data, size);
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_SPAN_H_
