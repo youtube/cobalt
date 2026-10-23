@@ -277,7 +277,10 @@ def launch_on_device(
 ) -> None:
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
-    remote_cmds = [f"cd {remote_dir}"]
+    remote_cmds = [
+        f"cd {remote_dir}",
+        "export THUNDER_ACCESS=127.0.0.1:9998",
+    ]
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]
