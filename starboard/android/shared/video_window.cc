@@ -54,6 +54,20 @@ VideoSurfaceHolder* g_video_surface_holder = nullptr;
 
 void ClearNativeWindow(void* raw_context) {
   ANativeWindow* native_window = static_cast<ANativeWindow*>(raw_context);
+  if (!native_window) {
+    return;
+  }
+
+  // Ensure ANativeWindow is released when done on the GPU thread.
+  struct ScopedNativeWindowRelease {
+    ANativeWindow* window;
+    ~ScopedNativeWindowRelease() {
+      if (window) {
+        ANativeWindow_release(window);
+      }
+    }
+  } scoped_release{native_window};
+
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   if (display == EGL_NO_DISPLAY) {
     SB_LOG(ERROR) << "Found no EGL display in ClearNativeWindow";
@@ -206,9 +220,12 @@ void VideoSurfaceHolder::CleanUpVideoSurface(
   }
 
   SB_CHECK(gpu_provider);
+  // Acquire an additional reference so g_native_video_window remains valid
+  // if cleared asynchronously on the GPU thread.
+  ANativeWindow_acquire(g_native_video_window);
   gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
                                     g_native_video_window);
-  SB_LOG(INFO) << "Video surface has been cleared.";
+  SB_LOG(INFO) << "Video surface cleanup task dispatched.";
 }
 
 void VideoSurfaceHolder::ResetVideoSurface() {
