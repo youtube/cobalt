@@ -19,7 +19,6 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
@@ -29,10 +28,6 @@
 #include "media/formats/webm/webm_tracks_parser.h"
 
 namespace media {
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-class SegmentedByteQueue;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
  public:
@@ -184,10 +179,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Returns 0 if more data is needed.
   // Returns the number of bytes parsed on success.
   int Parse(const uint8_t* buf, int size);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Same as above, for the `size` bytes at `offset` in `queue`.
-  int Parse(SegmentedByteQueue& queue, int offset, int size);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   base::TimeDelta cluster_start_time() const { return cluster_start_time_; }
 
@@ -214,12 +205,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   bool OnListEnd(int id) override;
   bool OnUInt(int id, int64_t val) override;
   bool OnBinary(int id, const uint8_t* data, int size) override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool OnBinary(int id,
-                SegmentedByteQueue& queue,
-                int offset,
-                int size) override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool ParseBlock(bool is_simple_block,
                   base::span<const uint8_t> buf,
@@ -235,32 +220,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
                base::span<const uint8_t> additional,
                int64_t discard_padding,
                bool is_keyframe);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Same as above, with the block given as the `size` bytes at `offset` in
-  // `queue`. Only the block header, the Opus TOC and, when encrypted, the
-  // encryption header are read into contiguous memory; the frame data is
-  // handed to StreamParserBuffer as segments and never copied twice.
-  bool ParseBlock(bool is_simple_block,
-                  SegmentedByteQueue& queue,
-                  int offset,
-                  int size,
-                  const uint8_t* additional,
-                  int additional_size,
-                  int duration,
-                  int64_t discard_padding,
-                  bool reference_block_set);
-  bool OnBlock(bool is_simple_block,
-               int track_num,
-               int timecode,
-               int duration,
-               SegmentedByteQueue& queue,
-               int offset,
-               int size,
-               const uint8_t* additional,
-               size_t additional_size,
-               int64_t discard_padding,
-               bool is_keyframe);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Helper method for Get{Audio,Video}Buffers() that recomputes
   // |ready_buffer_upper_bound_| and calls ExtractReadyBuffers() on each track.

@@ -31,31 +31,13 @@ class DrawWriter;
 class Recorder;
 class TextStrike;
 
-struct GlyphEntryKey {
-    explicit GlyphEntryKey(SkPackedGlyphID id, MaskFormat format) : fPackedID(id), fFormat(format) {}
-
-    const SkPackedGlyphID fPackedID;
-    MaskFormat fFormat;
-
-    bool operator==(const GlyphEntryKey& that) const {
-        return fPackedID == that.fPackedID && fFormat == that.fFormat;
-    }
-    bool operator!=(const GlyphEntryKey& that) const {
-        return !(*this == that);
-    }
-
-    uint32_t hash() const {
-        return fPackedID.hash();
-    }
-};
-
 /**
  * Graphite-specific glyph type with atlas location information.
  */
-struct GlyphEntry {
-    explicit GlyphEntry(SkPackedGlyphID id, MaskFormat format) : fGlyphEntryKey(id, format) {}
+struct GlyphEntry final {
+    explicit GlyphEntry(SkPackedGlyphID id) : fPackedID(id) {}
 
-    const GlyphEntryKey fGlyphEntryKey;
+    const SkPackedGlyphID fPackedID;
     DrawAtlas::AtlasLocator fAtlasLocator;
 };
 
@@ -71,7 +53,7 @@ class Glyph final {
 
 public:
     explicit Glyph(GlyphEntry* entry) : fEntry{entry} { SkASSERT(entry); }
-    SkPackedGlyphID packedID() const { return fEntry->fGlyphEntryKey.fPackedID; }
+    SkPackedGlyphID packedID() const { return fEntry->fPackedID; }
     GlyphEntry& entry() const { return *fEntry; }
 };
 
@@ -89,7 +71,7 @@ public:
 
     ~GlyphData();
 
-    Glyph makeGlyphFromID(SkPackedGlyphID, MaskFormat);
+    Glyph makeGlyphFromID(SkPackedGlyphID);
 
     // Regenerate atlas entries for glyphs in range [begin, end).
     // Returns {success, glyphs_placed_in_atlas}.

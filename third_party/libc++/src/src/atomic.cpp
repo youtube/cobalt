@@ -18,10 +18,7 @@
 
 #include "include/apple_availability.h"
 
-// TODO: b/558305425 - Remove the _LIBCPP_COBALT_NO_PLATFORM_FUTEX checks in
-// 142.7444. They are currently required in linux-modular builds to avoid the
-// futex code paths.
-#if defined(__linux__) && !defined(_LIBCPP_COBALT_NO_PLATFORM_FUTEX)
+#ifdef __linux__
 
 #  include <linux/futex.h>
 #  include <sys/syscall.h>
@@ -63,7 +60,7 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#if defined(__linux__) && !defined(_LIBCPP_COBALT_NO_PLATFORM_FUTEX)
+#ifdef __linux__
 
 template <std::size_t _Size>
 static void __platform_wait_on_address(void const* __ptr, void const* __val) {

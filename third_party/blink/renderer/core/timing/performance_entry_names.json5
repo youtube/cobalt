@@ -6,7 +6,6 @@
 
   data: [
     "back-forward-cache-restoration",
-    "cobalt-frame",
     "container",
     "element",
     "event",

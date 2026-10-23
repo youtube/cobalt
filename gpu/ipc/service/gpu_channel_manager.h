@@ -161,12 +161,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     return default_offscreen_surface_.get();
   }
 
-#if BUILDFLAG(IS_COBALT)
-  void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
-    default_offscreen_surface_ = std::move(surface);
-  }
-#endif
-
   MemoryTracker::Observer* peak_memory_monitor() {
     return peak_memory_monitor_.get();
   }
@@ -177,8 +171,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
 #if BUILDFLAG(IS_ANDROID)
   void DidAccessGpu();
-  void OnBackgroundCleanup();
-#elif BUILDFLAG(IS_COBALT)
   void OnBackgroundCleanup();
 #endif
 
@@ -236,12 +228,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   void LoseAllContexts();
 
   SharedContextState::ContextLostCallback GetContextLostCallback();
-
-#if BUILDFLAG(IS_COBALT)
-  base::WeakPtr<GpuChannelManager> AsWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
  private:
   friend class GpuChannelManagerTest;

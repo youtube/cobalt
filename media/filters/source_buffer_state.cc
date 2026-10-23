@@ -143,18 +143,12 @@ SourceBufferState::~SourceBufferState() {
 }
 
 void SourceBufferState::Init(StreamParser::InitCB init_cb,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-                             std::string_view mime_type,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                              std::optional<std::string_view> expected_codecs,
                              const StreamParser::EncryptedMediaInitDataCB&
                                  encrypted_media_init_data_cb) {
   DCHECK_EQ(state_, UNINITIALIZED);
   init_cb_ = std::move(init_cb);
   encrypted_media_init_data_cb_ = encrypted_media_init_data_cb;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  mime_type_ = mime_type;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   state_ = PENDING_PARSER_CONFIG;
   InitializeParser(expected_codecs);
 }
@@ -202,22 +196,9 @@ void SourceBufferState::SetParseWarningCallback(
   frame_processor_->SetParseWarningCallback(std::move(parse_warning_cb));
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-bool SourceBufferState::AppendToParseBuffer(
-    base::span<const uint8_t> data,
-    base::ScopedClosureRunner release_runner) {
-  // Parsers that borrow `data` must never be handed a null runner, so route
-  // that case to the copying overload. This is the only place that decides
-  // between the two.
-  return release_runner ? stream_parser_->AppendToParseBuffer(
-                              data, std::move(release_runner))
-                        : stream_parser_->AppendToParseBuffer(data);
-}
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool SourceBufferState::AppendToParseBuffer(base::span<const uint8_t> data) {
   return stream_parser_->AppendToParseBuffer(data);
 }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
     base::TimeDelta append_window_start,
@@ -647,9 +628,6 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      audio_config.set_mime_type(mime_type_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
@@ -735,9 +713,6 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      video_config.set_mime_type(mime_type_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {
@@ -809,7 +784,6 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
-
 }
 
 void SourceBufferState::OnNewMediaSegment() {
