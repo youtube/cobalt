@@ -501,6 +501,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    // ATOM_PERF (PoC): Process start uses the same clock as System.nanoTime()
+    // and base::TimeTicks (CLOCK_MONOTONIC).
+    atomPerfMark("process_start", android.os.Process.getStartUptimeMillis() * 1000L);
+    atomPerfMark("activity_create");
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
@@ -582,6 +586,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
+    atomPerfMark("activity_start");
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -631,6 +636,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onPause() {
+    atomPerfMark("activity_pause");
     mPhysicalBackKeyPressed = false;
     if (useStarboardLifeCycle()) {
       AppEventBridge.handleBlurEvent(System.nanoTime() / 1000L);
@@ -642,6 +648,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
+    atomPerfMark("activity_stop");
     long stopTimestamp = System.nanoTime() / 1000L;
     if (isNvidiaShield()) {
       unregisterDisplayListener();
@@ -687,6 +694,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onResume() {
+    atomPerfMark("activity_resume");
     super.onResume();
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
     checkAndRetryOnNetworkOnline();
@@ -724,13 +732,25 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   public void onSplashScreenHidden() {
+    atomPerfMark("splash_hidden");
     mHasHiddenSplashScreen = true;
     unregisterNetworkRecoveryObserver();
   }
 
   public void onPrimaryMainFrameNavigationStarted() {
+    atomPerfMark("main_frame_navigation_started");
     mHasHiddenSplashScreen = false;
     maybeRegisterNetworkRecoveryObserver();
+  }
+
+  // ATOM_PERF (PoC): Performance marks for measurement. Timestamps are
+  // CLOCK_MONOTONIC in microseconds, matching base::TimeTicks in native logs.
+  private static void atomPerfMark(String event) {
+    atomPerfMark(event, System.nanoTime() / 1000L);
+  }
+
+  private static void atomPerfMark(String event, long timestampUs) {
+    android.util.Log.i("ATOM_PERF", "ATOM_PERF " + event + " t_us=" + timestampUs);
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
