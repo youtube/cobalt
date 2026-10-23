@@ -250,6 +250,7 @@ int32_t VideoCaptureModulePipeWire::StartCapture(
   return 0;
 }
 
+RTC_NO_SANITIZE("cfi-icall")
 int32_t VideoCaptureModulePipeWire::StopCapture() {
   RTC_DCHECK_RUN_ON(&api_checker_);
 

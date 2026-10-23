@@ -5062,6 +5062,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
                                  IterationKind::kValues);
     case Builtin::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
+    case Builtin::kGeneratorPrototypeNext:
+      return ReduceGeneratorPrototypeNext(node);
     case Builtin::kArrayIsArray:
       return ReduceArrayIsArray(node);
     case Builtin::kArrayBufferIsView:
@@ -6754,6 +6756,196 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
   NodeProperties::ChangeOp(node,
                            javascript()->CreateArrayIterator(iteration_kind));
   return Changed(node);
+}
+
+// https://tc39.es/ecma262/#sec-generator.prototype.next
+Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  Node* receiver = n.receiver();
+  Node* value = n.ArgumentOrUndefined(0, jsgraph());
+  Node* context = n.context();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  if (p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+    return NoChange();
+  }
+
+  MapInference inference(broker(), receiver, effect);
+  if (inference.HaveMaps() &&
+      inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
+  } else {
+    // If we have no reliable map feedback (e.g. megamorphic next() calls),
+    // we can still inline the generator resume by emitting a dynamic
+    // instance type check, and deoptimizing if it's not a generator.
+
+    // 1. Check if receiver is a Smi.
+    Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+    Node* is_not_smi = graph()->NewNode(simplified()->BooleanNot(), is_smi);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kSmi, p.feedback()), is_not_smi,
+        effect, control);
+
+    // 2. Check if receiver's InstanceType is JS_GENERATOR_OBJECT_TYPE.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
+    Node* receiver_instance_type = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+        receiver_map, effect, control);
+    Node* is_generator =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
+                         jsgraph()->ConstantNoHole(JS_GENERATOR_OBJECT_TYPE));
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType,
+                              p.feedback()),
+        is_generator, effect, control);
+  }
+
+  // Check if the {receiver} is running or already closed.
+  Node* receiver_continuation = effect =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, effect, control);
+
+  Node* closed = jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorClosed);
+  Node* check_closed = graph()->NewNode(simplified()->NumberEqual(),
+                                        receiver_continuation, closed);
+
+  Node* branch_closed = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_closed, control);
+  Node* if_receiverisclosed =
+      graph()->NewNode(common()->IfTrue(), branch_closed);
+  Node* if_receiverisrunning =
+      graph()->NewNode(common()->IfFalse(), branch_closed);
+
+  // If closed: return {value: undefined, done: true}
+  Node* e_receiverisclosed = effect;
+  Node* v_receiverisclosed = e_receiverisclosed = graph()->NewNode(
+      javascript()->CreateIterResultObject(), jsgraph()->UndefinedConstant(),
+      jsgraph()->TrueConstant(), context, e_receiverisclosed);
+
+  // If not closed, check if executing.
+  Node* executing =
+      jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorExecuting);
+  Node* check_executing = graph()->NewNode(simplified()->NumberEqual(),
+                                           receiver_continuation, executing);
+
+  // A throwing/deopting check is better here, since executing generators are
+  // extremely rare. We can just deoptimize if it's executing.
+  Node* e_receiverisrunning = graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget, p.feedback()),
+      graph()->NewNode(simplified()->BooleanNot(), check_executing), effect,
+      if_receiverisrunning);
+
+  // Set resume_mode to kNext.
+  e_receiverisrunning = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSGeneratorObjectResumeMode()),
+      receiver, jsgraph()->ConstantNoHole(JSGeneratorObject::kNext),
+      e_receiverisrunning, if_receiverisrunning);
+
+  // Emit Call to ResumeGeneratorTrampoline
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kResumeGeneratorTrampoline);
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(),
+      CallDescriptor::kNeedsFrameState);
+
+  // Use a GeneratorNextLazyDeoptContinuation to wrap the yielded value
+  // correctly in case of a lazy deopt.
+  Node* lazy_deopt_parameters[] = {receiver};
+  Node* frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kGeneratorNextLazyDeoptContinuation, context,
+      lazy_deopt_parameters, arraysize(lazy_deopt_parameters), n.frame_state(),
+      ContinuationFrameStateMode::LAZY);
+
+  Node* result = e_receiverisrunning = if_receiverisrunning = graph()->NewNode(
+      common()->Call(descriptor),
+      jsgraph()->HeapConstantNoHole(callable.code()), value, receiver, context,
+      frame_state, e_receiverisrunning, if_receiverisrunning);
+
+  // Close the generator if there was an exception.
+  Node* if_exception = graph()->NewNode(
+      common()->IfException(), e_receiverisrunning, if_receiverisrunning);
+  Node* e_exception = if_exception;
+  if_receiverisrunning =
+      graph()->NewNode(common()->IfSuccess(), if_receiverisrunning);
+
+  e_exception =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_exception, if_exception);
+
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    // Replace the original exception handler with our new exception path.
+    ReplaceWithValue(on_exception, if_exception, e_exception, if_exception);
+  } else {
+    // We must physically rethrow the exception.
+    Node* rethrow = e_exception = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kReThrow, 1), if_exception, context,
+        n.frame_state(), e_exception, if_exception);
+    Node* throw_node = graph()->NewNode(common()->Throw(), rethrow, rethrow);
+    MergeControlToEnd(graph(), common(), throw_node);
+  }
+
+  // The generator could have returned or yielded. JSResumeGenerator returns the
+  // yielded value. Check the generator's state again to see if it's executing
+  // (meaning it naturally returned).
+  Node* result_continuation = e_receiverisrunning =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, e_receiverisrunning, if_receiverisrunning);
+
+  Node* check_returned = graph()->NewNode(simplified()->NumberEqual(),
+                                          result_continuation, executing);
+
+  Node* branch_returned =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check_returned,
+                       if_receiverisrunning);
+  Node* if_final_return = graph()->NewNode(common()->IfTrue(), branch_returned);
+  Node* if_yielded = graph()->NewNode(common()->IfFalse(), branch_returned);
+
+  // If it returned, close it.
+  Node* e_final_return =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_receiverisrunning, if_final_return);
+
+  // Wrap the returned value in an IterResult object: {value: result, done:
+  // true}
+  Node* v_final_return = e_final_return =
+      graph()->NewNode(javascript()->CreateIterResultObject(), result,
+                       jsgraph()->TrueConstant(), context, e_final_return);
+
+  // If it yielded, the value is already wrapped by the generator.
+  Node* v_yielded = result;
+  Node* e_yielded = e_receiverisrunning;
+
+  // Merge the returned and yielded paths.
+  Node* control_after_resume =
+      graph()->NewNode(common()->Merge(2), if_final_return, if_yielded);
+  Node* e_after_resume = graph()->NewNode(
+      common()->EffectPhi(2), e_final_return, e_yielded, control_after_resume);
+  Node* v_after_resume =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_final_return, v_yielded, control_after_resume);
+
+  // Merge the originally closed path and the running path.
+  control = graph()->NewNode(common()->Merge(2), if_receiverisclosed,
+                             control_after_resume);
+  effect = graph()->NewNode(common()->EffectPhi(2), e_receiverisclosed,
+                            e_after_resume, control);
+  Node* final_value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_receiverisclosed, v_after_resume, control);
+
+  ReplaceWithValue(node, final_value, effect, control);
+  return Replace(final_value);
 }
 
 // https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
@@ -8772,7 +8964,14 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   // if we anyways have to load it (to reduce register pressure).
   Node* buffer_or_receiver = receiver;
 
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      access == DataViewAccess::kSet
+          ? dependencies()->DependOnArrayBufferMutableProtector()
+          : true;
+
+  if (!depend_on_detaching || !depend_on_mutable) {
     // Get the underlying buffer and check that it has not been detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),

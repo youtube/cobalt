@@ -136,6 +136,10 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
     scoped_refptr<SharedDataPipeProducerHandle> response_body_stream;
     scoped_refptr<net::HttpResponseHeaders>
         expected_response_headers_for_synthetic_response;
+
+    // No new consumers should use this. It will be removed once the deprecated
+    // Protected Audiences code is removed.
+    bool is_ad_auction_trusted_signals_request = false;
   };
 
   // Typemapped to network.mojom.WebBundleTokenParams, see comments there
@@ -293,10 +297,10 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
   std::optional<base::UnguessableToken> prefetch_token;
   net::SocketTag socket_tag;
 
-  // Whether this request is allowed to register device bound sessions
-  // or accept challenges for device bound sessions (e.g. due to an
-  // origin trial).
-  bool allows_device_bound_session_registration = false;
+  // Whether this request is allowed to belong to a device bound session. This
+  // includes registering a new session, accepting challenges, or deferring the
+  // request until a session is refreshed.
+  bool allows_device_bound_sessions = true;
 
   std::optional<network::PermissionsPolicy> permissions_policy;
 

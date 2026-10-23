@@ -967,22 +967,6 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (kernel space address).");
       }
 
-#ifdef V8_USE_ADDRESS_SANITIZER
-      if (access_type == MemoryAccessType::kRead) {
-        size_t shadow_scale, shadow_offset;
-        __asan_get_shadow_mapping(&shadow_scale, &shadow_offset);
-        Address maybe_faultaddr = (faultaddr - shadow_offset) << shadow_scale;
-        if (maybe_faultaddr >= 0x1'0000'0000'0000ULL) {
-          // This is a crash due to attempt to access ASAN's shadow memory for
-          // a non-canonical address who's shadow memory address still falls
-          // into a canonical address range. Only read accesses fall here.
-          FilterCrash(
-              "Caught harmless memory access violation (shadow of a "
-              "non-canonical address).");
-        }
-      }
-#endif  // V8_USE_ADDRESS_SANITIZER
-
       if (faultaddr < 0x1000) {
         // Nullptr dereferences are harmless as nothing can be mapped there. We
         // use the typical page size (which is also the default value of
@@ -1206,6 +1190,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
   if (!is_initialized) {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
+    types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
@@ -1247,6 +1232,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_FUNCTION_TYPE]["feedback_cell"] = JSFunction::kFeedbackCellOffset;
+    fields[JS_BOUND_FUNCTION_TYPE]["bound_arguments"] =
+        JSBoundFunction::kBoundArgumentsOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =

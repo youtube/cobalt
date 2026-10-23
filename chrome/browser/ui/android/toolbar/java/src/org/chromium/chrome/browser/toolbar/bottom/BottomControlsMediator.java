@@ -4,9 +4,12 @@
 
 package org.chromium.chrome.browser.toolbar.bottom;
 
+import androidx.annotation.ColorInt;
+
 import org.chromium.base.CallbackController;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsLayer;
@@ -44,23 +47,28 @@ class BottomControlsMediator
                 BottomControlsLayer {
     private static final String TAG = "BotControlsMediator";
 
+    private final CallbackController mCallbackController = new CallbackController();
+
+    /** A {@link WindowAndroid} for watching keyboard visibility events. */
+    private final WindowAndroid mWindowAndroid;
+
     /** The model for the bottom controls component that holds all of its view state. */
     private final PropertyModel mModel;
-
-    /** The fullscreen manager to observe fullscreen events. */
-    private final FullscreenManager mFullscreenManager;
 
     /** The browser controls sizer/manager to observe browser controls events. */
     private final BottomControlsStacker mBottomControlsStacker;
 
     private final BrowserStateBrowserControlsVisibilityDelegate mBrowserControlsVisibilityDelegate;
+
+    /** The fullscreen manager to observe fullscreen events. */
+    private final FullscreenManager mFullscreenManager;
+
+    /** The layer type of the bottom controls. */
+    private final @LayerType int mLayerType;
+
+    private final OneshotSupplier<BottomControlsContentDelegate> mContentDelegateSupplier;
+
     private final TabObscuringHandler mTabObscuringHandler;
-
-    private final CallbackController mCallbackController;
-
-    private final MonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
-
-    private final Supplier<Boolean> mReadAloudRestoringSupplier;
 
     /** The height of the bottom bar in pixels, not including the top shadow. */
     private final int mBottomControlsHeight;
@@ -68,8 +76,9 @@ class BottomControlsMediator
     /** The height of the top shadow. */
     private final int mBottomControlsShadowHeight;
 
-    /** A {@link WindowAndroid} for watching keyboard visibility events. */
-    private final WindowAndroid mWindowAndroid;
+    private final MonotonicObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
+
+    private final Supplier<Boolean> mReadAloudRestoringSupplier;
 
     /** The bottom controls visibility. */
     private boolean mIsBottomControlsVisible;
@@ -96,6 +105,8 @@ class BottomControlsMediator
      * @param controlsStacker The {@link BottomControlsStacker} to manipulate browser controls.
      * @param fullscreenManager A {@link FullscreenManager} for events related to the browser
      *     controls.
+     * @param layerType The layer type of the bottom controls.
+     * @param contentDelegateSupplier Supplier of delegate for bottom controls UI operations.
      * @param tabObscuringHandler Delegate object handling obscuring views.
      * @param bottomControlsHeight The height of the bottom bar in pixels.
      * @param overlayPanelVisibilitySupplier Notifies overlay panel visibility event.
@@ -110,28 +121,31 @@ class BottomControlsMediator
             BottomControlsStacker controlsStacker,
             BrowserStateBrowserControlsVisibilityDelegate browserControlsVisibilityDelegate,
             FullscreenManager fullscreenManager,
+            @LayerType int layerType,
+            OneshotSupplier<BottomControlsContentDelegate> contentDelegateSupplier,
             TabObscuringHandler tabObscuringHandler,
             int bottomControlsHeight,
             int bottomControlsShadowHeight,
             NonNullObservableSupplier<Boolean> overlayPanelVisibilitySupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             Supplier<Boolean> readAloudRestoringSupplier) {
+        // Watch for keyboard events so we can hide the bottom toolbar when the keyboard is showing.
+        mWindowAndroid = windowAndroid;
+        mWindowAndroid.getKeyboardDelegate().addKeyboardVisibilityListener(this);
+
         mModel = model;
 
-        mFullscreenManager = fullscreenManager;
         mBottomControlsStacker = controlsStacker;
-        getBrowserControls().addObserver(this);
+        controlsStacker.getBrowserControls().addObserver(this);
         mBrowserControlsVisibilityDelegate = browserControlsVisibilityDelegate;
+        mFullscreenManager = fullscreenManager;
+        mLayerType = layerType;
+        mContentDelegateSupplier = contentDelegateSupplier;
         mTabObscuringHandler = tabObscuringHandler;
         tabObscuringHandler.addObserver(this);
 
         mBottomControlsHeight = bottomControlsHeight;
         mBottomControlsShadowHeight = bottomControlsShadowHeight;
-        mCallbackController = new CallbackController();
-
-        // Watch for keyboard events so we can hide the bottom toolbar when the keyboard is showing.
-        mWindowAndroid = windowAndroid;
-        mWindowAndroid.getKeyboardDelegate().addKeyboardVisibilityListener(this);
 
         mEdgeToEdgeControllerSupplier = edgeToEdgeControllerSupplier;
         if (mEdgeToEdgeControllerSupplier.get() != null) {
@@ -295,8 +309,8 @@ class BottomControlsMediator
     // Implements BottomControlsLayer
 
     @Override
-    public int getType() {
-        return LayerType.TABSTRIP_TOOLBAR;
+    public @LayerType int getType() {
+        return mLayerType;
     }
 
     @Override
@@ -306,12 +320,21 @@ class BottomControlsMediator
 
     @Override
     public @LayerScrollBehavior int getScrollBehavior() {
+        BottomControlsContentDelegate delegate = mContentDelegateSupplier.get();
+        if (delegate != null) return delegate.getScrollBehavior();
         return LayerScrollBehavior.DEFAULT_SCROLL_OFF;
     }
 
     @Override
     public @LayerVisibility int getLayerVisibility() {
         return isCompositedViewVisible() ? LayerVisibility.VISIBLE : LayerVisibility.HIDDEN;
+    }
+
+    @Override
+    public @Nullable @ColorInt Integer getBackgroundColor() {
+        BottomControlsContentDelegate delegate = mContentDelegateSupplier.get();
+        if (delegate != null) return delegate.getBackgroundColor();
+        return null;
     }
 
     @Override

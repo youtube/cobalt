@@ -1280,7 +1280,7 @@ if (rtc_include_tests) {
       ]
     }
 
-    rtc_executable("neteq_opus_quality_test") {
+    rtc_test("neteq_opus_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_opus_quality_test.cc" ]
@@ -1295,7 +1295,6 @@ if (rtc_include_tests) {
         "../../api/audio_codecs:audio_codecs_api",
         "../../rtc_base:buffer",
         "../../rtc_base:checks",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
@@ -1318,7 +1317,7 @@ if (rtc_include_tests) {
       ]
     }
 
-    rtc_executable("neteq_pcmu_quality_test") {
+    rtc_test("neteq_pcmu_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_pcmu_quality_test.cc" ]
@@ -1333,14 +1332,13 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:safe_conversions",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
       ]
     }
 
-    rtc_executable("neteq_pcm16b_quality_test") {
+    rtc_test("neteq_pcm16b_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_pcm16b_quality_test.cc" ]
@@ -1355,7 +1353,6 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:safe_conversions",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
@@ -1380,7 +1377,7 @@ if (rtc_include_tests) {
   }
 
   if (!build_with_chromium) {
-    rtc_executable("webrtc_opus_fec_test") {
+    rtc_test("webrtc_opus_fec_test") {
       testonly = true
 
       sources = [ "codecs/opus/opus_fec_test.cc" ]
@@ -1389,7 +1386,6 @@ if (rtc_include_tests) {
         ":webrtc_opus",
         "../../common_audio",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
       ]

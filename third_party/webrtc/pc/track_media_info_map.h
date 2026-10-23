@@ -46,6 +46,7 @@ class TrackMediaInfoMap {
   TrackMediaInfoMap(std::optional<VoiceMediaInfo> voice_media_info,
                     std::optional<VideoMediaInfo> video_media_info,
                     std::span<const RtpSenderSignalInfo> senders,
+                    std::span<const RtpParameters> sender_parameters,
                     std::span<const RtpReceiverSignalInfo> receivers,
                     std::span<const RtpParameters> receiver_parameters);
 

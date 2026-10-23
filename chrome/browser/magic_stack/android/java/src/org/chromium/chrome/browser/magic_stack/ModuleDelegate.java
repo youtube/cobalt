@@ -120,12 +120,6 @@ public interface ModuleDelegate {
     /** Gets the local Tab that is showing on the magic stack. */
     @Nullable Tab getTrackingTab();
 
-    /**
-     * Moves the given module to the end of the magic stack, triggering a vanish and reappear
-     * animation. Does nothing if the module is not currently shown.
-     */
-    void maybeMoveModuleToTheEnd(@ModuleType int moduleType);
-
     /** Re-evaluates eligibility and re-renders the magic stack. */
     void refreshModules();
 

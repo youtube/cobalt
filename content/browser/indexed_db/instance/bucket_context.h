@@ -58,10 +58,18 @@ class Database;
 // `kIdbSqliteOnDiskRolloutStages` when adding new values.
 enum class SqliteRolloutStage {
   // Use LevelDB exclusively; delete SQLite stores if found.
+  // All on-disk stores emit metrics to the "OnDisk" variant.
   kUseLevelDbOnly,
-  // Use SQLite for new stores and existing LevelDB stores that are corrupted.
+  // Functionally, the same as `kUseLevelDbOnly`.
+  // On-disk stores created during this stage emit metrics to the "Experimental"
+  // variant and previously existing stores emit to the "OnDisk" variant.
+  kUseLevelDbAsControl,
+  // Use SQLite for new stores and corrupted LevelDB stores.
+  // On-disk SQLite stores emit metrics to the "Experimental" variant and
+  // on-disk LevelDB stores emit to the "OnDisk" variant.
   kUseSqliteForNewStores,
   // Use SQLite exclusively; delete LevelDB stores if found.
+  // All on-disk stores emit metrics to the "OnDisk" variant.
   kUseSqliteOnly,
 };
 
@@ -320,14 +328,13 @@ class CONTENT_EXPORT BucketContext
   friend class BackingStoreTestBase;
   friend class DatabaseTest;
   friend class IndexedDBTestBase;
+  friend class IndexedDBTestForSqliteMigration;
   friend class TransactionTestBase;
 
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, CompactionKillSwitchWorks);
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, TooLongOrigin);
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, BasicFactoryCreationAndTearDown);
-  FRIEND_TEST_ALL_PREFIXES(IndexedDBTestWithBucketType,
-                           ChangingEngineDeletesOtherEngineFiles);
-  FRIEND_TEST_ALL_PREFIXES(IndexedDBTestWithBucketType, UseSqliteForNewStores);
+  FRIEND_TEST_ALL_PREFIXES(IndexedDBSqliteTest, BlobReadPutsOffIdleWork);
   FRIEND_TEST_ALL_PREFIXES(BucketContextTest, BucketSpaceDecay);
   FRIEND_TEST_ALL_PREFIXES(BucketContextTest, MetadataRecordingStateHistory);
   FRIEND_TEST_ALL_PREFIXES(BucketContextTest,
@@ -370,9 +377,12 @@ class CONTENT_EXPORT BucketContext
   void StartClosing();
   void CloseNow();
   void StartPreCloseTasks();
-  void RunIdleTasks();
-
   void RunTasks();
+
+  // Called when there is any activity that should reset the idle timer.
+  void OnActivity();
+  // Called after a period of inactivity.
+  void RunIdleTasks();
 
   void OnGotBucketSpaceRemaining(storage::QuotaErrorOr<int64_t> space_left);
 
@@ -404,6 +414,10 @@ class CONTENT_EXPORT BucketContext
   void RecordInternalsSnapshot();
 
   std::string SanitizeErrorMessage(const std::string& message);
+
+  // Called when a Web Blob is being read from SQLite. `final_result` will hold
+  // a value IFF the read operation has completed.
+  void OnSqliteBlobActivity(std::optional<net::Error> final_result);
 
   const storage::BucketInfo bucket_info_;
 

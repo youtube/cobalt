@@ -39,10 +39,11 @@ ModelBrokerPrefService::ModelBrokerPrefService() {
 }
 ModelBrokerPrefService::~ModelBrokerPrefService() = default;
 
-FakeModelBroker::FakeModelBroker(const Options& options) {
+FakeModelBroker::FakeModelBroker(const Options& options) : options_(options) {
   if (options.performance_class != OnDeviceModelPerformanceClass::kUnknown) {
     UpdatePerformanceClassPref(&local_state_.local_state(),
                                options.performance_class);
+    UpdateVramPref(&local_state_.local_state(), options.vram_mb);
   }
   if (options.preinstall_base_model) {
     InstallBaseModel(std::make_unique<FakeBaseModelAsset>());
@@ -64,6 +65,17 @@ void FakeModelBroker::InstallBaseModel(FakeBaseModelAsset::Content content) {
 void FakeModelBroker::InstallBaseModel(
     std::unique_ptr<FakeBaseModelAsset> asset) {
   component_state_.Install(std::move(asset));
+}
+
+void FakeModelBroker::InstallClassifierModel(
+    FakeBaseModelAsset::Content content) {
+  InstallClassifierModel(
+      std::make_unique<FakeBaseModelAsset>(std::move(content)));
+}
+
+void FakeModelBroker::InstallClassifierModel(
+    std::unique_ptr<FakeBaseModelAsset> asset) {
+  classifier_component_state_.Install(std::move(asset));
 }
 
 void FakeModelBroker::UpdateTarget(proto::OptimizationTarget target,
@@ -89,11 +101,14 @@ void FakeModelBroker::UpdateLanguageDetectionModel(
 
 ModelBrokerState& FakeModelBroker::GetOrCreateBrokerState() {
   if (!model_broker_state_) {
-    model_broker_state_.emplace(local_state_.local_state(), model_provider_,
-                                component_state_.CreateDelegate(),
-                                component_state_.CreateDelegate(),
-                                fake_launcher_.LaunchFn(),
-                                &component_state_.component_update_service());
+    model_broker_state_.emplace(
+        local_state_.local_state(), model_provider_,
+        component_state_.CreateDelegate(),
+        options_.include_classifier
+            ? classifier_component_state_.CreateDelegate()
+            : nullptr,
+        fake_launcher_.LaunchFn(),
+        &component_state_.component_update_service());
   }
   return *model_broker_state_;
 }

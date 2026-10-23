@@ -25,6 +25,11 @@ void TestResponseHolder::OnComplete(mojom::ResponseSummaryPtr summary) {
   OnCompleted();
 }
 
+void TestResponseHolder::OnToolCalls(
+    std::vector<mojom::ToolCallPtr> tool_calls) {
+  tool_calls_ = std::move(tool_calls);
+}
+
 void TestResponseHolder::DisconnectOnMessage() {
   disconnect_on_message_ = true;
 }

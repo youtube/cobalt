@@ -105,11 +105,11 @@ void ContextualSearchMetricsRecorder::NotifySessionStateChanged(
   }
 }
 
-void ContextualSearchMetricsRecorder::OnFileUploadStatusChanged(
+void ContextualSearchMetricsRecorder::OnContextUploadStatusChanged(
     lens::MimeType file_mime_type,
-    ContextUploadStatus file_upload_status,
+    ContextUploadStatus context_upload_status,
     const std::optional<ContextUploadErrorType>& error_type) {
-  switch (file_upload_status) {
+  switch (context_upload_status) {
     case ContextUploadStatus::kProcessing:
       session_metrics_->file_upload_attempt_count_per_type[file_mime_type]++;
       break;
@@ -137,11 +137,17 @@ void ContextualSearchMetricsRecorder::OnFileUploadStatusChanged(
       break;
   }
 }
-void ContextualSearchMetricsRecorder::RecordQueryMetrics(int text_length,
-                                                         int file_count) {
+void ContextualSearchMetricsRecorder::RecordQueryMetrics(
+    bool has_tab_context,
+    bool has_non_tab_context,
+    int text_length,
+    int file_count) {
+  // Query text length metric.
   base::UmaHistogramCounts1M(
       base::StrCat({kContextualSearchQueryTextLength, ".", metrics_suffix_}),
       text_length);
+
+  // Query modality metrics.
   bool has_text = text_length != 0;
   bool has_files = file_count != 0;
   // Submission requests will always have either 1) both text and files 2) text
@@ -157,6 +163,40 @@ void ContextualSearchMetricsRecorder::RecordQueryMetrics(int text_length,
       base::StrCat({kContextualSearchQueryFileCount, ".", metrics_suffix_}),
       file_count);
 
+  std::string context_state = "WithoutContext";
+  // It is possible for a query to have both, but in this case it is preferred
+  // to be recorded as including tab context.
+  if (has_tab_context) {
+    context_state = "WithTabContext";
+  } else if (has_non_tab_context) {
+    context_state = "WithNonTabContext";
+  }
+
+  base::RecordAction(base::UserMetricsAction(
+      base::StrCat({"ContextualSearch.UserAction.SubmitQueryV2.", context_state,
+                    ".", metrics_suffix_})
+          .c_str()));
+
+  base::UmaHistogramBoolean(
+      base::StrCat({"ContextualSearch.UserAction.SubmitQueryV2.", context_state,
+                    ".", metrics_suffix_}),
+      true);
+
+  if (text_length == 0 && file_count > 0) {
+    base::RecordAction(base::UserMetricsAction(
+        base::StrCat(
+            {"ContextualSearch.UserAction.SubmitQueryV2.WithContextNoText.",
+             metrics_suffix_})
+            .c_str()));
+
+    base::UmaHistogramBoolean(
+        base::StrCat(
+            {"ContextualSearch.UserAction.SubmitQueryV2.WithContextNoText.",
+             metrics_suffix_}),
+        true);
+  }
+
+  // Query funnel metrics.
   for (const auto& funnel : session_metrics_->active_funnels) {
     base::UmaHistogramCounts1M(
         base::StrCat({kContextualSearchQueryTextLength, ".FunnelMetrics.",
@@ -171,6 +211,25 @@ void ContextualSearchMetricsRecorder::RecordQueryMetrics(int text_length,
                       funnel, ".", metrics_suffix_}),
         file_count);
   }
+
+  // Time to query submission metrics.
+  if (!session_metrics_->session_elapsed_timer) {
+    base::UmaHistogramBoolean(
+        base::StrCat(
+            {"ContextualSearch.Session.QuerySubmittedWithoutSessionStart", ".",
+             metrics_suffix_}),
+        true);
+    return;
+  }
+
+  base::TimeDelta time_to_query_submission =
+      session_metrics_->session_elapsed_timer->Elapsed();
+  base::UmaHistogramMediumTimes(
+      base::StrCat(
+          {kContextualSearchQuerySubmissionTime, ".", metrics_suffix_}),
+      time_to_query_submission);
+
+  session_metrics_->num_query_submissions++;
 }
 
 void ContextualSearchMetricsRecorder::RecordFileSizeMetric(
@@ -250,43 +309,12 @@ void ContextualSearchMetricsRecorder::NotifySessionStarted() {
 
 void ContextualSearchMetricsRecorder::NotifyQuerySubmitted(
     bool has_tab_context,
-    bool has_non_tab_context) {
+    bool has_non_tab_context,
+    int query_text_length,
+    int file_count) {
   NotifySessionStateChanged(SessionState::kQuerySubmitted);
-  std::string context_state = "WithoutContext";
-  // It is possible for a query to have both, but in this case it is preferred
-  // to be recorded as including tab context.
-  if (has_tab_context) {
-    context_state = "WithTabContext";
-  } else if (has_non_tab_context) {
-    context_state = "WithNonTabContext";
-  }
-
-  base::RecordAction(base::UserMetricsAction(
-      base::StrCat({"ContextualSearch.UserAction.SubmitQuery.", context_state,
-                    ".", metrics_suffix_})
-          .c_str()));
-
-  base::UmaHistogramBoolean(
-      base::StrCat({"ContextualSearch.UserAction.SubmitQuery.", context_state,
-                    ".", metrics_suffix_}),
-      true);
-
-  if (!session_metrics_->session_elapsed_timer) {
-    base::UmaHistogramBoolean(
-        base::StrCat(
-            {"ContextualSearch.Session.QuerySubmittedWithoutSessionStart", ".",
-             metrics_suffix_}),
-        true);
-    return;
-  }
-
-  base::TimeDelta time_to_query_submission =
-      session_metrics_->session_elapsed_timer->Elapsed();
-  base::UmaHistogramMediumTimes(
-      base::StrCat(
-          {kContextualSearchQuerySubmissionTime, ".", metrics_suffix_}),
-      time_to_query_submission);
-  session_metrics_->num_query_submissions++;
+  RecordQueryMetrics(has_tab_context, has_non_tab_context, query_text_length,
+                     file_count);
 }
 
 void ContextualSearchMetricsRecorder::RecordSessionAbandonedMetrics() {
@@ -570,6 +598,19 @@ void ContextualSearchMetricsRecorder::RecordZeroSuggestClick(
       base::StrCat(
           {"ContextualSearch.ZeroSuggestClick.IsContextual.", metrics_suffix_}),
       is_contextual);
+}
+
+void ContextualSearchMetricsRecorder::RecordTypedSuggestNavigation(
+    bool is_verbatim) {
+  std::string suffix = is_verbatim ? "Verbatim" : "SearchSuggest";
+  base::RecordAction(base::UserMetricsAction(
+      base::StrCat({"ContextualSearch.TypedSuggestNavigation.", suffix, ".",
+                    metrics_suffix_})
+          .c_str()));
+  base::UmaHistogramBoolean(
+      base::StrCat({"ContextualSearch.TypedSuggestNavigation.IsVerbatim.",
+                    metrics_suffix_}),
+      is_verbatim);
 }
 
 }  // namespace contextual_search

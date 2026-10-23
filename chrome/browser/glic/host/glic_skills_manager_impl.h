@@ -13,6 +13,7 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/host/host.h"
+#include "components/skills/public/skill.mojom-forward.h"
 
 namespace tabs {
 class TabInterface;
@@ -40,11 +41,12 @@ class GlicSkillsManagerImpl : public GlicSkillsManager, public Host::Observer {
 
   void LaunchSkillsDialog(Profile* profile,
                           skills::Skill skill,
+                          skills::mojom::SkillsDialogType dialog_type,
                           base::OnceCallback<void(bool)> callback) override;
 
   void ShowManageSkillsUi() override;
 
-  glic::mojom::SkillPtr GetContextualSkill(std::string_view skill_id) override;
+  void NotifyPanelOpenedOrActivated() override;
 
  private:
   tabs::TabInterface* EnsureTabForSkills();
@@ -67,7 +69,7 @@ class GlicSkillsManagerImpl : public GlicSkillsManager, public Host::Observer {
   // A cache of the contextual skills for the focused tab. When the user runs a
   // skill, Glic retrieves the skill from this cache and sends it to the web
   // client.
-  std::vector<glic::mojom::SkillPtr> contextual_skills_;
+  std::vector<glic::mojom::SkillPreviewPtr> contextual_skill_previews_;
 
   base::WeakPtrFactory<GlicSkillsManagerImpl> weak_ptr_factory_{this};
 };

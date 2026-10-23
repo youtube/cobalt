@@ -45,7 +45,7 @@ DataSize DataUnitsAckedAndNotMarked(const TransportPacketsFeedback& msg) {
 
 bool HasLostPackets(const TransportPacketsFeedback& msg) {
   for (const auto& packet : msg.PacketsWithFeedback()) {
-    if (!packet.IsReceived()) {
+    if (!packet.IsReceived() && packet.reported_lost_for_the_first_time) {
       return true;
     }
   }
@@ -180,8 +180,7 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
         // of competing TCP Prague flows.
         backoff *=
             std::max(0.1, delay_based_congestion_control_
-                              .ref_window_scale_factor_due_to_delay_variation(
-                                  ref_window_mss_ratio()));
+                              .ref_window_scale_factor_due_to_avg_min_delay());
       }
 
       if (msg.feedback_time - last_reaction_to_congestion_time_ >
@@ -233,23 +232,17 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
         increase_scale_factor *
         std::max(0.25, ref_window_scale_factor_close_to_ref_window_i());
 
-    // Limit increase if L4S not enabled and queue delay is increased.
-    if (l4s_alpha_ < 0.0001) {
-      increase_scale_factor =
-          increase_scale_factor *
-          delay_based_congestion_control_
-              .ref_window_scale_factor_due_to_increased_delay();
-    }
-
     // Put a additional restriction on reference window growth if rtt varies a
     // lot.
     // Better to enforce a slow increase in reference window and get
     // a more stable bitrate.
+    increase_scale_factor = increase_scale_factor *
+                            delay_based_congestion_control_
+                                .ref_window_scale_factor_due_to_avg_min_delay();
     increase_scale_factor =
         increase_scale_factor *
-        std::max(0.1, delay_based_congestion_control_
-                          .ref_window_scale_factor_due_to_delay_variation(
-                              ref_window_mss_ratio()));
+        delay_based_congestion_control_
+            .ref_window_scale_factor_due_to_latency_difference();
 
     // Use lower multiplicative scale factor if congestion was detected
     // recently.
@@ -299,8 +292,6 @@ void ScreamV2::UpdateRefWindow(const TransportPacketsFeedback& msg) {
       << " is_virtual_ce=" << is_virtual_ce << " is_loss=" << is_loss
       << " smoothed_rtt=" << delay_based_congestion_control_.rtt().ms()
       << ", queue_delay=" << delay_based_congestion_control_.queue_delay().ms()
-      << ", queue_delay_dev_norm="
-      << delay_based_congestion_control_.queue_delay_dev_norm()
       << " feedback_hold" << feedback_hold_time_.ms()
       << ", target_rate =" << target_rate_.kbps();
 }
@@ -312,8 +303,8 @@ DataSize ScreamV2::max_data_in_flight() const {
       (params_.ref_window_overhead_max.Get() -
        params_.ref_window_overhead_min.Get()) *
           delay_based_congestion_control_
-              .ref_window_scale_factor_due_to_delay_variation(
-                  ref_window_mss_ratio());
+              .ref_window_scale_factor_due_to_avg_min_delay(
+                  /*allow_zero=*/true);
 
   return ref_window_ * ref_window_overhead;
 }

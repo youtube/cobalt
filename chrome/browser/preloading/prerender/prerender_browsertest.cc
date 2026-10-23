@@ -1272,6 +1272,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
   EXPECT_TRUE(prerender_manager->MaybeStartPrewarmSearchResult());
   EXPECT_TRUE(service->HasOnGoingSearchPrewarm());
 
+  auto host_id = GetPrewarmSearchResultHost();
+  ASSERT_TRUE(host_id);
+  EXPECT_TRUE(service->IsOnGoingSearchPrewarm(host_id));
+
   bool callback_called = false;
   base::RunLoop run_loop;
   service->AddSearchPrewarmFinishedCallback(base::BindLambdaForTesting([&]() {
@@ -1283,12 +1287,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
   // Resume the navigation.
   EXPECT_TRUE(navigation_manager.WaitForResponse());
   navigation_manager.ResumeNavigation();
-  auto host_id = GetPrewarmSearchResultHost();
-  ASSERT_TRUE(host_id);
   prerender_helper().WaitForPrerenderLoadCompletion(host_id);
 
   run_loop.Run();
   EXPECT_FALSE(service->HasOnGoingSearchPrewarm());
+  EXPECT_FALSE(service->IsOnGoingSearchPrewarm(host_id));
 }
 
 // Tests that if the `PrerenderManager` is destroyed (by closing the tab) while
@@ -1320,6 +1323,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
   EXPECT_TRUE(prerender_manager2->MaybeStartPrewarmSearchResult());
   EXPECT_TRUE(service->HasOnGoingSearchPrewarm());
 
+  auto host_id = prerender_helper().GetPrewarmSearchResultHost(prewarm_url_);
+  ASSERT_TRUE(host_id);
+  EXPECT_TRUE(service->IsOnGoingSearchPrewarm(host_id));
+
   bool callback_called = false;
   base::RunLoop run_loop;
   service->AddSearchPrewarmFinishedCallback(base::BindLambdaForTesting([&]() {
@@ -1332,6 +1339,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
   web_contents2->Close();
   run_loop.Run();
   EXPECT_FALSE(service->HasOnGoingSearchPrewarm());
+  EXPECT_FALSE(service->IsOnGoingSearchPrewarm(host_id));
 }
 
 // Tests that `SearchPrewarmProgressService` handles multiple prewarms happening
@@ -1358,6 +1366,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
   EXPECT_TRUE(prerender_manager->MaybeStartPrewarmSearchResult());
   EXPECT_TRUE(service->HasOnGoingSearchPrewarm());
 
+  auto host_id1 = prerender_helper().GetPrewarmSearchResultHost(prewarm_url_);
+  ASSERT_TRUE(host_id1);
+  EXPECT_TRUE(service->IsOnGoingSearchPrewarm(host_id1));
+
   // Create another web contents in a new tab.
   content::WebContents* web_contents2 = CreateNewTab();
   ASSERT_TRUE(web_contents2);
@@ -1372,6 +1384,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
                                                      prewarm_url2);
   EXPECT_TRUE(prerender_manager2->MaybeStartPrewarmSearchResult());
   EXPECT_TRUE(service->HasOnGoingSearchPrewarm());
+
+  auto host_id2 = prerender_helper().GetPrewarmSearchResultHost(prewarm_url2);
+  ASSERT_TRUE(host_id2);
+  EXPECT_TRUE(service->IsOnGoingSearchPrewarm(host_id2));
 
   bool callback_called = false;
   base::RunLoop run_loop;
@@ -1388,6 +1404,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
 
   EXPECT_TRUE(service->HasOnGoingSearchPrewarm());
   EXPECT_FALSE(callback_called);
+  EXPECT_FALSE(service->IsOnGoingSearchPrewarm(host_id1));
+  EXPECT_TRUE(service->IsOnGoingSearchPrewarm(host_id2));
 
   // Resume the navigation in the second tab.
   EXPECT_TRUE(navigation_manager2.WaitForResponse());
@@ -1396,6 +1414,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
 
   run_loop.Run();
   EXPECT_FALSE(service->HasOnGoingSearchPrewarm());
+  EXPECT_FALSE(service->IsOnGoingSearchPrewarm(host_id1));
+  EXPECT_FALSE(service->IsOnGoingSearchPrewarm(host_id2));
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
@@ -1497,6 +1517,42 @@ IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, UseCounter) {
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.Features",
       blink::mojom::WebFeature::kPrerenderActivationByFormSubmission, 1);
+}
+
+// Verifies that HTTP to HTTP, prerender form submission can work as expected
+// without being blocked.
+IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, HTTPFormActivation) {
+  base::HistogramTester histogram_tester;
+
+  // Navigate to an initial page.
+  GURL url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(content::NavigateToURL(GetActiveWebContents(), url));
+
+  // Trigger prerender with form submission.
+  GURL prerender_url = embedded_test_server()->GetURL("/simple.html?");
+  content::TestActivationManager activation_manager(GetActiveWebContents(),
+                                                    prerender_url);
+  prerender_helper().AddPrerendersAsync(
+      {prerender_url},
+      /*eagerness=*/std::nullopt,
+      /*no_vary_search_hint=*/std::nullopt,
+      /*target_hint=*/std::string(),
+      /*ruleset_tag=*/std::nullopt,
+      /*world_id=*/content::ISOLATED_WORLD_ID_GLOBAL,
+      /*form_submission=*/true);
+  content::test::PrerenderTestHelper::WaitForPrerenderLoadCompletion(
+      *GetActiveWebContents(), prerender_url);
+
+  ASSERT_TRUE(content::ExecJs(GetActiveWebContents()->GetPrimaryMainFrame(),
+                              content::JsReplace(R"(
+    const form = document.createElement('form');
+                    form.action = $1;
+    document.body.appendChild(form);
+    form.submit();
+    )",
+                                                 prerender_url)));
+  activation_manager.WaitForNavigationFinished();
+  EXPECT_TRUE(activation_manager.was_activated());
 }
 
 }  // namespace

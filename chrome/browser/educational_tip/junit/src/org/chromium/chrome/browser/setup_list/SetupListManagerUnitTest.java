@@ -46,6 +46,7 @@ import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridgeJni;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingState;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.components.regional_capabilities.RegionalProgram;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -582,6 +583,38 @@ public class SetupListManagerUnitTest {
 
     @Test
     @SmallTest
+    public void testDefaultBrowserPromoDelegate_Suppression() {
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+
+        // Case 1: Setup List is active -> Should suppress.
+        assertTrue(manager.isSetupListActive());
+        assertTrue(manager.shouldSuppressPromo());
+
+        // Case 2: Setup List is inactive -> Should NOT suppress.
+        mSharedPreferencesManager.writeLong(
+                ChromePreferenceKeys.FIRST_CTA_START_TIMESTAMP,
+                TimeUtils.currentTimeMillis() - SetupListManager.SETUP_LIST_ACTIVE_WINDOW_MILLIS);
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        manager = SetupListManager.getInstance();
+        assertFalse(manager.isSetupListActive());
+        assertFalse(manager.shouldSuppressPromo());
+    }
+
+    @Test
+    @SmallTest
+    public void testDefaultBrowserPromoDelegate_Registration() {
+        DefaultBrowserPromoUtils.setDelegate(null);
+        assertNull(DefaultBrowserPromoUtils.getDelegateForTesting());
+
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+
+        assertEquals(manager, DefaultBrowserPromoUtils.getDelegateForTesting());
+    }
+
+    @Test
+    @SmallTest
     public void testOnPrimaryAccountChanged_CompletesSignIn() {
         // 1. Setup: User is signed out.
         when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
@@ -630,5 +663,65 @@ public class SetupListManagerUnitTest {
                         PrimaryAccountChangeEvent.Type.CLEARED, ConsentLevel.SIGNIN);
         manager.onPrimaryAccountChanged(signOutEvent);
         verify(observer, times(2)).onSetupListStateChanged();
+    }
+
+    @Test
+    @SmallTest
+    public void testSyncStateChanged_CompletesHistorySync() {
+        // 1. Setup: User is signed in but history sync is disabled.
+        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(true);
+        when(mSyncService.getSelectedTypes()).thenReturn(Set.of());
+
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+
+        // Capture the observer registered by the manager.
+        ArgumentCaptor<SyncService.SyncStateChangedListener> listenerCaptor =
+                ArgumentCaptor.forClass(SyncService.SyncStateChangedListener.class);
+        manager.maybePrimeCompletionStatus(mProfile);
+        verify(mSyncService).addSyncStateChangedListener(listenerCaptor.capture());
+        SyncService.SyncStateChangedListener listener = listenerCaptor.getValue();
+
+        assertFalse(manager.isModuleCompleted(ModuleType.HISTORY_SYNC_PROMO));
+
+        // 2. Act: Trigger a sync state change event where history and tabs are now enabled.
+        when(mSyncService.getSelectedTypes())
+                .thenReturn(Set.of(UserSelectableType.HISTORY, UserSelectableType.TABS));
+        listener.syncStateChanged();
+
+        // 3. Assert: History Sync should be completed and awaiting animation.
+        assertTrue(manager.isModuleCompleted(ModuleType.HISTORY_SYNC_PROMO));
+        assertTrue(manager.isModuleAwaitingCompletionAnimation(ModuleType.HISTORY_SYNC_PROMO));
+    }
+
+    @Test
+    @SmallTest
+    public void testSyncStateChanged_CompletesEnhancedSafeBrowsing() {
+        // 1. Setup: ESB is currently off.
+        when(mSafeBrowsingBridgeJni.getSafeBrowsingState(any()))
+                .thenReturn(SafeBrowsingState.STANDARD_PROTECTION);
+
+        SetupListManager.setInstanceForTesting(new SetupListManager());
+        SetupListManager manager = SetupListManager.getInstance();
+
+        // Capture the observer registered by the manager.
+        ArgumentCaptor<SyncService.SyncStateChangedListener> listenerCaptor =
+                ArgumentCaptor.forClass(SyncService.SyncStateChangedListener.class);
+        manager.maybePrimeCompletionStatus(mProfile);
+        verify(mSyncService).addSyncStateChangedListener(listenerCaptor.capture());
+        SyncService.SyncStateChangedListener listener = listenerCaptor.getValue();
+
+        assertFalse(manager.isModuleCompleted(ModuleType.ENHANCED_SAFE_BROWSING_PROMO));
+
+        // 2. Act: ESB state changes to enhanced (e.g., via sync down) and sync triggers an update.
+        when(mSafeBrowsingBridgeJni.getSafeBrowsingState(any()))
+                .thenReturn(SafeBrowsingState.ENHANCED_PROTECTION);
+        listener.syncStateChanged();
+
+        // 3. Assert: ESB should be completed and awaiting animation.
+        assertTrue(manager.isModuleCompleted(ModuleType.ENHANCED_SAFE_BROWSING_PROMO));
+        assertTrue(
+                manager.isModuleAwaitingCompletionAnimation(
+                        ModuleType.ENHANCED_SAFE_BROWSING_PROMO));
     }
 }

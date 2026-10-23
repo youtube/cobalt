@@ -408,8 +408,9 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
   explicit SaveCallSpeculationScope(
       MaglevGraphBuilder* builder,
       compiler::FeedbackSource feedback_source = compiler::FeedbackSource())
-      : builder_(builder) {
-    saved_ = builder_->current_speculation_feedback();
+      : builder_(builder),
+        saved_(builder->current_speculation_feedback()),
+        saved_mode_(builder->current_speculation_mode_) {
     // Only set the current speculation feedback if speculation is allowed.
     SpeculationMode mode = MaglevGraphBuilder::GetSpeculationMode(
         builder_->broker(), feedback_source);
@@ -1614,17 +1615,9 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         GetCallerDeoptFrame());
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
-        *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
-          // Receiver and closure values have to be materialized, even if
-          // they don't otherwise escape.
-          if (reg == interpreter::Register::receiver()) {
-            AddMaterializedDeoptUse(node);
-          } else {
-            AddDeoptUse(node);
-          }
-        });
-    AddMaterializedDeoptUse(
-        latest_checkpointed_frame_->as_interpreted().closure());
+        *compilation_unit_,
+        [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
+    AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
     EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
@@ -1767,6 +1760,16 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   if (entry_stack_check_frame_) return entry_stack_check_frame_;
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
   DCHECK(!is_inline());
+
+  // Neither closure nor receiver should be an InlinedAllocation or a Phi at the
+  // entry stack check. See AddMaterializedDeoptUse for context.
+  DCHECK(!GetClosure()->Is<InlinedAllocation>());
+  DCHECK(!GetClosure()->Is<Phi>());
+  DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
+              ->Is<InlinedAllocation>());
+  DCHECK(!current_interpreter_frame_.get(interpreter::Register::receiver())
+              ->Is<Phi>());
+
   entry_stack_check_frame_ = zone()->New<InterpretedDeoptFrame>(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
@@ -1778,16 +1781,10 @@ InterpretedDeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
       nullptr);
 
   entry_stack_check_frame_->frame_state()->ForEachValue(
-      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
-        // Receiver and closure values have to be materialized, even if
-        // they don't otherwise escape.
-        if (reg == interpreter::Register::receiver()) {
-          AddMaterializedDeoptUse(node);
-        } else {
-          AddDeoptUse(node);
-        }
-      });
-  AddMaterializedDeoptUse(entry_stack_check_frame_->closure());
+      *compilation_unit_,
+      [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
+  AddDeoptUse(entry_stack_check_frame_->closure());
+
   return entry_stack_check_frame_;
 }
 
@@ -3152,7 +3149,6 @@ ReduceResult MaglevGraphBuilder::VisitLdaConstant() {
   SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
   return ReduceResult::Done();
 }
-
 MaybeReduceResult
 MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     ValueNode* context, int slot_index, VariableMode mode,
@@ -4183,7 +4179,7 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(
     ValueNode* object, bool elidable,
     AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
-  if (object->StaticTypeIs(broker(), NodeType::kSmi)) return object;
+  if (object->StaticTypeIs(broker(), NodeType::kSmi) && elidable) return object;
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
   if (IsEmptyNodeType(IntersectType(
@@ -4191,6 +4187,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
+  RecordSmiUse(object);
   // For constants, we may be able to skip the runtime check.
   if (std::optional<int32_t> constant_value = TryGetInt32Constant(object)) {
     if (Smi::IsValid(constant_value.value())) return object;
@@ -4211,7 +4208,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(
       AddNewNodeNoInputConversion<CheckHoleyFloat64IsSmi>({object});
       break;
     case ValueRepresentation::kTagged:
-      RecordSmiUse(object);
       AddNewNodeNoInputConversion<CheckSmi>({object});
       break;
     case ValueRepresentation::kIntPtr:
@@ -4303,9 +4299,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrOddball(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   // Check for the empty type first so that we catch the case where
   // GetType(object) is already empty.
-  if (IsEmptyNodeType(
-          IntersectType(GetType(object, AllowWideningSmiToInt32::kAllow),
-                        NodeType::kNumber))) {
+  if (IsEmptyNodeType(IntersectType(GetType(object), NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
   if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
@@ -6310,12 +6304,19 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
     // mechanism instead, so that we do not need to check this early.
     return {};
   }
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool is_store = keyed_mode.IsStore();
+  bool depend_on_detaching =
+      broker()->dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      is_store ? broker()->dependencies()->DependOnArrayBufferMutableProtector()
+               : true;
+  if (!depend_on_detaching || !depend_on_mutable) {
     // TODO(leszeks): Eliminate this check.
     RETURN_IF_ABORT(AddNewNode<CheckTypedArrayValid>(
-        {object}, keyed_mode.IsStore() ? TypedArrayAccessMode::kWrite
-                                       : TypedArrayAccessMode::kRead));
+        {object},
+        is_store ? TypedArrayAccessMode::kWrite : TypedArrayAccessMode::kRead));
   }
+
   ValueNode* index;
   ValueNode* length;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
@@ -7782,6 +7783,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
   for (size_t i = 0; i < depth; i++) {
     GET_VALUE(context, LoadAndCacheContextSlot(context, Context::PREVIOUS_INDEX,
                                                ContextMode::kNoContextCells));
+
     EnsureType(context, NodeType::kContext);
 
     // The internal consistency of the bytecode guarantees that we cannot end up
@@ -7873,6 +7875,119 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
 
   // Create a generic store in the fallthrough.
   return build_generic_access();
+}
+
+ReduceResult MaglevGraphBuilder::VisitGetPrivateField() {
+  ValueNode* current_context = LoadRegister(0);
+  int slot_index = iterator_.GetContextSlotOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  ValueNode* context = GetContextAtDepth(current_context, depth);
+  VariableMode mode;
+  MaybeAssignedFlag assigned =
+      GetContextMaybeAssigned(context, slot_index, &mode);
+  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
+      context, slot_index, mode, assigned);
+  if (!name.HasValue()) {
+    name = LoadAndCacheContextSlot(context, slot_index,
+                                   ContextMode::kNoContextCells);
+  }
+
+  ValueNode* object = LoadRegister(3);
+  FeedbackSlot slot = GetSlotOperand(4);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, std::nullopt);
+
+  auto build_generic_access = [this, object, name, &feedback_source]() {
+    ValueNode* current_context = GetContext();
+    return AddNewNode<GetKeyedGeneric>({current_context, object, name.value()},
+                                       feedback_source);
+  };
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          name.value(),
+          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      compiler::NameRef name_ref = processed_feedback.AsNamedAccess().name();
+      MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name_ref);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+
+      result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kLoad, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+    default:
+      break;
+  }
+
+  return SetAccumulator(build_generic_access());
+}
+
+ReduceResult MaglevGraphBuilder::VisitSetPrivateField() {
+  ValueNode* current_context = LoadRegister(0);
+  int slot_index = iterator_.GetContextSlotOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  ValueNode* context = GetContextAtDepth(current_context, depth);
+  VariableMode mode;
+  MaybeAssignedFlag assigned =
+      GetContextMaybeAssigned(context, slot_index, &mode);
+  MaybeReduceResult name = TrySpecializeLoadContextSlotToFunctionContext(
+      context, slot_index, mode, assigned);
+  if (!name.HasValue()) {
+    name = LoadAndCacheContextSlot(context, slot_index,
+                                   ContextMode::kNoContextCells);
+  }
+
+  ValueNode* object = LoadRegister(3);
+  ValueNode* value = GetAccumulator();
+  FeedbackSlot slot = GetSlotOperand(4);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kStore, std::nullopt);
+
+  auto build_generic_access = [this, object, name, value, &feedback_source]() {
+    ValueNode* current_context = GetContext();
+    return AddNewNode<SetKeyedGeneric>(
+        {current_context, object, name.value(), value}, feedback_source);
+  };
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      return EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          name.value(),
+          processed_feedback.AsNamedAccess().original_name_maybe_thin(),
+          DeoptimizeReason::kKeyedAccessChanged));
+
+      MaybeReduceResult result = TryBuildNamedAccess(
+          object, object, processed_feedback.AsNamedAccess(), feedback_source,
+          compiler::AccessMode::kStore, build_generic_access);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      break;
+    }
+    default:
+      break;
+  }
+
+  return SetAccumulator(build_generic_access());
 }
 
 ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
@@ -10167,7 +10282,8 @@ template <typename StoreNode, typename Function>
 MaybeReduceResult MaglevGraphBuilder::TryBuildStoreDataView(
     const CallArguments& args, ExternalArrayType type, Function&& getValue) {
   if (!CanSpeculateCall()) return {};
-  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector()) {
+  if (!broker()->dependencies()->DependOnArrayBufferDetachingProtector() ||
+      !broker()->dependencies()->DependOnArrayBufferMutableProtector()) {
     // TODO(victorgomes): Add checks whether the array has been detached.
     return {};
   }
@@ -14871,7 +14987,7 @@ VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
   using Shape = VirtualJSRegExpShape;
   DCHECK_EQ(JSRegExp::Size(), JSRegExp::kLastIndexOffset + kTaggedSize);
   int slot_count = Shape::header_slot_count + JSRegExp::kInObjectFieldCount;
-  SBXCHECK_EQ(slot_count, 7);
+  SBXCHECK_EQ(slot_count, 6);
   VirtualObject* vobj = NodeBase::New<VirtualObject>(
       zone(), 0, NewObjectId(), this, &Shape::kObjectLayout, map, slot_count);
   vobj->set(HeapObject::kMapOffset, GetConstant(map));
@@ -14882,7 +14998,6 @@ VirtualObject* MaglevGraphBuilder::CreateRegExpLiteralObject(
   vobj->set(JSRegExp::kDataOffset,
             GetTrustedConstant(literal.data(broker()),
                                kRegExpDataIndirectPointerTag));
-  vobj->set(JSRegExp::kSourceOffset, GetConstant(literal.source(broker())));
   vobj->set(JSRegExp::kFlagsOffset, GetInt32Constant(literal.flags()));
   vobj->set(JSRegExp::kLastIndexOffset,
             GetInt32Constant(JSRegExp::kInitialLastIndexValue));
@@ -17050,6 +17165,94 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
                                                 call_slot, feedback()));
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceForOfNext(
+    ValueNode* iterator, ValueNode* next_method,
+    std::pair<interpreter::Register, interpreter::Register> result_pair,
+    int call_slot) {
+  compiler::FeedbackSource feedback_source{feedback(),
+                                           FeedbackVector::ToSlot(call_slot)};
+
+  ValueNode* result_object;
+  CallArguments args(ConvertReceiverMode::kAny, {iterator});
+  GET_VALUE_OR_ABORT(result_object,
+                     ReduceCall(next_method, args, feedback_source));
+
+  // The feedback for ForOfNext is laid out as:
+  // - Call feedback for the .next() call.
+  // - Load feedback for the .value property.
+  // - Load feedback for the .done property.
+  int call_slot_size = FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall);
+  int load_slot_size =
+      FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kLoadProperty);
+
+  FeedbackSlot value_slot(feedback_source.slot.ToInt() + call_slot_size);
+  compiler::FeedbackSource value_feedback(feedback_source.vector, value_slot);
+
+  FeedbackSlot done_slot(value_slot.ToInt() + load_slot_size);
+  compiler::FeedbackSource done_feedback(feedback_source.vector, done_slot);
+
+  ValueNode* done;
+  {
+    EagerDeoptFrameScope eager_done_scope(
+        this, Builtin::kForOfNextLoadDoneEagerDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {result_object, GetSmiConstant(result_pair.first.index())}));
+
+    // Check if result is a JSReceiver.
+    RETURN_IF_ABORT(BuildCheckJSReceiver(result_object));
+
+    LazyDeoptFrameScope lazy_done_scope(
+        this, Builtin::kForOfNextLoadDoneLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {result_object, GetSmiConstant(result_pair.first.index())}));
+
+    // Load 'done' property.
+    MaybeReduceResult done_result = TryBuildLoadNamedProperty(
+        result_object, broker()->done_string(), done_feedback);
+    RETURN_IF_ABORT(done_result);
+    if (done_result.IsFail()) {
+      GET_VALUE_OR_ABORT(done, AddNewNode<LoadNamedGeneric>(
+                                   {GetContext(), result_object},
+                                   broker()->done_string(), done_feedback));
+    } else {
+      DCHECK(done_result.IsDoneWithValue());
+      done = done_result.value();
+    }
+  }
+
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(
+      value,
+      Select(
+          [&](BranchBuilder& builder) {
+            return BuildBranchIfToBooleanTrue(builder, done);
+          },
+          [&]() -> ReduceResult {
+            return GetRootConstant(RootIndex::kUndefinedValue);
+          },
+          [&]() -> ReduceResult {
+            EagerDeoptFrameScope eager_value_scope(
+                this, Builtin::kForOfNextLoadValueEagerDeoptContinuation, {},
+                base::VectorOf<ValueNode*>(
+                    {result_object,
+                     GetSmiConstant(result_pair.first.index())}));
+            LazyDeoptFrameScope lazy_value_scope(
+                this, Builtin::kForOfNextLoadValueLazyDeoptContinuation, {},
+                base::VectorOf<ValueNode*>(
+                    {GetSmiConstant(result_pair.first.index())}));
+            RETURN_IF_DONE(TryBuildLoadNamedProperty(
+                result_object, broker()->value_string(), value_feedback));
+            return AddNewNode<LoadNamedGeneric>({GetContext(), result_object},
+                                                broker()->value_string(),
+                                                value_feedback);
+          }));
+
+  StoreRegister(result_pair.first, value);
+  StoreRegister(result_pair.second, done);
+
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::VisitForOfNext() {
   // ForOfNext <iterator> <next> <value_done_out> <call_slot>
 
@@ -17058,6 +17261,9 @@ ReduceResult MaglevGraphBuilder::VisitForOfNext() {
 
   auto register_pair = iterator_.GetRegisterPairOperand(2);
   int call_slot = iterator_.GetFeedbackSlotOperand(3);
+
+  RETURN_IF_DONE(
+      TryReduceForOfNext(iterator, next_method, register_pair, call_slot));
 
   CallBuiltin* result_struct;
   GET_VALUE_OR_ABORT(result_struct,
@@ -18200,6 +18406,9 @@ void MaglevGraphBuilder::AddMaterializedDeoptUse(ValueNode* node) {
   AddDeoptUse(node);
   if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
     alloc->ForceEscaping();
+  }
+  if (Phi* phi = node->TryCast<Phi>()) {
+    phi->set_cannot_be_untagged();
   }
 }
 

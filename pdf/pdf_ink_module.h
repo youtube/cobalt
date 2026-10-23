@@ -443,11 +443,12 @@ class PdfInkModule {
                             const blink::WebPointerProperties* properties);
 
   void ApplyUndoRedoCommands(const PdfInkUndoRedoModel::Commands& commands);
-  void ApplyUndoRedoCommandsHelper(std::set<PdfInkUndoRedoModel::IdType> ids,
+  void ApplyUndoRedoCommandsHelper(const PdfInkUndoRedoModel::IdSet& ids,
                                    bool should_draw);
 
-  void ApplyUndoRedoDiscards(
-      const PdfInkUndoRedoModel::DiscardedDrawCommands& discards);
+  // Discards strokes with IDs >= `lowest_discard` and resets the ID generator
+  // so those IDs can be reused. Does nothing if `lowest_discard` is nullopt.
+  void ApplyUndoRedoDiscards(std::optional<IdType> lowest_discard);
 
   // Sets the cursor to a drawing/erasing brush cursor when necessary.
   void MaybeSetCursor();

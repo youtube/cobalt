@@ -620,12 +620,37 @@ constexpr auto SingleParameterOnStackDescriptor::registers() {
 }
 
 // static
+constexpr auto GeneratorNextLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
 constexpr auto AsyncFunctionStackParameterDescriptor::registers() {
   return RegisterArray();
 }
 
 // static
 constexpr auto GetIteratorStackParameterDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadDoneLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadDoneEagerDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueLazyDeoptContinuationDescriptor::registers() {
+  return RegisterArray();
+}
+
+// static
+constexpr auto ForOfNextLoadValueEagerDeoptContinuationDescriptor::registers() {
   return RegisterArray();
 }
 

@@ -6,8 +6,11 @@
 #define CHROME_BROWSER_GLIC_HOST_GLIC_WEB_CONTENTS_WARMING_POOL_H_
 
 #include <memory>
+#include <optional>
 
+#include "base/memory/post_delayed_memory_reduction_task.h"
 #include "base/memory/raw_ptr.h"
+#include "base/timer/timer.h"
 
 class Profile;
 
@@ -20,7 +23,7 @@ class WebUIContentsContainer;
 class GlicWebContentsWarmingPool {
  public:
   explicit GlicWebContentsWarmingPool(Profile* profile);
-  ~GlicWebContentsWarmingPool();
+  virtual ~GlicWebContentsWarmingPool();
 
   // Retrieves a warmed WebUIContentsContainer from the pool. If no warmed
   // container is available, one will be created and then returned. A new
@@ -29,12 +32,41 @@ class GlicWebContentsWarmingPool {
   // Ensures that a WebUIContentsContainer is preloaded. If the existing one is
   // crashed, it will be replaced.
   void EnsurePreload();
-  // Shuts down the warming pool and destroys any warmed WebContents.
-  void Shutdown();
+  // Clears the warming pool and destroys any warmed WebContents.
+  void Clear();
 
- private:
+  // LINT.IfChange(GlicWarmingPoolStatus)
+  enum class WarmingPoolStatus {
+    kHit = 0,
+    kCold = 1,
+    kExpired = 2,
+    kCrashed = 3,
+    kMaxValue = kCrashed,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWarmingPoolStatus)
+
+  bool HasWarmedContainerForTesting() const;
+  base::OneShotTimer& GetDelayTimerForTesting() { return delay_timer_; }
+  WebUIContentsContainer* GetWarmedContainerForTesting() const;
+
+ protected:
+  class Metrics;
+
+  // Virtual for testing.
+  virtual std::unique_ptr<WebUIContentsContainer> CreateContainer();
+
+  void OnContainerExpired();
+  // Starts a timer to preload a WebContents after a delay.
+  void EnsurePreloadDelayed();
+
   raw_ptr<Profile> profile_;
   std::unique_ptr<WebUIContentsContainer> warmed_container_;
+
+  // Timer for delayed warming.
+  base::OneShotTimer delay_timer_;
+  // Timer for resource cleanup.
+  base::OneShotDelayedBackgroundTimer expiry_timer_;
+  std::unique_ptr<Metrics> metrics_;
 };
 
 }  // namespace glic

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -617,7 +618,7 @@ public class MainSettingsFragmentTest {
         // Account set up.
         // If both fullName and givenName are empty, accountCapabilities is ignored.
         final SigninTestRule signinTestRule = mSyncTestRule.getSigninTestRule();
-        AccountInfo accountInfo = TestAccounts.TEST_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME;
+        AccountInfo accountInfo = TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME;
         signinTestRule.addAccount(accountInfo);
         // Child accounts are signed-in automatically in the background.
         signinTestRule.waitForSignin(accountInfo);
@@ -628,7 +629,7 @@ public class MainSettingsFragmentTest {
                     return !signInPreference
                             .getProfileDataCache()
                             .getProfileDataOrDefault(
-                                    TestAccounts.TEST_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME
+                                    TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME
                                             .getEmail())
                             .hasDisplayableEmailAddress();
                 });
@@ -636,7 +637,7 @@ public class MainSettingsFragmentTest {
 
         mSettingsActivityTestRule.startSettingsActivity();
 
-        onView(withText(TestAccounts.TEST_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME.getEmail()))
+        onView(withText(TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME.getEmail()))
                 .check(doesNotExist());
         onView(allOf(withText(R.string.default_google_account_username), isDisplayed()))
                 .check(matches(isDisplayed()));
@@ -903,6 +904,133 @@ public class MainSettingsFragmentTest {
                 MainSettings.PREF_APPEARANCE,
                 ChromePreferenceKeys.APPEARANCE_SETTINGS_VIEW_COUNT,
                 R.string.appearance_settings);
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testAutofillAndPasswordsDisabledSettingsEntries() {
+        startSettings();
+
+        Assert.assertNull(
+                "Autofill and passwords preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_AND_PASSWORDS));
+        Assert.assertNotNull(
+                "Autofill section should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_SECTION));
+        Assert.assertNotNull(
+                "Passwords preference should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_PASSWORDS));
+        Assert.assertNotNull(
+                "Payment methods preference should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_PAYMENTS));
+        Assert.assertNotNull(
+                "Addresses preference should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_ADDRESSES));
+        Assert.assertNotNull(
+                "Autofill options preference should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_OPTIONS));
+        Assert.assertNull(
+                "Autofill and passwords preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_AND_PASSWORDS));
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testAutofillAndPasswordsDisabledSearchIndexUpdated() {
+        startSettings();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    MainSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                            mSettingsActivityTestRule.getActivity(),
+                            mSearchIndexDataMock,
+                            mMainSettings.getProfile());
+                });
+        verify(mSearchIndexDataMock, never())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_SECTION));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_AND_PASSWORDS));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testAutofillAndPasswordsEnabledSettingsEntries() {
+        startSettings();
+
+        Assert.assertNotNull(
+                "Autofill and passwords preference should be visible",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_AND_PASSWORDS));
+        Assert.assertEquals(
+                mMainSettings.getString(R.string.autofill_and_passwords_settings_title),
+                mMainSettings
+                        .findPreference(MainSettings.PREF_AUTOFILL_AND_PASSWORDS)
+                        .getTitle()
+                        .toString());
+
+        Assert.assertNull(
+                "Autofill section should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_SECTION));
+        Assert.assertNull(
+                "Passwords preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_PASSWORDS));
+        Assert.assertNull(
+                "Payment methods preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_PAYMENTS));
+        Assert.assertNull(
+                "Addresses preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_ADDRESSES));
+        Assert.assertNull(
+                "Autofill options preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_OPTIONS));
+        Assert.assertNull(
+                "Plus addresses preference should be hidden",
+                mMainSettings.findPreference(MainSettings.PREF_PLUS_ADDRESSES));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testAutofillAndPasswordsEnabledSearchIndexUpdated() {
+        startSettings();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    MainSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                            mSettingsActivityTestRule.getActivity(),
+                            mSearchIndexDataMock,
+                            mMainSettings.getProfile());
+                });
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_SECTION));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_PASSWORDS));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_PAYMENTS));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_ADDRESSES));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_AUTOFILL_OPTIONS));
+        verify(mSearchIndexDataMock, atLeastOnce())
+                .removeEntry(
+                        MainSettings.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                MainSettings.PREF_PLUS_ADDRESSES));
     }
 
     private void startSettings() {

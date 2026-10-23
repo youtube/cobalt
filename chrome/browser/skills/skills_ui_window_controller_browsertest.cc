@@ -4,6 +4,8 @@
 
 #include "chrome/browser/skills/skills_ui_window_controller.h"
 
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
@@ -19,6 +21,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skill.mojom.h"
 #include "components/skills/public/skills_metrics.h"
 #include "components/skills/public/skills_service.h"
 #include "content/public/test/browser_test.h"
@@ -44,6 +47,14 @@ class SkillsUiWindowControllerBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(skills_service);
     skills_service->SetServiceStatusForTesting(
         skills::SkillsService::ServiceStatus::kReady);
+    skills_service->AddObserver(&skills_service_observer_);
+  }
+
+  void TearDownOnMainThread() override {
+    skills::SkillsService* skills_service =
+        skills::SkillsServiceFactory::GetForProfile(browser()->profile());
+    skills_service->RemoveObserver(&skills_service_observer_);
+    InProcessBrowserTest::TearDownOnMainThread();
   }
 
   SkillsUiWindowController* window_controller() {
@@ -88,6 +99,24 @@ class SkillsUiWindowControllerBrowserTest : public InProcessBrowserTest {
                        gfx::Point(), ui::EventTimeForNow(), 0, 0));
   }
 
+  class TestObserver : public skills::SkillsService::Observer {
+   public:
+    void OnTemporarySkillDisplay(
+        std::string_view skill_id,
+        skills::SkillsService::DisplayState display_state) override {
+      last_temporarily_displayed_skill_id_ = std::string(skill_id);
+      last_display_state_ = display_state;
+    }
+
+    std::string last_temporarily_displayed_skill_id_;
+    skills::SkillsService::DisplayState last_display_state_;
+  };
+
+ protected:
+  TestObserver skills_service_observer_;
+  base::HistogramTester histogram_tester_;
+  base::UserActionTester user_action_tester_;
+
  private:
   base::test::ScopedFeatureList feature_list_;
 };
@@ -107,16 +136,77 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
-                       OnSkillDeletedShowToast) {
-  // Ensure no toast is initially showing.
+                       OnSkillDeletedShowsToastAndTemporarilyDeletesSkill) {
+  skills::SkillsService* skills_service =
+      skills::SkillsServiceFactory::GetForProfile(browser()->profile());
+  const skills::Skill* skill = skills_service->AddSkill(
+      /*source_skill_id=*/"", "Test Skill", "test-icon", "Test Prompt");
+
   const auto* toast_controller = browser()->GetFeatures().toast_controller();
   EXPECT_FALSE(toast_controller->IsShowingToast());
 
-  window_controller()->OnSkillDeleted();
+  window_controller()->OnSkillDeleted(skill->id);
 
   // Verify that the toast is now showing.
   EXPECT_TRUE(toast_controller->IsShowingToast());
   EXPECT_EQ(toast_controller->GetCurrentToastId(), ToastId::kSkillDeleted);
+
+  EXPECT_EQ(skills_service_observer_.last_temporarily_displayed_skill_id_,
+            skill->id);
+  EXPECT_EQ(skills_service_observer_.last_display_state_,
+            skills::SkillsService::DisplayState::kDeleted);
+
+  // Still exists since it's just temporarily deleted.
+  EXPECT_NE(skills_service->GetSkillById(skill->id), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
+                       UndoLastSkillRemovalReshowsSkill) {
+  skills::SkillsService* skills_service =
+      skills::SkillsServiceFactory::GetForProfile(browser()->profile());
+  const skills::Skill* skill = skills_service->AddSkill(
+      /*source_skill_id=*/"", "Test Skill", "test-icon", "Test Prompt");
+
+  window_controller()->OnSkillDeleted(skill->id);
+  EXPECT_EQ(skills_service_observer_.last_display_state_,
+            skills::SkillsService::DisplayState::kDeleted);
+
+  window_controller()->UndoLastSkillRemoval();
+
+  EXPECT_EQ(skills_service_observer_.last_temporarily_displayed_skill_id_,
+            skill->id);
+  EXPECT_EQ(skills_service_observer_.last_display_state_,
+            skills::SkillsService::DisplayState::kReshown);
+
+  // Verify that it still exists in the service.
+  EXPECT_NE(skills_service->GetSkillById(skill->id), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
+                       ToastCloseDeletesSkill) {
+  skills::SkillsService* skills_service =
+      skills::SkillsServiceFactory::GetForProfile(browser()->profile());
+  const skills::Skill* skill = skills_service->AddSkill(
+      /*source_skill_id=*/"", "Test Skill", "test-icon", "Test Prompt");
+
+  std::string skill_id = skill->id;
+  window_controller()->OnSkillDeleted(skill_id);
+
+  auto* toast_controller = browser()->GetFeatures().toast_controller();
+  EXPECT_TRUE(toast_controller->IsShowingToast());
+
+  // Close the toast widget directly to simulate it being dismissed.
+  views::Widget* toast_widget = toast_controller->GetToastWidgetForTesting();
+  ASSERT_TRUE(toast_widget);
+  toast_widget->CloseNow();
+
+  // Toast should not be visible anymore.
+  EXPECT_FALSE(toast_controller->IsShowingToast());
+
+  // Verify that it was actually deleted from the service.
+  EXPECT_EQ(skills_service->GetSkillById(skill_id), nullptr);
+  histogram_tester_.ExpectUniqueSample(
+      "Toast.TriggeredToShow", static_cast<int>(ToastId::kSkillDeleted), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
@@ -170,7 +260,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
                               /*name=*/"",
                               /*icon=*/"", "Skill Prompt");
   tab_controller()->ShowDialog(std::move(initial_skill),
-                               SkillsDialogEntryPoint::kWebClientPrefilled);
+                               SkillsDialogEntryPoint::kWebClientPrefilled,
+                               mojom::SkillsDialogType::kAdd);
 
   // Get WebContents to inject JS.
   content::WebContents* web_contents = GetDialogWebContents();
@@ -230,6 +321,15 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   // ID was auto-generated by the service)
   EXPECT_FALSE(tab_controller()->GetPendingSkillIdForTesting().empty());
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+
+  histogram_tester_.ExpectBucketCount(
+      "Toast.TriggeredToShow", static_cast<int>(ToastId::kSkillSaved), 1);
+  histogram_tester_.ExpectUniqueSample("Toast.SkillSaved.Dismissed",
+                                       1,  // kActionButton
+                                       1);
+  EXPECT_EQ(user_action_tester_.GetActionCount(
+                "Toast.ActionButtonClicked.SkillSaved"),
+            1);
 }
 
 }  // namespace skills

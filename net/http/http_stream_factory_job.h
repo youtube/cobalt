@@ -370,6 +370,10 @@ class HttpStreamFactory::Job
 
   bool disable_cert_verification_network_fetches() const;
 
+  // Called when the `PreconnectSocketsForHttpRequest` completes.
+  void OnPreconnectSocketsComplete(bool success,
+                                   std::unique_ptr<ClientSocketHandle> handle);
+
   void RecordPreconnectHistograms(int result);
 
   // Records histograms required at the end of the execution.

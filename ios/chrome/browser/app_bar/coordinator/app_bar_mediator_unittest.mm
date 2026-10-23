@@ -6,31 +6,71 @@
 
 #import <memory>
 
+#import "base/strings/sys_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
+#import "components/open_from_clipboard/fake_clipboard_recent_content.h"
 #import "components/policy/core/common/policy_pref_names.h"
+#import "components/search_engines/search_engines_test_environment.h"
+#import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
+#import "components/tab_groups/tab_group_id.h"
+#import "components/tab_groups/tab_group_visual_data.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
+#import "ios/chrome/browser/browsing_data/model/browsing_data_remover_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/test/test_fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
+#import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_lock_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
+#import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
+#import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
+#import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
+#import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
+#import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
+#import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_paging.h"
 #import "ios/chrome/browser/url_loading/model/fake_url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_variations_service.h"
+#import "ios/chrome/test/testing_application_context.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
+
+@protocol TestAppBarConsumer <AppBarConsumer, FullscreenUIElement>
+@end
 
 namespace {
 
@@ -38,11 +78,50 @@ MenuScenarioHistogram kTestMenuScenario = kMenuScenarioHistogramToolbarMenu;
 
 }  // namespace
 
+@interface AppBarMediator (Test)
+- (void)updateConsumer;
+- (void)updateAssistantButton;
+@end
+
 class AppBarMediatorTest : public PlatformTest {
  protected:
   AppBarMediatorTest() {
-    regular_profile_ = TestProfileIOS::Builder().Build();
+    TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        IdentityManagerFactory::GetInstance(),
+        base::BindRepeating(&IdentityTestEnvironmentBrowserStateAdaptor::
+                                BuildIdentityManagerForTests));
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateMockSyncService));
+    builder.AddTestingFactory(BwgServiceFactory::GetInstance(),
+                              BwgServiceFactory::GetDefaultFactory());
+    // Initialize VariationsService with a default country to prevent crashes
+    // in IsGeminiLocationEligible().
+    scoped_variations_service_.Get()->OverrideStoredPermanentCountry("us");
+
+    regular_profile_ = std::move(builder).Build();
     incognito_profile_ = TestProfileIOS::Builder().Build();
+
+    // IdentityTestEnvironment requires the SigninClient, which is created
+    // when the profile is built. But it can also be used as a member.
+    // We don't need to initialize it with the profile's manager on iOS
+    // as they share the same global SystemIdentityManager.
+
+    auth_service_ =
+        AuthenticationServiceFactory::GetForProfile(regular_profile_.get());
+    gemini_service_ptr_ = std::make_unique<BwgService>(
+        regular_profile_.get(), auth_service_,
+        IdentityManagerFactory::GetForProfile(regular_profile_.get()),
+        regular_profile_->GetTestingPrefService(),
+        OptimizationGuideServiceFactory::GetForProfile(regular_profile_.get()));
+    account_manager_service_ =
+        ChromeAccountManagerServiceFactory::GetForProfile(
+            regular_profile_.get());
+
     regular_browser_ = std::make_unique<TestBrowser>(regular_profile_.get());
     incognito_browser_ =
         std::make_unique<TestBrowser>(incognito_profile_.get());
@@ -64,6 +143,22 @@ class AppBarMediatorTest : public PlatformTest {
         startDispatchingToTarget:mock_browser_coordinator_handler_
                      forProtocol:@protocol(BrowserCoordinatorCommands)];
 
+    mock_qr_scanner_handler_ = OCMProtocolMock(@protocol(QRScannerCommands));
+    [regular_browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_qr_scanner_handler_
+                     forProtocol:@protocol(QRScannerCommands)];
+    [incognito_browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_qr_scanner_handler_
+                     forProtocol:@protocol(QRScannerCommands)];
+
+    mock_lens_handler_ = OCMProtocolMock(@protocol(LensCommands));
+    [regular_browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_lens_handler_
+                     forProtocol:@protocol(LensCommands)];
+    [incognito_browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_lens_handler_
+                     forProtocol:@protocol(LensCommands)];
+
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(regular_browser_.get());
     FakeUrlLoadingBrowserAgent::InjectForBrowser(regular_browser_.get());
 
@@ -77,42 +172,112 @@ class AppBarMediatorTest : public PlatformTest {
     incognito_web_state_list_ =
         std::make_unique<WebStateList>(&incognito_web_state_list_delegate_);
 
+    TestFullscreenController::CreateForBrowser(regular_browser_.get());
+    TestFullscreenController::CreateForBrowser(incognito_browser_.get());
+    ClipboardRecentContent::SetInstance(
+        std::make_unique<FakeClipboardRecentContent>());
+
     mediator_ = [[AppBarMediator alloc]
-        initWithRegularWebStateList:regular_web_state_list_.get()
-              incognitoWebStateList:incognito_web_state_list_.get()
-                        prefService:regular_profile_->GetTestingPrefService()
-                          URLLoader:url_loader_
-                       tabGridState:tab_grid_state_
-                     incognitoState:incognito_state_];
+          initWithRegularWebStateList:regular_web_state_list_.get()
+                incognitoWebStateList:incognito_web_state_list_.get()
+          regularFullscreenController:TestFullscreenController::FromBrowser(
+                                          regular_browser_.get())
+        incognitoFullscreenController:TestFullscreenController::FromBrowser(
+                                          incognito_browser_.get())
+                          prefService:regular_profile_->GetTestingPrefService()
+                   templateURLService:search_engines_test_environment_
+                                          .template_url_service()
+                authenticationService:auth_service_
+                        geminiService:gemini_service_ptr_.get()
+                accountManagerService:account_manager_service_
+                      identityManager:IdentityManagerFactory::GetForProfile(
+                                          regular_profile_.get())
+                            URLLoader:url_loader_
+                         tabGridState:tab_grid_state_
+                       incognitoState:incognito_state_];
     mediator_.regularActionFactory =
         [[BrowserActionFactory alloc] initWithBrowser:regular_browser_.get()
                                              scenario:kTestMenuScenario];
     mediator_.incognitoActionFactory =
         [[BrowserActionFactory alloc] initWithBrowser:incognito_browser_.get()
                                              scenario:kTestMenuScenario];
-    consumer_ = OCMProtocolMock(@protocol(AppBarConsumer));
+    consumer_ = OCMProtocolMock(@protocol(TestAppBarConsumer));
     mediator_.consumer = consumer_;
     mediator_.sceneHandler = mock_scene_handler_;
+    mock_settings_handler_ = OCMProtocolMock(@protocol(SettingsCommands));
+    mediator_.settingsHandler = mock_settings_handler_;
+    mock_gemini_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+    mediator_.geminiHandler = mock_gemini_handler_;
   }
 
   ~AppBarMediatorTest() override { [mediator_ disconnect]; }
 
+  void SignInAndSetCapability(bool capability) {
+    id<SystemIdentity> identity = [FakeSystemIdentity fakeIdentity1];
+    FakeSystemIdentityManager* system_identity_manager =
+        FakeSystemIdentityManager::FromSystemIdentityManager(
+            GetApplicationContext()->GetSystemIdentityManager());
+    system_identity_manager->AddIdentity(identity);
+
+    signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(regular_profile_.get());
+
+    signin::AccountAvailabilityOptionsBuilder builder;
+    builder.WithGaiaId(identity.gaiaId)
+        .AsPrimary(signin::ConsentLevel::kSignin);
+
+    AccountInfo account_info = signin::MakeAccountAvailable(
+        identity_manager,
+        builder.Build(base::SysNSStringToUTF8(identity.userEmail)));
+
+    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    mutator.set_can_use_model_execution_features(capability);
+    mutator.set_can_use_gemini_in_chrome(capability);
+
+    signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  }
+
+  // Sets the location eligibility.
+  void SetLocationEligible(bool eligible) {
+    if (eligible) {
+      scoped_variations_service_.Get()->OverrideStoredPermanentCountry("us");
+      TestingApplicationContext::GetGlobal()
+          ->GetApplicationLocaleStorage()
+          ->Set("en-US");
+    } else {
+      scoped_variations_service_.Get()->OverrideStoredPermanentCountry("fr");
+      TestingApplicationContext::GetGlobal()
+          ->GetApplicationLocaleStorage()
+          ->Set("fr-FR");
+    }
+  }
+
   web::WebTaskEnvironment task_environment_;
-  AppBarMediator* mediator_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
+  IOSChromeScopedTestingVariationsService scoped_variations_service_;
   std::unique_ptr<TestProfileIOS> regular_profile_;
   std::unique_ptr<TestProfileIOS> incognito_profile_;
+  AppBarMediator* mediator_;
   std::unique_ptr<TestBrowser> regular_browser_;
   std::unique_ptr<TestBrowser> incognito_browser_;
   raw_ptr<FakeUrlLoadingBrowserAgent> url_loader_;
+  search_engines::SearchEnginesTestEnvironment search_engines_test_environment_;
   std::unique_ptr<WebStateList> regular_web_state_list_;
   std::unique_ptr<WebStateList> incognito_web_state_list_;
   FakeWebStateListDelegate regular_web_state_list_delegate_;
   FakeWebStateListDelegate incognito_web_state_list_delegate_;
   TabGridState* tab_grid_state_;
   IncognitoState* incognito_state_;
+  raw_ptr<AuthenticationService> auth_service_;
+  std::unique_ptr<BwgService> gemini_service_ptr_;
+  raw_ptr<ChromeAccountManagerService> account_manager_service_;
+  id<AppBarConsumer, FullscreenUIElement> consumer_;
   id mock_scene_handler_;
   id mock_browser_coordinator_handler_;
-  id consumer_;
+  id mock_lens_handler_;
+  id mock_qr_scanner_handler_;
+  id mock_settings_handler_;
+  id mock_gemini_handler_;
 };
 
 // Tests that the consumer is updated when a web state is added.
@@ -265,6 +430,66 @@ TEST_F(AppBarMediatorTest, TestSetButtonsEnabledByPolicy) {
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
+// Tests that the consumer is updated when opening the app on a regular tabs
+// while having the TabGrid in incognito but not visible.
+TEST_F(AppBarMediatorTest, TestLaunchInRegularTabNonTabGrid) {
+  tab_grid_state_.tabGridVisible = NO;
+  tab_grid_state_.currentPage = TabGridPageIncognitoTabs;
+  incognito_state_.incognitoContentVisible = NO;
+  incognito_state_.lockState = IncognitoLockState::kReauth;
+
+  // Add a web state to regular.
+  auto web_state = std::make_unique<web::FakeWebState>();
+  regular_web_state_list_->InsertWebState(std::move(web_state));
+
+  id consumer = OCMProtocolMock(@protocol(AppBarConsumer));
+  OCMExpect([consumer setButtonsEnabled:YES]);
+  mediator_.consumer = consumer;
+  EXPECT_OCMOCK_VERIFY(consumer);
+}
+
+// Tests that the consumer is updated when switching to incognito while having
+// the incognito lock.
+TEST_F(AppBarMediatorTest, TestSwitchToIncognitoNonTabGridWithAuthentication) {
+  tab_grid_state_.tabGridVisible = NO;
+  incognito_state_.incognitoContentVisible = NO;
+  incognito_state_.lockState = IncognitoLockState::kReauth;
+
+  // Add a web state to incognito.
+  auto web_state = std::make_unique<web::FakeWebState>();
+  incognito_web_state_list_->InsertWebState(std::move(web_state));
+
+  // Switch to incognito.
+  OCMExpect([consumer_ updateTabCount:1]);
+  OCMExpect([consumer_ setButtonsEnabled:NO]);
+  incognito_state_.incognitoContentVisible = YES;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the consumer is updated when switching back to regular while
+// having the incognito lock.
+TEST_F(AppBarMediatorTest, TestSwitchToRegularNonTabGridWithAuthentication) {
+  tab_grid_state_.tabGridVisible = NO;
+  incognito_state_.incognitoContentVisible = NO;
+  incognito_state_.lockState = IncognitoLockState::kReauth;
+
+  // Add a web state to regular.
+  auto web_state = std::make_unique<web::FakeWebState>();
+  regular_web_state_list_->InsertWebState(std::move(web_state));
+
+  // Switch to incognito (empty).
+  OCMExpect([consumer_ updateTabCount:0]);
+  OCMExpect([consumer_ setButtonsEnabled:NO]);
+  incognito_state_.incognitoContentVisible = YES;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+
+  // Switch back to regular.
+  OCMExpect([consumer_ updateTabCount:1]);
+  OCMExpect([consumer_ setButtonsEnabled:YES]);
+  incognito_state_.incognitoContentVisible = NO;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
 // Tests that buttons are disabled when incognito authentication is required.
 TEST_F(AppBarMediatorTest, TestSetButtonsDisabledOnAuthenticationRequired) {
   tab_grid_state_.tabGridVisible = YES;
@@ -272,4 +497,128 @@ TEST_F(AppBarMediatorTest, TestSetButtonsDisabledOnAuthenticationRequired) {
   OCMExpect([consumer_ setButtonsEnabled:NO]);
   incognito_state_.lockState = IncognitoLockState::kReauth;
   EXPECT_OCMOCK_VERIFY(consumer_);
+
+  OCMExpect([consumer_ setButtonsEnabled:YES]);
+  tab_grid_state_.currentPage = TabGridPageRegularTabs;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the consumer is updated when the active web state is in a group.
+TEST_F(AppBarMediatorTest, TestInTabGroup) {
+  auto web_state = std::make_unique<web::FakeWebState>();
+  regular_web_state_list_->InsertWebState(std::move(web_state));
+  regular_web_state_list_->ActivateWebStateAt(0);
+
+  // Not in a group initially.
+  OCMExpect([consumer_ setInTabGroup:NO]);
+  [mediator_ updateConsumer];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+
+  // Create a group and add the web state to it.
+  OCMExpect([consumer_ setInTabGroup:YES]);
+  regular_web_state_list_->CreateGroup(
+      {0},
+      tab_groups::TabGroupVisualData(u"Group",
+                                     tab_groups::TabGroupColorId::kGrey),
+      tab_groups::TabGroupId::GenerateNew());
+  EXPECT_OCMOCK_VERIFY(consumer_);
+
+  // Remove from group.
+  OCMExpect([consumer_ setInTabGroup:NO]);
+  regular_web_state_list_->RemoveFromGroups({0});
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is in the signed out state when not signed
+// in and not location eligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateSignedOut) {
+  SetLocationEligible(false);
+
+  OCMExpect([consumer_
+      setAssistantButtonState:AppBarAssistantButtonState::kSignedOut
+                       avatar:nil]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is in the ask state when location is
+// eligible, even if not signed in.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAskLocationEligible) {
+  SetLocationEligible(true);
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                        avatar:nil]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is in the account state when signed in but
+// not location eligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccount) {
+  SetLocationEligible(false);
+  SignInAndSetCapability(false);
+
+  OCMExpect([consumer_
+      setAssistantButtonState:AppBarAssistantButtonState::kAccount
+                       avatar:[OCMArg any]]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is in the ask state when signed in and
+// is sufficiently eligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAsk) {
+  SetLocationEligible(true);
+  SignInAndSetCapability(true);
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                        avatar:nil]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that tapping the assistant button in the signed out state dispatches
+// the sign-in command.
+TEST_F(AppBarMediatorTest, TestAssistantButtonTappedSignedOut) {
+  OCMExpect([mock_scene_handler_
+              showSignin:[OCMArg checkWithBlock:^BOOL(
+                                     ShowSigninCommand* command) {
+                return command.operation ==
+                           AuthenticationOperation::kSigninOnly &&
+                       command.accessPoint ==
+                           signin_metrics::AccessPoint::kIosAppBar;
+              }]
+      baseViewController:[OCMArg any]]);
+  [mediator_
+      assistantButtonTappedWithState:AppBarAssistantButtonState::kSignedOut];
+  EXPECT_OCMOCK_VERIFY(mock_scene_handler_);
+}
+
+// Tests that tapping the assistant button in the account state dispatches
+// the account settings command.
+TEST_F(AppBarMediatorTest, TestAssistantButtonTappedAccount) {
+  SignInAndSetCapability(false);
+  [mediator_ updateAssistantButton];
+
+  OCMExpect([mock_settings_handler_
+      showAccountsSettingsFromViewController:[OCMArg any]
+                        skipIfUINotAvailable:NO]);
+  [mediator_
+      assistantButtonTappedWithState:AppBarAssistantButtonState::kAccount];
+  EXPECT_OCMOCK_VERIFY(mock_settings_handler_);
+}
+
+// Tests that tapping the assistant button in the ask state dispatches the
+// Gemini command.
+TEST_F(AppBarMediatorTest, TestAssistantButtonTappedEligible) {
+  SignInAndSetCapability(true);
+  [mediator_ updateAssistantButton];
+
+  OCMExpect([mock_gemini_handler_
+      startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
+                                                  GeminiStartupState* state) {
+        return state.entryPoint == gemini::EntryPoint::AppBar;
+      }]]);
+  [mediator_ assistantButtonTappedWithState:AppBarAssistantButtonState::kAsk];
+  EXPECT_OCMOCK_VERIFY(mock_gemini_handler_);
 }

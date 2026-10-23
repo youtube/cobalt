@@ -3462,6 +3462,42 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Size) {
   }
 }
 
+// Tests that the wrapper correctly extracts Viewport Geometry.
+TEST_P(PageContextWrapperTest, PopulatePageContext_ViewportGeometry) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  // Set a page that will have a viewport with a surface bigger than 0.
+  auto page_structure = HtmlPage("Viewport", Paragraph("Testing Viewport"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  EXPECT_TRUE(annotated_page_content.has_viewport_geometry());
+  const auto& viewport = annotated_page_content.viewport_geometry();
+  EXPECT_EQ(viewport.x(), 0);
+  EXPECT_EQ(viewport.y(), 0);
+  // Verify that there is a window with a surface bigger than 0.
+  EXPECT_GT(viewport.width(), 0);
+  EXPECT_GT(viewport.height(), 0);
+}
+
 // Tests that top layer elements (popovers, dialog modals, fullscreen) are
 // included in the APC tree as generic containers.
 TEST_P(PageContextWrapperTest, PopulatePageContext_GenericContainer_TopLayer) {
@@ -3762,6 +3798,47 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_TableRow_NestedSections) {
   EXPECT_TRUE(found_body_row);
 }
 
+// Tests that table captions are extracted correctly.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_Table_Caption) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage(
+      "TableMetadata", RawHtml("<table>"
+                               "  <caption style=\"text-transform: "
+                               "uppercase;\">My Table Name</caption>"
+                               "  <thead><tr><th>Header</th></tr></thead>"
+                               "  <tbody><tr><td>Body</td></tr></tbody>"
+                               "</table>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& page_context = *response.value();
+  const auto& root_node = page_context.annotated_page_content().root_node();
+
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& table_node = root_node.children_nodes(0);
+  EXPECT_EQ(table_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE);
+
+  EXPECT_TRUE(table_node.content_attributes().has_table_data());
+  EXPECT_EQ(table_node.content_attributes().table_data().table_name(),
+            "MY TABLE NAME");
+}
+
 // Tests the extraction of form control attributes (input, textarea, select,
 // button).
 TEST_P(PageContextWrapperTest,
@@ -3868,6 +3945,100 @@ TEST_P(PageContextWrapperTest,
   EXPECT_EQ(fc_textarea.field_name(), "texta");
 }
 
+// Tests the extraction of password fields and checks that their value is
+// redacted.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_Rich_Extraction_PasswordRedaction) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  auto page_structure =
+      HtmlPage("Password Form",
+               RawHtml("<html><body><form name=\"f2\" action='/login'>"
+                       "  <input type=\"password\" name=\"pwd\" "
+                       "value=\"v3\">"
+                       "  <input type=\"password\" name=\"pwd_empty\">"
+                       "  <input type=\"text\" name=\"t1\" value=\"v1\">"
+                       "  <input type=\"password\" name=\"pwd_changed\" "
+                       "value=\"v4\">"
+                       "</form></body></html>"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Simulate the user clicking a "Show Password" toggle before extraction.
+  CallJavascript(
+      "let changed_pwd = document.getElementsByName('pwd_changed')[0];"
+      "changed_pwd.type = 'text';"
+      "changed_pwd[Symbol.for('__gCrHasBeenPassword')] = true;");
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root_node = annotated_page_content.root_node();
+
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& form_node = root_node.children_nodes(0);
+
+  EXPECT_TRUE(form_node.content_attributes().has_form_data());
+
+  ASSERT_EQ(form_node.children_nodes_size(), 4);
+  const auto* input_password_node = &form_node.children_nodes(0);
+  const auto* empty_password_node = &form_node.children_nodes(1);
+  const auto* input_text_node = &form_node.children_nodes(2);
+  const auto* changed_password_node = &form_node.children_nodes(3);
+
+  ASSERT_TRUE(input_password_node);
+  const auto& fc_password =
+      input_password_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_password.field_name(), "pwd");
+  EXPECT_EQ(fc_password.field_value(), "");
+  EXPECT_EQ(fc_password.redaction_decision(),
+            optimization_guide::proto::RedactionDecision::
+                REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD);
+
+  ASSERT_TRUE(empty_password_node);
+  const auto& fc_empty_password =
+      empty_password_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_empty_password.field_name(), "pwd_empty");
+  EXPECT_EQ(fc_empty_password.field_value(), "");
+  EXPECT_EQ(fc_empty_password.redaction_decision(),
+            optimization_guide::proto::RedactionDecision::
+                REDACTION_DECISION_UNREDACTED_EMPTY_PASSWORD);
+
+  ASSERT_TRUE(input_text_node);
+  const auto& fc_text =
+      input_text_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_text.field_name(), "t1");
+  EXPECT_EQ(fc_text.field_value(), "v1");
+  EXPECT_EQ(fc_text.redaction_decision(),
+            optimization_guide::proto::RedactionDecision::
+                REDACTION_DECISION_NO_REDACTION_NECESSARY);
+
+  ASSERT_TRUE(changed_password_node);
+  const auto& fc_changed_password =
+      changed_password_node->content_attributes().form_control_data();
+  EXPECT_EQ(fc_changed_password.field_name(), "pwd_changed");
+  EXPECT_EQ(fc_changed_password.field_value(), "");
+  EXPECT_EQ(fc_changed_password.redaction_decision(),
+            optimization_guide::proto::RedactionDecision::
+                REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD);
+}
+
 // Tests that Canvas Metadata is extracted correctly.
 TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Canvas) {
   if (!IsRefactored()) {
@@ -3902,6 +4073,48 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Canvas) {
   EXPECT_EQ(canvas_node.content_attributes().canvas_data().layout_width(), 200);
   EXPECT_EQ(canvas_node.content_attributes().canvas_data().layout_height(),
             100);
+}
+
+// Tests that SVG inner text is extracted correctly.
+TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Svg) {
+  if (!IsRefactored()) {
+    return;
+  }
+  auto page_structure = HtmlPage(
+      "RichExtraction_Svg",
+      RawHtml("<svg width=\"100\" height=\"100\"><title>Title</title><text>SVG "
+              "Text</text></svg>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& page_context = *response.value();
+  const auto& root_node = page_context.annotated_page_content().root_node();
+
+  // Root -> SVG
+  ASSERT_EQ(root_node.children_nodes_size(), 1);
+  const auto& svg_node = root_node.children_nodes(0);
+  EXPECT_EQ(svg_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_SVG_ROOT);
+  EXPECT_FALSE(svg_node.content_attributes().has_svg_root_data());
+
+  // Verify that the child text was extracted.
+  ASSERT_EQ(svg_node.children_nodes_size(), 1);
+  const auto& text_node = svg_node.children_nodes(0);
+  EXPECT_EQ(text_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_EQ(text_node.content_attributes().text_data().text_content(),
+            "SVG Text");
 }
 
 // Tests that Video Metadata is extracted correctly.
@@ -4460,6 +4673,280 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Color) {
   ASSERT_TRUE(p_text_node.content_attributes().text_data().has_text_style());
   EXPECT_EQ(p_text_node.content_attributes().text_data().text_style().color(),
             16711935u);
+}
+
+// Tests the extraction of paid content metadata based on ld+json.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_PaidContent_Json) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage("RichExtraction_PaidContent",
+                                 RawHtml("<p id=\"target\">Some paid "
+                                         "content here.</p>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  web::test::ExecuteJavaScript(@"var s = document.createElement('script');"
+                                "s.type = 'application/ld+json';"
+                                "s.textContent = '{"
+                                "  \"@context\": \"https://schema.org\","
+                                "  \"@type\": \"NewsArticle\","
+                                "  \"isAccessibleForFree\": false,"
+                                "  \"hasPart\": {"
+                                "    \"@type\": \"WebPageElement\","
+                                "    \"isAccessibleForFree\": false,"
+                                "    \"cssSelector\": \"#target\""
+                                "  }"
+                                "}';"
+                                "document.head.appendChild(s);",
+                               web_state());
+
+  PageContextWrapperConfig config = PageContextWrapperConfigBuilder()
+                                        .SetUseRichExtraction(true)
+                                        .SetExtractPaidContent(true)
+                                        .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& frame_data = annotated_page_content.main_frame_data();
+  EXPECT_TRUE(frame_data.has_paid_content_metadata());
+  EXPECT_TRUE(frame_data.paid_content_metadata().contains_paid_content());
+
+  // Verify the target node received the PAID_CONTENT role from the cssSelector.
+  ASSERT_EQ(annotated_page_content.root_node().children_nodes_size(), 1);
+  const auto& target_node =
+      annotated_page_content.root_node().children_nodes(0);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles_size(), 1);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles(0),
+            optimization_guide::proto::ANNOTATED_ROLE_PAID_CONTENT);
+}
+
+// Tests the extraction of paid content metadata based on malformed ld+json
+// (e.g. trailing comma, unescaped newlines) using the fallback slow-path
+// parser.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_PaidContent_MalformedJson) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage("RichExtraction_PaidContent_MalformedJson",
+                                 RawHtml("<p id=\"target\">Some paid "
+                                         "content here.</p>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  web::test::ExecuteJavaScript(@"var s = document.createElement('script');"
+                                "s.type = 'application/ld+json';"
+                                "s.textContent = '{"
+                                "  \"@context\": \"https://schema.org\","
+                                "  \"@type\": \"NewsArticle\","
+                                "  \"isAccessibleForFree\": false,"
+                                "  \"hasPart\": {"
+                                "    \"@type\": \"WebPageElement\","
+                                "    \"isAccessibleForFree\": false,"
+                                "    \"cssSelector\": \"#target\""
+                                "  },"  // Trailing comma!
+                                "}';"
+                                "document.head.appendChild(s);",
+                               web_state());
+
+  PageContextWrapperConfig config = PageContextWrapperConfigBuilder()
+                                        .SetUseRichExtraction(true)
+                                        .SetExtractPaidContent(true)
+                                        .SetAttemptPaidContentJsonFixing(true)
+                                        .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& frame_data = annotated_page_content.main_frame_data();
+  EXPECT_TRUE(frame_data.has_paid_content_metadata());
+  EXPECT_TRUE(frame_data.paid_content_metadata().contains_paid_content());
+
+  // Verify the target node received the PAID_CONTENT role from the cssSelector.
+  ASSERT_EQ(annotated_page_content.root_node().children_nodes_size(), 1);
+  const auto& target_node =
+      annotated_page_content.root_node().children_nodes(0);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles_size(), 1);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles(0),
+            optimization_guide::proto::ANNOTATED_ROLE_PAID_CONTENT);
+}
+
+// Tests that the extraction of paid content metadata based on malformed ld+json
+// fails when the fallback fixing parser is explicitly disabled.
+TEST_P(
+    PageContextWrapperTest,
+    PopulatePageContext_RichExtraction_PaidContent_MalformedJson_FixingDisabled) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure =
+      HtmlPage("RichExtraction_PaidContent_MalformedJson_FixingDisabled",
+               RawHtml("<p id=\"target\">Some paid "
+                       "content here.</p>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  web::test::ExecuteJavaScript(@"var s = document.createElement('script');"
+                                "s.type = 'application/ld+json';"
+                                "s.textContent = '{"
+                                "  \"@context\": \"https://schema.org\","
+                                "  \"@type\": \"NewsArticle\","
+                                "  \"isAccessibleForFree\": false,"
+                                "  \"hasPart\": {"
+                                "    \"@type\": \"WebPageElement\","
+                                "    \"isAccessibleForFree\": false,"
+                                "    \"cssSelector\": \"#target\""
+                                "  },"  // Trailing comma!
+                                "}';"
+                                "document.head.appendChild(s);",
+                               web_state());
+
+  PageContextWrapperConfig config = PageContextWrapperConfigBuilder()
+                                        .SetUseRichExtraction(true)
+                                        .SetExtractPaidContent(true)
+                                        .SetAttemptPaidContentJsonFixing(false)
+                                        .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  const auto& frame_data =
+      page_context->annotated_page_content().main_frame_data();
+  // Validates that the metadata doesn't exist because parsing the JSON failed.
+  EXPECT_FALSE(frame_data.has_paid_content_metadata());
+}
+
+// Tests the extraction of paid content metadata based on page metadata.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_PaidContent_PageMetadata) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage(
+      "RichExtraction_PaidContent_PageMetadata",
+      RawHtml("<p><meta itemprop=\"isAccessibleForFree\" content=\"false\">"
+              "Some paid content here.</p>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config = PageContextWrapperConfigBuilder()
+                                        .SetUseRichExtraction(true)
+                                        .SetExtractPaidContent(true)
+                                        .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& frame_data = annotated_page_content.main_frame_data();
+  EXPECT_TRUE(frame_data.has_paid_content_metadata());
+  EXPECT_TRUE(frame_data.paid_content_metadata().contains_paid_content());
+
+  // Verify the target block received the PAID_CONTENT role from the meta
+  // fallback parent element match.
+  ASSERT_EQ(annotated_page_content.root_node().children_nodes_size(), 1);
+  const auto& target_node =
+      annotated_page_content.root_node().children_nodes(0);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles_size(), 1);
+  EXPECT_EQ(target_node.content_attributes().annotated_roles(0),
+            optimization_guide::proto::ANNOTATED_ROLE_PAID_CONTENT);
+}
+
+// Tests that `extract_paid_content(false)` correctly gates the entire feature
+// even if `attempt_paid_content_json_fixing` is true.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_PaidContent_IndependentGating) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure = HtmlPage("RichExtraction_PaidContent_IndependentGating",
+                                 RawHtml("<p id=\"target\">Some paid "
+                                         "content here.</p>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  web::test::ExecuteJavaScript(@"var s = document.createElement('script');"
+                                "s.type = 'application/ld+json';"
+                                "s.textContent = '{"
+                                "  \"isAccessibleForFree\": false"
+                                "}';"
+                                "document.head.appendChild(s);",
+                               web_state());
+
+  // Disable extraction but enable fixing. Result should be no extraction.
+  PageContextWrapperConfig config = PageContextWrapperConfigBuilder()
+                                        .SetUseRichExtraction(true)
+                                        .SetExtractPaidContent(false)
+                                        .SetAttemptPaidContentJsonFixing(true)
+                                        .Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  const auto& frame_data =
+      page_context->annotated_page_content().main_frame_data();
+  EXPECT_FALSE(frame_data.has_paid_content_metadata());
 }
 
 INSTANTIATE_TEST_SUITE_P(,

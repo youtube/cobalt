@@ -38,6 +38,8 @@
 
 namespace {
 
+constexpr char kHistogramSyntheticResponseBypassRedirectChecks[] =
+    "ServiceWorker.SyntheticResponse.BypassRedirectChecks";
 constexpr char kHistogramIsHeaderStored[] =
     "ServiceWorker.SyntheticResponse.IsHeaderStored";
 constexpr char kHistogramStartRequestToReceiveResponse[] =
@@ -112,6 +114,7 @@ namespace {
 constexpr std::string_view kOptInHeaderName =
     "Service-Worker-Synthetic-Response";
 constexpr std::string_view kOptInHeaderValue = "?1";
+constexpr std::string_view kCSPHeaderName = "Content-Security-Policy";
 
 // Convert `network::mojom::URLResponseHead` to
 // `blink::mojom::FetchAPIResponse`.
@@ -120,7 +123,8 @@ constexpr std::string_view kOptInHeaderValue = "?1";
 blink::mojom::FetchAPIResponsePtr GetFetchAPIResponse(
     const network::mojom::URLResponseHead& head) {
   CHECK(IsBypassSyntheticResponseHeaderCheckEnabled() ||
-        head.headers->HasHeaderValue(kOptInHeaderName, kOptInHeaderValue));
+        (head.headers->HasHeaderValue(kOptInHeaderName, kOptInHeaderValue) &&
+         head.headers->HasHeader(kCSPHeaderName)));
   auto out_response = blink::mojom::FetchAPIResponse::New();
   out_response->status_code = net::HTTP_OK;
   out_response->response_time = base::Time::Now();
@@ -247,6 +251,9 @@ void ServiceWorkerSyntheticResponseManager::InitiateRequest(
   factory_interceptor_count_ =
       service_worker_client->factory_interceptor_count();
   is_guest_ = storage_partition->is_guest();
+  bypass_redirect_checks_ = service_worker_client->bypass_redirect_checks();
+  base::UmaHistogramBoolean(kHistogramSyntheticResponseBypassRedirectChecks,
+                            bypass_redirect_checks_);
 
   StartRequest(
       GlobalRequestID::MakeBrowserInitiated().request_id,
@@ -351,10 +358,13 @@ void ServiceWorkerSyntheticResponseManager::MaybeSetResponseHead(
   bool is_header_stored = false;
   // If the response is not successful or there is no opt-in header, do not
   // update the response head.
+  // In addition to the opt-in header, we guarantee that the response has a
+  // Content-Security-Policy header as well.
   if (network::IsSuccessfulStatus(response_head.headers->response_code()) &&
       (IsBypassSyntheticResponseHeaderCheckEnabled() ||
-       response_head.headers->HasHeaderValue(kOptInHeaderName,
-                                             kOptInHeaderValue))) {
+       (response_head.headers->HasHeaderValue(kOptInHeaderName,
+                                              kOptInHeaderValue) &&
+        response_head.headers->HasHeader(kCSPHeaderName)))) {
     version_->SetMainScriptResponse(
         std::make_unique<ServiceWorkerVersion::MainScriptResponse>(
             response_head));
@@ -546,6 +556,8 @@ void ServiceWorkerSyntheticResponseManager::OnReceiveRedirect(
       SCOPED_CRASH_KEY_BOOL("SWSR", "is_shared_producer_pipe_valid",
                             shared_producer_->pipe.is_valid());
       SCOPED_CRASH_KEY_BOOL("SWSR", "is_guest", is_guest_);
+      SCOPED_CRASH_KEY_BOOL("SWSR", "bypass_redirect_checks",
+                            bypass_redirect_checks_);
       SCOPED_CRASH_KEY_NUMBER("SWSR", "interceptor_count",
                               factory_interceptor_count_);
       // In the NetworkService mode, the redirect response is managed in the

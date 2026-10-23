@@ -16,9 +16,9 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
 #include "api/audio/neural_residual_echo_estimator.h"
@@ -74,9 +74,9 @@ void LinearEchoPower(const FftData& E,
 }
 
 // Fades between two input signals using a fix-sized transition.
-void SignalTransition(ArrayView<const float> from,
-                      ArrayView<const float> to,
-                      ArrayView<float> out) {
+void SignalTransition(std::span<const float> from,
+                      std::span<const float> to,
+                      std::span<float> out) {
   RTC_DCHECK_EQ(from.size(), to.size());
   RTC_DCHECK_EQ(from.size(), out.size());
   if (from.data() == to.data()) {
@@ -100,8 +100,8 @@ void SignalTransition(ArrayView<const float> from,
 // Computes a windowed (square root Hanning) padded FFT and updates the related
 // memory.
 void WindowedPaddedFft(const Aec3Fft& fft,
-                       ArrayView<const float> v,
-                       ArrayView<float> v_old,
+                       std::span<const float> v,
+                       std::span<float> v_old,
                        FftData* V) {
   fft.PaddedFft(v, v_old, Aec3Fft::Window::kSqrtHanning, V);
   std::copy(v.begin(), v.end(), v_old.begin());
@@ -134,7 +134,7 @@ bool UseRefinedOutput(const SubtractorOutput& subtractor_output) {
 void FormLinearFilterOutput(bool refined_filter_output_last_selected,
                             bool use_refined_output,
                             const SubtractorOutput& subtractor_output,
-                            ArrayView<float> output) {
+                            std::span<float> output) {
   RTC_DCHECK_EQ(subtractor_output.e_refined.size(), output.size());
   RTC_DCHECK_EQ(subtractor_output.e_coarse.size(), output.size());
 
@@ -318,48 +318,48 @@ void EchoRemoverImpl::ProcessCapture(
   std::array<FftData, kMaxNumChannelsOnStack> high_band_comfort_noise_stack;
   std::array<SubtractorOutput, kMaxNumChannelsOnStack> subtractor_output_stack;
 
-  ArrayView<std::array<float, kFftLengthBy2>> e(e_stack.data(),
+  std::span<std::array<float, kFftLengthBy2>> e(e_stack.data(),
                                                 num_capture_channels_);
-  ArrayView<std::array<float, kFftLengthBy2Plus1>> Y2(Y2_stack.data(),
+  std::span<std::array<float, kFftLengthBy2Plus1>> Y2(Y2_stack.data(),
                                                       num_capture_channels_);
-  ArrayView<std::array<float, kFftLengthBy2Plus1>> E2(E2_stack.data(),
+  std::span<std::array<float, kFftLengthBy2Plus1>> E2(E2_stack.data(),
                                                       num_capture_channels_);
-  ArrayView<std::array<float, kFftLengthBy2Plus1>> R2(R2_stack.data(),
+  std::span<std::array<float, kFftLengthBy2Plus1>> R2(R2_stack.data(),
                                                       num_capture_channels_);
-  ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded(
+  std::span<std::array<float, kFftLengthBy2Plus1>> R2_unbounded(
       R2_unbounded_stack.data(), num_capture_channels_);
-  ArrayView<std::array<float, kFftLengthBy2Plus1>> S2_linear(
+  std::span<std::array<float, kFftLengthBy2Plus1>> S2_linear(
       S2_linear_stack.data(), num_capture_channels_);
-  ArrayView<FftData> Y(Y_stack.data(), num_capture_channels_);
-  ArrayView<FftData> E(E_stack.data(), num_capture_channels_);
-  ArrayView<FftData> comfort_noise(comfort_noise_stack.data(),
+  std::span<FftData> Y(Y_stack.data(), num_capture_channels_);
+  std::span<FftData> E(E_stack.data(), num_capture_channels_);
+  std::span<FftData> comfort_noise(comfort_noise_stack.data(),
                                    num_capture_channels_);
-  ArrayView<FftData> high_band_comfort_noise(
+  std::span<FftData> high_band_comfort_noise(
       high_band_comfort_noise_stack.data(), num_capture_channels_);
-  ArrayView<SubtractorOutput> subtractor_output(subtractor_output_stack.data(),
+  std::span<SubtractorOutput> subtractor_output(subtractor_output_stack.data(),
                                                 num_capture_channels_);
   if (NumChannelsOnHeap(num_capture_channels_) > 0) {
     // If the stack-allocated space is too small, use the heap for storing the
     // microphone data.
-    e = ArrayView<std::array<float, kFftLengthBy2>>(e_heap_.data(),
+    e = std::span<std::array<float, kFftLengthBy2>>(e_heap_.data(),
                                                     num_capture_channels_);
-    Y2 = ArrayView<std::array<float, kFftLengthBy2Plus1>>(
+    Y2 = std::span<std::array<float, kFftLengthBy2Plus1>>(
         Y2_heap_.data(), num_capture_channels_);
-    E2 = ArrayView<std::array<float, kFftLengthBy2Plus1>>(
+    E2 = std::span<std::array<float, kFftLengthBy2Plus1>>(
         E2_heap_.data(), num_capture_channels_);
-    R2 = ArrayView<std::array<float, kFftLengthBy2Plus1>>(
+    R2 = std::span<std::array<float, kFftLengthBy2Plus1>>(
         R2_heap_.data(), num_capture_channels_);
-    R2_unbounded = ArrayView<std::array<float, kFftLengthBy2Plus1>>(
+    R2_unbounded = std::span<std::array<float, kFftLengthBy2Plus1>>(
         R2_unbounded_heap_.data(), num_capture_channels_);
-    S2_linear = ArrayView<std::array<float, kFftLengthBy2Plus1>>(
+    S2_linear = std::span<std::array<float, kFftLengthBy2Plus1>>(
         S2_linear_heap_.data(), num_capture_channels_);
-    Y = ArrayView<FftData>(Y_heap_.data(), num_capture_channels_);
-    E = ArrayView<FftData>(E_heap_.data(), num_capture_channels_);
+    Y = std::span<FftData>(Y_heap_.data(), num_capture_channels_);
+    E = std::span<FftData>(E_heap_.data(), num_capture_channels_);
     comfort_noise =
-        ArrayView<FftData>(comfort_noise_heap_.data(), num_capture_channels_);
-    high_band_comfort_noise = ArrayView<FftData>(
+        std::span<FftData>(comfort_noise_heap_.data(), num_capture_channels_);
+    high_band_comfort_noise = std::span<FftData>(
         high_band_comfort_noise_heap_.data(), num_capture_channels_);
-    subtractor_output = ArrayView<SubtractorOutput>(
+    subtractor_output = std::span<SubtractorOutput>(
         subtractor_output_heap_.data(), num_capture_channels_);
   }
 

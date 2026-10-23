@@ -128,6 +128,11 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
+  if (node->cannot_be_untagged()) {
+    TRACE_UNTAGGING("  Skipping because node is marked as cannot be untagged");
+    return ProcessPhiResult::kNone;
+  }
+
   if (node->is_exception_phi()) {
     // Exception phis have no inputs (or, at least, none accessible through
     // `node->input(...)`), so we don't know if the inputs could be untagged or
@@ -1227,6 +1232,13 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       break;
     case ValueRepresentation::kFloat64:
     case ValueRepresentation::kHoleyFloat64:
+      // EnsurePhiTagged below inserts a node which can change HeapNumbers to
+      // Smis.
+      if (NodeTypeCanBe(expected_type, NodeType::kHeapNumber) &&
+          !phi->uses_require_heap_object()) {
+        expected_type = UnionType(expected_type, NodeType::kSmi);
+        node->set_expected_type(expected_type);
+      }
       break;
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kRawPtr:

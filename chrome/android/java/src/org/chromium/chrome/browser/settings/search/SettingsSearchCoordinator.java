@@ -217,7 +217,7 @@ public class SettingsSearchCoordinator
         mActivity = activity;
         mUseMultiColumnSupplier = useMultiColumnSupplier;
         mMultiColumnSettings = multiColumnSettings;
-        mFragmentState = FS_SETTINGS;
+        setFragmentState(FS_SETTINGS);
         mItemDecorations = itemDecorations;
         mProfile = profile;
         mUpdateFirstVisibleTitle = updateFirstVisibleTitle;
@@ -296,11 +296,14 @@ public class SettingsSearchCoordinator
             mFirstUiEntered = savedState.getBoolean(KEY_FIRST_UI_ENTERED);
             mResultUpdated = savedState.getBoolean(KEY_RESULT_UPDATED);
             mSearchCompleted = savedState.getBoolean(KEY_SEARCH_COMPLETED);
-            mHandler.post(
-                    () ->
-                            assumeNonNull(ToolbarUtils.getTitleTextView(actionBar))
-                                    .setVisibility(View.VISIBLE));
+            mHandler.post(() -> showTitleTextView(true));
         }
+    }
+
+    private void showTitleTextView(boolean show) {
+        Toolbar actionBar = mActivity.findViewById(R.id.action_bar);
+        assumeNonNull(ToolbarUtils.getTitleTextView(actionBar))
+                .setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private void onClickSearchBox(View view) {
@@ -369,7 +372,7 @@ public class SettingsSearchCoordinator
 
         if (mMultiColumnSettings != null && mUseMultiColumn && mFragmentState == FS_RESULTS) {
             // If clicked while displaying search results, get out of FS_RESULTS state.
-            mFragmentState = FS_SEARCH;
+            setFragmentState(FS_SEARCH);
             mActivity.findViewById(R.id.search_query_container).setVisibility(View.VISIBLE);
             showBackArrowInSingleColumnMode(false);
             getSettingsFragmentManager()
@@ -651,7 +654,7 @@ public class SettingsSearchCoordinator
         return providerMap;
     }
 
-    private void enterSearchState(boolean isRestored) {
+    void enterSearchState(boolean isRestored) {
         initIndex();
 
         if (mMultiColumnSettings != null && !mMultiColumnSettingsBackActionHandlerSet) {
@@ -686,7 +689,7 @@ public class SettingsSearchCoordinator
                     });
         }
         KeyboardUtils.showKeyboard(queryEdit);
-        mFragmentState = FS_SEARCH;
+        setFragmentState(FS_SEARCH);
         mBackActionCallback.setEnabled(true);
         if (mUseMultiColumn) {
             // When being restored, MultiColumnTitleUpdater restores the first-visible title index
@@ -701,6 +704,11 @@ public class SettingsSearchCoordinator
 
         updateHelpMenuVisibility();
         adjustTalkbackTraversalOrder(queryContainer);
+    }
+
+    private void setFragmentState(int state) {
+        mFragmentState = state;
+        if (!mUseMultiColumn) showTitleTextView(state != FS_SEARCH);
     }
 
     private void showBackArrowInSingleColumnMode(boolean show) {
@@ -740,7 +748,7 @@ public class SettingsSearchCoordinator
             mPaneOpenedBySearch = false;
         }
 
-        mFragmentState = FS_SETTINGS;
+        setFragmentState(FS_SETTINGS);
         mBackActionCallback.setEnabled(false);
         if (mUseMultiColumn) mUpdateFirstVisibleTitle.onResult(0);
         mShowingEmptyFragment = false;
@@ -783,7 +791,7 @@ public class SettingsSearchCoordinator
             // where we display the search results.
             String topStackEntry = fragmentManager.getBackStackEntryAt(stackCount - 1).getName();
             if (TextUtils.equals(RESULT_BACKSTACK, topStackEntry)) {
-                mFragmentState = FS_SEARCH;
+                setFragmentState(FS_SEARCH);
                 mActivity.findViewById(R.id.search_query_container).setVisibility(View.VISIBLE);
                 EditText queryEdit = mActivity.findViewById(R.id.search_query);
                 queryEdit.requestFocus();
@@ -1170,7 +1178,7 @@ public class SettingsSearchCoordinator
                             FragmentManager fragmentManager = getSettingsFragmentManager();
                             fragmentManager.popBackStack(
                                     RESULT_BACKSTACK, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                            mFragmentState = FS_SEARCH;
+                            setFragmentState(FS_SEARCH);
                         }
                     }
                 });
@@ -1180,10 +1188,9 @@ public class SettingsSearchCoordinator
                     public void onInitializeAccessibilityNodeInfo(
                             View host, AccessibilityNodeInfo info) {
                         super.onInitializeAccessibilityNodeInfo(host, info);
+                        String orgText = info.getText() == null ? "" : info.getText().toString();
                         info.setText(
-                                info.getText() == null
-                                        ? mActivity.getString(R.string.search_in_settings_hint)
-                                        : info.getText().toString());
+                                mActivity.getString(R.string.search_in_settings_hint, orgText));
                     }
                 });
     }
@@ -1196,7 +1203,7 @@ public class SettingsSearchCoordinator
 
     public void onTitleTapped(@Nullable String entryName) {
         // Tap on the title 'Search results' should set the state to 'SEARCH'.
-        if (RESULT_BACKSTACK.equals(entryName)) mFragmentState = FS_SEARCH;
+        if (RESULT_BACKSTACK.equals(entryName)) setFragmentState(FS_SEARCH);
     }
 
     /**
@@ -1205,7 +1212,7 @@ public class SettingsSearchCoordinator
      * @param query The search query the user entered.
      * @param callback The callback function to be executed when results are available.
      */
-    private void performSearch(String query, SearchCallback callback) {
+    void performSearch(String query, SearchCallback callback) {
         if (mSearchRunnable != null) {
             // Debouncing to avoid initiating search for each keystroke entered fast.
             // We sets some delay before initiating search (see postDelayed() below) so that
@@ -1346,7 +1353,7 @@ public class SettingsSearchCoordinator
     }
 
     private void enterResultState() {
-        mFragmentState = FS_RESULTS;
+        setFragmentState(FS_RESULTS);
         if (mUseMultiColumn) {
             mActivity.findViewById(R.id.search_query).clearFocus();
         } else {

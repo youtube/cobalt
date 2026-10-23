@@ -490,7 +490,7 @@ rtc_library("rtp_packetizer_av1_test_helper") {
 
 if (rtc_include_tests) {
   if (!build_with_chromium) {
-    rtc_executable("test_packet_masks_metrics") {
+    rtc_test("test_packet_masks_metrics") {
       testonly = true
 
       sources = [
@@ -503,7 +503,6 @@ if (rtc_include_tests) {
         "..:module_fec_api",
         "../../rtc_base:checks",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
       ]

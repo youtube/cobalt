@@ -23,6 +23,7 @@
 #include "api/array_view.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
+#include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/test/create_frame_generator.h"
 #include "api/test/frame_generator_interface.h"
@@ -31,6 +32,7 @@
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
+#include "api/video/i420_buffer.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
@@ -267,6 +269,55 @@ TEST_P(TestVp9ImplForPixelFormat, CheckPresentationTimestamp) {
   ASSERT_TRUE(encoded_frame.PresentationTimestamp().has_value());
   EXPECT_EQ(kPresentationTimestamp.us(),
             encoded_frame.PresentationTimestamp()->us());
+}
+
+TEST_F(TestVp9Impl, RejectsI420FramesWithUnequalChromaStrides) {
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            encoder_->InitEncode(&codec_settings_, kSettings));
+
+  auto buffer = I420Buffer::Create(
+      /*width=*/kWidth,
+      /*height=*/kHeight,
+      /*stride_y=*/kWidth,
+      /*stride_u=*/(kWidth + 1) / 2,
+      /*stride_v=*/(kWidth + 1) / 2 + 1);
+
+  VideoFrame frame = VideoFrame::Builder()
+                         .set_video_frame_buffer(buffer)
+                         .set_rtp_timestamp(0)
+                         .build();
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_ERROR, encoder_->Encode(frame, nullptr));
+}
+
+TEST_F(TestVp9Impl, RejectsNativeFramesWithUnequalChromaStrides) {
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
+            encoder_->InitEncode(&codec_settings_, kSettings));
+
+  class FakeNativeBuffer : public VideoFrameBuffer {
+   public:
+    FakeNativeBuffer(int width, int height) : width_(width), height_(height) {}
+    Type type() const override { return Type::kNative; }
+    int width() const override { return width_; }
+    int height() const override { return height_; }
+    scoped_refptr<I420BufferInterface> ToI420() override {
+      return I420Buffer::Create(width_, height_, width_, (width_ + 1) / 2,
+                                (width_ + 1) / 2 + 1);
+    }
+
+   private:
+    int width_;
+    int height_;
+  };
+
+  auto buffer = make_ref_counted<FakeNativeBuffer>(kWidth, kHeight);
+
+  VideoFrame frame = VideoFrame::Builder()
+                         .set_video_frame_buffer(buffer)
+                         .set_rtp_timestamp(0)
+                         .build();
+
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_ERROR, encoder_->Encode(frame, nullptr));
 }
 
 TEST_F(TestVp9Impl, SwitchInputPixelFormatsWithoutReconfigure) {

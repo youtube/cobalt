@@ -565,11 +565,6 @@ void PerformBasicParameterSanityChecks(const SimulationSettings& settings) {
         "Error: The aec dump file cannot be specified "
         "together with input wav files!\n");
 
-    ReportConditionalErrorAndExit(
-        !!settings.aec_dump_input_string,
-        "Error: The aec dump input string cannot be specified "
-        "together with input wav files!\n");
-
     ReportConditionalErrorAndExit(!!settings.artificial_nearend_filename,
                                   "Error: The artificial nearend cannot be "
                                   "specified together with input wav files!\n");
@@ -585,13 +580,8 @@ void PerformBasicParameterSanityChecks(const SimulationSettings& settings) {
         "must be specified if the reverse output wav filename is specified!\n");
   } else {
     ReportConditionalErrorAndExit(
-        !settings.aec_dump_input_filename && !settings.aec_dump_input_string,
-        "Error: Either the aec dump input file, the wav "
-        "input file or the aec dump input string must be specified!\n");
-    ReportConditionalErrorAndExit(
-        settings.aec_dump_input_filename && settings.aec_dump_input_string,
-        "Error: The aec dump input file cannot be specified together with the "
-        "aec dump input string!\n");
+        !settings.aec_dump_input_filename,
+        "Error: The aec dump input file must be specified!\n");
   }
 
   ReportConditionalErrorAndExit(settings.use_aec && !(*settings.use_aec) &&
@@ -857,7 +847,7 @@ int RunSimulation(
   RTC_CHECK(audio_processing);
 
   std::unique_ptr<AudioProcessingSimulator> processor;
-  if (settings.aec_dump_input_filename || settings.aec_dump_input_string) {
+  if (settings.aec_dump_input_filename) {
     processor = std::make_unique<AecDumpBasedSimulator>(
         settings, std::move(audio_processing));
   } else {

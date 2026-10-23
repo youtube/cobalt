@@ -58,6 +58,10 @@
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
 #include "chrome/browser/profiles/profile.h"
+
+#if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
+#include "chrome/browser/downgrade/downgrade_manager_delegate_impl.h"  // nogncheck
+#endif
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/profiles/profiles_state.h"
@@ -339,6 +343,13 @@
 #include "chrome/browser/chrome_browser_main_extra_parts_linux.h"
 #elif BUILDFLAG(IS_OZONE)
 #include "chrome/browser/chrome_browser_main_extra_parts_ozone.h"
+#endif
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+#include "chrome/browser/enterprise/platform_auth/platform_auth_policy_observer.h"
+#endif
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
 #endif
 
 namespace {
@@ -1493,6 +1504,23 @@ void ChromeBrowserMainParts::PreProfileInit() {
 #endif
 
   media_router::ChromeMediaRouterFactory::DoPlatformInit();
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  // Start up the platform auth SSO policy observer.
+  if (auto* local_state = g_browser_process->local_state(); local_state) {
+    platform_auth_policy_observer_ =
+        std::make_unique<PlatformAuthPolicyObserver>(local_state);
+  }
+#elif BUILDFLAG(IS_ANDROID)
+  // TODO: b/484014627 - once the feature flag is cleaned-up merge this with the
+  // block above.
+  if (base::FeatureList::IsEnabled(enterprise_auth::kAndroidEntraSSO) &&
+      g_browser_process->local_state()) {
+    platform_auth_policy_observer_ =
+        std::make_unique<PlatformAuthPolicyObserver>(
+            g_browser_process->local_state());
+  }
+#endif
 }
 
 void ChromeBrowserMainParts::CallPostProfileInit(Profile* profile) {
@@ -1757,9 +1785,12 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING) && !BUILDFLAG(IS_ANDROID)
   // Begin relaunch processing immediately if User Data migration is required
   // to handle a version downgrade.
-  if (downgrade_manager_.PrepareUserDataDirectoryForCurrentVersion(
-          user_data_dir_)) {
-    return CHROME_RESULT_CODE_DOWNGRADE_AND_RELAUNCH;
+  {
+    downgrade::DowngradeManagerDelegateImpl downgrade_delegate;
+    if (downgrade_manager_.PrepareUserDataDirectoryForCurrentVersion(
+            user_data_dir_, &downgrade_delegate)) {
+      return CHROME_RESULT_CODE_DOWNGRADE_AND_RELAUNCH;
+    }
   }
   downgrade_manager_.UpdateLastVersion(user_data_dir_);
 #endif
@@ -1826,12 +1857,6 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // TODO(rlp): Do this on a separate thread. See http://crbug.com/99075.
   browser_process_->profile_manager()->AutoloadProfiles();
 #endif
-
-  // The initial profile load is complete. From this point, profiles are
-  // intended to be loaded asynchronously. Ideally, profiles should be loaded
-  // asynchronously even before this call, but this would require significant
-  // changes because there is no main loop yet.
-  browser_process_->profile_manager()->UnblockAsyncLoading();
 
   // Post-profile init ---------------------------------------------------------
 
@@ -2050,11 +2075,22 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   browser_creator_.reset();
 #endif  // BUILDFLAG(IS_ANDROID)
 
+  // The initial profile loads are complete (initial profile + last opened
+  // profiles). From this point, profiles are intended to be loaded
+  // asynchronously. Ideally, all profiles should be loaded asynchronously even
+  // before this call, but this would require significant changes because there
+  // is no main loop yet.
+  browser_process_->profile_manager()->UnblockAsyncLoading();
+
   PostBrowserStart();
 
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
   // Clean up old user data directory, snapshots and disk cache directory.
-  downgrade_manager_.DeleteMovedUserDataSoon(user_data_dir_);
+  {
+    downgrade::DowngradeManagerDelegateImpl downgrade_delegate;
+    downgrade_manager_.DeleteMovedUserDataSoon(user_data_dir_,
+                                               &downgrade_delegate);
+  }
 #endif
 
   // This should be invoked as close as possible to the start of the browser's
@@ -2157,6 +2193,12 @@ void ChromeBrowserMainParts::PostMainMessageLoopRun() {
 
   publisher_host_factory_resetter_.reset();
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  // The `ProfileManager` has been destroyed, so no new platform authentication
+  // requests will be created.
+  platform_auth_policy_observer_.reset();
+#endif
 }
 
 void ChromeBrowserMainParts::PostDestroyThreads() {
@@ -2209,7 +2251,8 @@ void ChromeBrowserMainParts::PostDestroyThreads() {
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
   if (result_code_ == CHROME_RESULT_CODE_DOWNGRADE_AND_RELAUNCH) {
     // Process a pending User Data downgrade before restarting.
-    downgrade_manager_.ProcessDowngrade(user_data_dir_);
+    downgrade::DowngradeManagerDelegateImpl downgrade_delegate;
+    downgrade_manager_.ProcessDowngrade(user_data_dir_, &downgrade_delegate);
 
     // It's impossible for there to also be a user-driven relaunch since the
     // browser never fully starts in this case.

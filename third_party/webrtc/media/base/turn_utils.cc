@@ -12,8 +12,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/transport/stun.h"
 #include "rtc_base/byte_order.h"
 
@@ -32,7 +32,7 @@ bool IsTurnSendIndicationPacket(const uint8_t* data, size_t length) {
     return false;
   }
 
-  uint16_t type = GetBE16(ArrayView<const uint8_t>(data, 2));
+  uint16_t type = GetBE16(std::span<const uint8_t>(data, 2));
   return (type == TURN_SEND_INDICATION);
 }
 
@@ -42,7 +42,7 @@ bool UnwrapTurnPacket(const uint8_t* packet,
                       size_t packet_size,
                       size_t* content_position,
                       size_t* content_size) {
-  ArrayView<const uint8_t> data_view(packet, packet_size);
+  std::span<const uint8_t> data_view(packet, packet_size);
   if (IsTurnChannelData(packet, packet_size)) {
     // Turn Channel Message header format.
     //   0                   1                   2                   3

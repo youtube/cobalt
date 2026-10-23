@@ -31,7 +31,7 @@ namespace webrtc {
 TEST(UpdateDbMetricDeathTest, NullValue) {
   std::array<float, kFftLengthBy2Plus1> value;
   value.fill(0.f);
-  EXPECT_DEATH(aec3::UpdateDbMetric(value, nullptr), "");
+  EXPECT_DEATH(UpdateDbMetric(value, nullptr), "");
 }
 
 #endif
@@ -46,7 +46,7 @@ TEST(UpdateDbMetric, Updating) {
   std::fill(value.begin(), value.begin() + 32, kValue0);
   std::fill(value.begin() + 32, value.begin() + 64, kValue1);
 
-  aec3::UpdateDbMetric(value, &statistic);
+  UpdateDbMetric(value, &statistic);
   EXPECT_FLOAT_EQ(kValue0, statistic[0].sum_value);
   EXPECT_FLOAT_EQ(kValue0, statistic[0].ceil_value);
   EXPECT_FLOAT_EQ(kValue0, statistic[0].floor_value);
@@ -54,7 +54,7 @@ TEST(UpdateDbMetric, Updating) {
   EXPECT_FLOAT_EQ(kValue1, statistic[1].ceil_value);
   EXPECT_FLOAT_EQ(kValue1, statistic[1].floor_value);
 
-  aec3::UpdateDbMetric(value, &statistic);
+  UpdateDbMetric(value, &statistic);
   EXPECT_FLOAT_EQ(2.f * kValue0, statistic[0].sum_value);
   EXPECT_FLOAT_EQ(kValue0, statistic[0].ceil_value);
   EXPECT_FLOAT_EQ(kValue0, statistic[0].floor_value);
@@ -78,26 +78,26 @@ TEST(TransformDbMetricForReporting, DbFsScaling) {
   EXPECT_NEAR(offset, -90.3f, 0.1f);
   EXPECT_EQ(
       static_cast<int>(30.3f),
-      aec3::TransformDbMetricForReporting(
-          true, 0.f, 90.f, offset, 1.f / (kBlockSize * kBlockSize), X2[0]));
+      TransformDbMetricForReporting(true, 0.f, 90.f, offset,
+                                    1.f / (kBlockSize * kBlockSize), X2[0]));
 }
 
 // Verifies that the TransformDbMetricForReporting method is able to properly
 // limit the output.
 TEST(TransformDbMetricForReporting, Limits) {
-  EXPECT_EQ(0, aec3::TransformDbMetricForReporting(false, 0.f, 10.f, 0.f, 1.f,
-                                                   0.001f));
-  EXPECT_EQ(10, aec3::TransformDbMetricForReporting(false, 0.f, 10.f, 0.f, 1.f,
-                                                    100.f));
+  EXPECT_EQ(0,
+            TransformDbMetricForReporting(false, 0.f, 10.f, 0.f, 1.f, 0.001f));
+  EXPECT_EQ(10,
+            TransformDbMetricForReporting(false, 0.f, 10.f, 0.f, 1.f, 100.f));
 }
 
 // Verifies that the TransformDbMetricForReporting method is able to properly
 // negate output.
 TEST(TransformDbMetricForReporting, Negate) {
-  EXPECT_EQ(10, aec3::TransformDbMetricForReporting(true, -20.f, 20.f, 0.f, 1.f,
-                                                    0.1f));
-  EXPECT_EQ(-10, aec3::TransformDbMetricForReporting(true, -20.f, 20.f, 0.f,
-                                                     1.f, 10.f));
+  EXPECT_EQ(10,
+            TransformDbMetricForReporting(true, -20.f, 20.f, 0.f, 1.f, 0.1f));
+  EXPECT_EQ(-10,
+            TransformDbMetricForReporting(true, -20.f, 20.f, 0.f, 1.f, 10.f));
 }
 
 // Verify the Update functionality of DbMetric.

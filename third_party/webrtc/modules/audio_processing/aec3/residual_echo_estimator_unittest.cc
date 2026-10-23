@@ -16,10 +16,10 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <tuple>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -122,7 +122,7 @@ class ResidualEchoEstimatorTest {
                         R2_, R2_unbounded_);
   }
 
-  ArrayView<const std::array<float, kFftLengthBy2Plus1>> R2() const {
+  std::span<const std::array<float, kFftLengthBy2Plus1>> R2() const {
     return R2_;
   }
 

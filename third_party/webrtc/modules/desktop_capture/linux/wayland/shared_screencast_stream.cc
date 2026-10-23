@@ -654,12 +654,12 @@ void SharedScreenCastStreamPrivate::StopAndCleanupStream() {
     pw_stream_ = nullptr;
 
     {
-      MutexLock lock(&queue_lock_);
-      queue_.Reset();
-    }
-    {
       MutexLock latest_frame_lock(&latest_frame_lock_);
       latest_available_frame_ = nullptr;
+    }
+    {
+      MutexLock lock(&queue_lock_);
+      queue_.Reset();
     }
   }
 
@@ -681,7 +681,7 @@ std::unique_ptr<SharedDesktopFrame>
 SharedScreenCastStreamPrivate::CaptureFrame() {
   MutexLock latest_frame_lock(&latest_frame_lock_);
 
-  if (!pw_stream_ || !latest_available_frame_) {
+  if (!latest_available_frame_) {
     return std::unique_ptr<SharedDesktopFrame>{};
   }
 

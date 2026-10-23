@@ -70,8 +70,6 @@ class SystemDisplayGetDisplayLayoutFunction
   ~SystemDisplayGetDisplayLayoutFunction() override = default;
   ResponseAction Run() override;
   bool ShouldRestrictToKioskAndWebUI() override;
-
-  void Response(std::vector<api::system_display::DisplayLayout> display_layout);
 };
 
 class SystemDisplaySetDisplayPropertiesFunction
@@ -96,8 +94,6 @@ class SystemDisplaySetDisplayLayoutFunction
  protected:
   ~SystemDisplaySetDisplayLayoutFunction() override = default;
   ResponseAction Run() override;
-
-  void Response(std::optional<std::string> error);
 };
 
 class SystemDisplayEnableUnifiedDesktopFunction

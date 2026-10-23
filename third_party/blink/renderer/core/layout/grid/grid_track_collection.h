@@ -148,9 +148,9 @@ class CORE_EXPORT GridRangeBuilder {
   Vector<TrackBoundaryToRangePair, 16> end_lines_;
 };
 
-class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
-  USING_FAST_MALLOC(GridLayoutTrackCollection);
-
+class CORE_EXPORT GridLayoutTrackCollection
+    : public GarbageCollected<GridLayoutTrackCollection>,
+      public GridTrackCollectionBase {
  public:
   struct SetGeometry {
     explicit SetGeometry(LayoutUnit offset, wtf_size_t track_count = 0)
@@ -159,6 +159,9 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
     LayoutUnit offset;
     wtf_size_t track_count;
   };
+
+  explicit GridLayoutTrackCollection(GridTrackSizingDirection track_direction)
+      : track_direction_(track_direction) {}
 
   GridLayoutTrackCollection() = delete;
 
@@ -196,7 +199,10 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
   LayoutUnit MajorBaseline(wtf_size_t set_index) const;
   LayoutUnit MinorBaseline(wtf_size_t set_index) const;
 
-  // Increase by |delta| the offset of every set with index > |set_index|.
+  // Increase by `delta` the offset of the set at `set_index`.
+  void AdjustSingleSetOffset(wtf_size_t set_index, LayoutUnit delta);
+
+  // Increase by `delta` the offset of all sets starting from `set_index`.
   void AdjustSetOffsets(wtf_size_t set_index, LayoutUnit delta);
 
   // Returns the total size of all sets in the collection.
@@ -207,7 +213,7 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
 
   // Creates a track collection containing every |Range| with index in the range
   // [begin, end], including their respective |SetGeometry| and baselines.
-  GridLayoutTrackCollection CreateSubgridTrackCollection(
+  GridLayoutTrackCollection* CreateSubgridTrackCollection(
       wtf_size_t begin_range_index,
       wtf_size_t end_range_index,
       LayoutUnit subgrid_gutter_size,
@@ -231,6 +237,8 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
     return collapsed_track_indexes_;
   }
 
+  virtual void Trace(Visitor* visitor) const {}
+
  protected:
   friend class GridLanesLayoutAlgorithmTest;
 
@@ -238,9 +246,6 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
     Vector<LayoutUnit, 16> major;
     Vector<LayoutUnit, 16> minor;
   };
-
-  explicit GridLayoutTrackCollection(GridTrackSizingDirection track_direction)
-      : track_direction_(track_direction) {}
 
   // Checks whether any set in the range [begin, end) is indefinite.
   bool IsSpanningIndefiniteSet(wtf_size_t begin_set_index,
@@ -357,28 +362,16 @@ struct CORE_EXPORT GridSet {
   LayoutUnit fit_content_limit;
   LayoutUnit item_incurred_increase;
 
-  // Baseline tracking for grid-lanes layout on the stacking axis:
-  // - first_item_stacking_position: Position of the first item in this set,
-  //   used to decide whether this is the first item for baseline calculation
-  // - last_item_stacking_position: Position of the last item in this set,
-  //   used to decide whether this is the last item for baseline calculation
-  // - grid_lanes_first_baseline: The first baseline value for this set
-  // - grid_lanes_last_baseline: The last baseline value for this set
-  std::optional<LayoutUnit> first_item_stacking_position;
-  std::optional<LayoutUnit> grid_lanes_first_baseline;
-  std::optional<LayoutUnit> last_item_stacking_position;
-  std::optional<LayoutUnit> grid_lanes_last_baseline;
-
   bool is_infinitely_growable : 1;
 };
 
 class CORE_EXPORT GridSizingTrackCollection final
     : public GridLayoutTrackCollection {
-  USING_FAST_MALLOC(GridSizingTrackCollection);
-
  public:
   template <bool is_const>
   class CORE_EXPORT SetIteratorBase {
+    STACK_ALLOCATED();
+
    public:
     using TrackCollectionPtr =
         typename std::conditional<is_const,
@@ -423,9 +416,9 @@ class CORE_EXPORT GridSizingTrackCollection final
   typedef SetIteratorBase<true> ConstSetIterator;
 
   GridSizingTrackCollection() = delete;
-  GridSizingTrackCollection(GridSizingTrackCollection&&) = default;
+  GridSizingTrackCollection(GridSizingTrackCollection&&) = delete;
   GridSizingTrackCollection(const GridSizingTrackCollection&) = delete;
-  GridSizingTrackCollection& operator=(GridSizingTrackCollection&&) = default;
+  GridSizingTrackCollection& operator=(GridSizingTrackCollection&&) = delete;
   GridSizingTrackCollection& operator=(const GridSizingTrackCollection&) =
       delete;
 

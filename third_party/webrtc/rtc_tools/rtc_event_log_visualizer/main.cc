@@ -251,7 +251,7 @@ int main(int argc, char* argv[]) {
        {"incoming_bitrate", "outgoing_bitrate", "incoming_ecn_feedback",
         "outgoing_ecn_feedback"}},
       {"scream",
-       {"scream_delay_estimates", "scream_ref_window",
+       {"scream_ref_window", "simulated_scream_delay",
         "simulated_scream_bitrates", "simulated_scream_ref_window",
         "simulated_scream_ratios", "network_delay_feedback", "pacer_delay"}}};
 

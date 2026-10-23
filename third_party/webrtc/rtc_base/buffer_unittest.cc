@@ -14,10 +14,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -36,7 +36,7 @@ auto kTestData =
                             0xa, 0xb, 0xc, 0xd, 0xe, 0xf});
 
 uint8_t* TestDataAtIndex(int index) {
-  return ArrayView<uint8_t>(kTestData).subspan(index).data();
+  return std::span<uint8_t>(kTestData).subspan(index).data();
 }
 
 void TestBuf(const Buffer& b1, size_t size, size_t capacity) {
@@ -109,7 +109,7 @@ TEST(BufferTest, TestAppendData) {
   EXPECT_EQ(buf, Buffer(exp));
   Buffer buf2;
   buf2.AppendData(buf);
-  buf2.AppendData(ArrayView<uint8_t>(buf));
+  buf2.AppendData(std::span<uint8_t>(buf));
   const int8_t exp2[] = {0x4, 0x5, 0x6, 0xa, 0xb, 0x4, 0x5, 0x6, 0xa, 0xb};
   EXPECT_EQ(buf2, Buffer(exp2));
 }
@@ -127,7 +127,7 @@ TEST(BufferTest, TestSetAndAppendWithUnknownArg) {
   buf.AppendData(TestDataContainer());
   EXPECT_EQ(6u, buf.size());
   EXPECT_EQ(0, memcmp(buf.data(), kTestData.data(), 3));
-  EXPECT_EQ(0, memcmp(ArrayView<uint8_t>(buf).subspan(3).data(),
+  EXPECT_EQ(0, memcmp(std::span<uint8_t>(buf).subspan(3).data(),
                       kTestData.data(), 3));
   EXPECT_THAT(buf, ElementsAre(0, 1, 2, 0, 1, 2));
 }
@@ -250,7 +250,7 @@ TEST(BufferTest, TestClear) {
 }
 
 TEST(BufferTest, TestLambdaSetAppend) {
-  auto setter = [](ArrayView<uint8_t> av) {
+  auto setter = [](std::span<uint8_t> av) {
     for (int i = 0; i != 15; ++i)
       av[i] = kTestData[i];
     return 15;
@@ -270,7 +270,7 @@ TEST(BufferTest, TestLambdaSetAppend) {
 }
 
 TEST(BufferTest, TestLambdaSetAppendSigned) {
-  auto setter = [](ArrayView<int8_t> av) {
+  auto setter = [](std::span<int8_t> av) {
     for (int i = 0; i != 15; ++i)
       av[i] = kTestData[i];
     return 15;
@@ -290,7 +290,7 @@ TEST(BufferTest, TestLambdaSetAppendSigned) {
 }
 
 TEST(BufferTest, TestLambdaAppendEmpty) {
-  auto setter = [](ArrayView<uint8_t> av) {
+  auto setter = [](std::span<uint8_t> av) {
     for (int i = 0; i != 15; ++i)
       av[i] = kTestData[i];
     return 15;
@@ -308,7 +308,7 @@ TEST(BufferTest, TestLambdaAppendEmpty) {
 }
 
 TEST(BufferTest, TestLambdaAppendPartial) {
-  auto setter = [](ArrayView<uint8_t> av) {
+  auto setter = [](std::span<uint8_t> av) {
     for (int i = 0; i != 7; ++i)
       av[i] = kTestData[i];
     return 7;
@@ -324,7 +324,7 @@ TEST(BufferTest, TestLambdaAppendPartial) {
 
 TEST(BufferTest, TestMutableLambdaSetAppend) {
   uint8_t magic_number = 17;
-  auto setter = [magic_number](ArrayView<uint8_t> av) mutable {
+  auto setter = [magic_number](std::span<uint8_t> av) mutable {
     for (int i = 0; i != 15; ++i) {
       av[i] = magic_number;
       ++magic_number;
@@ -484,7 +484,7 @@ TEST(ZeroOnFreeBufferTest, TestZeroOnSetData) {
   const size_t old_capacity = buf.capacity();
   constexpr size_t offset = 1;
   // Pointer to the last five bytes of the underlying buffer.
-  auto to_be_zeroed = ArrayView<const uint8_t>(buf).subspan(2);
+  auto to_be_zeroed = std::span<const uint8_t>(buf).subspan(2);
   buf.SetData(TestDataAtIndex(offset), 2);
   // Sanity checks to make sure the underlying heap memory was not reallocated.
   EXPECT_EQ(old_data, buf.data());
@@ -498,7 +498,7 @@ TEST(ZeroOnFreeBufferTest, TestZeroOnSetData) {
 
 TEST(ZeroOnFreeBufferTest, TestZeroOnSetDataFromSetter) {
   static constexpr size_t offset = 1;
-  const auto setter = [](ArrayView<uint8_t> av) {
+  const auto setter = [](std::span<uint8_t> av) {
     for (int i = 0; i != 2; ++i)
       av[i] = kTestData[offset + i];
     return 2;
@@ -506,7 +506,7 @@ TEST(ZeroOnFreeBufferTest, TestZeroOnSetDataFromSetter) {
 
   ZeroOnFreeBuffer<uint8_t> buf(kTestData.data(), 7);
   const uint8_t* old_data = buf.data();
-  auto to_be_zeroed = ArrayView<const uint8_t>(buf).subspan(2);
+  auto to_be_zeroed = std::span<const uint8_t>(buf).subspan(2);
   const size_t old_capacity = buf.capacity();
   buf.SetData(2, setter);
   // Sanity checks to make sure the underlying heap memory was not reallocated.
@@ -521,7 +521,7 @@ TEST(ZeroOnFreeBufferTest, TestZeroOnSetDataFromSetter) {
 
 TEST(ZeroOnFreeBufferTest, TestZeroOnSetSize) {
   ZeroOnFreeBuffer<uint8_t> buf(kTestData.data(), 7);
-  auto to_be_zeroed = ArrayView<const uint8_t>(buf).subspan(2);
+  auto to_be_zeroed = std::span<const uint8_t>(buf).subspan(2);
   const uint8_t* old_data = buf.data();
   const size_t old_capacity = buf.capacity();
   buf.SetSize(2);
@@ -537,7 +537,7 @@ TEST(ZeroOnFreeBufferTest, TestZeroOnSetSize) {
 
 TEST(ZeroOnFreeBufferTest, TestZeroOnClear) {
   ZeroOnFreeBuffer<uint8_t> buf(kTestData.data(), 7);
-  auto to_be_zeroed = ArrayView<const uint8_t>(buf);
+  auto to_be_zeroed = std::span<const uint8_t>(buf);
   const uint8_t* old_data = buf.data();
   const size_t old_capacity = buf.capacity();
   buf.Clear();

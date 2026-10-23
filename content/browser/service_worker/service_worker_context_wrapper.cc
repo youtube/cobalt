@@ -41,7 +41,6 @@
 #include "content/browser/service_worker/service_worker_quota_client.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/storage_partition_impl.h"
-#include "content/browser/webui/web_ui_controller_factory_registry.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -52,11 +51,7 @@
 #include "content/public/browser/service_worker_registration_information.h"
 #include "content/public/browser/service_worker_running_info.h"
 #include "content/public/browser/storage_usage_info.h"
-#include "content/public/browser/web_ui_url_loader_factory.h"
-#include "content/public/browser/webui_config.h"
-#include "content/public/browser/webui_config_map.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/origin_util.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -141,9 +136,11 @@ void DidStartWorker(
     return;
   }
   EmbeddedWorkerInstance* instance = version->embedded_worker();
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   std::move(info_callback)
-      .Run(version->version_id(), instance->process_id(), instance->thread_id(),
-           version->worker_host()->token());
+      .Run(version->version_id(),
+           ChildProcessId::FromUnsafeValue(instance->process_id()),
+           instance->thread_id(), version->worker_host()->token());
 }
 
 void FoundRegistrationForStartWorker(
@@ -475,7 +472,7 @@ void ServiceWorkerContextWrapper::OnStarting(int64_t version_id) {
 void ServiceWorkerContextWrapper::OnStarted(
     int64_t version_id,
     const GURL& scope,
-    int process_id,
+    ChildProcessId process_id,
     const GURL& script_url,
     const blink::ServiceWorkerToken& token,
     const blink::StorageKey& key) {
@@ -488,9 +485,11 @@ void ServiceWorkerContextWrapper::OnStarted(
   ServiceWorkerRunningInfo::ServiceWorkerVersionStatus version_status =
       version ? GetRunningInfoVersionStatusForStatus(version->status())
               : ServiceWorkerRunningInfo::ServiceWorkerVersionStatus::kUnknown;
+  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   auto insertion_result = running_service_workers_.insert(std::make_pair(
-      version_id, ServiceWorkerRunningInfo(script_url, scope, key, process_id,
-                                           token, version_status)));
+      version_id, ServiceWorkerRunningInfo(script_url, scope, key,
+                                           process_id.GetUnsafeValue(), token,
+                                           version_status)));
   DCHECK(insertion_result.second);
 
   const auto& running_info = insertion_result.first->second;
@@ -577,7 +576,8 @@ void ServiceWorkerContextWrapper::
   for (const auto& kv : running_service_workers_) {
     for (auto& observer : core_sync_observer_list_->observers) {
       observer.OnStoppedSync(/*version_id=*/kv.first,
-                             /*scope=*/kv.second.scope);
+                             /*scope=*/kv.second.scope,
+                             /*service_worker_token=*/kv.second.token);
     }
   }
 }
@@ -1084,7 +1084,9 @@ bool ServiceWorkerContextWrapper::IsLiveServiceWorkerWithToken(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto* version = GetLiveServiceWorker(service_worker_version_id);
   return version && version->worker_host() &&
-         version->worker_host()->token() == token;
+         version->worker_host()->token() == token &&
+         (version->running_status() == blink::EmbeddedWorkerStatus::kStarting ||
+          version->running_status() == blink::EmbeddedWorkerStatus::kRunning);
 }
 
 service_manager::InterfaceProvider&
@@ -1956,44 +1958,6 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForBrowserInitiatedRequest(
       loader_factory_bundle_info =
           context()->loader_factory_bundle_for_update_check()->Clone();
 
-  if (auto* config = content::WebUIConfigMap::GetInstance().GetConfig(
-          browser_context(), scope)) {
-    // If this is a Service Worker for a WebUI, the WebUI's URLDataSource
-    // needs to be registered. Registering a URLDataSource allows the
-    // WebUIURLLoaderFactory below to serve the resources for the WebUI. We
-    // register the URLDataSource here because the WebUI's resources are
-    // needed for the Service Worker update check to be performed which
-    // fetches the service worker script.
-    //
-    // This is similar to how we create a `WebUI` object in
-    // RenderFrameHostManager::GetFrameHostForNavigation(). Creating a `WebUI`
-    // also creates a `WebUIController` which register the URLDataSource for
-    // the WebUI which allows the navigation to be served correctly. We don't
-    // create a `WebUI` or a `WebUIController` for WebUI Service Workers so we
-    // register the URLDataSource directly.
-    if (base::FeatureList::IsEnabled(
-            features::kEnableServiceWorkersForChromeScheme) &&
-        scope.scheme() == kChromeUIScheme) {
-      config->RegisterURLDataSource(browser_context());
-      static_cast<blink::PendingURLLoaderFactoryBundle*>(
-          loader_factory_bundle_info.get())
-          ->pending_scheme_specific_factories()
-          .emplace(kChromeUIScheme, CreateWebUIServiceWorkerLoaderFactory(
-                                        browser_context(), kChromeUIScheme,
-                                        base::flat_set<std::string>()));
-    } else if (base::FeatureList::IsEnabled(
-                   features::kEnableServiceWorkersForChromeUntrusted) &&
-               scope.scheme() == kChromeUIUntrustedScheme) {
-      config->RegisterURLDataSource(browser_context());
-      static_cast<blink::PendingURLLoaderFactoryBundle*>(
-          loader_factory_bundle_info.get())
-          ->pending_scheme_specific_factories()
-          .emplace(kChromeUIUntrustedScheme,
-                   CreateWebUIServiceWorkerLoaderFactory(
-                       browser_context(), kChromeUIUntrustedScheme,
-                       base::flat_set<std::string>()));
-    }
-  }
 
   static_cast<blink::PendingURLLoaderFactoryBundle*>(
       loader_factory_bundle_info.get())

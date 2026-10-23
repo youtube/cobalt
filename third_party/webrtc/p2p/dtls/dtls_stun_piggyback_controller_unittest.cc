@@ -13,11 +13,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/transport/stun.h"
 #include "p2p/dtls/dtls_utils.h"
 #include "rtc_base/byte_buffer.h"
@@ -63,7 +63,7 @@ const std::vector<uint8_t> empty = {};
 
 const std::vector<uint8_t> kPayload = {0x1, 0x2, 0x3};
 
-std::vector<uint32_t> FromAckAttribute(ArrayView<uint8_t> attr) {
+std::vector<uint32_t> FromAckAttribute(std::span<uint8_t> attr) {
   ByteBufferReader ack_reader(attr);
   std::vector<uint32_t> values;
   uint32_t value;
@@ -110,10 +110,10 @@ class DtlsStunPiggybackControllerTest : public ::testing::Test {
  protected:
   DtlsStunPiggybackControllerTest()
       : client_(
-            [this](ArrayView<const uint8_t> data) { ClientPacketSink(data); },
+            [this](std::span<const uint8_t> data) { ClientPacketSink(data); },
             [this](bool success) { ClientCompleteCallback(success); }),
         server_(
-            [this](ArrayView<const uint8_t> data) { ServerPacketSink(data); },
+            [this](std::span<const uint8_t> data) { ServerPacketSink(data); },
             [this](bool success) { ServerCompleteCallback(success); }),
         packet_(kPayload, SocketAddress(), std::nullopt) {}
 
@@ -127,7 +127,7 @@ class DtlsStunPiggybackControllerTest : public ::testing::Test {
       client_.ClearCachedPacketForTesting();
     }
     std::unique_ptr<StunByteStringAttribute> attr_data;
-    std::optional<ArrayView<uint8_t>> view_data;
+    std::optional<std::span<uint8_t>> view_data;
     if (auto data = client_.GetDataToPiggyback(type)) {
       attr_data = WrapInStun(STUN_ATTR_META_DTLS_IN_STUN, *data);
       view_data = attr_data->array_view();
@@ -160,7 +160,7 @@ class DtlsStunPiggybackControllerTest : public ::testing::Test {
       server_.ClearCachedPacketForTesting();
     }
     std::unique_ptr<StunByteStringAttribute> attr_data;
-    std::optional<ArrayView<uint8_t>> view_data;
+    std::optional<std::span<uint8_t>> view_data;
     if (auto data = server_.GetDataToPiggyback(type)) {
       attr_data = WrapInStun(STUN_ATTR_META_DTLS_IN_STUN, *data);
       view_data = attr_data->array_view();
@@ -195,8 +195,8 @@ class DtlsStunPiggybackControllerTest : public ::testing::Test {
   DtlsStunPiggybackController client_;
   DtlsStunPiggybackController server_;
 
-  MOCK_METHOD(void, ClientPacketSink, (ArrayView<const uint8_t>));
-  MOCK_METHOD(void, ServerPacketSink, (ArrayView<const uint8_t>));
+  MOCK_METHOD(void, ClientPacketSink, (std::span<const uint8_t>));
+  MOCK_METHOD(void, ServerPacketSink, (std::span<const uint8_t>));
 
   MOCK_METHOD(void, ClientCompleteCallback, (bool));
   MOCK_METHOD(void, ServerCompleteCallback, (bool));

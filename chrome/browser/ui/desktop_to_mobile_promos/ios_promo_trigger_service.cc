@@ -78,10 +78,28 @@ const syncer::DeviceInfo* IOSPromoTriggerService::GetIOSDeviceToRemind() {
   return preferred_device;
 }
 
+void IOSPromoTriggerService::OnTabStripModelChanged(
+    TabStripModel* tab_strip_model,
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) {
+  if (MobilePromoOnDesktopTypeEnabled(
+          MobilePromoOnDesktopPromoType::kTabGroups)) {
+    if (selection.active_tab_changed() && selection.new_tab &&
+        selection.new_tab->GetGroup().has_value()) {
+      // Trigger the Tab Groups promo if a user consults a tab within a group.
+      NotifyPromoShouldBeShown(desktop_to_mobile_promos::PromoType::kTabGroups);
+    }
+  }
+}
+
 void IOSPromoTriggerService::OnTabGroupChanged(const TabGroupChange& change) {
   if (MobilePromoOnDesktopTypeEnabled(
           MobilePromoOnDesktopPromoType::kTabGroups)) {
-    NotifyPromoShouldBeShown(desktop_to_mobile_promos::PromoType::kTabGroups);
+    if (change.type == TabGroupChange::kCreated ||
+        change.type == TabGroupChange::kVisualsChanged) {
+      // Trigger the Tab Groups promo if a user creates or edits a tab group.
+      NotifyPromoShouldBeShown(desktop_to_mobile_promos::PromoType::kTabGroups);
+    }
   }
 }
 
@@ -170,7 +188,16 @@ IOSPromoTriggerService::CreateNotificationPayload(
       title_id = IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_TITLE;
       body_id = IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_BODY;
       break;
-    default:
+    case desktop_to_mobile_promos::PromoType::kTabGroups:
+      title_id = IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_NOTIFICATION_TITLE;
+      body_id = IDS_IOS_DESKTOP_TAB_GROUPS_PROMO_NOTIFICATION_BODY;
+      break;
+    case desktop_to_mobile_promos::PromoType::kPriceTracking:
+      title_id = IDS_IOS_DESKTOP_PRICE_TRACKING_PROMO_NOTIFICATION_TITLE;
+      body_id = IDS_IOS_DESKTOP_PRICE_TRACKING_PROMO_NOTIFICATION_BODY;
+      break;
+    case desktop_to_mobile_promos::PromoType::kAddress:
+    case desktop_to_mobile_promos::PromoType::kPayment:
       NOTREACHED();
   }
 

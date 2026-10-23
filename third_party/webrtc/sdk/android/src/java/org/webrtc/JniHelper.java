@@ -11,6 +11,7 @@
 package org.webrtc;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -21,11 +22,7 @@ class JniHelper {
   // TODO(bugs.webrtc.org/8632): Remove.
   @CalledByNative
   static byte[] getStringBytes(String s) {
-    try {
-      return s.getBytes("ISO-8859-1");
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException("ISO-8859-1 is unsupported");
-    }
+    return s.getBytes(StandardCharsets.ISO_8859_1);
   }
 
   // TODO(bugs.webrtc.org/8632): Remove.

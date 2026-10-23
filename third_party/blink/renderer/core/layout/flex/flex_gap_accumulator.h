@@ -206,7 +206,8 @@ class CORE_EXPORT FlexGapAccumulator {
                                bool is_last_line,
                                LayoutUnit line_cross_start,
                                LayoutUnit line_cross_end,
-                               LayoutUnit container_main_end);
+                               LayoutUnit container_main_end,
+                               bool in_fragmentation = false);
 
   void PopulateMainGapForFirstItem(LayoutUnit cross_end);
 
@@ -232,12 +233,6 @@ class CORE_EXPORT FlexGapAccumulator {
   void SetEffectiveGapBetweenLines(LayoutUnit effective_gap) {
     effective_gap_between_lines_ = effective_gap;
   }
-
-  LayoutUnit EffectiveGapBetweenLines() const {
-    return effective_gap_between_lines_;
-  }
-
-  const Vector<MainGap>& MainGaps() const { return main_gaps_; }
 
   // In the flex algorithm, there are some cases where we need to suppress a row
   // gap (i.e. if a row gap is the last content in a fragment). In such cases,

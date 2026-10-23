@@ -241,7 +241,9 @@ class EslintTsTest(unittest.TestCase):
     self.assertTrue(_EXPECTED_STRING in str(context.exception))
 
     _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR = "Inconsistent method definition order in class %(className)s. Expected %(expectedOrder)s, found %(actualOrder)s"
-    _EXPECTED_INCORRECT_CLASS_NAME_ERROR = 'CrLitElement subclass %(className)s should end with the \'Element\' suffix'
+    _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR = 'Class name \'%(className)s\' should end with the \'Element\' suffix'
+    _EXPECTED_INCONSISTENT_CLASS_NAME_ERROR = 'Naming of class/dom pair %(className)s ↔ %(domName)s is inconsistent'
+    _EXPECTED_INCORRECT_DOM_NAME_SUFFIX_ERROR = 'DOM name \'%(domName)s\' should not end with the \'-element\' suffix'
     _EXPECTED_INCORRECT_DOLLAR_SIGN_NOTATION_ERROR = 'Use camelCase instead of dash-case for DOM ids, change this.$[\'%(dashCaseName)s\'] to this.$.%(camelCaseName)s'
     _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR = "Missing customElements.define(%(className)s.is, %(className)s) call"
     _EXPECTED_MISSING_STATIC_GET_IS_ERROR = "Missing 'static get is() {...}' for web component class %(className)s"
@@ -287,6 +289,9 @@ class EslintTsTest(unittest.TestCase):
             'lifecycleMethods': ', '.join(super_call_required_methods),
         },
         # Case 1.6
+        _EXPECTED_INCORRECT_DOM_NAME_SUFFIX_ERROR % {
+            'domName': 'test-error6-element',
+        },
         _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR % {
             'className':
                 'TestError6Element',
@@ -315,20 +320,25 @@ class EslintTsTest(unittest.TestCase):
             'name': '_otherEvent',
         },
         # Case 1.7
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestError7ElementFoo',
         },
         # Case 1.8
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestError8ElementFoo',
         },
         # Case 1.9
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestError9ElementFoo',
         },
         # Case 1.10
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestError10ElementFoo',
+        },
+        # Case 1.11
+        _EXPECTED_INCONSISTENT_CLASS_NAME_ERROR % {
+            'className': 'TestError11Element',
+            'domName': 'test-other-error11',
         },
     ]
     for e in errors:
@@ -352,7 +362,7 @@ class EslintTsTest(unittest.TestCase):
             'className': 'TestNoError1Element',
             'lifecycleMethods': ', '.join(super_call_required_methods)
         },
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestNoError1Element',
         },
         # Case 2.2
@@ -370,10 +380,13 @@ class EslintTsTest(unittest.TestCase):
             'className': 'TestNoError2Element',
             'lifecycleMethods': ', '.join(super_call_required_methods),
         },
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestNoError2Element',
         },
         # Case 2.3
+        _EXPECTED_INCORRECT_DOM_NAME_SUFFIX_ERROR % {
+            'domName': 'test-no-error3',
+        },
         _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
             'className': 'TestNoError3Element',
         },
@@ -396,8 +409,12 @@ class EslintTsTest(unittest.TestCase):
             'actualOrder':
                 '',
         },
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestNoError3Element',
+        },
+        _EXPECTED_INCONSISTENT_CLASS_NAME_ERROR % {
+            'className': 'TestNoError3Element',
+            'domName': 'test-no-error3',
         },
         _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR % {
             'eventName': 'bar-updated',
@@ -415,13 +432,49 @@ class EslintTsTest(unittest.TestCase):
             'name': '_otherEvent2',
         },
         # Case 2.4
-        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+        _EXPECTED_INCORRECT_CLASS_NAME_SUFFIX_ERROR % {
             'className': 'TestNoError4Element',
         },
     ]
     for e in non_errors:
       self.assertFalse(
           e in str(context.exception), f'Found unexpected error: {e}')
+
+  def testWebUiEslintPlugin_LitElementIncorrectFilenameSuffixCheck(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test(
+          ["with_webui_plugin_violations_incorrect_filename_suffix_element.ts"])
+
+    # Expected ESLint rule violation that should be part of the error output.
+    _EXPECTED_STRING = "@webui-eslint/lit-element-structure"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _EXPECTED_INCORRECT_FILE_NAME_SUFFIX_ERROR = "File name '%(filename)s' should not end with the '_element' suffix"
+    error = _EXPECTED_INCORRECT_FILE_NAME_SUFFIX_ERROR % {
+        'filename':
+            'with_webui_plugin_violations_incorrect_filename_suffix_element.ts',
+    }
+    self.assertTrue(
+        error in str(context.exception),
+        f'Didn\'t find expected error: {error}')
+
+  def testWebUiEslintPlugin_LitElementInconsistentFilenameCheck(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test(["with_webui_plugin_violations_inconsistent_file_name.ts"])
+
+    # Expected ESLint rule violation that should be part of the error output.
+    _EXPECTED_STRING = "@webui-eslint/lit-element-structure"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _EXPECTED_INCONSISTENT_FILE_NAME_ERROR = "Naming of file/%(referenceType)s pair %(filename)s ↔ %(referenceName)s is inconsistent"
+    error = _EXPECTED_INCONSISTENT_FILE_NAME_ERROR % {
+        'filename': 'with_webui_plugin_violations_inconsistent_file_name.ts',
+        'referenceType': 'DOM',
+        'referenceName': 'inconsistent-filename',
+    }
+    self.assertTrue(
+        error in str(context.exception),
+        f'Didn\'t find expected error: {error}')
 
   def testWebUiEslintPlugin_LitElementTemplateStructure(self):
     with self.assertRaises(RuntimeError) as context:
@@ -591,6 +644,10 @@ class EslintTsTest(unittest.TestCase):
 
     _INCORRECT_BOOLEAN_ERROR = "Incorrect assignment to property '%(propertyName)s' using boolean attribute expression '?%(attributeName)s='. Boolean attribute expressions should only be assigned to boolean properties. To bind to the truthiness of '%(propertyName)s', convert it to a boolean using '!!'"
 
+    _NO_TRUE_BINDING_ERROR = "Boolean attribute '%(attributeName)s' does not need to be bound to '${true}'. Use either '%(attributeName)s' or '.%(propertyName)s=\"${true}\"' instead"
+
+    _NO_FALSE_BINDING_ERROR = "Incorrect assignment to boolean attribute expression '?%(attributeName)s=' using '${false}'. Use property binding '.%(propertyName)s=\"${false}\"' instead"
+
     # The following strings *should* appear in the error output.
     errors = [
         _INCORRECT_ATTRIBUTE_ERROR % {
@@ -606,6 +663,18 @@ class EslintTsTest(unittest.TestCase):
         _INCORRECT_BOOLEAN_ERROR % {
             'attributeName': 'invalid',
             'propertyName': 'errorMessage',
+        },
+        _NO_TRUE_BINDING_ERROR % {
+            'attributeName': 'readonly',
+            'propertyName': 'readonly',
+        },
+        _NO_FALSE_BINDING_ERROR % {
+            'attributeName': 'disabled',
+            'propertyName': 'disabled',
+        },
+        _NO_FALSE_BINDING_ERROR % {
+            'attributeName': 'some-multi-word-attr',
+            'propertyName': 'someMultiWordAttr',
         },
     ]
     for e in errors:

@@ -13,8 +13,8 @@
 #include <stdint.h>
 
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -22,7 +22,7 @@ namespace webrtc {
 // Test memory set functions put values into memory in expected order.
 TEST(ByteOrderTest, TestSet) {
   uint8_t buf[8] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-  ArrayView<uint8_t> av(buf);
+  std::span<uint8_t> av(buf);
   Set8(av, 0, 0xfb);
   Set8(av, 1, 0x12);
   EXPECT_EQ(0xfb, buf[0]);
@@ -66,7 +66,7 @@ TEST(ByteOrderTest, TestSet) {
 // Test memory get functions get values from memory in expected order.
 TEST(ByteOrderTest, TestGet) {
   uint8_t buf[8];
-  ArrayView<const uint8_t> av(buf);
+  std::span<const uint8_t> av(buf);
   buf[0] = 0x01u;
   buf[1] = 0x23u;
   buf[2] = 0x45u;

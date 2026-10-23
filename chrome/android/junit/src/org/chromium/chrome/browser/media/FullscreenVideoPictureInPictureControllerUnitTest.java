@@ -33,9 +33,11 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.infobar.InfoBarContainer;
+import org.chromium.chrome.browser.media.FullscreenVideoPictureInPictureController.PipEntered;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.WebContentsObserver;
@@ -286,5 +288,96 @@ public class FullscreenVideoPictureInPictureControllerUnitTest {
 
         mController.onResume();
         verify(mActivity, times(1)).moveTaskToBack(true);
+    }
+
+    @Test
+    public void testOnEnteredPictureInPictureMode_Success() {
+        when(mTab.getWebContents()).thenReturn(mWebContents);
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                FullscreenVideoPictureInPictureController.ENTERED_HISTOGRAM,
+                                PipEntered.ENTERED)
+                        .build();
+
+        mController.onEnteredPictureInPictureMode();
+
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testOnEnteredPictureInPictureMode_NoActivityTab() {
+        mActivityTabProvider.setForTesting(null);
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                FullscreenVideoPictureInPictureController.ENTERED_HISTOGRAM,
+                                PipEntered.FAILED_NO_ACTIVITY_TAB)
+                        .build();
+
+        mController.onEnteredPictureInPictureMode();
+
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testOnEnteredPictureInPictureMode_NoWebContents() {
+        mActivityTabProvider.setForTesting(mTab); // Reset just in case
+        when(mTab.getWebContents()).thenReturn(null);
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                FullscreenVideoPictureInPictureController.ENTERED_HISTOGRAM,
+                                PipEntered.FAILED_NO_WEB_CONTENTS)
+                        .build();
+
+        mController.onEnteredPictureInPictureMode();
+
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testOnFrameworkExitedPictureInPicture() {
+        mActivityTabProvider.setForTesting(mTab); // Reset just in case
+        when(mTab.getWebContents()).thenReturn(mWebContents);
+
+        // Enter PiP first to set mLastOnEnteredTimeMillis.
+        mController.onEnteredPictureInPictureMode();
+
+        // Advance clock to simulate time passing.
+        ShadowSystemClock.advanceBy(1000, TimeUnit.MILLISECONDS);
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord(
+                                FullscreenVideoPictureInPictureController.DURATION_HISTOGRAM)
+                        .build();
+
+        mController.onFrameworkExitedPictureInPicture();
+
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testOnFrameworkExitedPictureInPicture_NotPiPed() {
+        mActivityTabProvider.setForTesting(mTab); // Reset just in case
+        when(mTab.getWebContents()).thenReturn(mWebContents);
+
+        // Do NOT enter PiP.
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords(
+                                FullscreenVideoPictureInPictureController.DURATION_HISTOGRAM)
+                        .expectNoRecords(
+                                FullscreenVideoPictureInPictureController.EXIT_REASON_HISTOGRAM)
+                        .build();
+
+        mController.onFrameworkExitedPictureInPicture();
+
+        watcher.assertExpected();
     }
 }

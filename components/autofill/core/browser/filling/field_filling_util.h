@@ -9,45 +9,57 @@
 #include <string>
 
 #include "base/containers/span.h"
-#include "components/autofill/core/browser/data_quality/addresses/address_normalizer.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/form_field_data.h"
 
 namespace autofill {
 
+class AddressNormalizer;
+
+struct FillingValueAndType {
+  FillingValueAndType();
+  FillingValueAndType(std::u16string value, FieldType filling_type);
+  FillingValueAndType(std::u16string value,
+                      std::optional<std::u16string> select_text,
+                      FieldType filling_type);
+  FillingValueAndType(const FillingValueAndType&);
+  FillingValueAndType(FillingValueAndType&&);
+  FillingValueAndType& operator=(const FillingValueAndType&);
+  FillingValueAndType& operator=(FillingValueAndType&&);
+  ~FillingValueAndType();
+
+  std::u16string value = u"";
+  // `select_text` is only specified for <select> fields to disambiguate
+  // multiple options that have the same `SelectOption::value`.
+  std::optional<std::u16string> select_text = std::nullopt;
+  FieldType filling_type = NO_SERVER_DATA;
+};
+
 // This file contains functions that are generically usefull for filling or
 // functions that are used by multiple filling subdirectories.
 
-// Searches for an exact match for `value` in `field_options` and returns it
-// if found, or std::nullopt otherwise. Optionally, the caller may pass
-// `best_match_index` which will be set to the index of the best match.
+// Searches for an exact match for `value` in `field_options` and returns the
+// matching option if found, or std::nullopt otherwise. Optionally, the caller
+// may pass `best_match_index` which will be set to the index of the best match.
 // A nullopt value means that no value for filling was found.
-std::optional<std::u16string> GetSelectControlValue(
+std::optional<SelectOption> GetSelectControlOption(
     const std::u16string& value,
     base::span<const SelectOption> field_options,
     std::string* failure_to_fill,
     size_t* best_match_index = nullptr);
 
-// Like GetSelectControlValue, but searches within the field values and options
+// Like GetSelectControlOption, but searches within the field values and options
 // for `value`. For example, "NC - North Carolina" would match "north carolina".
 // A nullopt value means that no value for filling was found.
-std::optional<std::u16string> GetSelectControlValueSubstringMatch(
+std::optional<SelectOption> GetSelectControlOptionSubstringMatch(
     const std::u16string& value,
     bool ignore_whitespace,
     base::span<const SelectOption> field_options,
     std::string* failure_to_fill);
 
-// Like GetSelectControlValue, but searches within the field values and options
-// for `value`. First it tokenizes the options, then tries to match against
-// tokens. For example, "NC - North Carolina" would match "nc" but not "ca".
+// Gets the option containing the numeric `value` among `field_options`.
 // A nullopt value means that no value for filling was found.
-std::optional<std::u16string> GetSelectControlValueTokenMatch(
-    const std::u16string& value,
-    base::span<const SelectOption> field_options,
-    std::string* failure_to_fill);
-
-// Gets the numeric `value` to fill into `field`.
-// A nullopt value means that no value for filling was found.
-std::optional<std::u16string> GetNumericSelectControlValue(
+std::optional<SelectOption> GetNumericSelectControlOption(
     int value,
     base::span<const SelectOption> field_options,
     std::string* failure_to_fill);
@@ -61,9 +73,9 @@ std::optional<std::u16string> GetNumericSelectControlValue(
 std::u16string GetObfuscatedValue(const std::u16string& value,
                                   size_t visible_suffix_length = 0);
 
-// Gets the country value to fill in a select control.
+// Gets the country option to fill in a select control.
 // Returns an empty string if no value for filling was found.
-std::u16string GetCountrySelectControlValue(
+std::optional<SelectOption> GetCountrySelectControlOption(
     const std::u16string& value,
     base::span<const SelectOption> field_options,
     std::string* failure_to_fill = nullptr);
@@ -77,9 +89,9 @@ std::u16string GetStateTextForInput(const std::u16string& state_value,
                                     uint64_t field_max_length,
                                     std::string* failure_to_fill);
 
-// Gets the state value to fill in a select control.
+// Gets the state option to fill in a select control.
 // Returns an empty string if no value for filling was found.
-std::u16string GetStateSelectControlValue(
+std::optional<SelectOption> GetStateSelectControlOption(
     const std::u16string& value,
     base::span<const SelectOption> field_options,
     const std::string& country_code,

@@ -177,62 +177,14 @@ void TileDisplayLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   NOTREACHED();
 }
 
-void TileDisplayLayerImpl::ComputeCheckerboardedNeedsRecord(
-    AppendQuadsData* append_quads_data) {
+bool TileDisplayLayerImpl::ComputeCheckerboardedNeedsRecord() {
   // NOTE: Currently it is not necessary to compute
-  // append_quads_data->checkerboarded_needs_recorded on the Viz side, as it is
-  // consumed only on the client side. However, it will become necessary when we
-  // introduce frames driven entirely by Viz. At that point, we should dedupe
-  // the relevant code into TileBasedLayerImpl.
+  // checkerboarded_needs_recorded on the Viz side, as it is consumed only on
+  // the client side. However, it will become necessary when we introduce
+  // frames driven entirely by Viz. At that point, we should dedupe the
+  // relevant code into TileBasedLayerImpl.
   // See crbug.com/482862751.
-}
-
-bool TileDisplayLayerImpl::AppendQuadForTile(
-    TilingSetCoverageIterator<TileDisplayLayerTiling> iter,
-    const AppendQuadsContext& context,
-    viz::CompositorRenderPass* render_pass,
-    AppendQuadsData* append_quads_data,
-    viz::SharedQuadState* shared_quad_state,
-    const Occlusion& scaled_occlusion,
-    const gfx::Rect& offset_geometry_rect,
-    const gfx::Rect& offset_visible_geometry_rect,
-    const gfx::Rect& visible_geometry_rect,
-    bool needs_blending,
-    const std::optional<gfx::Rect>& scaled_cull_rect,
-    float max_contents_scale,
-    AppendQuadsCustomSharedData* custom_data) {
-  bool has_draw_quad = false;
-  if (*iter) {
-    if (auto resource = iter->resource()) {
-      const gfx::RectF texture_rect = iter.texture_rect();
-      auto* quad = render_pass->CreateAndAppendDrawQuad<viz::TileDrawQuad>();
-      quad->SetNew(shared_quad_state, offset_geometry_rect,
-                   offset_visible_geometry_rect, needs_blending,
-                   resource->resource_id, texture_rect, nearest_neighbor_,
-                   !layer_tree_impl()->settings().enable_edge_anti_aliasing);
-      has_draw_quad = true;
-    } else if (auto color = iter->solid_color()) {
-      has_draw_quad = true;
-      AppendSolidColorQuad(render_pass, shared_quad_state, offset_geometry_rect,
-                           offset_visible_geometry_rect, *color);
-    } else if (iter->is_oom()) {
-      // Keep `has_draw_quad` false to end up checkerboarding below.
-    }
-  }
-  if (!has_draw_quad) {
-    // Checkerboard due to missing raster.
-    AppendCheckerboardQuad(render_pass, shared_quad_state, offset_geometry_rect,
-                           offset_visible_geometry_rect);
-
-    // NOTE: TileDisplayLayerImpl does not currently track missing tiles, as
-    // that info is used only to pass to `AppendQuadsData::num_missing_tiles` on
-    // the client side.  TODO(crbug.com/401566175): Determine if we need to
-    // track `num_missing_tiles` on the Viz side in the longer term.
-    return true;
-  }
-
-  AddScaleToLastAppendQuadsScales(iter.CurrentTiling()->contents_scale_key());
-  return true;
+  return false;
 }
 
 float TileDisplayLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() const {
@@ -241,6 +193,10 @@ float TileDisplayLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() const {
 
 bool TileDisplayLayerImpl::IsDirectlyCompositedImage() const {
   return is_directly_composited_image_;
+}
+
+bool TileDisplayLayerImpl::GetNearestNeighbor() const {
+  return nearest_neighbor_;
 }
 
 gfx::Rect TileDisplayLayerImpl::RecordedBounds() const {

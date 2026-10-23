@@ -14,9 +14,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/transport/stun.h"
 #include "p2p/base/connection.h"
@@ -41,7 +41,7 @@ class TestPort : public Port {
   using Port::GetStunMessage;
 
   // The last StunMessage that was sent on this Port.
-  ArrayView<const uint8_t> last_stun_buf();
+  std::span<const uint8_t> last_stun_buf();
   IceMessage* last_stun_msg();
   int last_stun_error_code();
 

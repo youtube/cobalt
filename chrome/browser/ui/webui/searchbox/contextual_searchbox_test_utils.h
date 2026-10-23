@@ -83,20 +83,20 @@ class MockQueryController
   }
 
   void AddObserver(contextual_search::ContextualSearchContextController::
-                       FileUploadStatusObserver* obs) override {
+                       ContextUploadStatusObserver* obs) override {
     observers_.AddObserver(obs);
     TestComposeboxQueryController::AddObserver(obs);
   }
 
   void RemoveObserver(contextual_search::ContextualSearchContextController::
-                          FileUploadStatusObserver* obs) override {
+                          ContextUploadStatusObserver* obs) override {
     observers_.RemoveObserver(obs);
     TestComposeboxQueryController::RemoveObserver(obs);
   }
 
   void NotifySuccess(const base::UnguessableToken& file_token) {
     for (auto& observer : observers_) {
-      observer.OnFileUploadStatusChanged(
+      observer.OnContextUploadStatusChanged(
           file_token, lens::MimeType::kHtml,
           contextual_search::ContextUploadStatus::kUploadSuccessful,
           std::nullopt);
@@ -105,7 +105,7 @@ class MockQueryController
 
  private:
   base::ObserverList<contextual_search::ContextualSearchContextController::
-                         FileUploadStatusObserver>
+                         ContextUploadStatusObserver>
       observers_;
 };
 
@@ -134,7 +134,10 @@ class MockContextualSearchMetricsRecorder
               (override));
   MOCK_METHOD(void,
               NotifyQuerySubmitted,
-              (bool has_tab_context, bool has_non_tab_context),
+              (bool has_tab_context,
+               bool has_non_tab_context,
+               int query_text_length,
+               int file_count),
               (override));
   MOCK_METHOD(void, ActivateMetricsFunnel, (const std::string&), (override));
   MOCK_METHOD(void,
@@ -151,6 +154,10 @@ class MockContextualSearchMetricsRecorder
                composebox_query::mojom::ModelMode model_mode),
               (override));
   MOCK_METHOD(void, RecordZeroSuggestClick, (bool is_contextual), (override));
+  MOCK_METHOD(void,
+              RecordTypedSuggestNavigation,
+              (bool is_verbatim),
+              (override));
 
   void NotifySessionStateChangedBase(
       contextual_search::SessionState session_state) {
@@ -158,9 +165,11 @@ class MockContextualSearchMetricsRecorder
   }
 
   void NotifyQuerySubmittedBase(bool has_tab_context,
-                                bool has_non_tab_context) {
-    ContextualSearchMetricsRecorder::NotifyQuerySubmitted(has_tab_context,
-                                                          has_non_tab_context);
+                                bool has_non_tab_context,
+                                int query_text_length,
+                                int file_count) {
+    ContextualSearchMetricsRecorder::NotifyQuerySubmitted(
+        has_tab_context, has_non_tab_context, query_text_length, file_count);
   }
 
   void RecordToolModeBase(composebox_query::mojom::ToolMode tool_mode) {
@@ -180,6 +189,10 @@ class MockContextualSearchMetricsRecorder
 
   void RecordZeroSuggestClickBase(bool is_contextual) {
     ContextualSearchMetricsRecorder::RecordZeroSuggestClick(is_contextual);
+  }
+
+  void RecordTypedSuggestNavigationBase(bool is_verbatim) {
+    ContextualSearchMetricsRecorder::RecordTypedSuggestNavigation(is_verbatim);
   }
 };
 

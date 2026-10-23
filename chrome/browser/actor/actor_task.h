@@ -26,6 +26,7 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
+#include "components/actor/task_source_info.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/visibility.h"
@@ -62,9 +63,7 @@ struct ActionResultWithLatencyInfo;
 class ActorTask : public base::SupportsUserData {
  public:
   using ActCallback =
-      base::OnceCallback<void(mojom::ActionResultPtr,
-                              std::optional<size_t>,
-                              std::vector<ActionResultWithLatencyInfo>)>;
+      base::OnceCallback<void(std::vector<ActionResultWithLatencyInfo>)>;
 
   // Created only via ActorKeyedService::CreateTask or the CreateForTesting
   // method in this class.
@@ -73,6 +72,7 @@ class ActorTask : public base::SupportsUserData {
             TaskId id,
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
             webui::mojom::TaskOptionsPtr options,
+            const TaskSourceInfo& source_info,
             const EnterprisePolicyUrlChecker* policy_checker,
             base::WeakPtr<ActorTaskDelegate> delegate = nullptr);
   ~ActorTask() override;
@@ -86,10 +86,13 @@ class ActorTask : public base::SupportsUserData {
       TaskId id,
       std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
       webui::mojom::TaskOptionsPtr options,
+      const TaskSourceInfo& source_info,
       const EnterprisePolicyUrlChecker* policy_checker,
       base::WeakPtr<ActorTaskDelegate> delegate);
 
   TaskId id() const { return id_; }
+
+  const TaskSourceInfo& source_info() const { return source_info_; }
 
   const std::string& title() const { return title_; }
   base::WeakPtr<ActorTaskDelegate> delegate() const { return delegate_; }
@@ -224,6 +227,10 @@ class ActorTask : public base::SupportsUserData {
 
   Profile* GetProfile() const;
 
+  ActionTrackerForMetrics& action_tracker_for_metrics() const {
+    return *action_tracker_for_metrics_;
+  }
+
   ActorKeyedService& actor_keyed_service() const { return service_.get(); }
 
   // These observations will be added to the final ActionsResult returned by the
@@ -282,9 +289,7 @@ class ActorTask : public base::SupportsUserData {
                              content::WebContents* old_contents,
                              content::WebContents* new_contents);
 
-  void OnFinishedAct(mojom::ActionResultPtr result,
-                     std::optional<size_t> index_of_failed_action,
-                     std::vector<ActionResultWithLatencyInfo> action_results);
+  void OnFinishedAct(std::vector<ActionResultWithLatencyInfo> action_results);
 
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);
@@ -306,6 +311,8 @@ class ActorTask : public base::SupportsUserData {
   const raw_ref<ActorKeyedService> service_;
 
   TaskId id_;
+
+  TaskSourceInfo source_info_;
 
   // The time at which the task was created.
   base::TimeTicks create_time_;

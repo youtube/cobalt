@@ -25,7 +25,7 @@ constexpr char kDummyUrl[] = "https://dummy.invalid/";
 String MaybeStripPrefix(const String& value, StringView prefix) {
   CHECK_EQ(prefix.length(), 1u);
   if (value.starts_with(prefix)) {
-    return value.Substring(1, value.length() - 1);
+    return value.substr(1, value.length() - 1);
   }
   return value;
 }
@@ -33,7 +33,7 @@ String MaybeStripPrefix(const String& value, StringView prefix) {
 String MaybeStripSuffix(const String& value, StringView suffix) {
   CHECK_EQ(suffix.length(), 1u);
   if (value.ends_with(suffix)) {
-    return value.Substring(0, value.length() - 1);
+    return value.substr(0, value.length() - 1);
   }
   return value;
 }
@@ -59,7 +59,7 @@ String MaybeStripAfterFirstDelimiter(const String& value,
   if (first_delim == kNotFound) {
     return value;
   }
-  return value.Substring(0, first_delim);
+  return value.substr(0, first_delim);
 }
 
 bool ContainsForbiddenHostnameCodePoint(const String& input,
@@ -136,7 +136,7 @@ base::expected<String, String> CanonicalizeProtocolInternal(
       // If we do this with a single letter it looks to KURL like a Windows
       // file path and is turned into a file URL. Canonicalizing 'a' should
       // not return 'file'.
-      return base::ok(input.LowerASCII());
+      return base::ok(input.ToAsciiLower());
     } else {
       return base::ok(dummy_url.Protocol());
     }
@@ -229,12 +229,12 @@ base::expected<String, String> CanonicalizeIPv6HostnameInternal(
   // we simply check for valid characters and lowercase any hex digits.
   for (size_t i = 0; i < input.length(); ++i) {
     char c = input[i];
-    if (!blink::IsASCIIHexDigit(c) && c != '[' && c != ']' && c != ':') {
+    if (!blink::IsAsciiHexDigit(c) && c != '[' && c != ']' && c != ':') {
       return base::unexpected(blink::StrCat(
           {"Invalid IPv6 hostname character '", String(std::string_view(&c, 1)),
            "' in '", input, "'."}));
     }
-    result += blink::ToASCIILower(c);
+    result += blink::ToAsciiLower(c);
   }
   return base::ok(String::FromUTF8(result));
 }
@@ -295,7 +295,7 @@ base::expected<String, String> CanonicalizePathnameInternal(
       if (canonicalized_path.starts_with("/-")) {
         // If we prepended a slash then we need to remove it again since the
         // pathname canonicalization should not add a leading slash.
-        canonicalized_path = canonicalized_path.Substring(2);
+        canonicalized_path = canonicalized_path.substr(2);
       } else {
         return base::unexpected(
             blink::StrCat({"Invalid pathname '", input, "'."}));

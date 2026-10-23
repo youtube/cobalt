@@ -537,7 +537,7 @@ void CreditCardFormEventLogger::LogCardUnmaskAuthenticationPromptCompleted(
   current_authentication_flow_ = flow;
 }
 
-void CreditCardFormEventLogger::OnDidAcceptBnplSuggestion() {
+void CreditCardFormEventLogger::OnUserDecisionToUseBnpl() {
   if (!has_logged_bnpl_suggestion_accepted_) {
     LogBnplSuggestionAccepted(driver().GetPageUkmSourceId());
     has_logged_bnpl_suggestion_accepted_ = true;
@@ -561,6 +561,14 @@ void CreditCardFormEventLogger::OnDidAcceptSaveAndFillSuggestion() {
 std::optional<CreditCard>
 CreditCardFormEventLogger::GetFilledCreditCardForTesting() {
   return filled_credit_card_;
+}
+
+CreditCardSuggestionSummary
+CreditCardFormEventLogger::GetCreditCardSuggestionSummaryForTesting() const {
+  return CreditCardSuggestionSummary{
+      suggestion_contains_card_with_cvc_,
+      suggestion_contains_card_info_retrieval_enrolled_card_,
+      metadata_logging_context_};
 }
 
 void CreditCardFormEventLogger::RecordParseForm() {

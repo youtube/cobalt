@@ -19,7 +19,6 @@
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider.h"
 #include "chrome/browser/contextual_tasks/contextual_search_session_finder.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
@@ -32,16 +31,12 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/lens/lens_search_controller.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -60,7 +55,6 @@
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
-#include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/omnibox/common/logger.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -79,9 +73,21 @@
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/backoff_entry.h"
+#include "net/base/url_util.h"
+#include "net/http/http_response_headers.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
+#include "chrome/browser/profiles/profile_manager.h"  // nogncheck crbug.com/483442073
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
+#include "components/omnibox/browser/searchbox.mojom-forward.h"
+#endif
 
 namespace {
 
@@ -113,12 +119,7 @@ void AddContextMenuItemEligibilityLoadTimeData(content::WebUIDataSource* source,
 }
 
 BrowserWindowInterface* FromWebContents(content::WebContents* web_contents) {
-  BrowserWindow* window =
-      BrowserWindow::FindBrowserWindowWithWebContents(web_contents);
-  if (window) {
-    return window->AsBrowserView()->browser();
-  }
-  return nullptr;
+  return webui::GetBrowserWindowInterface(web_contents);
 }
 
 std::string GetEncodedHandshakeMessage() {
@@ -200,10 +201,14 @@ void AddZeroStateStrings(content::WebUIDataSource* source, Profile* profile) {
     return;
   }
 
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(profile->GetPath());
+  ProfileAttributesEntry* entry = nullptr;
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/483442073): Remove the ifdef block once we address the
+  // cyclic dependency.
+  entry = g_browser_process->profile_manager()
+              ->GetProfileAttributesStorage()
+              .GetProfileAttributesWithPath(profile->GetPath());
+#endif
   if (!entry) {
     AddDefaultZeroStateStrings(source);
     return;
@@ -265,8 +270,12 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
           base::BindRepeating(&ContextualTasksUI::ResetEmbeddedPage,
                               weak_ptr_factory_.GetWeakPtr()));
   // Add a means of loading images fromexternal sources.
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/483442073): SanitizedImageSource is not available on
+  // Android. Need to find an alternative.
   content::URLDataSource::Add(profile,
                               std::make_unique<SanitizedImageSource>(profile));
+#endif
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIContextualTasksHost);
@@ -278,16 +287,19 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       network::mojom::CSPDirectiveName::ChildSrc,
       "child-src 'self' https://*.google.com;");
 
+#if !BUILDFLAG(IS_ANDROID)
   // Add required resources for the searchbox.
   SearchboxHandler::SetupWebUIDataSource(source, profile,
                                          /*enable_voice_search=*/true,
                                          /*enable_lens_search=*/false);
+#endif
   // Add strings.js
   source->UseStringsJs();
 
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"closeTooltip", IDS_CONTEXTUAL_TASKS_SIDE_PANEL_CLOSE_TOOL_TIP},
       {"contextTooltip", IDS_CONTEXTUAL_TASKS_SIDE_PANEL_CONTEXT_TOOL_TIP},
+      {"continueThread", IDS_CONTEXTUAL_TASKS_CONTINUE_THREAD_MESSAGE},
       {"feedback", IDS_LENS_SEND_FEEDBACK},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
       {"moreOptionsTooltip",
@@ -295,6 +307,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
       {"newThreadTooltip", IDS_CONTEXTUAL_TASKS_SIDE_PANEL_NEW_THREAD_TOOL_TIP},
       {"openInNewTab", IDS_CONTEXTUAL_TASKS_MENU_OPEN_IN_NEW_TAB},
+      {"reopenTab", IDS_CONTEXTUAL_TASKS_REOPEN_TABS_BUTTON_TEXT},
       {"sourcesMenuTitle", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TITLE},
       {"threadHistoryTooltip",
        IDS_CONTEXTUAL_TASKS_SIDE_PANEL_HISTORY_TOOL_TIP},
@@ -313,8 +326,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"oauthErrorDialogBody", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_BODY},
       {"oauthErrorDialogReloadButton",
        IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_RELOAD_BUTTON},
+#if !BUILDFLAG(IS_ANDROID)
       {"composeboxHintTextLensOverlay",
        IDS_LENS_COMPOSEBOX_HINT_TEXT_SELECT_PAGE},
+#endif
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
@@ -333,9 +348,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddInteger(
       "composeboxFileMaxSize",
       contextual_tasks::kContextualTasksNextboxMaxFileSize.Get());
-  source->AddInteger(
-      "composeboxFileMaxCount",
-      contextual_tasks::kContextualTasksNextboxMaxFileCount.Get());
   source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   // Enable typed suggest.
   source->AddBoolean("composeboxShowTypedSuggest", false);
@@ -406,9 +418,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", true);
-  source->AddBoolean(
-      "darkMode",
-      ThemeServiceFactory::GetForProfile(profile)->BrowserUsesDarkColors());
   source->AddBoolean("clearAllInputsWhenSubmittingQuery", true);
   source->AddBoolean("autoSubmitVoiceSearchQuery",
                      contextual_tasks::GetAutoSubmitVoiceSearchQuery());
@@ -431,12 +440,17 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_search::ContextualSearchMetricsRecorder::
           ContextualSearchSourceToString(
               contextual_search::ContextualSearchSource::kContextualTasks));
+#if !BUILDFLAG(IS_ANDROID)
+  source->AddBoolean(
+      "darkMode",
+      ThemeServiceFactory::GetForProfile(profile)->BrowserUsesDarkColors());
   source->AddLocalizedString(
       "protectedErrorPageTopLine",
       IDS_SIDE_PANEL_LENS_OVERLAY_PROTECTED_PAGE_ERROR_FIRST_LINE);
   source->AddLocalizedString(
       "protectedErrorPageBottomLine",
       IDS_SIDE_PANEL_LENS_OVERLAY_PROTECTED_PAGE_ERROR_SECOND_LINE);
+#endif
 
   source->AddString("userAgentSuffix",
                     contextual_tasks::GetContextualTasksUserAgentSuffix());
@@ -471,6 +485,16 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "internals/",
       IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
 
+  source->AddBoolean(
+      "useStratusDarkModeColors",
+      contextual_tasks::ShouldUseStratusDarkModeColors());
+  source->AddString(
+      "useStratusDarkModeColorsAttr",
+      contextual_tasks::ShouldUseStratusDarkModeColors() ? "true" : "false");
+
+  source->AddBoolean("smartTabSharingEnabled",
+                     contextual_tasks::GetIsSmartTabSharingEnabled());
+
   AddZeroStateStrings(source, profile);
   contextual_tasks_service_observation_.Observe(contextual_tasks_service_);
 }
@@ -489,6 +513,7 @@ void ContextualTasksUI::CreatePageHandler(
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
       std::move(page_handler), this, ui_service_, contextual_tasks_service_);
 
+#if !BUILDFLAG(IS_ANDROID)
   // Determine if the Lens overlay is showing when the page is created.
   if (auto* browser = GetBrowser()) {
     if (auto* controller = LensSearchController::FromTabWebContents(
@@ -497,6 +522,7 @@ void ContextualTasksUI::CreatePageHandler(
                                 controller->invocation_source());
     }
   }
+#endif
 }
 
 void ContextualTasksUI::OnRefreshTokenUpdatedForAccount(
@@ -530,10 +556,12 @@ const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
 void ContextualTasksUI::SetTaskId(std::optional<base::Uuid> id) {
   task_id_ = id;
   PushTaskDetailsToPage();
+#if !BUILDFLAG(IS_ANDROID)
   // Initialize input state once task id is available.
   if (composebox_handler_) {
     composebox_handler_->InitializeInputStateModel();
   }
+#endif
 }
 
 const std::optional<std::string>& ContextualTasksUI::GetThreadId() {
@@ -576,11 +604,13 @@ void ContextualTasksUI::SetIsAiPage(bool is_ai_page) {
   if (is_ai_page && !was_ai_page_) {
     auto* browser = GetBrowser();
     if (browser) {
+#if !BUILDFLAG(IS_ANDROID)
       if (auto* controller = LensSearchController::FromTabWebContents(
               browser->GetTabStripModel()->GetActiveWebContents())) {
         controller->CloseLensAsync(
             lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted);
       }
+#endif
     }
   }
   was_ai_page_ = is_ai_page;
@@ -650,6 +680,7 @@ ContextualTasksUIConfig::CreateWebUIController(content::WebUI* web_ui,
   return std::make_unique<ContextualTasksUI>(web_ui);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void ContextualTasksUI::BindInterface(
     mojo::PendingReceiver<composebox::mojom::PageHandlerFactory>
         pending_receiver) {
@@ -670,10 +701,13 @@ void ContextualTasksUI::CreatePageHandler(
       base::BindRepeating(
           &ContextualTasksUI::GetOrCreateContextualSessionHandle,
           base::Unretained(this)),
+      base::BindRepeating(&ContextualTasksUI::ClearContextualSessionHandle,
+                          base::Unretained(this)),
       base::BindRepeating(&ContextualTasksUI::TakeInputStateModel,
                           base::Unretained(this)));
   composebox_handler_->SetPage(std::move(pending_searchbox_page));
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 contextual_search::ContextualSearchSessionHandle*
 ContextualTasksUI::GetOrCreateContextualSessionHandle() {
@@ -697,7 +731,7 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
   if (!task_id_) {
     if (contextual_search_service) {
       auto session_handle = contextual_search_service->CreateSession(
-          ntp_composebox::CreateQueryControllerConfigParams(),
+          contextual_tasks::CreateQueryControllerConfigParams(),
           contextual_search::ContextualSearchSource::kContextualTasks,
           lens::LensOverlayInvocationSource::kContextualTasksComposebox);
       // TODO(crbug.com/469875164): Determine what to do with the return value
@@ -712,7 +746,8 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
 
   // If no valid session exists, maintains context continuity by trying to find
   // one from affiliated tabs or side panel WebContents.
-  auto* controller = GetPanelController();
+  contextual_tasks::ContextualTasksPanelController* controller =
+      GetPanelController();
   if (!controller || !task_id_.has_value()) {
     return nullptr;
   }
@@ -725,6 +760,11 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
       controller, web_contents, task_id_.value());
   return helper->session_handle();
 }
+
+// Empty implementation, does not need to be cleared in contextual tasks. Only
+// needs to be cleared when transferring ownership to a new web contents / UI
+// controller which never happens for contextual tasks.
+void ContextualTasksUI::ClearContextualSessionHandle() {}
 
 std::unique_ptr<contextual_search::InputStateModel>
 ContextualTasksUI::TakeInputStateModel() {
@@ -801,7 +841,8 @@ void ContextualTasksUI::OnContextRetrievedForActiveTab(
 
   // If active tab or tab URL changed since the GetContextForTask() call, do
   // nothing.
-  tabs::TabInterface* tab = GetBrowser()->GetActiveTabInterface();
+  tabs::TabInterface* tab =
+      TabListInterface::From(GetBrowser())->GetActiveTab();
   if (!tab || tab->GetHandle().raw_value() != tab_id ||
       tab->GetContents()->GetLastCommittedURL() != last_committed_url) {
     return;
@@ -814,7 +855,9 @@ void ContextualTasksUI::OnContextRetrievedForActiveTab(
           contextual_tasks::CreateURLDeduplicationHelperForContextualTask();
   if (context &&
       context->ContainsURL(last_committed_url, url_duplication_helper.get())) {
+#if !BUILDFLAG(IS_ANDROID)
     composebox_handler_->UpdateSuggestedTabContext(nullptr);
+#endif
     return;
   }
 
@@ -822,6 +865,7 @@ void ContextualTasksUI::OnContextRetrievedForActiveTab(
 }
 
 void ContextualTasksUI::UpdateSuggestedTabContext(tabs::TabInterface* tab) {
+#if !BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents = tab->GetContents();
   auto tab_data = searchbox::mojom::TabInfo::New();
   tab_data->tab_id = tab->GetHandle().raw_value();
@@ -830,6 +874,7 @@ void ContextualTasksUI::UpdateSuggestedTabContext(tabs::TabInterface* tab) {
   tab_data->last_active = std::max(web_contents->GetLastActiveTimeTicks(),
                                    web_contents->GetLastInteractionTimeTicks());
   composebox_handler_->UpdateSuggestedTabContext(std::move(tab_data));
+#endif
 }
 
 void ContextualTasksUI::OnSidePanelStateChanged() {
@@ -842,9 +887,11 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
         lens::CobrowsingDisplayModeParams::COBROWSING_TAB);
     if (previous_web_ui_state_ != WebUIState::kShownInTab) {
       previous_web_ui_state_ = WebUIState::kShownInTab;
+#if !BUILDFLAG(IS_ANDROID)
       if (composebox_handler_) {
         composebox_handler_->UpdateSuggestedTabContext(nullptr);
       }
+#endif
     }
   } else {
     if (previous_web_ui_state_ != WebUIState::kShownInSidePanel &&
@@ -885,9 +932,11 @@ bool ContextualTasksUI::CanUpdateSuggestedTabContext(
     return false;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (!composebox_handler_) {
     return false;
   }
+#endif
 
   if (!tab) {
     return false;
@@ -911,15 +960,18 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
   }
 
   tabs::TabInterface* tab =
-      GetBrowser() ? GetBrowser()->GetActiveTabInterface() : nullptr;
+      GetBrowser() ? TabListInterface::From(GetBrowser())->GetActiveTab()
+                   : nullptr;
   GURL last_committed_url =
       tab ? tab->GetContents()->GetLastCommittedURL() : GURL::EmptyGURL();
 
   if (!CanUpdateSuggestedTabContext(tab, last_committed_url)) {
+#if !BUILDFLAG(IS_ANDROID)
     if (composebox_handler_) {
       // Inform the handler that the current tab cannot be added as an autochip.
       composebox_handler_->UpdateSuggestedTabContext(nullptr);
     }
+#endif
     return;
   }
 
@@ -929,7 +981,9 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
       GetOrCreateContextualSessionHandle()->AsWeakPtr();
   contextual_tasks_service_->GetContextForTask(
       GetTaskId().value(),
-      {contextual_tasks::ContextualTaskContextSource::kPendingContextDecorator},
+      {contextual_tasks::ContextualTaskContextSource::kUploadedContextDecorator,
+       contextual_tasks::ContextualTaskContextSource::
+           kSubmittedContextDecorator},
       std::move(context_decoration_params),
       base::BindOnce(&ContextualTasksUI::OnContextRetrievedForActiveTab,
                      weak_ptr_factory_.GetWeakPtr(),
@@ -975,8 +1029,12 @@ void ContextualTasksUI::TransferNavigationToEmbeddedPage(
 }
 
 bool ContextualTasksUI::IsActiveTabContextSuggestionShowing() const {
+#if !BUILDFLAG(IS_ANDROID)
   return composebox_handler_ &&
          composebox_handler_->has_suggested_tab_context();
+#else
+  return false;
+#endif
 }
 
 void ContextualTasksUI::PushTaskDetailsToPage() {
@@ -1044,6 +1102,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
           << url;
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
+  task_info_delegate_->SetAimUrl(url);
 
   OMNIBOX_LOG("embedded_page_nav") << navigation_handle->GetURL().spec();
 
@@ -1197,8 +1256,6 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       task_info_delegate_->GetThreadTitle());
   task_info_delegate_->SetThreadTurnId(mstk);
 
-  task_info_delegate_->SetAimUrl(url);
-
   if (task_changed) {
     OMNIBOX_LOG("embedded_page_nav")
         << "Task changed: "
@@ -1294,20 +1351,26 @@ void ContextualTasksUI::CreatePageHandler(
 }
 
 void ContextualTasksUI::PrepareForTaskChange() {
+#if !BUILDFLAG(IS_ANDROID)
   composebox_handler_->ResetInputStateModel();
   composebox_handler_->ResetBlocklistedSuggestions();
   composebox_handler_->UpdateSuggestedTabContext(nullptr);
+#endif
 }
 
 void ContextualTasksUI::OnTaskChanged() {
+#if !BUILDFLAG(IS_ANDROID)
   composebox_handler_->OnTaskChanged();
+#endif
   if (!IsShownInTab()) {
     // Update the suggested tab chip.
     OnActiveTabContextStatusChanged();
   }
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 // static
+// Favicons for WebUI pages are only used on desktop builds.
 base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
     ui::ResourceScaleFactor scale_factor) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -1320,6 +1383,7 @@ base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
   return static_cast<base::RefCountedMemory*>(
       ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
           IDR_NTP_FAVICON, scale_factor));
-#endif
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 WEB_UI_CONTROLLER_TYPE_IMPL(ContextualTasksUI)

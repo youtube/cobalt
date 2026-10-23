@@ -58,6 +58,18 @@ mojom::ActionResultPtr MakeResult(mojom::ActionResultCode code,
       /*execution_end_time=*/base::TimeTicks::Now());
 }
 
+std::vector<ActionResultWithLatencyInfo> MakeResultVector(
+    mojom::ActionResultPtr result) {
+  const auto now = base::TimeTicks::Now();
+  return std::vector<ActionResultWithLatencyInfo>(
+      {ActionResultWithLatencyInfo(now, now, std::move(result))});
+}
+
+std::vector<ActionResultWithLatencyInfo> MakeResultVector(
+    mojom::ActionResultCode code) {
+  return MakeResultVector(MakeResult(code));
+}
+
 std::string ToDebugString(const mojom::ActionResult& result) {
   if (IsOk(result)) {
     return "ActionResult[OK]";

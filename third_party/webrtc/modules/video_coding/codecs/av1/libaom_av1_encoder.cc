@@ -878,6 +878,13 @@ int32_t LibaomAv1Encoder::Encode(
                                mapped_buffer->height());
       auto i420_buffer = mapped_buffer->GetI420();
       RTC_DCHECK(i420_buffer);
+
+      // TODO: crbug.com/492213293 - Remove once the root cause is fixed.
+      if (i420_buffer->StrideU() != i420_buffer->StrideV()) {
+        RTC_LOG(LS_ERROR) << "Libaom requires the U and V strides to be equal.";
+        return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
+      }
+
       RTC_CHECK_EQ(i420_buffer->width(), frame_for_encode_->d_w);
       RTC_CHECK_EQ(i420_buffer->height(), frame_for_encode_->d_h);
       frame_for_encode_->planes[AOM_PLANE_Y] =

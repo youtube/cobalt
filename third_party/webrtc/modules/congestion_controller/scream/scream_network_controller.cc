@@ -44,6 +44,9 @@ ScreamNetworkController::ScreamNetworkController(NetworkControllerConfig config)
       starting_rate_(
           config.constraints.starting_rate.value_or(kDefaultStartRate)),
       streams_config_(config.stream_based_config),
+      max_seen_total_allocated_bitrate_(
+          config.stream_based_config.max_total_allocated_bitrate.value_or(
+              DataRate::Zero())),
       last_padding_interval_started_(Timestamp::Zero()) {
   UpdateScreamTargetBitrateConstraints();
 }

@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Sveiki sugrįžę!</translation>
 <translation id="2015722694326466240">Jei norite matyti slaptažodžius, pirmiausia turite nustatyti įrenginio slaptažodį.</translation>
 <translation id="201759455285471444">Išskleisti skirtukų grupę.</translation>
-<translation id="202070562065520783">Paaiškink tai man</translation>
 <translation id="2044394949148788042">Atidarykite skirtuko tinklelį</translation>
 <translation id="2044681667265133332">Paskyrą <ph name="USER_EMAIL" /> tvarko svetainė <ph name="HOSTED_DOMAIN" />, kuri gali peržiūrėti tam tikrą informaciją. <ph name="BEGIN_LINK" />Sužinokite daugiau<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">naujas elementas</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">Pateikti užklausą dėl svetainės mobiliesiems</translation>
 <translation id="2362083820973145409">Prisijungta kaip <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Atidaromi nustatymai.</translation>
 <translation id="2371084566192454134">Skirtukai ir skirtukų grupės</translation>
+<translation id="2371303771137626249">Naujas</translation>
 <translation id="2381405137052800939">Pagrindiniai</translation>
 <translation id="2384692388811649784">Slėpti inkognito skirtukus</translation>
 <translation id="2386793615875593361">Pasirinkta: 1</translation>
@@ -637,6 +637,7 @@
 <translation id="3324193307694657476">2 adreso eil.</translation>
 <translation id="3328801116991980348">Svetainės informacija</translation>
 <translation id="333229797575847124">Kaip įgalinti šią funkciją</translation>
+<translation id="334004756946755423">Paaiškink tai man:</translation>
 <translation id="3344233834747405775">Netinkamas kortelės savininko vardas</translation>
 <translation id="3344485292736684439">{count,plural, =1{Žymė išsaugota skiltyje „{title}“ jūsų paskyroje, {email}}one{Žymės išsaugotos skiltyje „{title}“ jūsų paskyroje, {email}}few{Žymės išsaugotos skiltyje „{title}“ jūsų paskyroje, {email}}many{Žymės išsaugotos skiltyje „{title}“ jūsų paskyroje, {email}}other{Žymės išsaugotos skiltyje „{title}“ jūsų paskyroje, {email}}}</translation>
 <translation id="334690320928261823">Naujausi skirtukai</translation>
@@ -690,6 +691,7 @@
 <translation id="3530206579861815432">Greitai raskite atidarytus ir neseniai uždarytus skirtukus sinchronizuojamuose įrenginiuose.</translation>
 <translation id="3530767473765895035">Tvarkyti paskyras šiame įrenginyje…</translation>
 <translation id="3533436815740441613">Naujas skirtukas</translation>
+<translation id="3534738261102690620">Klausti „Gemini“</translation>
 <translation id="3540141921715814660">Pridėti prie žymių</translation>
 <translation id="3546122170015471515">Žemėlapių peržiūros Google.com</translation>
 <translation id="3547356470684043247">Perskaitykite klientų pateiktus produktų, paslaugų ar funkcijų įvertinimus, kurie padės priimti sprendimus</translation>
@@ -960,6 +962,7 @@
 <translation id="454217142158335225">Uždarytus elementus galite iš naujo atidaryti skiltyse „Naujausi skirtukai“ arba „Skirtukų grupės“. Prisegti skirtukai nebus uždaryti.</translation>
 <translation id="4547181496285029457">Grįžti į naujausią skirtuką</translation>
 <translation id="4552042254369397518">Kopijuojama…</translation>
+<translation id="4553044860350038560">Daugiau prieigos raktų</translation>
 <translation id="4564893319561643483">Slėpti „<ph name="TITLE" />“</translation>
 <translation id="4565377596337484307">Slėpti slaptažodį</translation>
 <translation id="4568230126482344545">Slėpti naujausius skirtukus</translation>
@@ -1088,6 +1091,7 @@
 <translation id="4944543191714094452">Rasti puslapyje…</translation>
 <translation id="4945756290001680296">Pasiekite slaptažodžio nustatymus</translation>
 <translation id="4949302115427722371">Tvarkyti nustatymus…</translation>
+<translation id="4952050521954075618">Nuotraukos iš fotoaparato aplanko nebus sinchronizuojamos įrenginiuose</translation>
 <translation id="4958444002117714549">Išskleisti sąrašą</translation>
 <translation id="496392417432935267">Atidaryta kitur</translation>
 <translation id="4970724460420203313">Naudojant „Chrome“ su valdoma paskyra galima atskirti su organizacija susijusį naršymą (įskaitant skirtukus, istoriją ir slaptažodžius) nuo kitos naršymo veiklos</translation>
@@ -1287,6 +1291,7 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="5647702255748985085">Išeiti iš grupės?</translation>
 <translation id="5648166631817621825">Pastarosios 7 dienos</translation>
 <translation id="5652623411397330904">Čia bus rodomi jūsų stebimi produktai.</translation>
+<translation id="5653100054596780862">Visi skirtukai</translation>
 <translation id="5656431592348714536">Patobulintas kalendorius</translation>
 <translation id="5659593005791499971">El. paštas</translation>
 <translation id="5665739277590037307">Taikoma: <ph name="GOOGLE_TERMS" /> ir <ph name="GEMINI_APPS_PRIVACY" />. „Gemini“ gali klysti, todėl patikrinkite dar kartą.</translation>
@@ -1614,6 +1619,7 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="672735642903863329">Gaukite žymes, slaptažodžius ir kitus duomenis visuose įrenginiuose.</translation>
 <translation id="6729493062119577923">Bendrinamos skirtukų grupės veikla</translation>
 <translation id="6732087373923685049">fotoaparatas</translation>
+<translation id="6736243959894955139">Adresas</translation>
 <translation id="6746338529702829275">Peržiūrėkite paskyros duomenis</translation>
 <translation id="6750456911389438250">{count,plural, =1{Importuotas {count} istorijos elementas}one{Importuotas {count} istorijos elementas}few{Importuoti {count} istorijos elementai}many{Importuota {count} istorijos elemento}other{Importuota {count} istorijos elementų}}</translation>
 <translation id="6755200887046212842">Tvarkyti paskyras</translation>
@@ -1718,6 +1724,7 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="7149893636342594995">Pastarosios 24 valandos</translation>
 <translation id="7154417656353909837">Pašalinti adresus</translation>
 <translation id="7161230316646448869">Sinchronizuokite žymes, istoriją ir kt. visuose įrenginiuose</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">Atidaryti nustatymus</translation>
 <translation id="7173721738069475737">{count,plural, =1{Žymė išsaugota}one{{count} žymė išsaugota}few{{count} žymės išsaugotos}many{{count} žymės išsaugota}other{{count} žymių išsaugota}}</translation>
 <translation id="7176183551031110427">Tolinti</translation>
@@ -1751,6 +1758,7 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="7300448350764260141">Papildomai apsaugokite nuo grėsmių internete.</translation>
 <translation id="7311244614769792472">Rezultatų nerasta</translation>
 <translation id="7313347584264171202">Čia rasite inkognito skirtukus</translation>
+<translation id="7322186060879266048">{count,plural, =1{Virš klaviatūros pasiekiama {count} automatinio pildymo parinktis.}one{Virš klaviatūros pasiekiama {count} automatinio pildymo parinktis.}few{Virš klaviatūros pasiekiamos {count} automatinio pildymo parinktys.}many{Virš klaviatūros pasiekiama {count} automatinio pildymo parinkties.}other{Virš klaviatūros pasiekiama {count} automatinio pildymo parinkčių.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241">Atsisiųsta <ph name="PERCENT" /> proc.</translation>
 <translation id="7345061034321640811">Importuoti neleidžiama</translation>
@@ -1820,7 +1828,6 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="7537586195939242955">Deja, šiuo metu negalima įdiegti „Pass“ į „Passbook“.</translation>
 <translation id="754655535278952384">Tikrinta <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Uždaryti viską</translation>
-<translation id="7554791636758816595">Naujas skirtukas</translation>
 <translation id="7557508262441527045">Atsijungta</translation>
 <translation id="7561196759112975576">Visada</translation>
 <translation id="7561982940498449837">Uždaryti meniu</translation>
@@ -2250,7 +2257,6 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="8988107725234939347">„<ph name="WEBSITE_TITLE" />“, prisegta svetainė</translation>
 <translation id="8990960056509724223">Failo nepavyko išsaugoti dėl organizacijos politikos</translation>
 <translation id="8998289560386111590">Nepasiekiama jūsų įrenginyje</translation>
-<translation id="9000532564152265066">Visi skirtukai</translation>
 <translation id="9003677638446136377">Tikrinti dar kartą</translation>
 <translation id="9006453925669499173">Meniu → „Naujas inkognito skirtukas“</translation>
 <translation id="9008201768610948239">Nepaisyti</translation>

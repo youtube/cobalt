@@ -11,7 +11,6 @@
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/ash/boca/on_task/locked_session_window_tracker_factory.h"
 #include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #include "chrome/browser/ash/boca/on_task/on_task_locked_session_window_tracker.h"
@@ -31,6 +30,7 @@
 #include "chromeos/ash/components/boca/on_task/activity/active_tab_tracker.h"
 #include "chromeos/ash/components/boca/on_task/on_task_blocklist.h"
 #include "chromeos/ui/base/window_properties.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/aura/window.h"
@@ -89,15 +89,15 @@ void OnTaskSystemWebAppManagerImpl::LaunchSystemWebAppAsync(
       base::BindOnce(
           [](base::OnceCallback<void(bool)> callback,
              base::WeakPtr<OnTaskSystemWebAppManagerImpl> instance,
-             apps::LaunchResult&& launch_result) {
+             apps::LaunchResult launch_result) {
             if (instance) {
               const SessionID active_window_id =
                   instance->GetActiveSystemWebAppWindowID();
               instance->PrepareSystemWebAppWindowForOnTask(
                   active_window_id, /*close_bundle_content=*/true);
             }
-            std::move(callback).Run(launch_result.state ==
-                                    apps::LaunchResult::State::kSuccess);
+            std::move(callback).Run(launch_result ==
+                                    apps::LaunchResult::kSuccess);
           },
           std::move(callback), weak_ptr_factory_.GetWeakPtr()));
 }

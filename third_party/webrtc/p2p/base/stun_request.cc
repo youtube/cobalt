@@ -15,12 +15,12 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -191,7 +191,7 @@ bool StunRequestManager::empty() const {
   return requests_.empty();
 }
 
-bool StunRequestManager::CheckResponse(ArrayView<const uint8_t> payload) {
+bool StunRequestManager::CheckResponse(std::span<const uint8_t> payload) {
   RTC_DCHECK_RUN_ON(thread_);
   // Check the appropriate bytes of the stream to see if they match the
   // transaction ID of a response we are expecting.

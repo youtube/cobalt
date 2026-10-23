@@ -584,6 +584,9 @@ Tagged<String> JSReceiver::class_name() {
     if (IsJSSharedArray(*this)) return roots.SharedArray_string();
     if (IsJSAtomicsMutex(*this)) return roots.AtomicsMutex_string();
     if (IsJSAtomicsCondition(*this)) return roots.AtomicsCondition_string();
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*this)) return roots.Object_string();
+#endif
     // Other shared values are primitives.
     UNREACHABLE();
   }
@@ -824,7 +827,7 @@ Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
 
   if (IsPropertyArray(properties)) {
     Cast<PropertyArray>(properties)->SetHash(hash);
-    DCHECK_LT(0, Cast<PropertyArray>(properties)->length());
+    DCHECK_LT(0, Cast<PropertyArray>(properties)->length().value());
     return properties;
   }
 
@@ -883,7 +886,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 
 void JSReceiver::SetProperties(Tagged<HeapObject> properties) {
   DCHECK_IMPLIES(IsPropertyArray(properties) &&
-                     Cast<PropertyArray>(properties)->length() == 0,
+                     Cast<PropertyArray>(properties)->length().value() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
   DisallowGarbageCollection no_gc;
   int hash = GetIdentityHashHelper(*this);
@@ -2639,6 +2642,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSIteratorFlatMapHelper::kHeaderSize;
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
       return JSIteratorConcatHelper::kHeaderSize;
+    case JS_ITERATOR_ZIP_HELPER_TYPE:
+      return JSIteratorZipHelper::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_DEFERRED_MODULE_NAMESPACE_TYPE:
@@ -2928,12 +2933,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     case JS_REG_EXP_TYPE: {
+      Isolate* isolate = Isolate::Current();
       accumulator->Add("<JSRegExp");
       Tagged<JSRegExp> regexp = Cast<JSRegExp>(*this);
-      if (IsString(regexp->source())) {
-        accumulator->Add(" ");
-        Cast<String>(regexp->source())->StringShortPrint(accumulator);
-      }
+      accumulator->Add(" ");
+      Cast<String>(regexp->source(isolate))->StringShortPrint(accumulator);
       accumulator->Add(">");
 
       break;
@@ -3200,8 +3204,9 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     // can also simply set the map (modulo a special case for mutable
     // double boxes).
     FieldIndex index = FieldIndex::ForDetails(*new_map, details);
-    if (index.is_inobject() || index.outobject_array_index() <
-                                   object->property_array(isolate)->length()) {
+    if (index.is_inobject() ||
+        static_cast<uint32_t>(index.outobject_array_index()) <
+            object->property_array(isolate)->length().value()) {
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
         auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
@@ -5783,8 +5788,6 @@ Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwap(
                                                        new_value, tag);
       });
 }
-
-bool JSGlobalProxy::IsDetached() { return !GetCreationContext().has_value(); }
 
 void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
                                             DirectHandle<Name> name) {

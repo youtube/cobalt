@@ -63,8 +63,6 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.hub.DisplayButtonData;
-import org.chromium.chrome.browser.hub.FullButtonData;
 import org.chromium.chrome.browser.hub.HubContainerView;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationListener;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationType;
@@ -91,6 +89,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabLi
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoManager;
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoSheetContent;
 import org.chromium.chrome.browser.toolbar.TabSwitcherDrawable;
+import org.chromium.chrome.browser.ui.actions.DisplayButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.user_education.IphCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
@@ -479,6 +479,22 @@ public class TabSwitcherPaneUnitTest {
 
         buttonData.getOnPressRunnable().run();
         verify(mNewTabButtonClickListener).onClick(isNull());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR + ":show_bottom_bar_on_gts/true")
+    public void testNewTabButton_BottomBarEnabled() {
+        assertNull(mTabSwitcherPane.getActionButtonDataSupplier().get());
+        assertFalse(mTabSwitcherPane.getMenuButtonVisible());
+    }
+
+    @Test
+    @EnableFeatures(
+            ChromeFeatureList.ANDROID_BOTTOM_BAR
+                    + ":keep_app_menu_in_toolbar/true/show_bottom_bar_on_gts/true")
+    public void testMenuButton_BottomBarEnabled_KeepAppMenuInToolbar() {
+        assertNull(mTabSwitcherPane.getActionButtonDataSupplier().get());
+        assertTrue(mTabSwitcherPane.getMenuButtonVisible());
     }
 
     @Test

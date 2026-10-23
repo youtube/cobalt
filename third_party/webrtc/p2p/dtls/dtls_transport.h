@@ -16,12 +16,12 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
@@ -76,7 +76,7 @@ class StreamInterfaceChannel : public StreamInterface {
   StreamInterfaceChannel& operator=(const StreamInterfaceChannel&) = delete;
 
   // Push in a packet; this gets pulled out from Read().
-  bool OnPacketReceived(ArrayView<const uint8_t> data);
+  bool OnPacketReceived(std::span<const uint8_t> data);
 
   // Sets the options for the next packet to be written to ice_transport,
   // corresponding to the next Write() call. Safe since BoringSSL guarantees
@@ -89,10 +89,10 @@ class StreamInterfaceChannel : public StreamInterface {
   // Implementations of StreamInterface
   StreamState GetState() const override;
   void Close() override;
-  StreamResult Read(ArrayView<uint8_t> buffer,
+  StreamResult Read(std::span<uint8_t> buffer,
                     size_t& read,
                     int& error) override;
-  StreamResult Write(ArrayView<const uint8_t> data,
+  StreamResult Write(std::span<const uint8_t> data,
                      size_t& written,
                      int& error) override;
   bool Flush() override;
@@ -293,7 +293,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route);
   bool SetupDtls();
   void MaybeStartDtls();
-  bool HandleDtlsPacket(ArrayView<const uint8_t> payload);
+  bool HandleDtlsPacket(std::span<const uint8_t> payload);
   void OnDtlsHandshakeError(SSLHandshakeError error);
   void ConfigureHandshakeTimeout();
   void UpdateHandshakeTimeout();

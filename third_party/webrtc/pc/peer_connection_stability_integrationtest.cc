@@ -48,6 +48,7 @@ namespace {
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Not;
+using ::testing::UnorderedElementsAreArray;
 
 class FactorySignature {
  public:
@@ -61,6 +62,28 @@ class FactorySignature {
     kWebRtcAndroid,
     kGoogleInternal,
   };
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, Id id) {
+    switch (id) {
+      case Id::kNotRecognized:
+        sink.Append("kNotRecognized");
+        break;
+      case Id::kWebRtcTipOfTree:
+        sink.Append("kWebRtcTipOfTree");
+        break;
+      case Id::kWebRtcMoreConfigs1:
+        sink.Append("kWebRtcMoreConfigs1");
+        break;
+      case Id::kWebRtcAndroid:
+        sink.Append("kWebRtcAndroid");
+        break;
+      case Id::kGoogleInternal:
+        sink.Append("kGoogleInternal");
+        break;
+    }
+  }
+
   Id id() { return id_; }
   FactorySignature() {
     ExtractSignatureStrings();
@@ -377,10 +400,7 @@ class PeerConnectionIntegrationTest : public PeerConnectionIntegrationBaseTest {
                                        std::vector<std::string> callee_local,
                                        std::vector<std::string> callee_remote) {
     StringBuilder sb;
-    // TODO: issues.webrtc.org/397895867 - change kChangeThis to the name of
-    // the value. Requires adding an AbslStringifier to the enum.
-    sb << "\n{" << ".factory_id = FactorySignature::Id::kChangeThis"
-       << static_cast<int>(id) << ",\n"
+    sb << "\n{" << ".factory_id = FactorySignature::Id::" << id << ",\n"
        << ".caller_local = {";
     for (const std::string& str : caller_local) {
       sb << "\"" << str << "\",\n";
@@ -940,13 +960,54 @@ TEST_F(PeerConnectionIntegrationTest, BasicOfferAnswerPayloadTypesStable) {
 
   const ResultingCodecList& this_golden = *this_golden_it;
   EXPECT_THAT(CodecList(*caller()->pc()->local_description()),
-              ElementsAreArray(this_golden.caller_local));
+              UnorderedElementsAreArray(this_golden.caller_local))
+      << "Factory ID: " << factory_signature.id();
   EXPECT_THAT(CodecList(*caller()->pc()->remote_description()),
-              ElementsAreArray(this_golden.caller_remote));
+              UnorderedElementsAreArray(this_golden.caller_remote))
+      << "Factory ID: " << factory_signature.id();
   EXPECT_THAT(CodecList(*callee()->pc()->local_description()),
-              ElementsAreArray(this_golden.callee_local));
+              UnorderedElementsAreArray(this_golden.callee_local))
+      << "Factory ID: " << factory_signature.id();
   EXPECT_THAT(CodecList(*callee()->pc()->remote_description()),
-              ElementsAreArray(this_golden.callee_remote));
+              UnorderedElementsAreArray(this_golden.callee_remote))
+      << "Factory ID: " << factory_signature.id();
+
+  if (HasFailure()) {
+    return;
+  }
+
+  EXPECT_THAT(CodecList(*caller()->pc()->local_description()),
+              ElementsAreArray(this_golden.caller_local))
+      << "Factory ID: " << factory_signature.id();
+  EXPECT_THAT(CodecList(*caller()->pc()->remote_description()),
+              ElementsAreArray(this_golden.caller_remote))
+      << "Factory ID: " << factory_signature.id();
+  EXPECT_THAT(CodecList(*callee()->pc()->local_description()),
+              ElementsAreArray(this_golden.callee_local))
+      << "Factory ID: " << factory_signature.id();
+  EXPECT_THAT(CodecList(*callee()->pc()->remote_description()),
+              ElementsAreArray(this_golden.callee_remote))
+      << "Factory ID: " << factory_signature.id();
+}
+
+TEST_F(PeerConnectionIntegrationTest,
+       DumpAsResultingCodecListProducesExpectedOutput) {
+  std::vector<std::string> caller_local = {"cl1"};
+  std::vector<std::string> caller_remote = {"cr1"};
+  std::vector<std::string> callee_local = {"ce_l1"};
+  std::vector<std::string> callee_remote = {"ce_r1"};
+
+  std::string output = DumpAsResultingCodecList(
+      FactorySignature::Id::kWebRtcTipOfTree, caller_local, caller_remote,
+      callee_local, callee_remote);
+
+  EXPECT_THAT(output,
+              Eq("\n{.factory_id = FactorySignature::Id::kWebRtcTipOfTree,\n"
+                 ".caller_local = {\"cl1\",\n},\n"
+                 " .caller_remote = {\"cr1\",\n},\n"
+                 " .callee_local = {\"ce_l1\",\n},\n"
+                 " .callee_remote = {\"ce_r1\",\n"
+                 "}}\n"));
 }
 
 }  // namespace

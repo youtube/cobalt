@@ -401,8 +401,7 @@ class DeterminePossibleFieldTypesForUploadTest : public ::testing::Test {
   DeterminePossibleFieldTypesForUploadTest() {
     scoped_feature_list_.InitWithFeatures(
         {features::kAutofillAiWithDataSchema,
-         features::kAutofillAiVoteForFormatStringsForFlightNumbers,
-         features::kAutofillEnableLoyaltyCardsFilling},
+         features::kAutofillAiVoteForFormatStringsForFlightNumbers},
         {});
   }
 
@@ -1314,18 +1313,11 @@ TEST_P(FindDatesAndSetFormatStringsTest_MultipleTextInput, MultipleTextInput) {
 // Test fixture for DetermineAvailableFieldTypes().
 class DetermineAvailableFieldTypesTest : public ::testing::Test {
  public:
-  DetermineAvailableFieldTypesTest() {
-    features_.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAiWithDataSchema,
-                              features::kAutofillEnableLoyaltyCardsFilling,
-                              features::
-                                  kAutofillEnableEmailOrLoyaltyCardsFilling},
-        /*disabled_features=*/{});
-  }
+  DetermineAvailableFieldTypesTest() = default;
 
  protected:
   test::AutofillUnitTestEnvironment autofill_test_environment_;
-  base::test::ScopedFeatureList features_;
+  base::test::ScopedFeatureList features_{features::kAutofillAiWithDataSchema};
 };
 
 // Tests that entities are included in the set of available field types.
@@ -1462,6 +1454,7 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
                  {.role = PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX}},
   });
   test_api(form).field(1).set_value(u"US");
+  test_api(form).field(1).set_selected_option_text(u"United States (+1)");
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 

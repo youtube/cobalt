@@ -11,7 +11,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_helper.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "content/public/browser/web_contents.h"
@@ -35,8 +35,8 @@ WebUIBrowserSidePanelUI::WebUIBrowserSidePanelUI(Browser* browser)
   // coordinators are constructed prior to this call. For the remaining
   // global entries, we should either move construction to
   // BrowserWindowFeatures::Init() or else explicitly disable support.
-  SidePanelUtil::PopulateGlobalEntries(browser,
-                                       SidePanelRegistry::From(browser));
+  SidePanelHelper::PopulateGlobalEntries(browser,
+                                         SidePanelRegistry::From(browser));
 }
 
 WebUIBrowserSidePanelUI::~WebUIBrowserSidePanelUI() = default;
@@ -90,7 +90,7 @@ void WebUIBrowserSidePanelUI::Show(
     std::optional<SidePanelOpenTrigger> open_trigger,
     bool suppress_animations) {
   // Side panel is not supported for non-normal browsers.
-  if (!browser()->is_type_normal()) {
+  if (browser()->GetType() != Browser::Type::TYPE_NORMAL) {
     return;
   }
 
@@ -230,5 +230,5 @@ void WebUIBrowserSidePanelUI::OnSidePanelClosed(
 }
 
 WebUIBrowserWindow* WebUIBrowserSidePanelUI::GetWebUIBrowserWindow() {
-  return static_cast<WebUIBrowserWindow*>(browser()->window());
+  return WebUIBrowserWindow::FromBrowser(browser());
 }

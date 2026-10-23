@@ -28,7 +28,6 @@
 #include "api/legacy_stats_types.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
-#include "api/media_stream_track.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -42,6 +41,7 @@
 #include "pc/media_stream.h"
 #include "pc/peer_connection_internal.h"
 #include "pc/sctp_data_channel.h"
+#include "pc/test/fake_audio_track.h"
 #include "pc/test/fake_peer_connection_for_stats.h"
 #include "pc/test/fake_video_track_source.h"
 #include "pc/test/mock_rtp_receiver_internal.h"
@@ -85,82 +85,20 @@ constexpr char kLocalTrackId[] = "local_track_id";
 constexpr char kRemoteTrackId[] = "remote_track_id";
 constexpr uint32_t kSsrcOfTrack = 1234;
 
-class FakeAudioProcessor : public AudioProcessorInterface {
- public:
-  FakeAudioProcessor() {}
-  ~FakeAudioProcessor() override {}
-
- private:
-  AudioProcessorInterface::AudioProcessorStatistics GetStats(
-      bool has_recv_streams) override {
-    AudioProcessorStatistics stats;
-    if (has_recv_streams) {
-      stats.apm_statistics.echo_return_loss = 2.0;
-      stats.apm_statistics.echo_return_loss_enhancement = 3.0;
-      stats.apm_statistics.delay_median_ms = 4;
-      stats.apm_statistics.delay_standard_deviation_ms = 5;
-    }
-    return stats;
+// Returns a FakeAudioTrack with the given ID and configuration.
+scoped_refptr<AudioTrackInterface> CreateFakeAudioTrack(const std::string& id,
+                                                        bool return_stats) {
+  auto processor = make_ref_counted<FakeAudioProcessor>();
+  processor->return_stats = return_stats;
+  if (return_stats) {
+    processor->stats.apm_statistics.echo_return_loss = 2.0;
+    processor->stats.apm_statistics.echo_return_loss_enhancement = 3.0;
+    processor->stats.apm_statistics.delay_median_ms = 4;
+    processor->stats.apm_statistics.delay_standard_deviation_ms = 5;
   }
-};
-
-class FakeAudioTrack : public MediaStreamTrack<AudioTrackInterface> {
- public:
-  explicit FakeAudioTrack(const std::string& id)
-      : MediaStreamTrack<AudioTrackInterface>(id),
-        processor_(make_ref_counted<FakeAudioProcessor>()) {}
-  std::string kind() const override { return "audio"; }
-  AudioSourceInterface* GetSource() const override { return nullptr; }
-  void AddSink(AudioTrackSinkInterface* sink) override {}
-  void RemoveSink(AudioTrackSinkInterface* sink) override {}
-  bool GetSignalLevel(int* level) override {
-    *level = 1;
-    return true;
-  }
-  scoped_refptr<AudioProcessorInterface> GetAudioProcessor() override {
-    return processor_;
-  }
-
- private:
-  scoped_refptr<FakeAudioProcessor> processor_;
-};
-
-// This fake audio processor is used to verify that the undesired initial values
-// (-1) will be filtered out.
-class FakeAudioProcessorWithInitValue : public AudioProcessorInterface {
- public:
-  FakeAudioProcessorWithInitValue() {}
-  ~FakeAudioProcessorWithInitValue() override {}
-
- private:
-  AudioProcessorInterface::AudioProcessorStatistics GetStats(
-      bool /*has_recv_streams*/) override {
-    AudioProcessorStatistics stats;
-    return stats;
-  }
-};
-
-class FakeAudioTrackWithInitValue
-    : public MediaStreamTrack<AudioTrackInterface> {
- public:
-  explicit FakeAudioTrackWithInitValue(const std::string& id)
-      : MediaStreamTrack<AudioTrackInterface>(id),
-        processor_(make_ref_counted<FakeAudioProcessorWithInitValue>()) {}
-  std::string kind() const override { return "audio"; }
-  AudioSourceInterface* GetSource() const override { return nullptr; }
-  void AddSink(AudioTrackSinkInterface* sink) override {}
-  void RemoveSink(AudioTrackSinkInterface* sink) override {}
-  bool GetSignalLevel(int* level) override {
-    *level = 1;
-    return true;
-  }
-  scoped_refptr<AudioProcessorInterface> GetAudioProcessor() override {
-    return processor_;
-  }
-
- private:
-  scoped_refptr<FakeAudioProcessorWithInitValue> processor_;
-};
+  return FakeAudioTrack::Create(id, MediaStreamTrackInterface::kLive,
+                                processor);
+}
 
 bool GetValue(const StatsReport* report,
               StatsReport::StatsValueName name,
@@ -600,7 +538,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
         pc, clock_, [this]() { return GetUtcTimeNowMs(); });
   }
 
-  void VerifyAudioTrackStats(FakeAudioTrack* audio_track,
+  void VerifyAudioTrackStats(AudioTrackInterface* audio_track,
                              LegacyStatsCollector* stats,
                              const VoiceMediaInfo& voice_info,
                              StatsReports* reports) {
@@ -841,7 +779,7 @@ class StatsCollectorTrackTest : public LegacyStatsCollectorTest,
   scoped_refptr<RtpSenderInterface> AddOutgoingAudioTrack(
       FakePeerConnectionForStats* pc,
       LegacyStatsCollector* stats) {
-    audio_track_ = make_ref_counted<FakeAudioTrack>(kLocalTrackId);
+    audio_track_ = CreateFakeAudioTrack(kLocalTrackId, true);
     if (GetParam()) {
       if (!stream_)
         stream_ = MediaStream::Create("streamid");
@@ -859,7 +797,7 @@ class StatsCollectorTrackTest : public LegacyStatsCollectorTest,
   // Adds a incoming audio track with a given SSRC into the stats.
   void AddIncomingAudioTrack(FakePeerConnectionForStats* pc,
                              LegacyStatsCollector* stats) {
-    audio_track_ = make_ref_counted<FakeAudioTrack>(kRemoteTrackId);
+    audio_track_ = CreateFakeAudioTrack(kRemoteTrackId, true);
     if (GetParam()) {
       if (stream_ == nullptr)
         stream_ = MediaStream::Create("streamid");
@@ -878,7 +816,7 @@ class StatsCollectorTrackTest : public LegacyStatsCollectorTest,
 
   scoped_refptr<MediaStream> stream_;
   scoped_refptr<VideoTrack> video_track_;
-  scoped_refptr<FakeAudioTrack> audio_track_;
+  scoped_refptr<AudioTrackInterface> audio_track_;
 };
 
 TEST(StatsCollectionTest, DetachAndMerge) {
@@ -1593,8 +1531,7 @@ TEST_P(StatsCollectorTrackTest, FilterOutNegativeInitialValues) {
 
   // Create a local stream with a local audio track and adds it to the stats.
   stream_ = MediaStream::Create("streamid");
-  auto local_track =
-      make_ref_counted<FakeAudioTrackWithInitValue>(kLocalTrackId);
+  auto local_track = CreateFakeAudioTrack(kLocalTrackId, false);
   stream_->AddTrack(scoped_refptr<AudioTrackInterface>(local_track.get()));
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc->AddSender(CreateMockSender(local_track, kSsrcOfTrack));
@@ -1608,7 +1545,7 @@ TEST_P(StatsCollectorTrackTest, FilterOutNegativeInitialValues) {
   scoped_refptr<MediaStream> remote_stream(
       MediaStream::Create("remotestreamid"));
   scoped_refptr<AudioTrackInterface> remote_track =
-      make_ref_counted<FakeAudioTrackWithInitValue>(kRemoteTrackId);
+      CreateFakeAudioTrack(kRemoteTrackId, false);
   remote_stream->AddTrack(remote_track);
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc->AddReceiver(CreateMockReceiver(remote_track, kSsrcOfTrack));
@@ -1793,7 +1730,7 @@ TEST_P(StatsCollectorTrackTest, LocalAndRemoteTracksWithSameSsrc) {
   scoped_refptr<MediaStream> remote_stream(
       MediaStream::Create("remotestreamid"));
   scoped_refptr<AudioTrackInterface> remote_track =
-      make_ref_counted<FakeAudioTrack>(kRemoteTrackId);
+      CreateFakeAudioTrack(kRemoteTrackId, true);
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc->AddReceiver(CreateMockReceiver(remote_track, kSsrcOfTrack));
   RTC_ALLOW_PLAN_B_DEPRECATION_END();
@@ -1893,7 +1830,7 @@ TEST_P(StatsCollectorTrackTest, TwoLocalTracksWithSameSsrc) {
 
   // Create a new audio track and adds it to the stream and stats.
   static const std::string kNewTrackId = "new_track_id";
-  auto new_audio_track = make_ref_counted<FakeAudioTrack>(kNewTrackId);
+  auto new_audio_track = CreateFakeAudioTrack(kNewTrackId, true);
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc->AddSender(CreateMockSender(new_audio_track, kSsrcOfTrack));
   RTC_ALLOW_PLAN_B_DEPRECATION_END();
@@ -1926,8 +1863,7 @@ TEST_P(StatsCollectorTrackTest, TwoLocalSendersWithSameTrack) {
   auto pc = CreatePeerConnection();
   auto stats = CreateStatsCollector(pc.get());
 
-  auto local_track =
-      make_ref_counted<FakeAudioTrackWithInitValue>(kLocalTrackId);
+  auto local_track = CreateFakeAudioTrack(kLocalTrackId, false);
   RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   pc->AddSender(CreateMockSender(local_track, kFirstSsrc));
   stats->AddLocalAudioTrack(local_track.get(), kFirstSsrc);

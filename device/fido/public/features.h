@@ -129,10 +129,6 @@ BASE_DECLARE_FEATURE(kWebAuthnImmediateGet);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE_PARAM(int, kWebAuthnImmediateMediationTimeoutMilliseconds);
 
-// Enables autoselecting the single mechanism in immediate mediation requests.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnImmediateGetAutoselect);
-
 // Sends a PIN generation number to the enclave on a PIN wrapping request.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnSendPinGeneration);
@@ -152,6 +148,13 @@ BASE_DECLARE_FEATURE(kWebAuthnNewRefreshFlow);
 // Enables to save keys from out of context ("opportunistic") retrieval.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
+
+// Enables the fix of the logic for handling identity change (the new logic
+// might decide to not terminate the running state machine in some cases,
+// whereas the previous logic was always terminating the state machine).
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(
+    kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange);
 
 // Parameter controlling the time window (in seconds) for keeping the cached
 // opportunistically retrieved key in case its Gaia Id doesn't match to primary

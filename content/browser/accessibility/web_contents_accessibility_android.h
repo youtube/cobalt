@@ -23,6 +23,7 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace ui {
+class AXSelection;
 class MotionEventAndroid;
 struct AXTreeUpdate;
 }  // namespace ui
@@ -185,6 +186,8 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   void Click(JNIEnv* env, int32_t id);
   void Focus(JNIEnv* env, int32_t id);
   void Blur(JNIEnv* env);
+  void Expand(JNIEnv* env, int32_t id);
+  void Collapse(JNIEnv* env, int32_t id);
   void ScrollToMakeNodeVisible(JNIEnv* env, int32_t id);
   void SetTextFieldValue(JNIEnv* env,
                          int32_t id,
@@ -453,6 +456,10 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
       JNIEnv* env,
       int32_t unique_id);
 
+  base::android::ScopedJavaLocalRef<jintArray> GetExtendedSelection(
+      JNIEnv* env,
+      int32_t unique_id);
+
  private:
   friend class MockWebContentsAccessibilityAndroid;
 
@@ -464,6 +471,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   BrowserAccessibilityAndroid* GetAXFromUniqueID(int32_t unique_id) const;
 
   bool IsAccessibilityFocused(BrowserAccessibilityAndroid* node) const;
+
+  std::optional<ui::AXSelection> GetSelectionInternal(
+      BrowserAccessibilityManagerAndroid* root_manager);
 
   void PopulateAccessibilityNodeInfoChildIds(
       JNIEnv* env,

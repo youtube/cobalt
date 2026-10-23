@@ -72,8 +72,8 @@ enum class InitialWebUIView {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:InitialWebUIView)
 
-// Emits a WaaP trace event asynchronously onto a perfetto::Track and records a
-// UMA histogram with the same event name.
+// Emits an Initial WebUI trace event asynchronously onto a perfetto::Track and
+// records a UMA histogram with the same event name.
 void EmitHistogramWithTraceEvent(const char* event_name,
                                  base::TimeTicks start_ticks,
                                  base::TimeTicks end_ticks) {
@@ -88,8 +88,8 @@ void EmitHistogramWithTraceEvent(const char* event_name,
   base::UmaHistogramLongTimes100(event_name, delta);
 }
 
-// Emits a WaaP trace event and records a UMA histogram with the given event
-// name and duration.
+// Emits an Initial WebUI trace event and records a UMA histogram with the given
+// event name and duration.
 void EmitReloadButtonHistogramWithTraceEvent(const char* event_name,
                                              base::TimeTicks start_ticks,
                                              base::TimeTicks end_ticks) {
@@ -192,6 +192,26 @@ void WaapUIMetricsService::OnBrowserWindowCreated() {
 void WaapUIMetricsService::OnReloadButtonCreated() {
   base::UmaHistogramEnumeration("InitialWebUI.View.Creation",
                                 InitialWebUIView::kReloadButton);
+}
+
+void WaapUIMetricsService::OnReloadButtonRendererProcessCreatedAndLaunched(
+    base::TimeTicks created_timestamp,
+    base::TimeTicks launched_timestamp) {
+  // TODO(crbug.com/490810407): Record this and the other metrics as UKM as
+  // well, so that we can see the progression of renderer process creation
+  // requested
+  // -> launched -> commit -> paint etc. UKM recording for topchrome is
+  // currently not working.
+  base::TimeTicks time_origin =
+      startup_metric_utils::GetBrowser().GetApplicationStartTicksForStartup();
+  if (!created_timestamp.is_null()) {
+    RecordStartupPaintMetric("ReloadButton.RendererProcessCreated", time_origin,
+                             created_timestamp);
+  }
+  if (!launched_timestamp.is_null()) {
+    RecordStartupPaintMetric("ReloadButton.RendererProcessLaunched",
+                             time_origin, launched_timestamp);
+  }
 }
 
 void WaapUIMetricsService::OnBrowserWindowFirstPresentation(

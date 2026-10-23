@@ -165,8 +165,7 @@ void VideoCaptureDeviceAndroid::AllocateAndStart(
   }
 
   // TODO(julien.isorce): Use Camera.SENSOR_COLOR_TRANSFORM2 to build a
-  // gfx::ColorSpace, and rename VideoCaptureDeviceAndroid::GetColorspace()
-  // to GetPixelFormat, see http://crbug.com/959901.
+  // gfx::ColorSpace. see http://crbug.com/959901.
   capture_color_space_ = gfx::ColorSpace();
 
   capture_format_.frame_size.SetSize(
@@ -174,7 +173,7 @@ void VideoCaptureDeviceAndroid::AllocateAndStart(
       Java_VideoCapture_queryHeight(env, j_capture_));
   capture_format_.frame_rate =
       Java_VideoCapture_queryFrameRate(env, j_capture_);
-  capture_format_.pixel_format = GetColorspace();
+  capture_format_.pixel_format = GetPixelFormat();
   DCHECK_NE(capture_format_.pixel_format, PIXEL_FORMAT_UNKNOWN);
   CHECK(capture_format_.frame_size.GetArea() > 0);
   CHECK(!(capture_format_.frame_size.width() % 2));
@@ -286,46 +285,6 @@ void VideoCaptureDeviceAndroid::SetPhotoOptions(
     }
   }
   DoSetPhotoOptions(std::move(settings), std::move(callback));
-}
-
-void VideoCaptureDeviceAndroid::OnFrameAvailable(
-    JNIEnv* env,
-    const base::android::JavaRef<jbyteArray>& data,
-    int32_t length,
-    int32_t rotation) {
-  if (!IsClientConfigured())
-    return;
-
-  const base::TimeTicks current_time = base::TimeTicks::Now();
-  ProcessFirstFrameAvailable(current_time);
-  // Using |expected_next_frame_time_| to estimate a proper capture timestamp
-  // since android.hardware.Camera API doesn't expose a better timestamp.
-  const base::TimeDelta capture_time =
-      expected_next_frame_time_ - base::TimeTicks();
-
-  // Deliver the frame when it doesn't arrive too early.
-  if (ThrottleFrame(current_time)) {
-    client_->OnFrameDropped(VideoCaptureFrameDropReason::kAndroidThrottling);
-    return;
-  }
-
-  int8_t* buffer = env->GetByteArrayElements(data.obj(), NULL);
-  if (!buffer) {
-    LOG(ERROR) << "VideoCaptureDeviceAndroid::OnFrameAvailable: "
-                  "failed to GetByteArrayElements";
-    // In case of error, restore back the throttle control value.
-    expected_next_frame_time_ -= frame_interval_;
-    client_->OnFrameDropped(
-        VideoCaptureFrameDropReason::kAndroidGetByteArrayElementsFailed);
-    return;
-  }
-
-  // TODO(qiangchen): Investigate how to get raw timestamp for Android,
-  // rather than using reference time to calculate timestamp.
-  SendIncomingDataToClient(reinterpret_cast<uint8_t*>(buffer), length, rotation,
-                           current_time, capture_time);
-
-  env->ReleaseByteArrayElements(data.obj(), buffer, JNI_ABORT);
 }
 
 void VideoCaptureDeviceAndroid::OnI420FrameAvailable(
@@ -770,11 +729,11 @@ void VideoCaptureDeviceAndroid::SendIncomingDataToClient(
       /*capture_begin_timestamp=*/std::nullopt, /*metadata=*/std::nullopt);
 }
 
-VideoPixelFormat VideoCaptureDeviceAndroid::GetColorspace() {
+VideoPixelFormat VideoCaptureDeviceAndroid::GetPixelFormat() {
   JNIEnv* env = AttachCurrentThread();
-  const int current_capture_colorspace =
-      Java_VideoCapture_getColorspace(env, j_capture_);
-  switch (current_capture_colorspace) {
+  const int current_pixel_format =
+      Java_VideoCapture_getPixelFormat(env, j_capture_);
+  switch (current_pixel_format) {
     case ANDROID_IMAGE_FORMAT_YV12:
       return PIXEL_FORMAT_YV12;
     case ANDROID_IMAGE_FORMAT_YUV_420_888:

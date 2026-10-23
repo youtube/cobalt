@@ -318,8 +318,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
-  V(js_immutable_arraybuffer, "Immutable ArrayBuffer")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)             \
+  V(js_immutable_arraybuffer, "Immutable ArrayBuffer") \
+  V(js_joint_iteration, "joint iteration")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -745,8 +746,10 @@ DEFINE_WEAK_VALUE_IMPLICATION(maglev_as_top_tier,
 
 DEFINE_BOOL(maglev_reuse_stack_slots, true,
             "reuse stack slots in the maglev optimizing compiler")
-DEFINE_BOOL(maglev_untagged_phis, true,
+DEFINE_BOOL(maglev_untagged_phis, false,
             "enable phi untagging in the maglev optimizing compiler")
+DEFINE_BOOL(turbolev_untagged_phis, false,
+            "enable phi untagging in the Turbolev optimizing compiler")
 DEFINE_BOOL(maglev_hoist_osr_value_phi_untagging, true,
             "enable phi untagging to hoist untagging of osr values")
 DEFINE_EXPERIMENTAL_FEATURE(
@@ -1293,9 +1296,9 @@ DEFINE_IMPLICATION(always_use_string_forwarding_table, experimental)
 // With --always-use-string-forwarding-table, we can have young generation
 // string entries in the forwarding table, requiring table updates when these
 // strings get promoted to old space. Parallel GCs in client isolates
-// (enabled by --shared-string-table) are not supported using a single shared
+// (enabled by --shared-heap) are not supported using a single shared
 // forwarding table.
-DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
+DEFINE_NEG_IMPLICATION(shared_heap, always_use_string_forwarding_table)
 
 DEFINE_BOOL(transition_strings_during_gc_with_stack, false,
             "Transition strings during a full GC with stack")
@@ -1744,7 +1747,7 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
 #if V8_TARGET_ARCH_ARM64
-DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
+DEFINE_BOOL(wasm_simd_opt, true, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
@@ -1777,6 +1780,9 @@ DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_strings)
+// TODO(493179861): Add support for shared custom descriptors.
+DEFINE_NEG_IMPLICATION(experimental_wasm_shared,
+                       experimental_wasm_custom_descriptors)
 #endif
 
 DEFINE_BOOL(
@@ -1818,6 +1824,7 @@ DEFINE_BOOL(turboshaft_trace_load_elimination, false,
             "trace Turboshaft's late load elimination")
 DEFINE_BOOL(turboshaft_trace_if_else_to_switch, false,
             "trace Turboshaft's if-else to switch reducer")
+DEFINE_BOOL(turboshaft_trace_gvn, false, "trace Turboshaft's GVN reducer")
 
 DEFINE_BOOL(trace_turbolev_graph_building, false,
             "trace the translation from Maglev to Turboshaft in Turbolev")
@@ -1912,8 +1919,7 @@ DEFINE_BOOL(wasm_tier_up, V8_ENABLE_TURBOFAN_BOOL,
 DEFINE_BOOL(wasm_dynamic_tiering, V8_ENABLE_TURBOFAN_BOOL,
             "enable dynamic tier up to the optimizing compiler")
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
-DEFINE_BOOL(wasm_sync_tier_up, false,
-            "run tier up jobs synchronously for testing")
+DEFINE_BOOL(wasm_sync_tier_up, false, "run Wasm tier up jobs synchronously")
 DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
@@ -1964,9 +1970,9 @@ DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
     "enables a testing opcode in wasm that is only implemented in TurboFan")
-// We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
-// disable tier up in that configuration for now.
-DEFINE_NEG_IMPLICATION(single_threaded, wasm_tier_up)
+// Do synchronous tier up (instead of in-background tierup) in single threaded
+// mode.
+DEFINE_IMPLICATION(single_threaded, wasm_sync_tier_up)
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
@@ -2338,22 +2344,28 @@ DEFINE_IMPLICATION(wasm_code_coverage, wasm_opt)
 
 DEFINE_BOOL(trace_wasm_compilation_hints, false,
             "trace compilation hints parsing and usage")
-DEFINE_BOOL(wasm_generate_compilation_hints, false,
-            "enable emitting compilation-hints sections for Wasm to a file")
+DEFINE_TEST_ONLY_FLAG(
+    wasm_generate_compilation_hints,
+    "enable emitting compilation-hints sections for Wasm to a file")
+DEFINE_TEST_ONLY_FLAG(trace_wasm_generate_compilation_hints,
+                      "enable tracing wasm compilation hints generation")
 // Feedback collection is guarded by the --wasm-inlining flag.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_inlining)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
+// We need liftoff to generate feedback when generating compilation hints.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, liftoff)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, liftoff)
 // Despite functions not being tiered up in this mode, we need this to track
 // which functions were marked for tierup to generate the compilation-priority
 // section.
 DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_tier_up)
-DEFINE_BOOL(trace_wasm_generate_compilation_hints, false,
-            "enable tracing wasm compilation hints generation")
-// Feedback collection is guarded by the --wasm-inlining flag.
-DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_inlining)
-// Despite functions not being tiered up in this mode, we need this to track
-// which functions were marked for tierup to generate the compilation-priority
-// section.
 DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_tier_up)
+// Compilation hints generation is not compatible with
+// --no-wasm-dynamic-tiering or --no-wasm-lazy-compilation.
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_dynamic_tiering)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_dynamic_tiering)
+DEFINE_IMPLICATION(wasm_generate_compilation_hints, wasm_lazy_compilation)
+DEFINE_IMPLICATION(trace_wasm_generate_compilation_hints, wasm_lazy_compilation)
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -4077,6 +4089,10 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "until first access")
 DEFINE_WEAK_IMPLICATION(experimental_fuzzing, proto_assign_seq_lazy_func_opt)
 DEFINE_IMPLICATION(proto_assign_seq_lazy_func_opt, proto_assign_seq_opt)
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    private_field_bytecodes,
+    "Use specialized bytecodes for Get/Set Private Fields")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

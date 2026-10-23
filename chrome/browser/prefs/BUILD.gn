@@ -8,6 +8,7 @@ import("//components/on_device_translation/buildflags/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//pdf/features.gni")
+import("//rlz/buildflags/buildflags.gni")
 
 assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
@@ -65,6 +66,8 @@ source_set("impl") {
     "//chrome/browser/background/glic",
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/devtools",
+    "//chrome/browser/engagement",
+    "//chrome/browser/external_protocol",
     "//chrome/browser/gcm",
     "//chrome/browser/glic",
     "//chrome/browser/gpu",
@@ -72,6 +75,7 @@ source_set("impl") {
     "//chrome/browser/media/router:media_router_feature",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/memory",
     "//chrome/browser/metrics",
     "//chrome/browser/permissions",
     "//chrome/browser/platform_experience:prefs",
@@ -94,6 +98,7 @@ source_set("impl") {
     "//chrome/browser/ui/profiles",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/search_engines",
+    "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/side_search",
     "//chrome/browser/ui/startup",
     "//chrome/browser/ui/startup:startup_tab",
@@ -137,6 +142,7 @@ source_set("impl") {
     "//components/performance_manager",
     "//components/permissions",
     "//components/plus_addresses/core/common:prefs",
+    "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/pref_registry",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/proxy_config",
@@ -177,6 +183,10 @@ source_set("impl") {
 
   if (enable_background_mode) {
     deps += [ "//chrome/browser/background/extensions" ]
+  }
+
+  if (enable_rlz) {
+    deps += [ "//chrome/browser/rlz" ]
   }
 
   if (is_chromeos) {
@@ -530,5 +540,9 @@ if (!is_android) {
       "//testing/gmock",
       "//ui/gfx/geometry",
     ]
+
+    if (is_win) {
+      deps += [ "//chrome/browser/win:isolated_browser_support" ]
+    }
   }
 }

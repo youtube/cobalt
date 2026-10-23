@@ -910,7 +910,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
       Tagged<JSRegExp> re = Cast<JSRegExp>(object);
       return AddEntry(object, HeapEntry::kRegExp,
-                      names_->GetName(re->source()));
+                      names_->GetName(re->source(isolate())));
     }
     // TODO(v8:12674) Fix and run full gcmole.
     DisableGCMole no_gcmole;
@@ -923,9 +923,10 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       auto it =
           native_context_tag_map_.find(Cast<HeapObject>(maybe_context.value()));
       if (it != native_context_tag_map_.end() && it->second.tag) {
-        name = names_->GetFormatted("%s (global*) / %s", name, it->second.tag);
+        name = names_->GetFormatted("%s [JSGlobalObject] / %s", name,
+                                    it->second.tag);
       } else {
-        name = names_->GetFormatted("%s (global*)", name);
+        name = names_->GetFormatted("%s [JSGlobalObject]", name);
       }
     } else if (InstanceTypeChecker::IsJSGlobalProxy(instance_type)) {
       auto maybe_context = Cast<JSGlobalProxy>(object)->GetCreationContext();
@@ -933,12 +934,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         auto it = native_context_tag_map_.find(
             Cast<HeapObject>(maybe_context.value()));
         if (it != native_context_tag_map_.end() && it->second.tag) {
-          name = names_->GetFormatted("%s (global) / %s", name, it->second.tag);
+          name = names_->GetFormatted("%s [JSGlobalProxy] / %s", name,
+                                      it->second.tag);
         } else {
-          name = names_->GetFormatted("%s (global)", name);
+          name = names_->GetFormatted("%s [JSGlobalProxy]", name);
         }
       } else {
-        name = names_->GetFormatted("%s (global) / <detached>", name);
+        name = names_->GetFormatted("%s [JSGlobalProxy] / <detached>", name);
       }
     }
     auto it = native_context_tag_map_.find(Cast<HeapObject>(object));
@@ -971,18 +973,23 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
     return AddEntry(object, HeapEntry::kBigInt, "bigint");
 
-  } else if (InstanceTypeChecker::IsInstructionStream(instance_type) ||
-             InstanceTypeChecker::IsCode(instance_type)) {
-    return AddEntry(object, HeapEntry::kCode, "");
+  } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+    return AddEntry(object, HeapEntry::kCode, "system / InstructionStream");
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return AddEntry(object, HeapEntry::kCode, "system / Code");
 
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     Tagged<String> name = Cast<SharedFunctionInfo>(object)->Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
 
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
-    Tagged<Object> name = Cast<Script>(object)->name();
-    return AddEntry(object, HeapEntry::kCode,
-                    IsString(name) ? names_->GetName(Cast<String>(name)) : "");
+    Tagged<Object> name_obj = Cast<Script>(object)->name();
+    const char* name = "system / Script";
+    if (IsString(name_obj)) {
+      name = names_->GetFormatted("%s / %s", name,
+                                  names_->GetName(Cast<String>(name_obj)));
+    }
+    return AddEntry(object, HeapEntry::kCode, name);
 
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     const char* name = "system / NativeContext";
@@ -1973,10 +1980,13 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Tagged<Code> code, const char* name) {
-  TagObject(code, names_->GetFormatted("(%s builtin code)", name));
+  TagObject(code, names_->GetFormatted("system / Code / %s (builtin)", name),
+            {}, true);
   if (code->has_instruction_stream()) {
-    TagObject(code->instruction_stream(),
-              names_->GetFormatted("(%s builtin instruction stream)", name));
+    TagObject(
+        code->instruction_stream(),
+        names_->GetFormatted("system / InstructionStream / %s (builtin)", name),
+        {}, true);
   }
 }
 

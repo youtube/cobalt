@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Welcome back!</translation>
 <translation id="2015722694326466240">To see passwords, you must first set a passcode on your device.</translation>
 <translation id="201759455285471444">Expand tab group.</translation>
-<translation id="202070562065520783">Explain this to me</translation>
 <translation id="2044394949148788042">Open the tab grid</translation>
 <translation id="2044681667265133332">The account <ph name="USER_EMAIL" /> is managed by <ph name="HOSTED_DOMAIN" />, which may be able to view some information. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">new item</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">Request Mobile Site</translation>
 <translation id="2362083820973145409">Signed in as <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Opens settings.</translation>
 <translation id="2371084566192454134">Tabs and tab groups</translation>
+<translation id="2371303771137626249">New</translation>
 <translation id="2381405137052800939">Basics</translation>
 <translation id="2384692388811649784">Hide Incognito tabs</translation>
 <translation id="2386793615875593361">1 selected</translation>
@@ -527,6 +527,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 site (more on synced devices)}other{# sites (more on synced devices)}}</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2876369937070532032">Sends URLs of some pages that you visit to Google, when your security is at risk</translation>
+<translation id="2877733045396505765">This deletes selected info saved on this device and in your Google Account <ph name="USER_EMAIL" />.</translation>
 <translation id="2883151425485251736">See and edit topics that you've hidden from your account</translation>
 <translation id="288655811176831528">Close Tab</translation>
 <translation id="2888631381369839306">Price tracking notifications turned on</translation>
@@ -636,6 +637,7 @@
 <translation id="3324193307694657476">Address 2</translation>
 <translation id="3328801116991980348">Site information</translation>
 <translation id="333229797575847124">How to enable this feature</translation>
+<translation id="334004756946755423">Explain this to me:</translation>
 <translation id="3344233834747405775">Invalid cardholder name</translation>
 <translation id="3344485292736684439">{count,plural, =1{Bookmark saved to ‘{title}’ in your account, {email}}other{Bookmarks saved to ‘{title}’ in your account, {email}}}</translation>
 <translation id="334690320928261823">Recent tabs</translation>
@@ -689,6 +691,7 @@
 <translation id="3530206579861815432">Quickly find open and recently closed tabs across your synced devices.</translation>
 <translation id="3530767473765895035">Manage accounts on this device…</translation>
 <translation id="3533436815740441613">New tab</translation>
+<translation id="3534738261102690620">Ask Gemini</translation>
 <translation id="3540141921715814660">Add to Bookmarks</translation>
 <translation id="3546122170015471515">Maps Preview on Google.com</translation>
 <translation id="3547356470684043247">Read customer evaluations of products, services or experiences to help inform your decisions with reviews.</translation>
@@ -959,6 +962,7 @@
 <translation id="454217142158335225">You can reopen closed items from the recent tabs or tab groups sections. Your pinned tabs won't be closed.</translation>
 <translation id="4547181496285029457">Return to recent tab</translation>
 <translation id="4552042254369397518">Copying…</translation>
+<translation id="4553044860350038560">More passkeys</translation>
 <translation id="4564893319561643483">Hide '<ph name="TITLE" />'</translation>
 <translation id="4565377596337484307">Hide password</translation>
 <translation id="4568230126482344545">Hide Recent tabs</translation>
@@ -1087,6 +1091,7 @@
 <translation id="4944543191714094452">Find in page…</translation>
 <translation id="4945756290001680296">Access password settings</translation>
 <translation id="4949302115427722371">Manage settings…</translation>
+<translation id="4952050521954075618">Photos from camera roll won't sync across your devices</translation>
 <translation id="4958444002117714549">Expand list</translation>
 <translation id="496392417432935267">Opened elsewhere</translation>
 <translation id="4970724460420203313">Using Chrome with your managed account helps you keep browsing related to your organisation (including tabs, history and passwords) separate from your other browsing</translation>
@@ -1286,6 +1291,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="5647702255748985085">Leave group?</translation>
 <translation id="5648166631817621825">Last 7 days</translation>
 <translation id="5652623411397330904">The products that you track will show up here.</translation>
+<translation id="5653100054596780862">All tabs</translation>
 <translation id="5656431592348714536">Enhanced calendar</translation>
 <translation id="5659593005791499971">Email</translation>
 <translation id="5665739277590037307"><ph name="GOOGLE_TERMS" /> and the <ph name="GEMINI_APPS_PRIVACY" /> apply. Gemini can make mistakes, so double-check it.</translation>
@@ -1613,6 +1619,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="672735642903863329">Get your bookmarks, passwords and more on all your devices.</translation>
 <translation id="6729493062119577923">Shared tab group activity</translation>
 <translation id="6732087373923685049">camera</translation>
+<translation id="6736243959894955139">Address</translation>
 <translation id="6746338529702829275">Review your account data</translation>
 <translation id="6750456911389438250">{count,plural, =1{Imported {count} history item}other{Imported {count} history items}}</translation>
 <translation id="6755200887046212842">Manage Accounts</translation>
@@ -1750,6 +1757,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="7300448350764260141">Add an extra layer of protection against online threats.</translation>
 <translation id="7311244614769792472">No results found</translation>
 <translation id="7313347584264171202">You'll find your Incognito tabs here</translation>
+<translation id="7322186060879266048">{count,plural, =1{{count} autofill option available above your keyboard.}other{{count} autofill options available above your keyboard.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> percent downloaded</translation>
 <translation id="7345061034321640811">Import not allowed</translation>
@@ -1819,7 +1827,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="7537586195939242955">Sorry, your Pass cannot be installed to Passbook at this time.</translation>
 <translation id="754655535278952384">Checked <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Close all</translation>
-<translation id="7554791636758816595">New tab</translation>
 <translation id="7557508262441527045">Signed out</translation>
 <translation id="7561196759112975576">Always</translation>
 <translation id="7561982940498449837">Close menu</translation>
@@ -1878,6 +1885,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="775755486779745798">Autofill the expiry month <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">Violet theme</translation>
 <translation id="7759809451544302770">Optional</translation>
+<translation id="7763878244904387570">This deletes selected info saved on this device.</translation>
 <translation id="7765158879357617694">Move</translation>
 <translation id="7772032839648071052">Confirm passphrase</translation>
 <translation id="7772948288262733182">Welcome back</translation>
@@ -2248,7 +2256,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, pinned site</translation>
 <translation id="8990960056509724223">File couldn't save due to your organisation's policies</translation>
 <translation id="8998289560386111590">Not available on your device</translation>
-<translation id="9000532564152265066">All tabs</translation>
 <translation id="9003677638446136377">Check again</translation>
 <translation id="9006453925669499173">Menu → New Incognito tab</translation>
 <translation id="9008201768610948239">Ignore</translation>

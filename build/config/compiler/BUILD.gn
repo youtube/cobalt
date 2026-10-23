@@ -546,6 +546,18 @@ config("compiler") {
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
 
+    if (use_thin_lto) {
+      # These passes were recently added to the mach-o lld thintlo link step,
+      # but cause timeouts in certain build configs. Disable them until that's
+      # fixed (crbug.com/489711936).
+      ldflags += [
+        "-Wl,-mllvm",
+        "-Wl,-vectorize-loops=false",
+        "-Wl,-mllvm",
+        "-Wl,-vectorize-slp=false",
+      ]
+    }
+
     if (xcode_version_int >= 2700) {
       # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
       # requires at least LLVM 22.1.0 to work correctly.
@@ -1940,6 +1952,24 @@ config("sanitize_c_array_bounds") {
   }
 }
 
+# Enable UBSan subset to ensure we always hit `return` statement in non-void
+# functions (https://crbug.com/489565636). This is equivalent to inserting
+# `NOTREACHED()` at the end of such functions.
+config("sanitize_return") {
+  if (!is_ubsan && is_clang) {
+    cflags = [
+      "-fsanitize=return",
+      "-fsanitize-trap=return",
+
+      # Some code users feature detection to determine if UBSAN (or any
+      # sanitizer) is enabled, they then do expensive debug like operations. We
+      # want to suppress this behaviour since we want to keep performance costs
+      # as low as possible while having these checks.
+      "-fsanitize-ignore-for-ubsan-feature=return",
+    ]
+  }
+}
+
 config("rustc_revision") {
   if (rustc_revision != "") {
     # Similar to the `clang_revision` config, this is here so that all `.rs`
@@ -2366,7 +2396,7 @@ config("default_clippy_lints") {
     # `config("rustc_revision")` - a custom `--cfg` flag is used to force
     # rebuilding of all `.rs` files (which as a side-effect should also trigger
     # a Clippy check if `enable_rust_clippy = true`).
-    "--cfg=cr_clippy_revision=\"2026-03-04\"",
+    "--cfg=cr_clippy_revision=\"2026-03-16\"",
 
     # Treat all default Clippy lints as warnings.
     # See also `config("treat_warnings_as_errors")`.

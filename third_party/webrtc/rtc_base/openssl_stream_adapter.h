@@ -17,12 +17,12 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/ssl_certificate.h"
 #ifdef OPENSSL_IS_BORINGSSL
@@ -82,7 +82,7 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   void SetServerRole(SSLRole role = SSL_SERVER) override;
   SSLPeerCertificateDigestError SetPeerCertificateDigest(
       absl::string_view digest_alg,
-      ArrayView<const uint8_t> digest_val) override;
+      std::span<const uint8_t> digest_val) override;
 
   std::unique_ptr<SSLCertChain> GetPeerSSLCertChain() const override;
 
@@ -95,8 +95,8 @@ class OpenSSLStreamAdapter final : public SSLStreamAdapter {
   void UpdateRetransmissionTimeout(int timeout_ms) override;
   void SetMTU(int mtu) override;
 
-  StreamResult Read(ArrayView<uint8_t> data, size_t& read, int& error) override;
-  StreamResult Write(ArrayView<const uint8_t> data,
+  StreamResult Read(std::span<uint8_t> data, size_t& read, int& error) override;
+  StreamResult Write(std::span<const uint8_t> data,
                      size_t& written,
                      int& error) override;
   void Close() override;

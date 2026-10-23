@@ -136,6 +136,9 @@ class BwgTabHelper : public web::WebStateObserver,
   void UpdatePresentedSource(gemini::FloatyUpdateSource source,
                              bool is_presented);
 
+  // Notifies observers of the web state that the page context changed.
+  void NotifyPageContextUpdated(web::WebState* web_state);
+
   // WebStateObserver:
   void WasShown(web::WebState* web_state) override;
   void WasHidden(web::WebState* web_state) override;
@@ -164,9 +167,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Clears the zero-state suggestions and resets the service.
   void ClearZeroStateSuggestions();
-
-  // Notifies observers of the web state that the page context changed.
-  void NotifyPageContextUpdated(web::WebState* web_state);
 
   // Populates the page context fields if the wrapper exists.
   void PopulatePageContextFields();
@@ -212,12 +212,6 @@ class BwgTabHelper : public web::WebStateObserver,
   // Removes the BWG session from the prefs.
   void CleanupSessionFromPrefs();
 
-  // Updates the snapshot in storage for the associated Web State. If a snapshot
-  // is cached (cropped fullscreen screenshot), use it to update the storage,
-  // otherwise generate one normally for the content area.
-  void UpdateWebStateSnapshotInStorage();
-
-
   // Parses the response of a zero state suggestions execution.
   void ParseSuggestionsResponse(
       base::OnceCallback<void(NSArray<NSString*>*)> callback,
@@ -228,10 +222,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Whether the BWG UI is currently showing.
   bool is_bwg_ui_showing_ = false;
-
-  // The cached WebState snapshot. Written to disk when the WebState is hidden.
-  // If non-nil, stores a cropped fullscreen snapshot which includes the BWG UI.
-  __strong UIImage* cached_snapshot_;
 
   // Whether the BWG session is currently active in the "background", i.e. the
   // UI is not present since another  WebState is being shown, but the current

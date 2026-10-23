@@ -8,6 +8,7 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/native_library.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -53,6 +54,26 @@ NdkVideoEncodeAcceleratorSvcApi::NdkVideoEncodeAcceleratorSvcApi() {
       ACodecEncoderCapabilities_getSupportedLayeringSchemas = nullptr;
     }
   }
+}
+
+// static
+bool NdkVideoEncodeAcceleratorSvcApi::IsTemporalLayerIdSupported() {
+  if (__builtin_available(android 37, *)) {
+    return base::FeatureList::IsEnabled(
+        media::kNdkVideoEncodeAcceleratorNativeSvc);
+  }
+
+  return false;
+}
+
+// static
+bool NdkVideoEncodeAcceleratorSvcApi::IsBitrateLayeringSupported() {
+  if (__builtin_available(android 37, *)) {
+    return base::FeatureList::IsEnabled(
+        media::kNdkVideoEncodeAcceleratorBitrateLayering);
+  }
+
+  return false;
 }
 
 }  // namespace media

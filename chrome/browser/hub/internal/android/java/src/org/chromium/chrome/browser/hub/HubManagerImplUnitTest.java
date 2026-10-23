@@ -46,6 +46,9 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
+import org.chromium.chrome.browser.ui.actions.DisplayButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
@@ -84,6 +87,7 @@ public class HubManagerImplUnitTest {
     @Mock private Profile mProfile;
     @Mock private Tracker mTracker;
     @Mock private SearchActivityClient mSearchActivityClient;
+    @Mock private BottomBarHostManager mBottomBarHostManager;
 
     private final MonotonicObservableSupplier<Integer> mPreviousLayoutTypeSupplier =
             ObservableSuppliers.alwaysNull();
@@ -155,6 +159,48 @@ public class HubManagerImplUnitTest {
 
     @Test
     @SmallTest
+    public void testHubControllerWithBottomBarHostManager() {
+        org.chromium.chrome.browser.flags.ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts
+                .setForTesting(true);
+
+        PaneListBuilder builder =
+                new PaneListBuilder(new DefaultPaneOrderController())
+                        .registerPane(
+                                PaneId.TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mTabSwitcherPane))
+                        .registerPane(
+                                PaneId.INCOGNITO_TAB_SWITCHER,
+                                LazyOneshotSupplier.fromValue(mIncognitoTabSwitcherPane));
+        HubManagerImpl hubManager =
+                new HubManagerImpl(
+                        mActivity,
+                        mProfileProviderSupplier,
+                        builder,
+                        mBackPressManager,
+                        mMenuOrKeyboardActionController,
+                        mSnackbarManager,
+                        mBottomBarHostManager,
+                        mTabSupplier,
+                        mMenuButtonCoordinator,
+                        mHubShowPaneHelper,
+                        mEdgeToEdgeSupplier,
+                        mSearchActivityClient,
+                        /* xrSpaceModeObservableSupplier= */ null,
+                        /* defaultPaneId= */ PaneId.TAB_SWITCHER);
+        hubManager.getPaneManager().focusPane(PaneId.TAB_SWITCHER);
+
+        HubController hubController = hubManager.getHubController();
+        hubController.setHubLayoutController(mHubLayoutController);
+
+        hubController.onHubLayoutShow();
+        verify(mBottomBarHostManager).takeOwnership(eq(BottomBarHostManager.Host.HUB), any());
+
+        hubController.onHubLayoutDoneHiding();
+        verify(mBottomBarHostManager).resetOwnership();
+    }
+
+    @Test
+    @SmallTest
     public void testCreatesPaneManager() {
         PaneListBuilder builder =
                 new PaneListBuilder(new DefaultPaneOrderController())
@@ -172,6 +218,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,
@@ -206,6 +253,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,
@@ -271,6 +319,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,
@@ -312,6 +361,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,
@@ -357,6 +407,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,
@@ -409,6 +460,7 @@ public class HubManagerImplUnitTest {
                         mBackPressManager,
                         mMenuOrKeyboardActionController,
                         mSnackbarManager,
+                        mBottomBarHostManager,
                         mTabSupplier,
                         mMenuButtonCoordinator,
                         mHubShowPaneHelper,

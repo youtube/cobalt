@@ -14326,6 +14326,61 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="KeySystemDataBool1">
+    <summary>
+      Whether or not the Key System is reporting true for bool 1. This is a
+      general metric that is mapped to specific Key System data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime1">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 1. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime2">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 2. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime3">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 3. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
   <metric name="LicenseSdkVersion">
     <summary>
       The SDK version of the license server of the URL that communicates with
@@ -17740,6 +17795,26 @@ be describing additional metrics about the same event.
     commit and has an annotation calculated on it. The metrics are recorded in a
     RAPPOR-style with low-entropy so only aggregate analysis can be performed.
   </summary>
+  <metric name="CategoryClassifier.EducationScore">
+    <summary>
+      Records a low entropy representation of the education category score from
+      the output of a page classifier model. The raw score is between 0 and 1,
+      which is scaled to between 0 and 100, then placed into one of 16 linearly
+      spaced buckets by dividing the score by the bucket size and taking the
+      floor. The resulting bucket value has noise added with a probability of .5
+      where the noise is randomly applied to each individual bit.
+    </summary>
+  </metric>
+  <metric name="CategoryClassifier.ShoppingScore">
+    <summary>
+      Records a low entropy representation of the shopping category score from
+      the output of a page classifier model. The raw score is between 0 and 1,
+      which is scaled to between 0 and 100, then placed into one of 16 linearly
+      spaced buckets by dividing the score by the bucket size and taking the
+      floor. The resulting bucket value has noise added with a probability of .5
+      where the noise is randomly applied to each individual bit.
+    </summary>
+  </metric>
   <metric name="VisibilityScore">
     <summary>
       Records a low entropy respresentation of the visibility score output by a
@@ -18850,6 +18925,18 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="CaptchaProvider" enum="CaptchaProvider">
+    <summary>
+      Records the CAPTCHA provider for the frame.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
 </event>
 
 <event name="PageLoad.CaptchaFrameLoad">
@@ -18867,6 +18954,18 @@ be describing additional metrics about the same event.
       This metric is split by whether an AI agent was active on the tab at the
       time of the frame load. AI agent activity is determined by
       ActorKeyedService::IsActiveOnTab(), which is used by the Glic Agent.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="CaptchaProvider" enum="CaptchaProvider">
+    <summary>
+      Records the CAPTCHA provider for the frame.
     </summary>
     <aggregation>
       <history>
@@ -23678,7 +23777,7 @@ be describing additional metrics about the same event.
     <summary>
       Record the type of source for the current navigation, which has text
       fragments. At the moment, this maps to identifying whether the source is a
-      known search engine or not.
+      known search engine, Send Tab To Self, or unknown.
     </summary>
   </metric>
   <metric name="Success" enum="Boolean">

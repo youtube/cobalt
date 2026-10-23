@@ -215,6 +215,11 @@ class VIEWS_EXPORT ScrollView : public View, public ScrollBarController {
   bool GetHasFocusIndicator() const { return draw_focus_indicator_; }
   void SetHasFocusIndicator(bool has_focus_indicator);
 
+  // Returns whether the content view is currently overflowing the viewport
+  // along the horizontal and vertical axes respectively.
+  bool IsHorizontalContentOverflowing() const;
+  bool IsVerticalContentOverflowing() const;
+
   // Called when |contents_| scrolled. This can be triggered by each single
   // event that is able to scroll the contents. KeyEvents like ui::VKEY_LEFT,
   // ui::VKEY_RIGHT, or only ui::EventType::kMousewheel will only trigger this
@@ -260,9 +265,6 @@ class VIEWS_EXPORT ScrollView : public View, public ScrollBarController {
   // callback can be used e.g. to scroll the view to the appropriate position
   // in the contents by explicitly calling `ScrollToOffset` or `ScrollByOffset`
   // and to update the scrollbars to reflect the new position.
-  // The callback should not trigger any new layouts on the scroll view,
-  // otherwise it will lead to a CHECK failure.
-  // DEPRECATED: Use `RegisterNextSuccessfulFramePostLayoutCallback()` instead.
   void RegisterPostLayoutCallback(
       base::RepeatingCallback<void(ScrollView*)> post_layout_callback);
 
@@ -272,6 +274,7 @@ class VIEWS_EXPORT ScrollView : public View, public ScrollBarController {
   // be reflected on a content view's layer until a frame has been produced.
   // Failing to wait for frame production will result in incorrect scroll
   // behavior of APIs such as `ScrollToOffset()` and `ScrollByOffset()`.
+  // TODO(tluk): Remove this once remaining callsites have been migrated.
   void RegisterNextSuccessfulFramePostLayoutCallback(
       base::OnceClosure callback);
 

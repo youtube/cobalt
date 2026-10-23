@@ -95,8 +95,15 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
   // logging.
   bool GetIsAutofillAiEnabledByEnterprisePolicyWithoutLogging(JNIEnv* env);
 
+  // See `AutofillAiAction::kEnableOrDisable` for details.
+  bool CanEnableOrDisableAutofillAi(JNIEnv* env);
+
+  bool IsWalletPublicPassStorageEnabled(JNIEnv* env);
+
  private:
   ~EntityDataManagerAndroid() override;
+
+  bool RunMayPerformAutofillAiAction(AutofillAiAction action);
 
   // autofill::EntityDataManager::Observer implementation.
   void OnEntityInstancesChanged() override;
@@ -104,6 +111,8 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
   EntityDataManager& entity_data_manager() {
     return entity_data_manager_.get();
   }
+
+  bool IsWalletPublicPassStorageEnabledHelper();
 
   base::ScopedObservation<autofill::EntityDataManager,
                           autofill::EntityDataManager::Observer>

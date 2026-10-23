@@ -122,8 +122,6 @@ pub const TEMP_VARIABLE_PREFIX: &str = "t";
 pub const TEMP_FUNCTION_PREFIX: &str = "f";
 pub const TEMP_STRUCT_PREFIX: &str = "s";
 pub const TEMP_STRUCT_FIELD_PREFIX: &str = "m";
-// Make sure ANGLE symbols start with this to avoid collision with the user symbol prefixes above.
-pub const ANGLE_SYMBOL_PREFIX: &str = "ANGLE";
 
 // An ID that can be referred to by an operand of an instruction.
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -1022,6 +1020,10 @@ impl Block {
         self.set_sub_block1(block);
     }
 
+    pub fn has_if_true_block(&self) -> bool {
+        self.block1.is_some()
+    }
+
     pub fn set_if_false_block(&mut self, block: Block) {
         self.set_sub_block2(block);
     }
@@ -1042,6 +1044,9 @@ impl Block {
     }
     pub fn get_loop_body_block_mut(&mut self) -> &mut Block {
         self.block1.as_mut().unwrap()
+    }
+    pub fn has_loop_body_block(&self) -> bool {
+        self.block1.is_some()
     }
 
     pub fn set_loop_continue_block(&mut self, block: Block) {
@@ -1546,7 +1551,6 @@ pub enum BuiltIn {
     SampleMask,
     NumSamples,
     NumWorkGroups,
-    WorkGroupSize,
     WorkGroupID,
     LocalInvocationID,
     GlobalInvocationID,
@@ -1727,7 +1731,6 @@ pub enum Decoration {
     // Corresponding to GLSL qualifiers with the same name
     Invariant,
     Precise,
-    Interpolant,
     Smooth,
     Flat,
     NoPerspective,
@@ -1772,6 +1775,8 @@ pub enum Decoration {
     Depth(Depth),
     // Internal format declared on storage images
     ImageInternalFormat(ImageInternalFormat),
+    // Used internally to implement OES_shader_multisample_interpolation for Metal.
+    Interpolant,
     // Used internally to implement ANGLE_pixel_local_storage, indicates a D3D 11.3 Rasterizer
     // Order Views (ROV) and Metal raster_order_groups.
     RasterOrdered,
@@ -1810,6 +1815,44 @@ impl Decorations {
         self.decorations.contains(&query)
     }
 }
+
+// For decorations with data, macros are needed to simplify querying and extracting them.
+//
+// has_decoration: Similar to Decorations::has, but for enums with data.  For example:
+//
+//     has_decoration!(decoration, Decoration::Location) // returns a bool
+//
+// get_decoration: Get a decoration matching a variant.  For example:
+//
+//     get_decoration!(decoration, Decoration::Location) // returns Some(Location(l)) or None
+//
+// get_decoration_value: Get the value inside a decoration matching a variant.  For example:
+//
+//     get_decoration_value!(decoration, Decoration::Location) // returns Some(l) or None
+macro_rules! has_decoration {
+    ($decorations:expr, $variant:path) => {
+        $decorations.decorations.iter().any(|decoration| matches!(decoration, $variant(..)))
+    };
+}
+macro_rules! get_decoration {
+    ($decorations:expr, $variant:path) => {
+        $decorations
+            .decorations
+            .iter()
+            .find(|decoration| matches!(decoration, $variant(..)))
+            .copied()
+    };
+}
+macro_rules! get_decoration_value {
+    ($decorations:expr, $variant:path) => {
+        $decorations.decorations.iter().find_map(|decoration| {
+            if let $variant(value) = decoration { Some(*value) } else { None }
+        })
+    };
+}
+pub(crate) use get_decoration;
+pub(crate) use get_decoration_value;
+pub(crate) use has_decoration;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
 #[cfg_attr(debug_assertions, derive(Debug))]

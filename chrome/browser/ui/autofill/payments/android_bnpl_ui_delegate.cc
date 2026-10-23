@@ -63,10 +63,17 @@ void AndroidBnplUiDelegate::ShowSelectBnplIssuerUi(
                                       std::move(cancel_callback));
 }
 
-void AndroidBnplUiDelegate::UpdateBnplIssuerDialogUi(
-    std::vector<BnplIssuerContext> issuer_contexts) {
-  // TODO(crbug.com/438783909): Add JNI call to update the TouchToFill bottom
-  // sheet once the new list of BNPL issuers comes back.
+void AndroidBnplUiDelegate::UpdateBnplIssuerUi(
+    std::vector<BnplIssuerContext> issuer_contexts,
+    std::optional<int64_t> extracted_amount,
+    bool is_amount_supported_by_any_issuer,
+    const std::optional<std::string>& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
+  client_->OnPurchaseAmountExtracted(
+      issuer_contexts, extracted_amount, is_amount_supported_by_any_issuer,
+      app_locale, std::move(selected_issuer_callback),
+      std::move(cancel_callback));
 }
 
 void AndroidBnplUiDelegate::RemoveSelectBnplIssuerOrProgressUi() {

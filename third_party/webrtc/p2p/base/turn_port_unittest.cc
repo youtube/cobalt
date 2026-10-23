@@ -14,13 +14,13 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -1027,7 +1027,7 @@ class TurnLoggingIdValidator : public StunMessageObserver {
       }
     }
   }
-  void ReceivedChannelData(ArrayView<const uint8_t> packet) override {}
+  void ReceivedChannelData(std::span<const uint8_t> packet) override {}
 
  private:
   const char* expect_val_;
@@ -1960,7 +1960,7 @@ class MessageObserver : public StunMessageObserver {
     }
   }
 
-  void ReceivedChannelData(ArrayView<const uint8_t> payload) override {
+  void ReceivedChannelData(std::span<const uint8_t> payload) override {
     if (channel_data_counter_ != nullptr) {
       (*channel_data_counter_)++;
     }

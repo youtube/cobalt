@@ -77,7 +77,7 @@ struct X509_NAME_CACHE {
 
 class X509Name : public X509_name_st {
  public:
-  STACK_OF(X509_NAME_ENTRY) *entries;
+  STACK_OF(X509_NAME_ENTRY) *entries = nullptr;
   mutable bssl::Atomic<bssl::X509_NAME_CACHE *> cache;
 } /* X509_NAME */;
 
@@ -134,9 +134,9 @@ class X509Impl : public x509_st, public RefCounted<X509Impl> {
   ASN1_TIME notAfter;
   X509Name subject;
   X509_PUBKEY key;
-  ASN1_BIT_STRING *issuerUID;            // [ 1 ] optional in v2
-  ASN1_BIT_STRING *subjectUID;           // [ 2 ] optional in v2
-  STACK_OF(X509_EXTENSION) *extensions;  // [ 3 ] optional in v3
+  ASN1_BIT_STRING *issuerUID = nullptr;            // [ 1 ] optional in v2
+  ASN1_BIT_STRING *subjectUID = nullptr;           // [ 2 ] optional in v2
+  STACK_OF(X509_EXTENSION) *extensions = nullptr;  // [ 3 ] optional in v3
   // Certificate fields:
   X509_ALGOR sig_alg;
   ASN1_BIT_STRING signature;
@@ -144,20 +144,20 @@ class X509Impl : public x509_st, public RefCounted<X509Impl> {
   // buf, if not nullptr, contains a copy of the serialized Certificate.
   // TODO(davidben): Now every parsed |X509| has an underlying |CRYPTO_BUFFER|,
   // but |X509|s created peacemeal do not. Can we make this more uniform?
-  CRYPTO_BUFFER *buf;
+  CRYPTO_BUFFER *buf = nullptr;
   CRYPTO_EX_DATA ex_data;
   // These contain copies of various extension values
   long ex_pathlen = -1;
-  uint32_t ex_flags;
-  uint32_t ex_kusage;
-  uint32_t ex_xkusage;
-  ASN1_OCTET_STRING *skid;
-  AUTHORITY_KEYID *akid;
-  STACK_OF(DIST_POINT) *crldp;
-  STACK_OF(GENERAL_NAME) *altname;
-  NAME_CONSTRAINTS *nc;
-  unsigned char cert_hash[SHA256_DIGEST_LENGTH];
-  bssl::X509_CERT_AUX *aux;
+  uint32_t ex_flags = 0;
+  uint32_t ex_kusage = 0;
+  uint32_t ex_xkusage = 0;
+  ASN1_OCTET_STRING *skid = nullptr;
+  AUTHORITY_KEYID *akid = nullptr;
+  STACK_OF(DIST_POINT) *crldp = nullptr;
+  STACK_OF(GENERAL_NAME) *altname = nullptr;
+  NAME_CONSTRAINTS *nc = nullptr;
+  unsigned char cert_hash[SHA256_DIGEST_LENGTH] = {};
+  bssl::X509_CERT_AUX *aux = nullptr;
   Mutex lock;
 
  private:
@@ -327,10 +327,6 @@ struct x509_lookup_method_st {
 
 BSSL_NAMESPACE_BEGIN
 
-DEFINE_NAMESPACED_STACK_OF(X509_LOOKUP)
-
-using StackOfX509Lookup = STACK_OF(X509_LOOKUP);
-
 // This is used to hold everything.  It is used for all certificate
 // validation.  Once we have a certificate chain, the 'verify'
 // function is then called to actually check the cert chain.
@@ -339,20 +335,20 @@ class X509Store : public x509_store_st, public RefCounted<X509Store> {
   X509Store();
 
   // The following is a cache of trusted certs
-  STACK_OF(X509_OBJECT) *objs;  // Cache of all objects
+  UniquePtr<STACK_OF(X509_OBJECT)> objs;  // Cache of all objects
   Mutex objs_lock;
 
   // These are external lookup methods
-  StackOfX509Lookup *get_cert_methods;
+  Vector<UniquePtr<X509_LOOKUP>> get_cert_methods;
 
-  X509_VERIFY_PARAM *param;
+  UniquePtr<X509_VERIFY_PARAM> param;
 
   // Callbacks for various operations
   X509_STORE_CTX_verify_cb verify_cb = nullptr;  // error callback
 
  private:
   friend RefCounted;
-  ~X509Store();
+  ~X509Store() = default;
 } /* X509_STORE */;
 
 BSSL_NAMESPACE_END

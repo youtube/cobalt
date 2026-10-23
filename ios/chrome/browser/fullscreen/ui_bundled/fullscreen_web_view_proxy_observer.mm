@@ -6,8 +6,9 @@
 
 #import "base/check.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_content_adjustment_util.h"
-#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_mediator.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_model.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/legacy_fullscreen_mediator.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/web/common/features.h"
 #import "ios/web/public/ui/crw_web_view_proxy.h"
@@ -16,7 +17,7 @@
 @interface FullscreenWebViewProxyObserver () <CRWWebViewScrollViewProxyObserver>
 // The model and mediator passed on initialization.
 @property(nonatomic, readonly) FullscreenModel* model;
-@property(nonatomic, readonly) FullscreenMediator* mediator;
+@property(nonatomic, readonly) LegacyFullscreenMediator* mediator;
 @end
 
 @implementation FullscreenWebViewProxyObserver
@@ -25,7 +26,7 @@
 @synthesize mediator = _mediator;
 
 - (instancetype)initWithModel:(FullscreenModel*)model
-                     mediator:(FullscreenMediator*)mediator {
+                     mediator:(LegacyFullscreenMediator*)mediator {
   if ((self = [super init])) {
     _model = model;
     DCHECK(_model);
@@ -53,7 +54,7 @@
   // Exit fullscreen when the status bar is tapped, but don't allow the scroll-
   // to-top animation to occur if the toolbars are fully collapsed.
   BOOL scrollToTop = !AreCGFloatsEqual(self.model->progress(), 0.0);
-  self.mediator->ExitFullscreen(FullscreenExitReason::kUserTapped);
+  self.mediator->ExitFullscreen(FullscreenModeTransitionTrigger::kUserTapped);
   return scrollToTop;
 }
 

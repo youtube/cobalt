@@ -15,6 +15,7 @@
 
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -23,7 +24,6 @@
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
@@ -470,7 +470,7 @@ class RTC_EXPORT NetworkManagerBase : public NetworkManager {
 
   // Check if MAC address in |bytes| is one of the pre-defined
   // MAC addresses for know VPNs.
-  static bool IsVpnMacAddress(ArrayView<const uint8_t> address);
+  static bool IsVpnMacAddress(std::span<const uint8_t> address);
 
  protected:
   // Updates `networks_` with the networks listed in `list`. If

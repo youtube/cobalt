@@ -215,7 +215,6 @@ static const char* const kChromeUrls[] = {
     "chrome://personalization",
     "chrome://power",
     "chrome://print-management",
-    "chrome-untrusted://projector",
     "chrome://proximity-auth/proximity_auth.html",
     "chrome://scanning",
     "chrome://set-time",
@@ -266,6 +265,7 @@ static const char* const kChromeUrls[] = {
 // Don't add new URLs here unless there's a strong reason for them to be
 // exempted from these basic checks.
 static constexpr const char* const kChromeUntestedUrls[] = {
+    "chrome-untrusted://ai-overlay-dialog",
     "chrome-untrusted://compose",
     "chrome-untrusted://data-sharing",
     "chrome-untrusted://lens",
@@ -345,6 +345,9 @@ static constexpr const char* const kChromeUntestedUrls[] = {
     "chrome-untrusted://help-app-kids-magazine",
     "chrome-untrusted://mako",
     "chrome-untrusted://media-app",
+    // TODO(crbug.com/487122203): Fix the issue (see the bug entry for details)
+    // and re-enable the test.
+    "chrome-untrusted://projector",
     "chrome-untrusted://projector-annotator",
     "chrome-untrusted://sample-system-web-app",
     "chrome-untrusted://scanner-feedback",

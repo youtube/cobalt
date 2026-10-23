@@ -32,6 +32,7 @@
 #include "src/gpu/graphite/RecorderPriv.h"
 #include "src/gpu/graphite/RenderPassDesc.h"
 #include "src/gpu/graphite/ResourceTypes.h"
+#include "src/gpu/graphite/TextureFormat.h"
 #include "src/gpu/graphite/TextureInfoPriv.h"
 #include "src/gpu/graphite/TextureProxy.h"
 #include "src/gpu/graphite/TextureProxyView.h"
@@ -68,7 +69,8 @@ sk_sp<DrawContext> DrawContext::Make(const Caps* caps,
     if (!caps->isRenderable(target->textureInfo())) {
         return nullptr;
     }
-    if (!caps->areColorTypeAndTextureInfoCompatible(colorInfo.colorType(), target->textureInfo())) {
+    if (!AreColorTypeAndFormatCompatible(colorInfo.colorType(),
+                                         TextureInfoPriv::ViewFormat(target->textureInfo()))) {
         return nullptr;
     }
 
@@ -154,7 +156,7 @@ bool DrawContext::readsTexture(const TextureProxy* texture) const {
     return !notFound; // double negation means its found in a pending child task
 }
 
-std::pair<DrawParams*, Layer*> DrawContext::recordDraw(
+std::pair<DrawParams*, Insertion> DrawContext::recordDraw(
         const Renderer* renderer,
         const Transform& localToDevice,
         const Geometry& geometry,
@@ -164,7 +166,7 @@ std::pair<DrawParams*, Layer*> DrawContext::recordDraw(
         SkEnumBitMask<DstUsage> dstUsage,
         PipelineDataGatherer* gatherer,
         const StrokeStyle* stroke,
-        Layer* latestDepthLayer) {
+        const Insertion& latestInsertion) {
     SkASSERTF(SkIRect::MakeSize(this->imageInfo().dimensions()).contains(clip.scissor()),
               "Image %dx%d, scissor %d,%d,%d,%d",
               this->imageInfo().width(), this->imageInfo().height(),
@@ -186,7 +188,7 @@ std::pair<DrawParams*, Layer*> DrawContext::recordDraw(
 
     return fPendingDraws->recordDraw(renderer, localToDevice, geometry, clip, ordering, paintID,
                                      dstUsage,  barrierBeforeDraws, gatherer, stroke,
-                                     latestDepthLayer);
+                                     latestInsertion);
 }
 
 bool DrawContext::recordUpload(Recorder* recorder,
@@ -312,9 +314,9 @@ void DrawContext::flush(Recorder* recorder) {
                 this->colorInfo().colorType(), TextureInfoPriv::ViewFormat(fTarget->textureInfo()));
         if (!writeSwizzle.has_value()) {
             writeSwizzle = Swizzle::RGBA(); // Fall back to rgba in release builds
-            SkDEBUGFAILF("No valid write swizzle for color type %d with format %s",
-                         (int) this->colorInfo().colorType(),
-                         TextureFormatName(TextureInfoPriv::ViewFormat(fTarget->textureInfo())));
+            SKGPU_LOG_W("No valid write swizzle for color type %d with format %s",
+                        (int) this->colorInfo().colorType(),
+                        TextureFormatName(TextureInfoPriv::ViewFormat(fTarget->textureInfo())));
         }
         RenderPassDesc desc = RenderPassDesc::Make(caps, fTarget->textureInfo(), loadOp, storeOp,
                                                    dsFlags,

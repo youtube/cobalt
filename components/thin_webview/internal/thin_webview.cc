@@ -53,9 +53,11 @@ void ThinWebView::Destroy(JNIEnv* env) {
 
 void ThinWebView::PrimaryPageChanged(content::Page& page) {
   // Disable browser controls when used for thin webview.
-  web_contents_->UpdateBrowserControlsState(cc::BrowserControlsState::kHidden,
-                                            cc::BrowserControlsState::kHidden,
-                                            false, std::nullopt);
+  if (web_contents_) {
+    web_contents_->UpdateBrowserControlsState(cc::BrowserControlsState::kHidden,
+                                              cc::BrowserControlsState::kHidden,
+                                              false, std::nullopt);
+  }
 }
 
 void ThinWebView::SetWebContents(
@@ -74,8 +76,8 @@ void ThinWebView::SetWebContents(
 void ThinWebView::SetWebContents(content::WebContents* web_contents,
                                  WebContentsDelegateAndroid* delegate) {
   DCHECK(web_contents);
-  web_contents_ = web_contents;
-  Observe(web_contents_);
+  Observe(web_contents);
+  web_contents_ = web_contents->GetWeakPtr();
   ui::ViewAndroid* view_android = web_contents_->GetNativeView();
   if (view_android->parent() != window_android_) {
     window_android_->AddChild(view_android);
@@ -84,8 +86,9 @@ void ThinWebView::SetWebContents(content::WebContents* web_contents,
   compositor_view_->SetRootLayer(web_contents_->GetNativeView()->GetLayer());
   ResizeWebContents(view_size_);
   web_contents_delegate_.reset(delegate);
-  if (delegate)
+  if (delegate) {
     web_contents->SetDelegate(delegate);
+  }
 
   ThinWebViewInitializer::GetInstance()->AttachTabHelpers(web_contents);
 }
@@ -97,19 +100,7 @@ void ThinWebView::SetContextMenuPopulatorFactory(
     return;
   }
   ThinWebViewInitializer::GetInstance()->SetContextMenuPopulatorFactory(
-      web_contents_, jpopulator_factory);
-}
-
-// TODO (crbug.com/489707823) : Investigate physical backing changes.
-void ThinWebView::SetInsets(JNIEnv* env,
-                            int32_t top,
-                            int32_t left,
-                            int32_t bottom,
-                            int32_t right) {
-  insets_ = gfx::Insets::TLBR(top, left, bottom, right);
-  if (web_contents_) {
-    ResizeWebContents(view_size_);
-  }
+      web_contents_.get(), jpopulator_factory);
 }
 
 void ThinWebView::SizeChanged(JNIEnv* env, int32_t width, int32_t height) {
@@ -117,27 +108,18 @@ void ThinWebView::SizeChanged(JNIEnv* env, int32_t width, int32_t height) {
 
   // TODO(shaktisahu): If we want to use a different size for WebContents, e.g.
   // showing full screen contents instead inside this view, don't do the resize.
-  if (web_contents_)
+  if (web_contents_) {
     ResizeWebContents(view_size_);
+  }
 }
 
 void ThinWebView::ResizeWebContents(const gfx::Size& size) {
-  if (!web_contents_)
+  if (!web_contents_) {
     return;
-
-  int width = std::max(0, size.width() - insets_.width());
-  int height = std::max(0, size.height() - insets_.height());
-  gfx::Size viewport_size(width, height);
-
-  web_contents_->GetNativeView()->OnPhysicalBackingSizeChanged(viewport_size);
-  web_contents_->GetNativeView()->OnSizeChanged(viewport_size.width(),
-                                                viewport_size.height());
-
-  // Position the WebContents layer to account for top/left insets.
-  // Content is drawn at (0,0) in its own layer space, so we move the layer.
-  if (auto* layer = web_contents_->GetNativeView()->GetLayer()) {
-    layer->SetPosition(gfx::PointF(insets_.left(), insets_.top()));
   }
+
+  web_contents_->GetNativeView()->OnPhysicalBackingSizeChanged(size);
+  web_contents_->GetNativeView()->OnSizeChanged(size.width(), size.height());
 }
 
 }  // namespace android

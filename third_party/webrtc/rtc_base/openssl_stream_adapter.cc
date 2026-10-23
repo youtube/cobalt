@@ -21,6 +21,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,7 +29,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -248,7 +248,7 @@ int stream_read(BIO* b, char* out, int outl) {
   size_t read;
   int error;
   StreamResult result = stream->Read(
-      MakeArrayView(reinterpret_cast<uint8_t*>(out), outl), read, error);
+      std::span(reinterpret_cast<uint8_t*>(out), outl), read, error);
   if (result == SR_SUCCESS) {
     return checked_cast<int>(read);
   } else if (result == SR_BLOCK) {
@@ -266,7 +266,7 @@ int stream_write(BIO* b, const char* in, int inl) {
   size_t written;
   int error;
   StreamResult result = stream->Write(
-      MakeArrayView(reinterpret_cast<const uint8_t*>(in), inl), written, error);
+      std::span(reinterpret_cast<const uint8_t*>(in), inl), written, error);
   if (result == SR_SUCCESS) {
     return checked_cast<int>(written);
   } else if (result == SR_BLOCK) {
@@ -366,7 +366,7 @@ void OpenSSLStreamAdapter::SetServerRole(SSLRole role) {
 
 SSLPeerCertificateDigestError OpenSSLStreamAdapter::SetPeerCertificateDigest(
     absl::string_view digest_alg,
-    ArrayView<const uint8_t> digest_val) {
+    std::span<const uint8_t> digest_val) {
   RTC_DCHECK(!peer_certificate_verified_);
   RTC_DCHECK(!HasPeerCertificateDigest());
   size_t expected_len;
@@ -521,7 +521,7 @@ bool OpenSSLStreamAdapter::AppendSrtpKeyingMaterial(
   // use_context            optional, can be null, 0 (IN). Not used by WebRTC.
   bool success = false;
   key_buffer.AppendData(
-      key_material_size, [&](ArrayView<uint8_t> keying_material) -> size_t {
+      key_material_size, [&](std::span<uint8_t> keying_material) -> size_t {
         int result = SSL_export_keying_material(
             ssl_, keying_material.data(), keying_material.size(),
             kDtlsSrtpExporterLabel.data(), kDtlsSrtpExporterLabel.size(),
@@ -664,7 +664,7 @@ void OpenSSLStreamAdapter::SetMTU(int mtu) {
 //
 // StreamInterface Implementation
 //
-StreamResult OpenSSLStreamAdapter::Write(ArrayView<const uint8_t> data,
+StreamResult OpenSSLStreamAdapter::Write(std::span<const uint8_t> data,
                                          size_t& written,
                                          int& error) {
   RTC_DLOG(LS_VERBOSE) << "OpenSSLStreamAdapter::Write(" << data.size() << ")";
@@ -722,7 +722,7 @@ StreamResult OpenSSLStreamAdapter::Write(ArrayView<const uint8_t> data,
   // not reached
 }
 
-StreamResult OpenSSLStreamAdapter::Read(ArrayView<uint8_t> data,
+StreamResult OpenSSLStreamAdapter::Read(std::span<uint8_t> data,
                                         size_t& read,
                                         int& error) {
   RTC_DLOG(LS_VERBOSE) << "OpenSSLStreamAdapter::Read(" << data.size() << ")";

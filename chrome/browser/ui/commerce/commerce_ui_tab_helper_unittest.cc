@@ -20,7 +20,6 @@
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/price_insights_page_action_view_controller.h"
 #include "chrome/browser/ui/views/page_action/test_support/mock_page_action_controller.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/test_bookmark_client.h"
@@ -32,6 +31,7 @@
 #include "components/commerce/core/subscriptions/commerce_subscription.h"
 #include "components/commerce/core/test_utils.h"
 #include "components/image_fetcher/core/mock_image_fetcher.h"
+#include "components/image_fetcher/core/request_metadata.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/sync/base/features.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -255,55 +255,6 @@ class CommerceUiTabHelperTest : public testing::TestWithParam<TestSyncConfig> {
   base::test::ScopedFeatureList sync_features_;
   base::test::ScopedFeatureList features_;
 };
-
-// The price tracking icon shouldn't be available if no image URL was provided
-// by the shopping service.
-TEST_P(CommerceUiTabHelperTest, TestPriceTrackingIconAvailabilityIfNoImage) {
-  ASSERT_FALSE(tab_helper_->IsPriceTracking());
-
-  AddProductBookmark(bookmark_model_.get(), u"title", GURL(kProductUrl),
-                     kClusterId, true);
-
-  // Intentionally exclude the image here.
-  std::optional<ProductInfo> info = CreateProductInfo(kClusterId);
-  // We do the setup for the image fetcher, but it won't be used since the
-  // shopping service doesn't return an image URL.
-  SetupImageFetcherForSimpleImage();
-
-  shopping_service_->SetIsShoppingListEligible(true);
-  shopping_service_->SetResponseForGetProductInfoForUrl(info);
-
-  SimulateNavigationCommitted(GURL(kProductUrl));
-
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_FALSE(tab_helper_->ShouldShowPriceTrackingIconView());
-  ASSERT_TRUE(tab_helper_->GetProductImageURL().is_empty());
-}
-
-// The price tracking state should not update in the helper if there is no image
-// returbed by the shopping service.
-TEST_P(CommerceUiTabHelperTest, TestPriceTrackingIconAvailabilityWithImage) {
-  ASSERT_FALSE(tab_helper_->IsPriceTracking());
-
-  AddProductBookmark(bookmark_model_.get(), u"title", GURL(kProductUrl),
-                     kClusterId, true);
-
-  std::optional<ProductInfo> info =
-      CreateProductInfo(kClusterId, GURL(kProductImageUrl));
-  SetupImageFetcherForSimpleImage();
-
-  shopping_service_->SetIsShoppingListEligible(true);
-  shopping_service_->SetResponseForGetProductInfoForUrl(info);
-  shopping_service_->SetIsSubscribedCallbackValue(true);
-
-  SimulateNavigationCommitted(GURL(kProductUrl));
-
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_TRUE(tab_helper_->ShouldShowPriceTrackingIconView());
-  ASSERT_EQ(GURL(kProductImageUrl), tab_helper_->GetProductImageURL());
-}
 
 // Make sure unsubscribe without a bookmark for the current page is functional.
 TEST_P(CommerceUiTabHelperTest, TestSubscriptionChangeNoBookmark) {

@@ -138,6 +138,7 @@ using ::testing::Le;
 using ::testing::Lt;
 using ::testing::Matcher;
 using ::testing::Mock;
+using ::testing::MockFunction;
 using ::testing::NiceMock;
 using ::testing::Optional;
 using ::testing::Return;
@@ -440,21 +441,24 @@ class VideoStreamEncoderUnderTest : public VideoStreamEncoder {
       std::unique_ptr<FrameCadenceAdapterInterface> cadence_adapter,
       std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
       SendStatisticsProxy* stats_proxy,
-      const VideoStreamEncoderSettings& settings,
+      VideoStreamEncoderSettings settings,
       VideoStreamEncoder::BitrateAllocationCallbackType
           allocation_callback_type,
-      int num_cores)
+      int num_cores,
+      EncoderSwitchRequestCallback encoder_switch_request_callback = nullptr)
       : VideoStreamEncoder(
             env,
             num_cores,
             stats_proxy,
-            settings,
+            std::move(settings),
             std::unique_ptr<OveruseFrameDetector>(
                 overuse_detector_proxy_ =
                     new CpuOveruseDetectorProxy(env, stats_proxy)),
             std::move(cadence_adapter),
             std::move(encoder_queue),
-            allocation_callback_type),
+            allocation_callback_type,
+            nullptr,  // encoder_selector
+            std::move(encoder_switch_request_callback)),
         time_controller_(time_controller),
         fake_cpu_resource_(FakeResource::Create("FakeResource[CPU]")),
         fake_quality_resource_(FakeResource::Create("FakeResource[QP]")),
@@ -760,7 +764,7 @@ class SimpleVideoStreamEncoderFactory {
     auto result = std::make_unique<AdaptedVideoStreamEncoder>(
         env_,
         /*number_of_cores=*/1,
-        /*stats_proxy=*/stats_proxy_.get(), encoder_settings_,
+        /*stats_proxy=*/stats_proxy_.get(), std::move(encoder_settings_),
         std::make_unique<CpuOveruseDetectorProxy>(env_,
                                                   /*stats_proxy=*/nullptr),
         std::move(zero_hertz_adapter), std::move(encoder_queue),
@@ -902,7 +906,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
             video_send_config_,
             VideoEncoderConfig::ContentType::kRealtimeVideo,
             field_trials_)),
-        sink_(&time_controller_, &fake_encoder_) {}
+        sink_(&time_controller_, &fake_encoder_),
+        encoder_switch_request_callback_(nullptr) {}
 
   void SetUp() override {
     metrics::Reset();
@@ -953,11 +958,12 @@ class VideoStreamEncoderTest : public ::testing::Test {
       env_ = factory.Create();
     }
 
+    VideoStreamEncoderSettings settings = video_send_config_.encoder_settings;
     video_stream_encoder_ = std::make_unique<VideoStreamEncoderUnderTest>(
         env_, &time_controller_, std::move(cadence_adapter),
-        std::move(encoder_queue), stats_proxy_.get(),
-        video_send_config_.encoder_settings, allocation_callback_type,
-        num_cores);
+        std::move(encoder_queue), stats_proxy_.get(), std::move(settings),
+        allocation_callback_type, num_cores,
+        std::move(encoder_switch_request_callback_));
     video_stream_encoder_->SetSink(&sink_, /*rotation_applied=*/false);
     video_stream_encoder_->SetSource(&video_source_,
                                      DegradationPreference::MAINTAIN_FRAMERATE);
@@ -1770,6 +1776,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
   TestSink sink_;
   AdaptingFrameForwarder video_source_{&time_controller_};
   std::unique_ptr<VideoStreamEncoderUnderTest> video_stream_encoder_;
+  EncoderSwitchRequestCallback encoder_switch_request_callback_;
 };
 
 TEST_F(VideoStreamEncoderTest, EncodeOneFrame) {
@@ -8429,13 +8436,6 @@ TEST_F(VideoStreamEncoderTest, EncoderRatesPropagatedOnReconfigure) {
   video_stream_encoder_->Stop();
 }
 
-struct MockEncoderSwitchRequestCallback : public EncoderSwitchRequestCallback {
-  MOCK_METHOD(void, RequestEncoderFallback, (), (override));
-  MOCK_METHOD(void,
-              RequestEncoderSwitch,
-              (const SdpVideoFormat& format, bool allow_default_fallback),
-              (override));
-};
 
 TEST_F(VideoStreamEncoderTest, EncoderSelectorCurrentEncoderIsSignaled) {
   constexpr int kDontCare = 100;
@@ -8465,9 +8465,9 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBitrateSwitch) {
   constexpr int kDontCare = 100;
 
   NiceMock<MockEncoderSelector> encoder_selector;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &fake_encoder_, &encoder_selector);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8478,8 +8478,8 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBitrateSwitch) {
   ON_CALL(encoder_selector, OnAvailableBitrate)
       .WillByDefault(Return(SdpVideoFormat("AV1")));
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "AV1"),
-                                   /*allow_default_fallback=*/false));
+              Call(Optional(Field(&SdpVideoFormat::name, "AV1")),
+                   /*allow_default_fallback=*/false));
 
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       /*target_bitrate=*/DataRate::KilobitsPerSec(50),
@@ -8495,9 +8495,9 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBitrateSwitch) {
 
 TEST_F(VideoStreamEncoderTest, EncoderSelectorResolutionSwitch) {
   NiceMock<MockEncoderSelector> encoder_selector;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &fake_encoder_, &encoder_selector);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8510,8 +8510,8 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorResolutionSwitch) {
   EXPECT_CALL(encoder_selector, OnResolutionChange(RenderResolution(320, 240)))
       .WillOnce(Return(SdpVideoFormat("AV1")));
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "AV1"),
-                                   /*allow_default_fallback=*/false));
+              Call(Optional(Field(&SdpVideoFormat::name, "AV1")),
+                   /*allow_default_fallback=*/false));
 
   video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
       /*target_bitrate=*/DataRate::KilobitsPerSec(800),
@@ -8536,9 +8536,9 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBrokenEncoderSwitch) {
 
   NiceMock<MockVideoEncoder> video_encoder;
   NiceMock<MockEncoderSelector> encoder_selector;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, &encoder_selector);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8564,8 +8564,8 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBrokenEncoderSwitch) {
 
   Event encode_attempted;
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "AV2"),
-                                   /*allow_default_fallback=*/true))
+              Call(Optional(Field(&SdpVideoFormat::name, "AV2")),
+                   /*allow_default_fallback=*/true))
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, kDontCare, kDontCare));
@@ -8585,9 +8585,9 @@ TEST_F(VideoStreamEncoderTest, EncoderSelectorBrokenEncoderSwitch) {
 TEST_F(VideoStreamEncoderTest, SwitchEncoderOnInitFailureWithEncoderSelector) {
   NiceMock<MockVideoEncoder> video_encoder;
   NiceMock<MockEncoderSelector> encoder_selector;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, &encoder_selector);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8608,8 +8608,8 @@ TEST_F(VideoStreamEncoderTest, SwitchEncoderOnInitFailureWithEncoderSelector) {
 
   Event encode_attempted;
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "AV2"),
-                                   /*allow_default_fallback=*/true))
+              Call(Optional(Field(&SdpVideoFormat::name, "AV2")),
+                   /*allow_default_fallback=*/true))
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
@@ -8632,9 +8632,9 @@ TEST_F(VideoStreamEncoderTest,
       "WebRTC-SwitchEncoderFollowCodecPreferenceOrder", "Disabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, /*encoder_selector=*/nullptr);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8656,8 +8656,8 @@ TEST_F(VideoStreamEncoderTest,
 
   Event encode_attempted;
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "VP8"),
-                                   /*allow_default_fallback=*/true))
+              Call(Optional(Field(&SdpVideoFormat::name, "VP8")),
+                   /*allow_default_fallback=*/true))
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
@@ -8682,9 +8682,9 @@ TEST_F(VideoStreamEncoderTest, NullEncoderReturnSwitch) {
   constexpr int kDontCare = 100;
 
   NiceMock<MockEncoderSelector> encoder_selector;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory =
       std::make_unique<test::VideoEncoderNullableProxyFactory>(
           /*encoder=*/nullptr, &encoder_selector);
@@ -8706,8 +8706,8 @@ TEST_F(VideoStreamEncoderTest, NullEncoderReturnSwitch) {
       .WillByDefault(Return(SdpVideoFormat("AV2")));
   Event encode_attempted;
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "AV2"),
-                                   /*allow_default_fallback=*/_))
+              Call(Optional(Field(&SdpVideoFormat::name, "AV2")),
+                   /*allow_default_fallback=*/_))
       .WillOnce([&encode_attempted]() { encode_attempted.Set(); });
 
   video_source_.IncomingCapturedFrame(CreateFrame(1, kDontCare, kDontCare));
@@ -8730,9 +8730,9 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Disabled) {
   constexpr int kNumFrames = 8;
 
   NiceMock<MockVideoEncoder> video_encoder;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, /*encoder_selector=*/nullptr);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8754,7 +8754,7 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Disabled) {
   EXPECT_CALL(video_encoder, Encode)
       .WillOnce(Return(WEBRTC_VIDEO_CODEC_ENCODER_FAILURE));
 
-  EXPECT_CALL(switch_callback, RequestEncoderFallback());
+  EXPECT_CALL(switch_callback, Call(Eq(std::nullopt), _));
 
   VideoFrame frame = CreateFrame(1, kDontCare, kDontCare);
   for (int i = 0; i < kNumFrames; ++i) {
@@ -8791,9 +8791,9 @@ TEST_F(VideoStreamEncoderTest,
       "WebRTC-SwitchEncoderFollowCodecPreferenceOrder", "Enabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, /*encoder_selector=*/nullptr);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8820,7 +8820,7 @@ TEST_F(VideoStreamEncoderTest,
       .WillOnce(Return(WEBRTC_VIDEO_CODEC_ENCODER_FAILURE))
       .WillRepeatedly(Return(WEBRTC_VIDEO_CODEC_OK));
 
-  EXPECT_CALL(switch_callback, RequestEncoderFallback());
+  EXPECT_CALL(switch_callback, Call(Eq(std::nullopt), _));
 
   // Encode() will be called once and will return a failure code. All subsequent
   // frames will be dropped.
@@ -8866,9 +8866,9 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Enabled) {
       "WebRTC-SwitchEncoderFollowCodecPreferenceOrder", "Disabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
-  StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
-  video_send_config_.encoder_settings.encoder_switch_request_callback =
-      &switch_callback;
+  StrictMock<MockFunction<void(std::optional<SdpVideoFormat>, bool)>>
+      switch_callback;
+  encoder_switch_request_callback_ = switch_callback.AsStdFunction();
   auto encoder_factory = std::make_unique<test::VideoEncoderProxyFactory>(
       &video_encoder, /*encoder_selector=*/nullptr);
   video_send_config_.encoder_settings.encoder_factory = encoder_factory.get();
@@ -8896,8 +8896,8 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Enabled) {
 
   // Fallback request will be asking for switching to VP8.
   EXPECT_CALL(switch_callback,
-              RequestEncoderSwitch(Field(&SdpVideoFormat::name, "VP8"),
-                                   /*allow_default_fallback=*/true));
+              Call(Optional(Field(&SdpVideoFormat::name, "VP8")),
+                   /*allow_default_fallback=*/true));
 
   VideoFrame frame = CreateFrame(1, kDontCare, kDontCare);
   video_source_.IncomingCapturedFrame(frame);
@@ -10433,7 +10433,7 @@ TEST(VideoStreamEncoderSimpleTest, CreateDestroy) {
   // doing anything else. This should be fine since the posted init task will
   // simply be deleted.
   VideoStreamEncoder encoder(
-      env, 1, &stats_proxy, encoder_settings,
+      env, 1, &stats_proxy, std::move(encoder_settings),
       std::make_unique<CpuOveruseDetectorProxy>(env, &stats_proxy),
       std::move(adapter), std::move(encoder_queue),
       VideoStreamEncoder::BitrateAllocationCallbackType::

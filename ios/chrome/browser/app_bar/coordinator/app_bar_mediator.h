@@ -10,30 +10,60 @@
 #import "ios/chrome/browser/app_bar/ui/app_bar_mutator.h"
 
 @protocol AppBarConsumer;
+class AuthenticationService;
+class BwgService;
+class ChromeAccountManagerService;
 @class BrowserActionFactory;
+class FullscreenController;
+@protocol FullscreenUIElement;
 @class IncognitoState;
+namespace signin {
+class IdentityManager;
+}  // namespace signin
 class PrefService;
 @protocol SceneCommands;
 @protocol TabGridCommands;
+@protocol SettingsCommands;
+@protocol BWGCommands;
 @class TabGridState;
 @protocol TabGroupsCommands;
+class TemplateURLService;
 class UrlLoadingBrowserAgent;
 class WebStateList;
+
+@protocol AppBarMediatorDelegate
+
+// Indicates to the delegate to show the account menu anchored to `anchorView`.
+- (void)showAccountMenu:(UIView*)anchorView;
+
+@end
 
 // Mediator for the App Bar coordinator.
 @interface AppBarMediator : NSObject <AppBarMutator>
 
+// The base view controller for presenting modals.
+@property(nonatomic, weak) UIViewController* baseViewController;
+
 // Handler for the scene commands.
 @property(nonatomic, weak) id<SceneCommands> sceneHandler;
 
-// Handler for the scene commands.
+// Handler for the tab grid commands.
 @property(nonatomic, weak) id<TabGridCommands> tabGridHandler;
 
 // The regular Tab Groups command handler.
 @property(nonatomic, weak) id<TabGroupsCommands> regularTabGroupsCommands;
 
+// The incognito Tab Groups command handler.
+@property(nonatomic, weak) id<TabGroupsCommands> incognitoTabGroupsCommands;
+
+// Handler for the settings commands.
+@property(nonatomic, weak) id<SettingsCommands> settingsHandler;
+
+// Handler for the BWG commands.
+@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+
 // The consumer of this mediator.
-@property(nonatomic, weak) id<AppBarConsumer> consumer;
+@property(nonatomic, weak) id<AppBarConsumer, FullscreenUIElement> consumer;
 
 // The regular actions factory.
 @property(nonatomic, strong) BrowserActionFactory* regularActionFactory;
@@ -42,18 +72,32 @@ class WebStateList;
 @property(nonatomic, strong) BrowserActionFactory* incognitoActionFactory;
 
 // Initializes the mediator with the two web state lists.
-- (instancetype)initWithRegularWebStateList:(WebStateList*)regularWebStateList
-                      incognitoWebStateList:(WebStateList*)incognitoWebStateList
-                                prefService:(PrefService*)prefService
-                                  URLLoader:(UrlLoadingBrowserAgent*)URLLoader
-                               tabGridState:(TabGridState*)tabGridState
-                             incognitoState:(IncognitoState*)incognitoState
-    NS_DESIGNATED_INITIALIZER;
+- (instancetype)
+      initWithRegularWebStateList:(WebStateList*)regularWebStateList
+            incognitoWebStateList:(WebStateList*)incognitoWebStateList
+      regularFullscreenController:
+          (FullscreenController*)regularFullscreenController
+    incognitoFullscreenController:
+        (FullscreenController*)incognitoFullscreenController
+                      prefService:(PrefService*)prefService
+               templateURLService:(TemplateURLService*)templateURLService
+            authenticationService:(AuthenticationService*)authenticationService
+                    geminiService:(BwgService*)geminiService
+            accountManagerService:
+                (ChromeAccountManagerService*)accountManagerService
+                  identityManager:(signin::IdentityManager*)identityManager
+                        URLLoader:(UrlLoadingBrowserAgent*)URLLoader
+                     tabGridState:(TabGridState*)tabGridState
+                   incognitoState:(IncognitoState*)incognitoState;
 
 - (instancetype)init NS_UNAVAILABLE;
 
 // Resets the incognito web state list.
 - (void)setIncognitoWebStateList:(WebStateList*)incognitoWebStateList;
+
+// Resets the incognito fullscreen controller.
+- (void)setIncognitoFullscreenController:
+    (FullscreenController*)fullscreenController;
 
 // Disconnects the mediator from the coordinator.
 - (void)disconnect;

@@ -55,10 +55,13 @@ found in the LICENSE file.
   <token key="ToastName">
     <variant name="AddedToReadingList" summary="add to reading list"/>
     <variant name="DiceUserMigrated" summary="dice user migrated"/>
+    <variant name="EnhancedBundledSecuritySettings"
+        summary="enhanced protection user migrated"/>
     <variant name="ImageCopied" summary="image copied"/>
     <variant name="LensOverlay" summary="lens overlay"/>
     <variant name="LinkCopied" summary="link copied"/>
     <variant name="LinkToHighlightCopied" summary="link to highlight"/>
+    <variant name="MultistepFilterSuggestion" summary="filter suggestion"/>
     <variant name="NonMilestoneUpdate" summary="non-milestone update"/>
     <variant name="Translate" summary="translate"/>
   </token>

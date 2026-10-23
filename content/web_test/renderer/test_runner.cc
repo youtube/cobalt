@@ -313,9 +313,10 @@ class TestRunnerBindings final : public gin::Wrappable<TestRunnerBindings> {
   void FocusDevtoolsSecondaryWindow();
   void ForceNextDrawingBufferCreationToFail();
   void ForceNextWebGLContextCreationToFail();
-  #if !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
   void GetBluetoothManualChooserEvents(v8::Local<v8::Function> callback);
-  #endif
+#endif
+  gin::Dictionary GetClipboardReadState(v8::Isolate* isolate);
   void GetManifestThen(v8::Local<v8::Function> callback);
   std::string GetWritableDirectory();
   void InsertStyleSheet(const std::string& source_code);
@@ -335,6 +336,7 @@ class TestRunnerBindings final : public gin::Wrappable<TestRunnerBindings> {
   void QueueReload();
   void RemoveSpellCheckResolvedCallback();
   void RemoveWebPageOverlay();
+  void ResetClipboardReadTracking();
   void ResolveBeforeInstallPromptPromise(const std::string& platform);
   #if !BUILDFLAG(IS_COBALT)
   void SendBluetoothManualChooserEvent(const std::string& event,
@@ -682,6 +684,12 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       .SetMethod("getBluetoothManualChooserEvents",
                  &TestRunnerBindings::GetBluetoothManualChooserEvents)
 #endif
+      // Returns the clipboard read tracking state from the mock clipboard host.
+      // The returned object has boolean properties: readTextCalled,
+      // readHtmlCalled, readUnsanitizedCustomFormatCalled,
+      // readAvailableFormatsCalled.
+      .SetMethod("getClipboardReadState",
+                 &TestRunnerBindings::GetClipboardReadState)
       .SetMethod("getManifestThen", &TestRunnerBindings::GetManifestThen)
       // Returns the absolute path to a directory this test can write data in.
       // This returns the path to a fresh empty directory every time this method
@@ -723,6 +731,9 @@ gin::ObjectTemplateBuilder TestRunnerBindings::GetObjectTemplateBuilder(
       // from inside the main frame.
       .SetMethod("removeWebPageOverlay",
                  &TestRunnerBindings::RemoveWebPageOverlay)
+      // Resets the clipboard read tracking state on the mock clipboard host.
+      .SetMethod("resetClipboardReadTracking",
+                 &TestRunnerBindings::ResetClipboardReadTracking)
       .SetMethod("resolveBeforeInstallPromptPromise",
                  &TestRunnerBindings::ResolveBeforeInstallPromptPromise)
       .SetMethod("selectionAsMarkup", &TestRunnerBindings::SelectionAsMarkup)
@@ -1164,6 +1175,34 @@ std::string TestRunnerBindings::GetWritableDirectory() {
   base::FilePath result;
   frame_->GetWebTestControlHostRemote()->GetWritableDirectory(&result);
   return result.AsUTF8Unsafe();
+}
+
+gin::Dictionary TestRunnerBindings::GetClipboardReadState(
+    v8::Isolate* isolate) {
+  gin::Dictionary result = gin::Dictionary::CreateEmpty(isolate);
+  if (!frame_) {
+    return result;
+  }
+  bool read_text_called = false;
+  bool read_html_called = false;
+  bool read_unsanitized_custom_format_called = false;
+  bool read_available_formats_called = false;
+  frame_->GetWebTestControlHostRemote()->GetClipboardReadState(
+      &read_text_called, &read_html_called,
+      &read_unsanitized_custom_format_called, &read_available_formats_called);
+  result.Set("readTextCalled", read_text_called);
+  result.Set("readHtmlCalled", read_html_called);
+  result.Set("readUnsanitizedCustomFormatCalled",
+             read_unsanitized_custom_format_called);
+  result.Set("readAvailableFormatsCalled", read_available_formats_called);
+  return result;
+}
+
+void TestRunnerBindings::ResetClipboardReadTracking() {
+  if (!frame_) {
+    return;
+  }
+  frame_->GetWebTestControlHostRemote()->ResetClipboardReadTracking();
 }
 
 void TestRunnerBindings::SetFilePathForMockFileDialog(const std::string& path) {

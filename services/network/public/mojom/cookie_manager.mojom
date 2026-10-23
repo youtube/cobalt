@@ -18,9 +18,6 @@ struct CookieManagerParams {
   // Whether or not third party cookies should be blocked.
   bool block_third_party_cookies = false;
 
-  // Whether tracking protection for 3PCD (prefs + UX) is enabled.
-  bool tracking_protection_enabled_for_3pcd = false;
-
   // Whether Third Party Cookie Deprecation mitigations efforts such as Third
   // Party Cookie Deprecation Metadata grants are permitted.
   bool mitigations_enabled_for_3pcd = false;
@@ -30,12 +27,18 @@ struct CookieManagerParams {
     array<content_settings.mojom.ContentSettingPatternSource>> content_settings;
 
   // Schemes that unconditionally allow cookies from secure origins.
+  // Note: ContentBrowserClient::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel()
+  // needs to be aware of the schemes set here in order to work correctly for
+  // embedded frames.
   array<string> secure_origin_cookies_allowed_schemes;
 
   // Schemes that unconditionally allow cookies from the same scheme.
   array<string> matching_scheme_cookies_allowed_schemes;
 
   // Schemes that unconditionally allow third party cookies.
+  // Note: ContentBrowserClient::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel()
+  // needs to be aware of the schemes set here in order to work correctly for
+  // embedded frames.
   array<string> third_party_cookies_allowed_schemes;
 
   // Whether or not to allow cookies for file:// URLs. Can be overridden by
@@ -530,9 +533,6 @@ interface CookieManager {
 
   // Enables/Disables mitigations for third-party cookies deprecation.
   SetMitigationsEnabledFor3pcd(bool enable);
-
-  // Enables/Disables tracking protection for 3PCD (prefs + UX).
-  SetTrackingProtectionEnabledFor3pcd(bool enable);
 
   // Adds a pre-commit delay to the cookie database sqlite persistent store.
   // This delay occurs before every commit and blocks the background task

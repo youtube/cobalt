@@ -106,6 +106,14 @@ enum class LaunchWebAppWindowSetting {
 // A chrome/browser/ representation of the chrome/browser/ui/ UI manager to
 // perform Web App UI operations or listen to Web App UI events, including
 // events from WebAppTabHelpers.
+//
+// All methods / operations on this class are ideally impotent, where all
+// information for the operation is passed as arguments, and the operation
+// doesn't do any state changes to the WebApp system. When the operation is
+// done, the results are returned directly or returned by calling a callback
+// argument. This ensures that state changing complexity all lives in the WebApp
+// system internals, and also allows unit tests to test those operations easy
+// while this subsystem is faked using the FakeWebAppUiManager.
 class WebAppUiManager {
  public:
   using ShowIntentPickerBubbleCallback = base::OnceCallback<void(bool)>;
@@ -342,7 +350,8 @@ class WebAppUiManager {
 
   // Creates the WebAppBlockedUpdateInfoBar in a Web App window.
   virtual void MaybeCreateWebAppBlockedMigrationInfoBar(
-      content::WebContents* web_contents) = 0;
+      content::WebContents* web_contents,
+      base::OnceClosure on_dismiss_callback) = 0;
 
   // Removes the WebAppBlockedUpdateInfoBar from a Web App window if it exists.
   virtual void MaybeRemoveWebAppBlockedMigrationInfoBar(

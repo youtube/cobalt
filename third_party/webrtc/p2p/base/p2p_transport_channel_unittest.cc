@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -25,7 +26,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -2561,7 +2561,7 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTest {
   }
 
   Connection* GetBestConnection(P2PTransportChannel* channel) {
-    ArrayView<Connection* const> connections = channel->connections();
+    std::span<Connection* const> connections = channel->connections();
     auto it = absl::c_find(connections, channel->selected_connection());
     if (it == connections.end()) {
       return nullptr;
@@ -2570,7 +2570,7 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTest {
   }
 
   Connection* GetBackupConnection(P2PTransportChannel* channel) {
-    ArrayView<Connection* const> connections = channel->connections();
+    std::span<Connection* const> connections = channel->connections();
     auto it = absl::c_find_if_not(connections, [channel](Connection* conn) {
       return conn == channel->selected_connection();
     });
@@ -2583,7 +2583,7 @@ class P2PTransportChannelMultihomedTest : public P2PTransportChannelTest {
   void DestroyAllButBestConnection(P2PTransportChannel* channel) {
     const Connection* selected_connection = channel->selected_connection();
     // Copy the list of connections since the original will be modified.
-    ArrayView<Connection* const> view = channel->connections();
+    std::span<Connection* const> view = channel->connections();
     std::vector<Connection*> connections(view.begin(), view.end());
     for (Connection* conn : connections) {
       if (conn != selected_connection)
@@ -3567,7 +3567,7 @@ TEST_F(P2PTransportChannelMultihomedTest, StunDictionaryPerformsSync) {
   CreateChannels(env);
 
   MockFunction<void(IceTransportInternal*, const StunDictionaryView&,
-                    ArrayView<uint16_t>)>
+                    std::span<uint16_t>)>
       view_updated_func;
   ep2_ch1()->AddDictionaryViewUpdatedCallback(
       "tag", view_updated_func.AsStdFunction());
@@ -7132,7 +7132,7 @@ class P2PTransportChannelTestDtlsInStun : public P2PTransportChannelTestBase {
     return make_pair(absl::string_view(pending_packet_), std::nullopt);
   }
 
-  void piggyback_data_received(std::optional<ArrayView<uint8_t>> data,
+  void piggyback_data_received(std::optional<std::span<uint8_t>> data,
                                std::optional<std::vector<uint32_t>> ack) {}
 
   ScopedFakeClock clock_;

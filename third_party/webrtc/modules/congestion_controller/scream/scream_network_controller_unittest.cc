@@ -420,7 +420,7 @@ TEST(ScreamControllerTest, PaddingStopIfNetworkCongested) {
   PaddingTestResult result = ProcessUntilPaddingStartAndStop(
       clock, scream_controller, feedback_generator);
 
-  EXPECT_LT(result.target_rate, DataRate::KilobitsPerSec(700));
+  EXPECT_LT(result.target_rate, DataRate::KilobitsPerSec(720));
   // Padding should stop when congestion is detected.
   EXPECT_LT(result.padding_stop - result.padding_start, TimeDelta::Seconds(1));
 }
@@ -449,10 +449,10 @@ TEST(ScreamControllerTest, PeriodicallyAllowPadding) {
   TimeDelta padding_duration = result_1.padding_stop - result_1.padding_start;
   TimeDelta time_between_padding =
       result_2.padding_start - result_1.padding_stop;
-  EXPECT_GT(padding_duration, TimeDelta::Millis(2800));
+  EXPECT_GT(padding_duration, TimeDelta::Millis(2500));
   EXPECT_LT(padding_duration, TimeDelta::Millis(3100));
 
-  EXPECT_GT(time_between_padding, TimeDelta::Millis(2900));
+  EXPECT_GT(time_between_padding, TimeDelta::Millis(2500));
   EXPECT_LT(time_between_padding, TimeDelta::Millis(3300));
 }
 

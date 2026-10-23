@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/events/gesture_detection/gesture_touch_uma_histogram.h"
 #include "ui/events/gesture_event_details.h"
 
 namespace ui {
@@ -375,6 +376,7 @@ void TouchDispositionGestureFilter::FilterAndSendPacket(
       continue;
     }
     if (packet.gesture_source() == GestureEventDataPacket::TOUCH_TIMEOUT) {
+      GestureTouchUMAHistogram::RecordGestureTimeout(gesture);
       // Sending a timed gesture could delete |this|, so we need to return
       // directly after the |SendGesture| call.
       SendGesture(gesture, packet);
@@ -394,6 +396,13 @@ void TouchDispositionGestureFilter::FilterAndSendPacket(
           compensated_gesture.details.scroll_y() != 0.f) {
         SendGesture(compensated_gesture, packet);
       }
+      continue;
+    }
+    if (gesture.type() == EventType::kGestureScrollEnd &&
+        scroll_update_compensator_) {
+      SendGesture(scroll_update_compensator_->GetCompensatedGestureScrollEnd(
+                      packet, gesture),
+                  packet);
       continue;
     }
     // Occasionally scroll or tap cancel events are synthesized when a touch
@@ -479,8 +488,7 @@ void TouchDispositionGestureFilter::SendGesture(
       if (scroll_update_compensator_.has_value()) {
         // The reference timestamp here since it is a good approximation of when
         // the ack for the first touch move is received.
-        scroll_update_compensator_->SetReferenceTimestamp(
-            base::TimeTicks::Now());
+        scroll_update_compensator_->Reset(base::TimeTicks::Now());
       }
       break;
     case EventType::kGestureScrollUpdate:
@@ -538,10 +546,17 @@ void TouchDispositionGestureFilter::EndScrollIfNecessary(
   if (!needs_scroll_ending_event_)
     return;
 
-  SendGesture(
+  GestureEventData gesture =
       CreateGesture(EventType::kGestureScrollEnd, ending_event_motion_event_id_,
-                    ending_event_primary_tool_type_, packet_being_sent),
-      packet_being_sent);
+                    ending_event_primary_tool_type_, packet_being_sent);
+  if (scroll_update_compensator_.has_value()) {
+    gesture = scroll_update_compensator_->GetCompensatedGestureScrollEnd(
+        packet_being_sent, gesture);
+    gesture.motion_event_id = ending_event_motion_event_id_;
+    gesture.primary_tool_type = ending_event_primary_tool_type_;
+  }
+
+  SendGesture(gesture, packet_being_sent);
   DCHECK(!needs_scroll_ending_event_);
 }
 
@@ -620,8 +635,10 @@ TouchDispositionGestureFilter::OverrideReferenceTimestampForTesting(  // IN-TEST
                                           reference_timestamp);
 }
 
-void TouchDispositionGestureFilter::ScrollUpdateCompensator::
-    SetReferenceTimestamp(base::TimeTicks reference_timestamp) {
+void TouchDispositionGestureFilter::ScrollUpdateCompensator::Reset(
+    base::TimeTicks reference_timestamp) {
+  total_compensated_scroll_update_ = gfx::Vector2dF();
+
   const auto* timestamp_override = GetReferenceTimestampOverride();
   if (timestamp_override->is_null()) {
     reference_timestamp_ = reference_timestamp;
@@ -648,10 +665,25 @@ GestureEventData TouchDispositionGestureFilter::ScrollUpdateCompensator::
                                   (acceptable_latency_ - expected_latency_),
                         0.f, 1.f);
 
+  total_compensated_scroll_update_ +=
+      gfx::Vector2dF(gesture.details.scroll_x() * (1.f - compensation),
+                     gesture.details.scroll_y() * (1.f - compensation));
+
   return CreateGesture(
       GestureEventDetails(EventType::kGestureScrollUpdate,
                           gesture.details.scroll_x() * compensation,
                           gesture.details.scroll_y() * compensation),
+      packet.unique_touch_event_id(), packet.tool_type(), packet);
+}
+
+GestureEventData TouchDispositionGestureFilter::ScrollUpdateCompensator::
+    GetCompensatedGestureScrollEnd(const GestureEventDataPacket& packet,
+                                   const GestureEventData& gesture) {
+  CHECK_EQ(gesture.type(), EventType::kGestureScrollEnd);
+  return CreateGesture(
+      GestureEventDetails(EventType::kGestureScrollEnd,
+                          total_compensated_scroll_update_.x(),
+                          total_compensated_scroll_update_.y()),
       packet.unique_touch_event_id(), packet.tool_type(), packet);
 }
 

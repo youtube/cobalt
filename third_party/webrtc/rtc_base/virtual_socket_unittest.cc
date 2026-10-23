@@ -17,11 +17,11 @@
 #include <cstring>
 #include <ctime>
 #include <memory>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
@@ -186,8 +186,8 @@ class VirtualSocketServerTest : public ::testing::Test {
     } else if (post_ip.family() == AF_INET6) {
       in6_addr post_ip6 = post_ip.ipv6_address();
       in6_addr pre_ip6 = pre_ip.ipv6_address();
-      ArrayView<uint8_t, 16> post_bytes = post_ip6.s6_addr;
-      ArrayView<uint8_t, 16> pre_bytes = pre_ip6.s6_addr;
+      std::span<uint8_t, 16> post_bytes = post_ip6.s6_addr;
+      std::span<uint8_t, 16> pre_bytes = pre_ip6.s6_addr;
       EXPECT_THAT(post_bytes.subspan(12, 4),
                   Pointwise(Eq(), pre_bytes.subspan(12, 4)));
     }

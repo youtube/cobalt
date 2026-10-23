@@ -814,7 +814,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AimEntrypoint.Shown" enum="Boolean"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1210,7 +1210,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ClipboardSuggestionShownAge{ClipboardSuggestionType}"
-    units="ms" expires_after="2026-07-05">
+    units="ms" expires_after="2026-09-06">
   <owner>gangwu@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <summary>
@@ -1231,7 +1231,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.ClipboardSuggestionShownNumTimes{ClipboardSuggestionType}"
-    units="units" expires_after="2026-07-05">
+    units="units" expires_after="2026-09-06">
   <owner>gangwu@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <summary>
@@ -1393,7 +1393,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.DocumentSuggest.HttpResponseCode.IsSubjectToEnterprisePolicies.{SigninTribool}"
-    enum="HttpResponseCode" expires_after="2026-07-05">
+    enum="HttpResponseCode" expires_after="2026-09-06">
   <owner>mahmadi@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1800,7 +1800,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.BySummarizedResultType.{OmniboxSummarizedResultType}"
-    units="ms" expires_after="2026-07-12">
+    units="ms" expires_after="2026-09-13">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1820,7 +1820,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.BySummarizedResultType.{OmniboxSummarizedResultType}.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-07-12">
+    units="ms" expires_after="2026-09-13">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -3360,7 +3360,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.DuplicateSearchTermsAgeAheadOfNavigationalPrefetch"
-    units="ms" expires_after="2026-07-12">
+    units="ms" expires_after="2026-09-13">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -4152,7 +4152,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SuggestTiles.SelectedTileIndex" units="position"
-    expires_after="2026-07-01">
+    expires_after="2026-09-06">
   <owner>ender@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -4229,6 +4229,58 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
     This histogram only records metrics on machines with high-resolution clocks.
     (Expired in 2024-04-28. Revived in 2025-01-06.)
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.TemplateUrl.DBRefresh.DefaultSearchMatchCountById"
+    units="count" expires_after="2026-07-01">
+  <owner>dgn@google.com</owner>
+  <owner>ender@google.com</owner>
+  <owner>chrome-regionalcapabiltiies@google.com</owner>
+  <summary>
+    At the beginning of the process of merging prepopulated engines into the
+    keywords database, records the number of entries that match the current
+    default search engine. Matching is done by preopulate ID or by ID of the
+    DSE's pre-migration ID, if relevant. There may be more than one engine
+    matching due to some unexpected behaviour associated with migrations, sync
+    or changes in the profile's assigned country.
+
+    Recorded once per keywords database merging, which gets triggered on startup
+    if the built-in search engines data has been updated, or the profile's
+    assigned country changed.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.TemplateUrl.DBRefresh.EntryPreservationReason"
+    enum="EntryPreservationReason" expires_after="2026-07-01">
+  <owner>dgn@google.com</owner>
+  <owner>ender@google.com</owner>
+  <owner>chrome-regionalcapabiltiies@google.com</owner>
+  <summary>
+    During the process of merging prepopulated engines into the keywords
+    database, records a reason why an existing entry might be preserved after it
+    did not match any of the regional prepopulated engines.
+
+    Recorded once per keywords database merging, which gets triggered on startup
+    if the built-in search engines data has been updated, or the profile's
+    assigned country changed.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.TemplateUrl.DBRefresh.UnmatchedDefaultSearchCount"
+    units="count" expires_after="2026-07-01">
+  <owner>dgn@google.com</owner>
+  <owner>ender@google.com</owner>
+  <owner>chrome-regionalcapabiltiies@google.com</owner>
+  <summary>
+    At the end of the process of merging prepopulated engines into the keywords
+    database, records the number of entries that match the current default
+    search engine but that did not get reconciled with some existing entry and
+    will be discarded.
+
+    Recorded once per keywords database merging, which gets triggered on startup
+    if the built-in search engines data has been updated, or the profile's
+    assigned country changed.
   </summary>
 </histogram>
 

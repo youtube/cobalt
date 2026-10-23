@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">კეთილი იყოს თქვენი დაბრუნება!</translation>
 <translation id="2015722694326466240">პაროლების სანახავად, პირველ რიგში, საჭიროა თქვენს მოწყობილობაზე საიდუმლო კოდის დაყენება.</translation>
 <translation id="201759455285471444">ჩანართების ჯგუფის გაფართოება.</translation>
-<translation id="202070562065520783">ამიხსენი</translation>
 <translation id="2044394949148788042">გახსენით ჩანართების ბადე</translation>
 <translation id="2044681667265133332">ანგარიშს <ph name="USER_EMAIL" /> მართავს <ph name="HOSTED_DOMAIN" /> და მან შეიძლება ნახოს გარკვეული ინფორმაცია. <ph name="BEGIN_LINK" />შეიტყვეთ მეტი<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">ახალი ერთეული</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">მობილური საიტის მოთხოვნა</translation>
 <translation id="2362083820973145409">შესული ხართ, როგორც <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. გახსნის პარამეტრებს.</translation>
 <translation id="2371084566192454134">ჩანართები და ჩანართების ჯგუფები</translation>
+<translation id="2371303771137626249">ახალი</translation>
 <translation id="2381405137052800939">ძირითადი</translation>
 <translation id="2384692388811649784">ინკოგნიტო ჩანართების დამალვა</translation>
 <translation id="2386793615875593361">1 არჩეულია</translation>
@@ -637,6 +637,7 @@
 <translation id="3324193307694657476">მისამართი 2</translation>
 <translation id="3328801116991980348">საიტის ინფორმაცია</translation>
 <translation id="333229797575847124">აღნიშნული ფუნქციის გააქტიურების წესი</translation>
+<translation id="334004756946755423">ამიხსენი:</translation>
 <translation id="3344233834747405775">ბარათის მფლობელის სახელი არასწორია</translation>
 <translation id="3344485292736684439">{count,plural, =1{სანიშნე შეინახა „{title}“-ში თქვენს ანგარიშში ({email})}other{სანიშნეები შეინახა „{title}“-ში თქვენს ანგარიშში ({email})}}</translation>
 <translation id="334690320928261823">ბოლოდროინდელი ჩანართები</translation>
@@ -690,6 +691,7 @@
 <translation id="3530206579861815432">სწრაფად იპოვეთ გახსნილი და ბოლო დროს დახურული ჩანართები თქვენი ყველა მოწყობილობიდან.</translation>
 <translation id="3530767473765895035">ამ მოწყობილობაზე ანგარიშების მართვა…</translation>
 <translation id="3533436815740441613">ახალი ჩანართი</translation>
+<translation id="3534738261102690620">ჰკითხეთ Gemini-ს</translation>
 <translation id="3540141921715814660">სანიშნეებში დამატება</translation>
 <translation id="3546122170015471515">Maps-ის წინასწარი ვერსიები Google.com-ზე</translation>
 <translation id="3547356470684043247">გაეცანით კლიენტების შეფასებას პროდუქტების, სერვისებისა თუ შთაბეჭდილებების შესახებ, რაც დაგეხმარებათ გამოხმაურებების მეშვეობით საფუძვლიანი გადაწყვეტილების მიღებაში</translation>
@@ -960,6 +962,7 @@
 <translation id="454217142158335225">დახურული ერთეულების ხელახლა გახსნა შეგიძლიათ ბოლოს გამოყენებული ჩანართებიდან ან ჩანართების ჯგუფების სექციებიდან. თქვენი ჩამაგრებული ჩანართები არ დაიხურება.</translation>
 <translation id="4547181496285029457">ბოლოდროინდელ ჩანართზე დაბრუნება</translation>
 <translation id="4552042254369397518">მიმდინარეობს კოპირება…</translation>
+<translation id="4553044860350038560">წვდომის სხვა გასაღებები</translation>
 <translation id="4564893319561643483">დაიმალოს „<ph name="TITLE" />“</translation>
 <translation id="4565377596337484307">პაროლის დამალვა</translation>
 <translation id="4568230126482344545">ბოლოდროინდელი ჩანართების დამალვა</translation>
@@ -1088,6 +1091,7 @@
 <translation id="4944543191714094452">გვერდზე პოვნა…</translation>
 <translation id="4945756290001680296">პაროლების პარამეტრებზე წვდომა</translation>
 <translation id="4949302115427722371">პარამეტრების მართვა…</translation>
+<translation id="4952050521954075618">კამერის ალბომის ფოტოები არ დასინქრონდება თქვენს მოწყობილობებს შორის</translation>
 <translation id="4958444002117714549">სიის გაშლა</translation>
 <translation id="496392417432935267">გახსნილია სხვაგან</translation>
 <translation id="4970724460420203313">Chrome-ის გამოყენება თქვენი მართული ანგარიშისთვის საშუალებას მოგცემთ, გამიჯნოთ დათვალიერება თქვენი ორგანიზაციისთვის, კერძოდ, ჩანართები, ისტორია და პაროლები.</translation>
@@ -1287,6 +1291,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="5647702255748985085">დატოვებთ ჯგუფს?</translation>
 <translation id="5648166631817621825">ბოლო 7 დღე</translation>
 <translation id="5652623411397330904">აქ გამოჩნდება პროდუქტები, რომლებსაც თვალს ადევნებთ.</translation>
+<translation id="5653100054596780862">ყველა ჩანართი</translation>
 <translation id="5656431592348714536">გაუმჯობესებული Calendar</translation>
 <translation id="5659593005791499971">ელფოსტა</translation>
 <translation id="5665739277590037307">მოქმედებს <ph name="GOOGLE_TERMS" /> და <ph name="GEMINI_APPS_PRIVACY" />. Gemini შეიძლება შეცდეს, ამიტომ გადაამოწმეთ ინფორმაცია.</translation>
@@ -1614,6 +1619,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="672735642903863329">მიიღეთ თქვენი სანიშნეები, პაროლები და სხვა მონაცემები თქვენს ყველა მოწყობილობაზე.</translation>
 <translation id="6729493062119577923">ჩანართების გაზიარებულ ჯგუფში აქტივობა</translation>
 <translation id="6732087373923685049">კამერა</translation>
+<translation id="6736243959894955139">მისამართი</translation>
 <translation id="6746338529702829275">შეამოწმეთ თქვენი ანგარიშის მონაცემები</translation>
 <translation id="6750456911389438250">{count,plural, =1{დაიმპორტებულია ისტორიის {count} ერთეული}other{დაიმპორტებულია ისტორიის {count} ერთეული}}</translation>
 <translation id="6755200887046212842">ანგარიშების მართვა</translation>
@@ -1751,6 +1757,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7300448350764260141">ისარგებლეთ ონლაინ საფრთხეებისგან დაცვის დამატებითი შრით.</translation>
 <translation id="7311244614769792472">შედეგები ვერ მოიძებნა</translation>
 <translation id="7313347584264171202">აქ იპოვით თქვენს ინკოგნიტო ჩანართებს</translation>
+<translation id="7322186060879266048">{count,plural, =1{კლავიატურის ზემოთ ხელმისაწვდომია ავტომატური შევსების {count} ვარიანტი.}other{კლავიატურის ზემოთ ხელმისაწვდომია ავტომატური შევსების {count} ვარიანტი.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> პროცენტი ჩამოიტვირთა</translation>
 <translation id="7345061034321640811">იმპორტი დაუშვებელია</translation>
@@ -1820,7 +1827,6 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7537586195939242955">სამწუხაროდ, ამჟამად შეუძლებელია Pass-ის დაინსტალირება Passbook-ში.</translation>
 <translation id="754655535278952384">შემოწმების დრო: <ph name="TIME" /></translation>
 <translation id="7554645225856321710">ყველას დახურვა</translation>
-<translation id="7554791636758816595">ახალი ჩანართი</translation>
 <translation id="7557508262441527045">გამოსული</translation>
 <translation id="7561196759112975576">ყოველთვის</translation>
 <translation id="7561982940498449837">მენიუს დახურვა</translation>
@@ -2250,7 +2256,6 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, ჩამაგრებული საიტი</translation>
 <translation id="8990960056509724223">ფაილის შენახვა ვერ მოხერხდა თქვენი ორგანიზაციის წესების გამო</translation>
 <translation id="8998289560386111590">მიუწვდომელია თქვენს მოწყობილობაზე</translation>
-<translation id="9000532564152265066">ყველა ჩანართი</translation>
 <translation id="9003677638446136377">ხელახლა შემოწმება</translation>
 <translation id="9006453925669499173">მენიუ → ახალი ინკოგნიტო ჩანართი</translation>
 <translation id="9008201768610948239">იგნორირება</translation>

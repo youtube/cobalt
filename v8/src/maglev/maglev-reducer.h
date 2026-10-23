@@ -604,7 +604,7 @@ class MaglevReducer {
   }
   NodeType GetType(ValueNode* node,
                    AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kDontAllow) {
+                       AllowWideningSmiToInt32::kAllow) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {

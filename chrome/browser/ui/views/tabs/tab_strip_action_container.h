@@ -7,12 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_nudge_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
-#include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/common/buildflags.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -31,10 +30,16 @@ class TabStripGlicActorTaskIcon;
 class BrowserWindowInterface;
 class GlicAndActorButtonsContainer;
 
+enum class LockedExpansionMode {
+  kNone = 0,
+  kWillShow,
+  kWillHide,
+};
+
 class TabStripActionContainer : public views::View,
                                 public views::AnimationDelegateViews,
                                 public views::MouseWatcherListener,
-                                public GlicNudgeDelegate,
+                                public glic::GlicNudgeDelegate,
                                 public glic::GlicButtonControllerDelegate {
   METADATA_HEADER(TabStripActionContainer, views::View)
 
@@ -90,7 +95,7 @@ class TabStripActionContainer : public views::View,
 
   explicit TabStripActionContainer(
       BrowserWindowInterface* browser_window_interface,
-      tabs::GlicNudgeController* glic_nudge_controller);
+      glic::GlicNudgeController* glic_nudge_controller);
   TabStripActionContainer(const TabStripActionContainer&) = delete;
   TabStripActionContainer& operator=(const TabStripActionContainer&) = delete;
   ~TabStripActionContainer() override;
@@ -120,12 +125,13 @@ class TabStripActionContainer : public views::View,
   void SetGlicShowState(bool show) override;
   void SetGlicPanelIsOpen(bool open) override;
 
-  // UI Controls for the GlicActorTaskIcon:
   void ShowGlicActorTaskIcon();
   void HideGlicActorTaskIcon();
   bool GetIsShowingGlicActorTaskIconNudge();
-  views::FlexLayoutView* glic_actor_button_container();
+  bool IsGlicAdded();
   void TriggerGlicActorNudge(const std::u16string nudge_text);
+
+  views::FlexLayoutView* glic_actor_button_container();
   void ShowGlicActorNudge(const std::u16string nudge_text);
 
   void UpdateButtonBorders(gfx::Insets button_insets);
@@ -193,7 +199,7 @@ class TabStripActionContainer : public views::View,
 
   // The button currently holding the lock to be shown/hidden.
   raw_ptr<TabStripNudgeButton> locked_expansion_button_ = nullptr;
-  raw_ptr<tabs::GlicNudgeController> glic_nudge_controller_ = nullptr;
+  raw_ptr<glic::GlicNudgeController> glic_nudge_controller_ = nullptr;
 
   raw_ptr<views::Separator> separator_ = nullptr;
 

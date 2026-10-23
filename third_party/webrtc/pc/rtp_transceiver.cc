@@ -231,7 +231,9 @@ CreateMediaContentChannels(
     const AudioOptions& audio_options,
     const VideoOptions& video_options,
     const CryptoOptions& crypto_options,
-    VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) {
+    VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
+    VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+        video_encoder_switch_request_callback = nullptr) {
   if (media_type == MediaType::AUDIO) {
     return {media_engine->voice().CreateSendChannel(
                 env, call, media_config, audio_options, crypto_options),
@@ -240,7 +242,8 @@ CreateMediaContentChannels(
   }
   return {media_engine->video().CreateSendChannel(
               env, call, media_config, video_options, crypto_options,
-              video_bitrate_allocator_factory),
+              video_bitrate_allocator_factory,
+              std::move(video_encoder_switch_request_callback)),
           media_engine->video().CreateReceiveChannel(
               env, call, media_config, video_options, crypto_options)};
 }
@@ -286,8 +289,11 @@ RtpTransceiver::RtpTransceiver(const Environment& env,
       thread_(context->signaling_thread()),
       unified_plan_(false),
       media_type_(media_type),
+      signaling_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          /*alive=*/false,
+          context->signaling_thread())),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
-          true,
+          /*alive=*/true,
           context->network_thread())),
       context_(context),
       codec_lookup_helper_(codec_lookup_helper),
@@ -310,8 +316,11 @@ RtpTransceiver::RtpTransceiver(
       thread_(context->signaling_thread()),
       unified_plan_(true),
       media_type_(sender->media_type()),
+      signaling_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          /*alive=*/false,
+          context->signaling_thread())),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
-          true,
+          /*alive=*/true,
           context->network_thread())),
       context_(context),
       codec_lookup_helper_(codec_lookup_helper),
@@ -365,8 +374,11 @@ RtpTransceiver::RtpTransceiver(
       thread_(context->signaling_thread()),
       unified_plan_(true),
       media_type_(media_type),
+      signaling_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
+          /*alive=*/false,
+          context->signaling_thread())),
       network_thread_safety_(PendingTaskSafetyFlag::CreateAttachedToTaskQueue(
-          true,
+          /*alive=*/true,
           context->network_thread())),
       media_engine_ref_(nullptr),
       context_(context),
@@ -389,11 +401,12 @@ RtpTransceiver::RtpTransceiver(
   // This should be possible without a blocking call to the worker, perhaps done
   // asynchronously. At the moment this is complicated by the fact that
   // construction of the channels actually changes the settings of the engine.
-  context_->worker_thread()->BlockingCall([&]() mutable {
+  context_->worker_thread()->BlockingCall([&]() {
     RTC_DCHECK_RUN_ON(this->context()->worker_thread());
     auto channels = CreateMediaContentChannels(
         media_type_, env_, media_engine(), call, media_config, audio_options,
-        video_options, crypto_options, video_bitrate_allocator_factory);
+        video_options, crypto_options, video_bitrate_allocator_factory,
+        GetEncoderSwitchRequestCallback());
     owned_send_channel_ = std::move(channels.first);
     owned_receive_channel_ = std::move(channels.second);
     senders_.push_back(CreateSender(media_type_, env_, context_, legacy_stats_,
@@ -444,6 +457,15 @@ RTCError RtpTransceiver::CreateChannel(
 
   mid_ = mid;
 
+  if (!signaling_thread_safety_) {
+    // This code path is hit during rollback.
+    signaling_thread_safety_ = PendingTaskSafetyFlag::Create();
+  } else {
+    // Newly constructed.
+    RTC_DCHECK(!signaling_thread_safety_->alive());
+    signaling_thread_safety_->SetAlive();
+  }
+
   std::unique_ptr<ChannelInterface> new_channel;
   // TODO(bugs.webrtc.org/11992): CreateVideoChannel internally switches to
   // the worker thread. We shouldn't be using the `call_ptr_` hack here but
@@ -471,7 +493,7 @@ RTCError RtpTransceiver::CreateChannel(
       auto channels = CreateMediaContentChannels(
           media_type(), env_, media_engine(), call_ptr, media_config,
           audio_options, video_options, crypto_options,
-          video_bitrate_allocator_factory);
+          video_bitrate_allocator_factory, GetEncoderSwitchRequestCallback());
       media_send_channel = std::move(channels.first);
       media_receive_channel = std::move(channels.second);
       SetMediaChannels(media_send_channel.get(), media_receive_channel.get());
@@ -513,7 +535,6 @@ RTCError RtpTransceiver::SetChannel(
 
   RTC_DCHECK_EQ(media_type(), channel->media_type());
   RTC_DCHECK(mid_ || channel->mid().empty());
-  signaling_thread_safety_ = PendingTaskSafetyFlag::Create();
   channel_ = std::move(channel);
   transport_name_ = std::nullopt;
 
@@ -578,7 +599,7 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
   // combine these into one function to avoid an ordering mistake?
 
   if (!channel_) {
-    RTC_DCHECK(!signaling_thread_safety_);
+    RTC_DCHECK(!signaling_thread_safety_ || !signaling_thread_safety_->alive());
     return nullptr;
   }
 
@@ -598,7 +619,7 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
 absl::AnyInvocable<void() &&> RtpTransceiver::GetDeleteChannelWorkerTask(
     bool stop_senders) {
   RTC_DCHECK_RUN_ON(thread_);
-  RTC_DCHECK(signaling_thread_safety_ == nullptr)
+  RTC_DCHECK(!signaling_thread_safety_ || !signaling_thread_safety_->alive())
       << "GetClearChannelNetworkTask() must be called first";
 
   if (!channel_) {
@@ -667,6 +688,33 @@ void RtpTransceiver::SetMediaChannels(MediaSendChannelInterface* send,
   for (const auto& receiver : receivers_) {
     receiver->internal()->SetMediaChannel(receive);
   }
+}
+VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+RtpTransceiver::GetEncoderSwitchRequestCallback() {
+  if (media_type() != MediaType::VIDEO) {
+    return nullptr;
+  }
+  RTC_DCHECK(signaling_thread_safety_);
+  // Return a task that first clears the sender parameter cache on the signaling
+  // thread and then posts a task to apply the codec switch changes to the
+  // parameters on the worker.
+  return
+      [this, signaling_thread = context_->signaling_thread(),
+       worker_thread = context_->worker_thread(),
+       signaling_safety = signaling_thread_safety_](
+          VideoMediaSendChannelInterface::EncoderSwitchRequestAction action) {
+        // Called on the encoder task queue.
+        signaling_thread->PostTask(SafeTask(
+            signaling_safety,
+            [this, worker_thread, action = std::move(action)]() mutable {
+              for (const auto& sender : senders_) {
+                sender->internal()->SetCachedParameters(std::nullopt);
+              }
+              worker_thread->PostTask([action = std::move(action)]() mutable {
+                std::move(action)();
+              });
+            }));
+      };
 }
 
 // RTC_RUN_ON(context()->worker_thread());
@@ -1318,7 +1366,7 @@ bool RtpTransceiver::SetChannelContent(
 }
 
 bool RtpTransceiver::SetChannelPayloadTypeDemuxingEnabled(bool enabled) {
-  RTC_DCHECK_RUN_ON(context()->worker_thread());
+  RTC_DCHECK_RUN_ON(context()->network_thread());
   RTC_DCHECK(channel_);
   return channel_->SetPayloadTypeDemuxingEnabled(enabled);
 }

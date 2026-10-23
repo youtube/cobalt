@@ -11,15 +11,15 @@
 #include "p2p/dtls/dtls_utils.h"
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
-#include "api/array_view.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
-std::vector<uint8_t> ToVector(ArrayView<const uint8_t> array) {
+std::vector<uint8_t> ToVector(std::span<const uint8_t> array) {
   return std::vector<uint8_t>(array.begin(), array.end());
 }
 

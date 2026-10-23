@@ -90,7 +90,7 @@ class RtpSenderInternal : public RtpSenderInterface {
   virtual RTCError SetParametersInternal(const RtpParameters& parameters,
                                          SetParametersCallback,
                                          bool blocking) = 0;
-  virtual void SetCachedParameters(RtpParameters parameters) = 0;
+  virtual void SetCachedParameters(std::optional<RtpParameters> parameters) = 0;
 
   // GetParameters and SetParameters will remove deactivated simulcast layers
   // and restore them on SetParameters. This is probably a Bad Idea, but we
@@ -155,7 +155,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   RTCError SetParametersInternal(const RtpParameters& parameters,
                                  SetParametersCallback callback = nullptr,
                                  bool blocking = true) override;
-  void SetCachedParameters(RtpParameters parameters) override;
+  void SetCachedParameters(std::optional<RtpParameters> parameters) override;
   RTCError CheckSetParameters(const RtpParameters& parameters);
   RtpParameters GetParametersInternalWithAllLayers() const override;
   RTCError SetParametersInternalWithAllLayers(

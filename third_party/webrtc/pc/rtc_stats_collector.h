@@ -26,6 +26,7 @@
 #include "api/data_channel_interface.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
+#include "api/rtp_parameters.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_collector_callback.h"
@@ -161,6 +162,7 @@ class RTCStatsCollector {
 
   struct WorkerThreadResult {
     StatsGatheringResults results;
+    std::vector<std::vector<RtpParameters>> sender_parameters;
     std::vector<TransceiverReferences> transceiver_references;
   };
   struct CollectionContext;

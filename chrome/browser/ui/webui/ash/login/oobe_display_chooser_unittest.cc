@@ -7,11 +7,14 @@
 #include <memory>
 #include <vector>
 
+#include "ash/display/cros_display_config.h"
 #include "ash/display/display_configuration_controller.h"
 #include "ash/shell.h"
+#include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/test/base/chrome_ash_test_base.h"
+#include "chromeos/crosapi/mojom/cros_display_config.mojom-shared.h"
 #include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -30,46 +33,44 @@ namespace ash {
 
 namespace {
 
-class TestCrosDisplayConfig
-    : public crosapi::mojom::CrosDisplayConfigController {
+class TestCrosDisplayConfig final : public ash::CrosDisplayConfig {
  public:
   TestCrosDisplayConfig() = default;
-
   TestCrosDisplayConfig(const TestCrosDisplayConfig&) = delete;
   TestCrosDisplayConfig& operator=(const TestCrosDisplayConfig&) = delete;
 
-  mojo::PendingRemote<crosapi::mojom::CrosDisplayConfigController>
-  CreateRemoteAndBind() {
-    return receiver_.BindNewPipeAndPassRemote();
+  // CrosDisplayConfig:
+  void AddObserver(Observer* observer) override {}
+  void RemoveObserver(Observer* observer) override {}
+  crosapi::mojom::DisplayLayoutInfoPtr GetDisplayLayoutInfo() override {
+    NOTREACHED();
   }
-
-  // crosapi::mojom::CrosDisplayConfigController:
-  void AddObserver(
-      mojo::PendingAssociatedRemote<crosapi::mojom::CrosDisplayConfigObserver>
-          observer) override {}
-  void GetDisplayLayoutInfo(GetDisplayLayoutInfoCallback callback) override {}
-  void SetDisplayLayoutInfo(crosapi::mojom::DisplayLayoutInfoPtr info,
-                            SetDisplayLayoutInfoCallback callback) override {}
-  void GetDisplayUnitInfoList(
-      bool single_unified,
-      GetDisplayUnitInfoListCallback callback) override {}
-  void SetDisplayProperties(
+  crosapi::mojom::DisplayConfigResult SetDisplayLayoutInfo(
+      crosapi::mojom::DisplayLayoutInfoPtr info) override {
+    NOTREACHED();
+  }
+  std::vector<crosapi::mojom::DisplayUnitInfoPtr> GetDisplayUnitInfoList(
+      bool single_unified) override {
+    NOTREACHED();
+  }
+  crosapi::mojom::DisplayConfigResult SetDisplayProperties(
       const std::string& id,
       crosapi::mojom::DisplayConfigPropertiesPtr properties,
-      crosapi::mojom::DisplayConfigSource source,
-      SetDisplayPropertiesCallback callback) override {
+      crosapi::mojom::DisplayConfigSource source) override {
     if (properties->set_primary) {
       int64_t display_id;
       base::StringToInt64(id, &display_id);
       Shell::Get()->window_tree_host_manager()->SetPrimaryDisplayId(display_id);
     }
-    std::move(callback).Run(crosapi::mojom::DisplayConfigResult::kSuccess);
+    return crosapi::mojom::DisplayConfigResult::kSuccess;
   }
   void SetUnifiedDesktopEnabled(bool enabled) override {}
-  void OverscanCalibration(const std::string& display_id,
-                           crosapi::mojom::DisplayConfigOperation op,
-                           const std::optional<gfx::Insets>& delta,
-                           OverscanCalibrationCallback callback) override {}
+  crosapi::mojom::DisplayConfigResult OverscanCalibration(
+      const std::string& display_id,
+      crosapi::mojom::DisplayConfigOperation op,
+      const std::optional<gfx::Insets>& delta) override {
+    NOTREACHED();
+  }
   void TouchCalibration(const std::string& display_id,
                         crosapi::mojom::DisplayConfigOperation op,
                         crosapi::mojom::TouchCalibrationPtr calibration,
@@ -78,14 +79,11 @@ class TestCrosDisplayConfig
   void DragDisplayDelta(int64_t display_id,
                         int32_t delta_x,
                         int32_t delta_y) override {}
-
- private:
-  mojo::Receiver<crosapi::mojom::CrosDisplayConfigController> receiver_{this};
 };
 
 class OobeDisplayChooserTest : public ChromeAshTestBase {
  public:
-  OobeDisplayChooserTest() : ChromeAshTestBase() {}
+  OobeDisplayChooserTest() = default;
 
   OobeDisplayChooserTest(const OobeDisplayChooserTest&) = delete;
   OobeDisplayChooserTest& operator=(const OobeDisplayChooserTest&) = delete;
@@ -99,9 +97,8 @@ class OobeDisplayChooserTest : public ChromeAshTestBase {
     ChromeAshTestBase::SetUp();
 
     cros_display_config_ = std::make_unique<TestCrosDisplayConfig>();
-    display_chooser_ = std::make_unique<OobeDisplayChooser>();
-    display_chooser_->set_cros_display_config_for_test(
-        cros_display_config_->CreateRemoteAndBind());
+    display_chooser_ =
+        std::make_unique<OobeDisplayChooser>(cros_display_config_.get());
 
     ui::DeviceDataManagerTestApi().OnDeviceListsComplete();
   }

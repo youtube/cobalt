@@ -95,7 +95,7 @@ ValuableMetadataSyncBridge::CreateMetadataChangeList() {
   return std::make_unique<syncer::InMemoryMetadataChangeList>();
 }
 
-void ValuableMetadataSyncBridge::UploadInitialLocalData(
+void ValuableMetadataSyncBridge::UploadInitialLocalEntityMetadata(
     syncer::MetadataChangeList* metadata_change_list,
     const syncer::EntityChangeList& entity_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -103,13 +103,12 @@ void ValuableMetadataSyncBridge::UploadInitialLocalData(
   std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
       stored_metadata = GetEntityTable()->GetSyncedMetadata();
 
-  // First, make a copy of all local storage keys.
   std::set<EntityInstance::EntityId> local_keys_to_upload;
   for (const auto& [storage_key, metadata] : stored_metadata) {
     local_keys_to_upload.insert(storage_key);
   }
 
-  // Strip |local_keys_to_upload| of the keys of data provided by the server.
+  // Strip `local_keys_to_upload` of the keys of data provided by the server.
   for (const std::unique_ptr<syncer::EntityChange>& change : entity_data) {
     DCHECK_EQ(change->type(), syncer::EntityChange::ACTION_ADD)
         << "Illegal change; can only be called during initial "
@@ -130,43 +129,71 @@ void ValuableMetadataSyncBridge::UploadInitialLocalData(
   }
 }
 
+void ValuableMetadataSyncBridge::UploadInitialLocalValuableMetadata(
+    syncer::MetadataChangeList* metadata_change_list,
+    const syncer::EntityChangeList& entity_data) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(base::FeatureList::IsEnabled(syncer::kSyncLoyaltyCardMetadata));
+
+  absl::flat_hash_map<ValuableId, ValuableMetadata> stored_metadata =
+      GetValuablesTable()->GetAllValuableMetadata();
+
+  std::set<ValuableId> local_keys_to_upload;
+  for (const auto& [storage_key, metadata] : stored_metadata) {
+    local_keys_to_upload.insert(storage_key);
+  }
+
+  // Strip `local_keys_to_upload` of the keys of data provided by the server.
+  for (const std::unique_ptr<syncer::EntityChange>& change : entity_data) {
+    DCHECK_EQ(change->type(), syncer::EntityChange::ACTION_ADD)
+        << "Illegal change; can only be called during initial "
+           "MergeFullSyncData()";
+    local_keys_to_upload.erase(ValuableId(change->storage_key()));
+  }
+  std::set<ValuableId> loyalty_card_ids;
+  for (const LoyaltyCard& card : GetValuablesTable()->GetLoyaltyCards()) {
+    loyalty_card_ids.insert(card.id());
+  }
+
+  // Upload the remaining storage keys.
+  for (const ValuableId& storage_key : local_keys_to_upload) {
+    if (!loyalty_card_ids.contains(storage_key)) {
+      continue;
+    }
+    change_processor()->Put(
+        *storage_key,
+        CreateEntityDataFromValuableMetadata(
+            stored_metadata.at(storage_key),
+            sync_pb::AutofillValuableMetadataSpecifics::LOYALTY_CARD,
+            GetPossiblyTrimmedValuableMetadataSpecifics(storage_key.value())),
+        metadata_change_list);
+  }
+}
+
 void ValuableMetadataSyncBridge::DeleteOrphanMetadata() {
   if (!web_data_backend_ || !web_data_backend_->GetDatabase() ||
-      !GetEntityTable()) {
+      !GetEntityTable() || !GetValuablesTable()) {
     // We have a problem with the database, not an issue, we clean up next time.
     return;
   }
-
-  // Load up (metadata) ids for which data exists; we do not delete those.
-  std::vector<EntityInstance> server_entities =
-      GetEntityTable()->GetEntityInstances(
-          EntityInstance::RecordType::kServerWallet);
-  auto non_orphan_ids = base::MakeFlatSet<EntityInstance::EntityId>(
-      server_entities, {}, &EntityInstance::guid);
 
   std::unique_ptr<syncer::MetadataChangeList> metadata_change_list =
       CreateMetadataChangeList();
   std::unique_ptr<sql::Transaction> transaction =
       web_data_backend_->GetDatabase()->AcquireTransaction();
   int removed_count = 0;
-  for (const auto& [storage_key, metadata] :
-       GetEntityTable()->GetSyncedMetadata()) {
-    // Identify storage keys of old orphans, remove them from the local storage
-    // and the server.
-    if (!non_orphan_ids.contains(storage_key) &&
-        IsOrphanValuableMetadataEntryDeletable(metadata)) {
-      if (GetEntityTable()->RemoveEntityMetadata(storage_key)) {
-        // TODO(crbug.com/477839519): Only notify the server if the deleted
-        // metadata is not associated with a valuable. This is necessary because
-        // we also have `PASS_TYPE_UNSPECIFIED` here, which is treated as
-        // `ENTITY` locally but might belong to a valuable.
-        change_processor()->Delete(
-            *storage_key, syncer::DeletionOrigin::FromLocation(FROM_HERE),
-            metadata_change_list.get());
-        removed_count++;
-      }
-    }
+
+  // Get the IDs of all locally stored loyalty cards to prevent their metadata
+  // from being deleted.
+  const auto non_orphan_loyalty_card_ids = base::MakeFlatSet<ValuableId>(
+      GetValuablesTable()->GetLoyaltyCards(), {}, &LoyaltyCard::id);
+
+  if (base::FeatureList::IsEnabled(syncer::kSyncLoyaltyCardMetadata)) {
+    removed_count += DeleteOrphanValuableMetadata(metadata_change_list.get(),
+                                                  non_orphan_loyalty_card_ids);
   }
+  removed_count += DeleteOrphanEntityMetadata(metadata_change_list.get(),
+                                              non_orphan_loyalty_card_ids);
 
   if (std::optional<syncer::ModelError> error =
           ApplyMetadataChanges(std::move(metadata_change_list))) {
@@ -185,8 +212,69 @@ void ValuableMetadataSyncBridge::DeleteOrphanMetadata() {
   }
 
   // We do not need to NotifyOnAutofillChangedBySync() because this change is
-  // invisible for the EntityDataManager - it does not change metadata for any
-  // existing data.
+  // invisible for the EntityDataManager and ValuablesDataManager - it does not
+  // change metadata for any existing data.
+}
+
+int ValuableMetadataSyncBridge::DeleteOrphanValuableMetadata(
+    syncer::MetadataChangeList* metadata_change_list,
+    const base::flat_set<ValuableId>& non_orphan_loyalty_card_ids) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  int removed_count = 0;
+
+  for (const auto& [storage_key, metadata] :
+       GetValuablesTable()->GetAllValuableMetadata()) {
+    // Identify storage keys of orphans, remove them from the local
+    // storage and the server.
+    if (!non_orphan_loyalty_card_ids.contains(storage_key)) {
+      if (GetValuablesTable()->RemoveValuableMetadata(storage_key)) {
+        change_processor()->Delete(
+            *storage_key, syncer::DeletionOrigin::FromLocation(FROM_HERE),
+            metadata_change_list);
+        ++removed_count;
+      }
+    }
+  }
+  return removed_count;
+}
+
+int ValuableMetadataSyncBridge::DeleteOrphanEntityMetadata(
+    syncer::MetadataChangeList* metadata_change_list,
+    const base::flat_set<ValuableId>& non_orphan_loyalty_card_ids) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  int removed_count = 0;
+
+  // Get the IDs of all locally stored server entities to prevent their metadata
+  // from being deleted.
+  std::vector<EntityInstance> server_entities =
+      GetEntityTable()->GetEntityInstances(
+          EntityInstance::RecordType::kServerWallet);
+  auto non_orphan_entity_ids = base::MakeFlatSet<EntityInstance::EntityId>(
+      server_entities, {}, &EntityInstance::guid);
+
+  for (const auto& [storage_key, metadata] :
+       GetEntityTable()->GetSyncedMetadata()) {
+    // Identify storage keys of old orphans, remove them from the local
+    // storage, and the server if they are not associated with a valuable.
+    if (!non_orphan_entity_ids.contains(storage_key) &&
+        IsOrphanValuableMetadataEntryDeletable(metadata)) {
+      if (GetEntityTable()->RemoveEntityMetadata(storage_key)) {
+        // Only notify the server if the deleted metadata is not associated with
+        // a valuable. This is necessary because `PASS_TYPE_UNSPECIFIED` is
+        // treated as `ENTITY` for backward compatibility with entries created
+        // before the `pass_type` field was introduced, but it might belong to
+        // a valuable.
+        if (!non_orphan_loyalty_card_ids.contains(
+                ValuableId(storage_key.value()))) {
+          change_processor()->Delete(
+              *storage_key, syncer::DeletionOrigin::FromLocation(FROM_HERE),
+              metadata_change_list);
+          ++removed_count;
+        }
+      }
+    }
+  }
+  return removed_count;
 }
 
 std::optional<syncer::ModelError> ValuableMetadataSyncBridge::MergeFullSyncData(
@@ -202,7 +290,10 @@ std::optional<syncer::ModelError> ValuableMetadataSyncBridge::MergeFullSyncData(
   // remote sync data was just downloaded, but first passed to the
   // AUTOFILL_VALUABLE bridge, with the side effect of creating
   // valuable metadata entries immediately before this function is invoked).
-  UploadInitialLocalData(metadata_change_list.get(), entity_data);
+  UploadInitialLocalEntityMetadata(metadata_change_list.get(), entity_data);
+  if (base::FeatureList::IsEnabled(syncer::kSyncLoyaltyCardMetadata)) {
+    UploadInitialLocalValuableMetadata(metadata_change_list.get(), entity_data);
+  }
 
   return MergeRemoteChanges(std::move(metadata_change_list),
                             std::move(entity_data));
@@ -376,8 +467,18 @@ ValuableMetadataSyncBridge::MergeRemoteChanges(
             break;
           }
           case sync_pb::AutofillValuableMetadataSpecifics::LOYALTY_CARD: {
-            // TODO(crbug.com/477841597): Implement server-to-client sync for
-            // `ValuableMetadata`
+            if (base::FeatureList::IsEnabled(
+                    syncer::kSyncLoyaltyCardMetadata)) {
+              const ValuableMetadata remote =
+                  CreateValuableMetadataFromSpecifics(specifics);
+              if (!GetValuablesTable()->AddOrUpdateValuableMetadata(remote)) {
+                // TODO(crbug.com/436551488): Update to the correct error type.
+                return syncer::ModelError(
+                    FROM_HERE,
+                    syncer::ModelError::Type::
+                        kAutofillValuableMetadataFailedToLoadMetadata);
+              }
+            }
             break;
           }
         }

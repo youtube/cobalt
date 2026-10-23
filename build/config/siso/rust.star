@@ -204,9 +204,22 @@ def __step_config(ctx, step_config):
     ] + rust_toolchain
     rust_indirect_inputs = {
         "includes": [
-            "*.o",
+            # https://crbug.com/488158799#comment21 explains why `rustc` requires
+            # access to `.rlib`s of all transitive dependencies.  (It also
+            # explains that `.rmeta` may be a lighter-weight alternative to
+            # `.rlib` unless doing the final linking.)
             "*.rlib",
+            # Proc-macros are compiled into dynamic libraries.  These are
+            # required to be present when compiling crates that depend on the
+            # proc-macros.  Host-platform-specific extensions below (for host
+            # platforms supported by Chromium) are mostly based on
+            # https://doc.rust-lang.org/std/env/consts/constant.DLL_EXTENSION.html
+            # `*.wasm` is present to future-proof this list against adoption of
+            # https://github.com/rust-lang/compiler-team/issues/876
             "*.so",
+            "*.dll",
+            "*.dylib",
+            "*.wasm",
         ],
     }
     step_config["rules"].extend([

@@ -343,11 +343,12 @@ std::unique_ptr<VideoStreamEncoderInterface> CreateVideoStreamEncoder(
     const Environment& env,
     int num_cpu_cores,
     SendStatisticsProxy* stats_proxy,
-    const VideoStreamEncoderSettings& encoder_settings,
+    VideoStreamEncoderSettings encoder_settings,
     VideoStreamEncoder::BitrateAllocationCallbackType
         bitrate_allocation_callback_type,
     Metronome* metronome,
-    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector) {
+    VideoEncoderFactory::EncoderSelectorInterface* encoder_selector,
+    EncoderSwitchRequestCallback encoder_switch_request_callback) {
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue =
       env.task_queue_factory().CreateTaskQueue(
           "VideoEncoderQueue",
@@ -356,13 +357,13 @@ std::unique_ptr<VideoStreamEncoderInterface> CreateVideoStreamEncoder(
               : TaskQueueFactory::Priority::kNormal);
   TaskQueueBase* encoder_queue_ptr = encoder_queue.get();
   return std::make_unique<VideoStreamEncoder>(
-      env, num_cpu_cores, stats_proxy, encoder_settings,
+      env, num_cpu_cores, stats_proxy, std::move(encoder_settings),
       std::make_unique<OveruseFrameDetector>(env, stats_proxy),
       FrameCadenceAdapterInterface::Create(
           &env.clock(), encoder_queue_ptr, metronome,
           /*worker_queue=*/TaskQueueBase::Current(), env.field_trials()),
       std::move(encoder_queue), bitrate_allocation_callback_type,
-      encoder_selector);
+      encoder_selector, std::move(encoder_switch_request_callback));
 }
 
 bool HasActiveEncodings(const VideoEncoderConfig& config) {
@@ -398,6 +399,7 @@ VideoSendStreamImpl::VideoSendStreamImpl(
     const std::map<uint32_t, RtpState>& suspended_ssrcs,
     const std::map<uint32_t, RtpPayloadState>& suspended_payload_states,
     std::unique_ptr<FecController> fec_controller,
+    EncoderSwitchRequestCallback encoder_switch_request_callback,
     std::unique_ptr<VideoStreamEncoderInterface> video_stream_encoder_for_test)
     : env_(env),
       transport_(transport),
@@ -415,11 +417,12 @@ VideoSendStreamImpl::VideoSendStreamImpl(
                     env_,
                     num_cpu_cores,
                     &stats_proxy_,
-                    config_.encoder_settings,
+                    std::move(config_.encoder_settings),
                     GetBitrateAllocationCallbackType(config_,
                                                      env_.field_trials()),
                     metronome,
-                    config_.encoder_selector)),
+                    config_.encoder_selector,
+                    std::move(encoder_switch_request_callback))),
       encoder_feedback_(
           env_,
           SupportsPerLayerPictureLossIndication(

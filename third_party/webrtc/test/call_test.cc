@@ -607,7 +607,7 @@ void CallTest::CreateVideoSendStreams() {
     if (fec_controller_factory_) {
       video_send_streams_[i] = sender_call_->CreateVideoSendStream(
           video_send_configs_[i].Copy(), video_encoder_configs_[i].Copy(),
-          fec_controller_factory_->CreateFecController(send_env_));
+          nullptr, fec_controller_factory_->CreateFecController(send_env_));
     } else {
       video_send_streams_[i] = sender_call_->CreateVideoSendStream(
           video_send_configs_[i].Copy(), video_encoder_configs_[i].Copy());

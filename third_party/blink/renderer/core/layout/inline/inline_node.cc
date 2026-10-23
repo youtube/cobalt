@@ -169,8 +169,12 @@ class ReusingTextShaper final {
       return ShapeWithoutCache(start_item, font, end_offset);
     };
     if (allow_shape_cache_) {
+      const LayoutLocale* locale = font.GetFontDescription().Locale();
       return font.PrimaryFont()->GetShapeCache().GetOrCreate(
-          shaper_.GetText(), start_item.Direction(), ShapeFunc);
+          ShapeCacheKey(shaper_.GetText(), start_item.StartOffset(), end_offset,
+                        locale ? locale->LocaleString() : g_null_atom,
+                        font.GetFontFeatures(), start_item.Direction()),
+          ShapeFunc);
     }
     return ShapeFunc().shape_result;
   }
@@ -360,17 +364,17 @@ void CollectInlinesInternal(ItemsBuilder* builder,
           } else {
             // The text must be in the following form:
             // Symbol, separator, symbol, separator, symbol, ...
-            builder->AppendText(text.Substring(0, 1), counter);
+            builder->AppendText(text.substr(0, 1), counter);
             builder->SetIsSymbolMarker();
             const AtomicString& separator = counter->Separator();
             for (wtf_size_t i = 1; i < text.length();) {
               if (separator.length() > 0) {
-                DCHECK_EQ(separator, text.Substring(i, separator.length()));
+                DCHECK_EQ(separator, text.substr(i, separator.length()));
                 builder->AppendText(separator, counter);
                 i += separator.length();
                 DCHECK_LT(i, text.length());
               }
-              builder->AppendText(text.Substring(i, 1), counter);
+              builder->AppendText(text.substr(i, 1), counter);
               builder->SetIsSymbolMarker();
               ++i;
             }
@@ -558,7 +562,7 @@ bool FirstLineNeedsReshape(const ComputedStyle& first_line_style,
 // appending space characters if shorter.
 void TruncateOrPadText(String* text, unsigned length) {
   if (text->length() > length) {
-    *text = text->Substring(0, length);
+    *text = text->substr(0, length);
   } else if (text->length() < length) {
     StringBuilder builder;
     builder.ReserveCapacity(length);
@@ -1481,28 +1485,56 @@ bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
 
   for (const auto& item : items) {
     switch (item->Type()) {
+      case InlineItem::kControl:
       case InlineItem::kText:
-        // Only support a single text-item at the moment.
-        if (!is_at_text_start()) {
-          return false;
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          // Only support a single text-item at the moment.
+          if (!is_at_text_start()) {
+            return false;
+          }
+          if (item->Type() == InlineItem::kControl) {
+            return false;
+          }
         }
-
         if (previous_text_end_offset != item->StartOffset()) {
           return false;
         }
         previous_text_end_offset = item->EndOffset();
         break;
+      case InlineItem::kFloating:
+      case InlineItem::kOutOfFlowPositioned:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // Floats/OOF-positioned objects are transparent to shaping, and just
+        // split the text similar to control items (resulting in multiple shape
+        // calls with different start/end offsets).
+        break;
+      case InlineItem::kOpenTag:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // As we get the font from the first item, we can allow an open tag if
+        // its the first.
+        if (item != items.front()) {
+          return false;
+        }
+        break;
+      case InlineItem::kCloseTag:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // Similarly allow the a close tag if its the last.
+        if (item != items.back()) {
+          return false;
+        }
+        break;
       case InlineItem::kAtomicInline:
       case InlineItem::kBlockInInline:
-      case InlineItem::kCloseTag:
-      case InlineItem::kControl:
-      case InlineItem::kFloating:
       case InlineItem::kInitialLetterBox:
       case InlineItem::kListMarker:
       case InlineItem::kBidiControl:
       case InlineItem::kOpenRubyColumn:
-      case InlineItem::kOpenTag:
-      case InlineItem::kOutOfFlowPositioned:
       case InlineItem::kCloseRubyColumn:
       case InlineItem::kRubyLinePlaceholder:
         return false;
@@ -1514,11 +1546,18 @@ bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
     return false;
   }
 
-  // Only allow the cache for initial font features.
   const Font& font =
       override_font ? *override_font : items.front()->FontWithSvgScaling();
-  if (font.HasNonInitialFontFeatures()) [[unlikely]] {
-    return false;
+  if (RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+    // Only allow the cache for features we can cache.
+    if (!font.HasSimpleFontFeatures()) [[unlikely]] {
+      return false;
+    }
+  } else {
+    // Only allow the cache for initial font features.
+    if (font.HasNonInitialFontFeatures()) [[unlikely]] {
+      return false;
+    }
   }
 
   // We mutate the shape-result if there is spacing, it isn't safe to cache.

@@ -11,6 +11,7 @@
 #include <atomic>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -54,11 +55,15 @@ using test::GetPacketsSentWithEct1;
 using test::GetStatsAndProcess;
 using test::PeerScenario;
 using test::PeerScenarioClient;
+using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
 using ::testing::TestWithParam;
 
 // RTC event logs can be gathered from these tests.
 // Add --peer_logs=true --peer_logs_root=/tmp/l4s/ to write logs to /tmp/l4s
+
+// This regexp matches both wildcard and non-wildcard ccfb lines.
+constexpr std::string_view ccfb_regex = "a=rtcp-fb:[0-9*]* ack ccfb\r\n";
 
 // Helper class used for counting RTCP feedback messages.
 class RtcpFeedbackCounter {
@@ -161,7 +166,7 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
         // Check that the offer contain both congestion control feedback
         // according to RFC 8888, and transport-cc and the header extension
         // http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
-        EXPECT_THAT(offer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
+        EXPECT_THAT(offer_str, ContainsRegex(ccfb_regex));
         EXPECT_THAT(offer_str, HasSubstr("transport-cc"));
         EXPECT_THAT(
             offer_str,
@@ -170,7 +175,7 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
       },
       [&](const SessionDescriptionInterface& answer) {
         std::string answer_str = absl::StrCat(answer);
-        EXPECT_THAT(answer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
+        EXPECT_THAT(answer_str, ContainsRegex(ccfb_regex));
         // Check that the answer does not contain transport-cc nor the
         // header extension
         // http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01
@@ -266,7 +271,7 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachesLocalDescription) {
   std::string answer_str;
   caller->pc()->local_description()->ToString(&answer_str);
   ASSERT_FALSE(answer_str.empty());
-  ASSERT_THAT(answer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
+  ASSERT_THAT(answer_str, ContainsRegex(ccfb_regex));
 
   callee->CreateAndSetSdp(
       [&](SessionDescriptionInterface* /*munge_offer*/) {
@@ -274,7 +279,7 @@ TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachesLocalDescription) {
       },
       [&](std::string offer) {
         // Callee does not support ccfb and does not have it in the offer.
-        ASSERT_THAT(offer, Not(HasSubstr("a=rtcp-fb:* ack ccfb\r\n")));
+        ASSERT_THAT(offer, Not(ContainsRegex(ccfb_regex)));
         caller->SetRemoteDescription(
             offer, SdpType::kOffer, [&](RTCError error) {
               ASSERT_TRUE(error.ok());

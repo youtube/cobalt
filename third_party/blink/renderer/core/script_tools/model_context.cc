@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/core/script_tools/model_context.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/web/web_script_tool_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
@@ -21,6 +23,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -250,7 +253,8 @@ void ModelContext::registerTool(ScriptState* script_state,
 
   tool_map_.insert(tool->name(), tool_data);
   probe::WebMCPToolAdded(document_, *tool_data);
-  OnToolsChanged();
+  MaybeRecordToolCount();
+  OnToolChange();
 }
 
 void ModelContext::unregisterTool(const String& tool_name,
@@ -264,7 +268,7 @@ void ModelContext::unregisterTool(const String& tool_name,
 
   probe::WebMCPToolRemoved(document_, *it->value);
   tool_map_.erase(it);
-  OnToolsChanged();
+  OnToolChange();
 }
 
 std::optional<ScriptToolDeclaration> ModelContext::GetScriptToolDeclaration(
@@ -494,7 +498,8 @@ void ModelContext::RegisterDeclarativeTool(
       base::PassKey<ModelContext>(), std::move(script_tool), declarative_tool);
   tool_map_.insert(name, tool_data);
   probe::WebMCPToolAdded(document_, *tool_data);
-  OnToolsChanged();
+  MaybeRecordToolCount();
+  OnToolChange();
 }
 
 void ModelContext::OnToolExecuted(uint32_t execution_id,
@@ -514,9 +519,27 @@ void ModelContext::OnToolExecuted(uint32_t execution_id,
   pending_executions_.erase(it);
 }
 
-void ModelContext::OnToolsChanged() {
-  if (tools_changed_closure_) {
-    task_runner_->PostTask(FROM_HERE, *tools_changed_closure_);
+void ModelContext::OnToolChange() {
+  if (tool_change_closure_) {
+    task_runner_->PostTask(FROM_HERE, *tool_change_closure_);
+  }
+}
+
+void ModelContext::MaybeRecordToolCount() {
+  if (!will_record_tool_count_) {
+    will_record_tool_count_ = true;
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        blink::BindOnce(
+            [](ModelContext* context) {
+              if (context) {
+                base::UmaHistogramCounts100(
+                    "Blink.ModelContext.DelayedToolCount",
+                    context->tool_map_.size());
+              }
+            },
+            WrapWeakPersistent(this)),
+        base::Seconds(10));
   }
 }
 

@@ -1087,6 +1087,7 @@ if (rtc_include_tests) {
       "../../api:create_videocodec_test_fixture_api",
       "../../api:field_trials",
       "../../api:frame_generator_api",
+      "../../api:make_ref_counted",
       "../../api:mock_video_codec_factory",
       "../../api:mock_video_decoder",
       "../../api:mock_video_encoder",

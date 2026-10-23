@@ -92,6 +92,15 @@ export class TsReadModelImpl implements ReadAloudModelBrowserProxy {
     this.resetState_();
     const textNodes = this.getAllTextNodesFrom_(context.domNode());
     if (!textNodes.length) {
+      // If there are no text nodes, set the initialization state to prevent
+      // indeterminate states. This can happen when there are invisible elements
+      // that are being ignored by read aloud.
+      // Do not set this if the context node is a DocumentFragment, which
+      // happens when Readability is enabled and the fragment has just been
+      // appended to the DOM (and therefore emptied).
+      if (context.domNode()?.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+        this.initialized_ = true;
+      }
       return;
     }
 
@@ -288,10 +297,24 @@ export class TsReadModelImpl implements ReadAloudModelBrowserProxy {
       nodes: OffsetByNode[], fullText: string, currentSentence: Sentence|null,
       previousSentence: Sentence): Sentence|null {
     assert(nodes.length > 0, 'attempting to merge superscript with no nodes');
-    const superscriptNode = nodes[0]!;
-    const superscriptText = superscriptNode.node.getText().trim();
 
-    const superscriptStartIndex: number =
+    // Find the first superscript node that has non-empty text.
+    let superscriptText = '';
+    for (const node of nodes) {
+      if (!node.node.isSuperscript()) {
+        break;
+      }
+      superscriptText = node.node.getText().trim();
+      if (superscriptText) {
+        break;
+      }
+    }
+
+    if (!superscriptText) {
+      return currentSentence;
+    }
+
+    let superscriptStartIndex: number =
         currentSentence!.text.indexOf(superscriptText);
     if (superscriptStartIndex === -1 ||
         currentSentence!.text.substring(0, superscriptStartIndex).trim() !==
@@ -305,11 +328,16 @@ export class TsReadModelImpl implements ReadAloudModelBrowserProxy {
         // block of superscript text.
         return currentSentence;
       }
+      superscriptStartIndex =
+          superscriptIndexInBothSentences - previousSentence.text.length;
     }
 
     // The sentence starts with a superscript. Merge it with the previous
     // sentence.
     const superscriptEndIndex = superscriptStartIndex + superscriptText.length;
+    if (superscriptEndIndex <= 0) {
+      return currentSentence;
+    }
 
     // Update sentence buffer to contain the superscript.
     const endOfSuperscriptInSentenceIndex =
@@ -439,7 +467,7 @@ export class TsReadModelImpl implements ReadAloudModelBrowserProxy {
       acceptNode: (node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as HTMLElement;
-          if (element.style.display === 'none') {
+          if (element.style.display === 'none' || !element.checkVisibility()) {
             // We should not read aloud text from a hidden element.
             return NodeFilter.FILTER_REJECT;
           }

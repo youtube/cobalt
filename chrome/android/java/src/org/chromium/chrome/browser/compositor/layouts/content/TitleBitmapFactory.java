@@ -28,6 +28,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.components.tab_groups.TabGroupColorId;
@@ -60,6 +61,10 @@ public class TitleBitmapFactory {
     private final TextPaint mGroupTextPaint;
     private final int mGroupTextHeight;
     private final float mGroupTextYOffset;
+
+    private final TextPaint mButtonTextPaint;
+    private final int mButtonTextHeight;
+    private final float mButtonTextYOffset;
 
     /**
      * @param context The current Android's context.
@@ -116,6 +121,27 @@ public class TitleBitmapFactory {
         mGroupTextHeight = (int) Math.ceil(groupTextFontMetrics.bottom - groupTextFontMetrics.top);
         mGroupTextYOffset = -groupTextFontMetrics.top;
 
+        // Button text properties.
+        mButtonTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        StyleUtils.applyTextAppearanceToTextPaint(
+                context,
+                mButtonTextPaint,
+                R.style.TextAppearance_TextSmallThick_Primary,
+                /* applyFontFamily= */ true,
+                /* applyTextSize= */ true,
+                /* applyTextColor= */ true);
+        mButtonTextPaint.setFakeBoldText(fakeBoldText);
+        mButtonTextPaint.density = density;
+        float maxButtonTextHeight =
+                tabStripHeightPx
+                        - (StripLayoutHelperManager.GLIC_BUTTON_MARGIN_HEIGHT_DP * density);
+        enforceMaxTextHeight(mButtonTextPaint, maxButtonTextHeight);
+
+        FontMetrics buttonTextFontMetrics = mButtonTextPaint.getFontMetrics();
+        mButtonTextHeight =
+                (int) Math.ceil(buttonTextFontMetrics.bottom - buttonTextFontMetrics.top);
+        mButtonTextYOffset = -buttonTextFontMetrics.top;
+
         // Favicon properties
         mFaviconDimension = res.getDimensionPixelSize(R.dimen.compositor_tab_title_favicon_size);
         mViewHeight = (int) Math.max(mFaviconDimension, mTabTextHeight);
@@ -139,6 +165,17 @@ public class TitleBitmapFactory {
                     Bitmap.createBitmap(
                             mFaviconDimension, mFaviconDimension, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(b);
+
+            // Disable density scaling on the canvas so bitmaps are drawn at their exact pixel
+            // dimensions. This prevents any automatic DPI-based scaling by the canvas.
+            c.setDensity(Bitmap.DENSITY_NONE);
+
+            // Smooth edges and apply bilinear filtering when the bitmap is scaled to prevent
+            // pixelation.
+            Paint paint = new Paint();
+            paint.setAntiAlias(true);
+            paint.setFilterBitmap(true);
+
             if (favicon.getWidth() > mFaviconDimension || favicon.getHeight() > mFaviconDimension) {
                 float scale =
                         (float) mFaviconDimension
@@ -149,7 +186,7 @@ public class TitleBitmapFactory {
                         Math.round((mFaviconDimension - favicon.getWidth()) / 2.0f),
                         Math.round((mFaviconDimension - favicon.getHeight()) / 2.0f));
             }
-            c.drawBitmap(favicon, 0, 0, null);
+            c.drawBitmap(favicon, 0, 0, paint);
             return b;
         } catch (OutOfMemoryError ex) {
             Log.e(TAG, "OutOfMemoryError while building favicon texture.");
@@ -191,12 +228,9 @@ public class TitleBitmapFactory {
         return getTitleBitmap(mGroupTextPaint, mGroupTextHeight, mGroupTextYOffset, title);
     }
 
-    /** Generates a generic button text bitmap using the smaller group text style. */
+    /** Generates a generic button text bitmap using the button text style. */
     public @Nullable Bitmap getButtonTextBitmap(String title) {
-        // TODO(crbug.com/488156860): Based on UX decision, either reuse group styling and rename
-        // the variables, or create new text styling.
-        mGroupTextPaint.setColor(mTabTextPaint.getColor());
-        return getTitleBitmap(mGroupTextPaint, mGroupTextHeight, mGroupTextYOffset, title);
+        return getTitleBitmap(mButtonTextPaint, mButtonTextHeight, mButtonTextYOffset, title);
     }
 
     /**
@@ -260,6 +294,14 @@ public class TitleBitmapFactory {
      */
     public int getTitleWidth(String titleString) {
         return getTitleWidth(titleString, mGroupTextPaint);
+    }
+
+    /**
+     * @param titleString The button text to measure.
+     * @return The width in px of the button text.
+     */
+    public int getButtonTextWidth(String titleString) {
+        return getTitleWidth(titleString, mButtonTextPaint);
     }
 
     private int getTitleWidth(String titleString, TextPaint textPaint) {

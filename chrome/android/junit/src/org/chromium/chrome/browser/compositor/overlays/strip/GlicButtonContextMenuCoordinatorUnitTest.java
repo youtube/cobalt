@@ -65,7 +65,7 @@ public class GlicButtonContextMenuCoordinatorUnitTest {
 
     @Test
     public void testShowAndDismiss() {
-        mCoordinator.showMenu(mRectProvider, mActivity);
+        mCoordinator.showMenu(mRectProvider, mActivity, /* menuWidth= */ 250f);
         assertTrue("Menu should be showing", mCoordinator.isShowing());
 
         mCoordinator.dismiss();
@@ -82,7 +82,7 @@ public class GlicButtonContextMenuCoordinatorUnitTest {
                         .readBoolean(ChromePreferenceKeys.GLIC_BUTTON_PINNED, false));
 
         // Show menu
-        mCoordinator.showMenu(mRectProvider, mActivity);
+        mCoordinator.showMenu(mRectProvider, mActivity, /* menuWidth= */ 250f);
 
         assertNotNull(mCoordinator.getPopupWindow());
         View contentView = mCoordinator.getPopupWindow().getContentView();
@@ -91,7 +91,7 @@ public class GlicButtonContextMenuCoordinatorUnitTest {
 
         assertEquals(1, adapter.getCount());
         PropertyModel model = ((ListItem) adapter.getItem(0)).model;
-        assertEquals(R.string.menu_unpin_glic_button, model.get(ListMenuItemProperties.TITLE_ID));
+        assertEquals(R.string.glic_button_cxmenu_unpin, model.get(ListMenuItemProperties.TITLE_ID));
 
         // Click "Unpin".
         mCoordinator.getListMenuDelegate().onItemSelected(model, listView);

@@ -225,6 +225,11 @@ declare_args() {
   # the `--trace-turbo` .json file from `mksnapshot`.
   v8_log_builtins_block_count_input = ""
 
+  # This build flag is used to enable block positioning in profile-guided
+  # optimization of builtins based on raw execution counts (as opposed to
+  # branch hints).
+  v8_enable_builtins_block_position = false
+
   # This build flag is used to control whether reorder builtins according to
   # the call graph with C3 algorithm based builtin PGO profiling.
   v8_enable_builtins_reordering = true
@@ -1253,6 +1258,9 @@ config("features") {
   if (v8_log_builtins_block_count_input != "") {
     defines += [ "LOG_BUILTIN_BLOCK_COUNT" ]
   }
+  if (v8_enable_builtins_block_position) {
+    defines += [ "BUILTIN_BLOCK_POSITION" ]
+  }
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
   }
@@ -1770,6 +1778,9 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [ "-Wunreachable-code" ]
+    if (v8_current_cpu != "ppc64" && v8_current_cpu != "s390x") {
+      cflags += [ "-Wlifetime-safety-permissive" ]
+    }
 
     if ((v8_current_cpu != "x64" && v8_current_cpu != "ia32") ||
         target_os == "chromeos") {
@@ -1887,32 +1898,6 @@ config("always_turbofanimize") {
     configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     configs += [ "//build/config/compiler:optimize_max" ]
-  }
-}
-
-# Sanitizer defines. V8 will inherit a default `-fsanitize=array-bounds`
-# from Chromium's `//build/config/`, which prevents clean usage of
-# `__has_feature(undefined_behavior_sanitizer)` in the short term,
-# until something like `--lie-about-ubsan-enablement=array-bounds`
-# can be implemented.
-#
-# This config provides a clear signal of "are we sanitizing" tied to
-# GN configuration.
-#
-# See also: https://crbug.com/386992829
-config("sanitizer_defines") {
-  defines = []
-  if (is_asan) {
-    defines += [ "V8_USE_ADDRESS_SANITIZER" ]
-  }
-  if (is_hwasan) {
-    defines += [ "V8_USE_HWADDRESS_SANITIZER" ]
-  }
-  if (is_msan) {
-    defines += [ "V8_USE_MEMORY_SANITIZER" ]
-  }
-  if (is_ubsan) {
-    defines += [ "V8_USE_UNDEFINED_BEHAVIOR_SANITIZER" ]
   }
 }
 
@@ -3839,7 +3824,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/operator-properties.h",
     "src/compiler/operator.h",
     "src/compiler/osr.h",
-    "src/compiler/pair-load-store-reducer.h",
     "src/compiler/per-isolate-compiler-cache.h",
     "src/compiler/persistent-map.h",
     "src/compiler/phase.h",
@@ -4931,6 +4915,10 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
+  if (v8_enable_builtins_block_position) {
+    sources += [ "src/compiler/backend/block-position.h" ]
+  }
+
   if (v8_enable_i18n_support) {
     sources += [
       "src/objects/intl-objects.h",
@@ -5457,7 +5445,6 @@ v8_compiler_sources = [
   "src/compiler/operator-properties.cc",
   "src/compiler/operator.cc",
   "src/compiler/osr.cc",
-  "src/compiler/pair-load-store-reducer.cc",
   "src/compiler/pipeline-statistics.cc",
   "src/compiler/pipeline.cc",
   "src/compiler/property-access-builder.cc",
@@ -5671,12 +5658,17 @@ if (v8_enable_wasm_simd256_revec) {
 }
 
 exclude_from_compiler_cluster = [
+  "src/compiler/turboshaft/turbolev-graph-builder.cc",  # Slow.
   "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",  # Pipeline::GenerateWasmCode.
   "src/compiler/bytecode-analysis.cc",  # Top-level 'using incl.
                                         # 'interpreter::Register'.
   "src/compiler/heap-refs.cc",  # Is64() function.
   "src/compiler/wasm-load-elimination.cc",  # MayAlias.
 ]
+
+if (v8_enable_builtins_block_position) {
+  v8_compiler_sources += [ "src/compiler/backend/block-position.cc" ]
+}
 
 # The src/compiler files for use in mksnapshot.
 # - These might be built with additional optimizations if
@@ -6810,11 +6802,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
 
   if (v8_fuzzilli) {
     sources += [
-      "src/fuzzilli/cov.cc",
-      "src/fuzzilli/cov.h",
       "src/fuzzilli/fuzzilli.cc",
       "src/fuzzilli/fuzzilli.h",
     ]
+    public_deps += [ ":fuzzilli_cov" ]
   }
 
   if (v8_dumpling) {
@@ -8094,11 +8085,19 @@ group("v8_python_base") {
   data = [ ".vpython3" ]
 }
 
+# Enable fallbacks for files that might be hard to access on Clusterfuzz.
+copy("v8_clusterfuzz_fallbacks") {
+  testonly = true
+  sources = [ "test/mjsunit/wasm/wasm-module-builder.js" ]
+  outputs = [ "$root_out_dir/test/mjsunit/wasm/wasm-module-builder.js" ]
+}
+
 group("v8_clusterfuzz") {
   testonly = true
 
   deps = [
     ":d8",
+    ":v8_clusterfuzz_fallbacks",
     ":v8_simple_inspector_fuzzer",
     "tools/clusterfuzz/trials:v8_clusterfuzz_resources",
   ]
@@ -8784,6 +8783,24 @@ if (!build_with_chromium && v8_use_perfetto) {
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
+
+if (v8_fuzzilli) {
+  v8_source_set("fuzzilli_cov") {
+    visibility = [ "*" ]
+    sources = [
+      "src/fuzzilli/cov.cc",
+      "src/fuzzilli/cov.h",
+    ]
+    configs = [
+      ":internal_config_base",
+      ":internal_config",
+    ]
+    deps = [
+      ":v8_internal_headers",
+      ":v8_libbase",
+    ]
+  }
+}
 
 # GN evaluates each .gn file once per toolchain, so restricting to default
 # toolchain will ensure write_file() is called only once.

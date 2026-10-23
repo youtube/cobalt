@@ -115,22 +115,6 @@ BASE_FEATURE(kNTPMIAEntrypointAllLocales,
 // Used to gate the immersive SRP in the Composebox.
 BASE_FEATURE(kComposeboxImmersiveSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
-const char kComposeboxTabPickerVariationParam[] =
-    "kComposeboxTabPickerVariationParam";
-const char kComposeboxTabPickerVariationParamCachedAPC[] =
-    "kComposeboxTabPickerVariationParamCachedAPC";
-const char kComposeboxTabPickerVariationParamOnFlightAPC[] =
-    "kComposeboxTabPickerVariationParamOnFlightAPC";
-
-// Feature flag for the tab picker in the Composebox.
-BASE_FEATURE(kComposeboxTabPickerVariation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsComposeboxTabPickerCachedAPCEnabled() {
-  std::string param = base::GetFieldTrialParamValueByFeature(
-      kComposeboxTabPickerVariation, kComposeboxTabPickerVariationParam);
-  return param == kComposeboxTabPickerVariationParamCachedAPC;
-}
-
 BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
@@ -1038,16 +1022,12 @@ bool IsIOSWebContextMenuNewTitleEnabled() {
   return base::FeatureList::IsEnabled(kIOSWebContextMenuNewTitle);
 }
 
-BASE_FEATURE(kCloseOtherTabs, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsCloseOtherTabsEnabled() {
-  return base::FeatureList::IsEnabled(kCloseOtherTabs);
-}
-
 BASE_FEATURE(kAssistantContainer, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kAssistantContainerParam[] = "kAssistantContainerParam";
 const char kAssistantContainerParamDebug[] = "kAssistantContainerParamDebug";
+const char kAssistantContainerMediumDetentPercentParam[] =
+    "AssistantMediumDetentPercent";
 
 bool IsAssistantContainerEnabled() {
   return base::FeatureList::IsEnabled(kAssistantContainer);
@@ -1060,6 +1040,14 @@ bool ShouldShowAssistantContainerDebugElements() {
   std::string feature_param = base::GetFieldTrialParamValueByFeature(
       kAssistantContainer, kAssistantContainerParam);
   return feature_param == kAssistantContainerParamDebug;
+}
+
+NSInteger GetAssistantMediumDetentPercentage() {
+  if (!base::FeatureList::IsEnabled(kAssistantContainer)) {
+    return 0;
+  }
+  return base::GetFieldTrialParamByFeatureAsInt(
+      kAssistantContainer, kAssistantContainerMediumDetentPercentParam, 0);
 }
 
 BASE_FEATURE(kComposeboxIpad, base::FEATURE_DISABLED_BY_DEFAULT);

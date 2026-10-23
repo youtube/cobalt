@@ -122,6 +122,9 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // used to help record the metrics of when a new popup is shown.
   void DidEndTextFieldEditing();
 
+  // Triggered when the pay later tab is opened in the autofill dropdown.
+  void OnPayLaterTabOpened();
+
   const FormData& query_form() const { return query_form_; }
 
   void AttemptToDisplayAutofillSuggestionsForTest(
@@ -177,9 +180,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   void DidAcceptPaymentsSuggestion(const Suggestion& suggestion,
                                    const SuggestionMetadata& metadata);
 
-  // Called when a credit card is scanned using device camera.
-  void OnCreditCardScanned(const CreditCard& card);
-
   // Returns the last Autofill triggering field. Derived from the `form` and
   // `field` parameters of `OnQuery(). Returns nullptr if called before
   // `OnQuery()` or if the `form` becomes outdated, see crbug.com/1117028.
@@ -200,6 +200,11 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
                     std::optional<SuggestionMetadata> metadata,
                     bool is_preview,
                     AutofillTriggerSource trigger_source);
+
+  // Fills the queried form with the provided credit card using the specified
+  // trigger source. Used as a callback for asynchronous card fetches.
+  void FillFetchedCreditCard(AutofillTriggerSource trigger_source,
+                             const CreditCard& card);
 
   // Previews the value from `profile` specified in the `suggestion`.
   void PreviewAddressFieldByFieldFillingSuggestion(
@@ -245,6 +250,9 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   // Attempts to fill an Autofill AI `suggestion` into for `query_field_`;
   void FillAutofillAiFormAndHidePopup(const Suggestion& suggestion);
+
+  // Returns if the Pay Now Pay Later tabs should be shown.
+  virtual bool ShouldShowPayNowPayLaterTabs();
 
   base::WeakPtr<AutofillExternalDelegate> GetWeakPtr();
 

@@ -4783,23 +4783,13 @@ TEST_F(TurboshaftInstructionSelectorTest, Shuffle16x2Test) {
     m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1),
                               Simd128ShuffleOp::Kind::kI8x4, shuffle));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-
-    EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64S128LowUnzipLeft, s[0]->arch_opcode());
     EXPECT_EQ(16, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(m.Parameter(1)));
-    EXPECT_EQ(s.ToInt32(s[0]->InputAt(1)), 0);
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(1)), s.ToVreg(m.Parameter(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
-
-    EXPECT_EQ(kArm64S128MoveLane, s[1]->arch_opcode());
-    EXPECT_EQ(16, LaneSizeField::decode(s[0]->opcode()));
-    EXPECT_EQ(4U, s[1]->InputCount());
-    EXPECT_EQ(s.ToVreg(s[1]->InputAt(0)), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(s.ToVreg(s[1]->InputAt(1)), s.ToVreg(m.Parameter(1)));
-    EXPECT_EQ(s.ToInt32(s[1]->InputAt(2)), 2);
-    EXPECT_EQ(s.ToInt32(s[1]->InputAt(3)), 1);
-    EXPECT_EQ(1U, s[1]->OutputCount());
   }
   {
     const uint8_t shuffle[] = {
@@ -5428,7 +5418,18 @@ TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
     m.Return(m.S128Or(m.I64x2Shl(x, m.Int32Constant(1)),
                       m.I64x2ShrU(x, m.Int32Constant(63))));
     Stream s = m.Build();
-    ASSERT_EQ(4U, s.size());
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64S128And, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(kArm64Xar, s[1]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+      EXPECT_EQ(s.ToInt32(s[1]->InputAt(1)), 0);
+      EXPECT_EQ(s.ToInt32(s[1]->InputAt(2)), 63);
+    } else {
+      ASSERT_EQ(4U, s.size());
+    }
   }
 }
 

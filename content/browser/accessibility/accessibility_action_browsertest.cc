@@ -18,6 +18,7 @@
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "content/browser/accessibility/accessibility_test_helpers.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/test/accessibility_notification_waiter.h"
 #include "content/public/test/browser_test.h"
@@ -70,7 +71,8 @@ class AccessibilityActionBrowserTest : public ContentBrowserTest {
     ui::BrowserAccessibility* root =
         GetManager()->GetBrowserAccessibilityRoot();
     CHECK(root);
-    return FindNodeInSubtree(*root, role, name_or_value);
+    return FindFirstAccessibilityNodeWithRoleAndNameOrValue(*root, role,
+                                                            name_or_value);
   }
 
   ui::BrowserAccessibilityManager* GetManager() {
@@ -145,35 +147,6 @@ class AccessibilityActionBrowserTest : public ContentBrowserTest {
   }
 
  private:
-  ui::BrowserAccessibility* FindNodeInSubtree(
-      ui::BrowserAccessibility& node,
-      ax::mojom::Role role,
-      const std::string& name_or_value) {
-    const std::string& name =
-        node.GetStringAttribute(ax::mojom::StringAttribute::kName);
-    // Note that in the case of a text field,
-    // "BrowserAccessibility::GetValueForControl" has the added functionality
-    // of computing the value of an ARIA text box from its inner text.
-    //
-    // <div contenteditable="true" role="textbox">Hello world.</div>
-    // Will expose no HTML value attribute, but some screen readers, such as
-    // Jaws, VoiceOver and Talkback, require one to be computed.
-    const std::string value = base::UTF16ToUTF8(node.GetValueForControl());
-    if (node.GetRole() == role &&
-        (name == name_or_value || value == name_or_value)) {
-      return &node;
-    }
-
-    for (unsigned int i = 0; i < node.PlatformChildCount(); ++i) {
-      ui::BrowserAccessibility* result =
-          FindNodeInSubtree(*node.PlatformGetChild(i), role, name_or_value);
-      if (result) {
-        return result;
-      }
-    }
-    return nullptr;
-  }
-
   base::test::ScopedFeatureList feature_list_;
   std::optional<ScopedAccessibilityModeOverride> accessibility_mode_;
 };
@@ -1485,6 +1458,54 @@ IN_PROC_BROWSER_TEST_F(AccessibilityActionBrowserTest, FocusPermissionElement) {
   ASSERT_TRUE(waiter.WaitForNotification());
   ASSERT_EQ(waiter.event_target_id(), valid_pepc->GetId());
   ASSERT_TRUE(valid_pepc->IsFocused());
+}
+
+IN_PROC_BROWSER_TEST_F(AccessibilityActionBrowserTest,
+                       AriaExpandCollapseTreeItem) {
+  // Because AXObject::RequestExpandAction (in Blink) maps kExpand to ArrowRight
+  // and kCollapse to ArrowLeft for ARIA treeitems, we use an onkeydown listener
+  // to mock the response.
+  LoadInitialAccessibilityTreeFromHtml(R"HTML(
+      <ul role='tree'>
+        <li role='none'>
+          <a id='node' role='treeitem' aria-expanded='false' href='#placeholder'
+          onkeydown='expandLogic(event)'>Expandable Link</a>
+        </li>
+      </ul>
+      <script>
+        function expandLogic(e) {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            e.target.setAttribute('aria-expanded', 'true');
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            e.target.setAttribute('aria-expanded', 'false');
+          }
+        }
+      </script>
+      )HTML");
+
+  ui::BrowserAccessibility* target =
+      FindNode(ax::mojom::Role::kTreeItem, "Expandable Link");
+  ASSERT_NE(nullptr, target);
+  EXPECT_TRUE(target->HasState(ax::mojom::State::kCollapsed));
+  EXPECT_FALSE(target->HasState(ax::mojom::State::kExpanded));
+
+  AccessibilityNotificationWaiter expand_waiter(
+      shell()->web_contents(), ui::AXEventGenerator::Event::EXPANDED);
+  GetManager()->Expand(*target);
+  ASSERT_TRUE(expand_waiter.WaitForNotification());
+
+  EXPECT_TRUE(target->HasState(ax::mojom::State::kExpanded));
+  EXPECT_FALSE(target->HasState(ax::mojom::State::kCollapsed));
+
+  AccessibilityNotificationWaiter collapse_waiter(
+      shell()->web_contents(), ui::AXEventGenerator::Event::COLLAPSED);
+  GetManager()->Collapse(*target);
+  ASSERT_TRUE(collapse_waiter.WaitForNotification());
+
+  EXPECT_TRUE(target->HasState(ax::mojom::State::kCollapsed));
+  EXPECT_FALSE(target->HasState(ax::mojom::State::kExpanded));
 }
 
 }  // namespace content

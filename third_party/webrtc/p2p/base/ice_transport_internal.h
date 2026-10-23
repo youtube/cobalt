@@ -14,12 +14,12 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
@@ -410,7 +410,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
 
   CallbackList<IceTransportInternal*,
                const StunDictionaryView&,
-               ArrayView<uint16_t>>
+               std::span<uint16_t>>
       dictionary_view_updated_callback_list_;
   CallbackList<IceTransportInternal*, const StunDictionaryWriter&>
       dictionary_writer_synced_callback_list_;

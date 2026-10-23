@@ -59,11 +59,20 @@
         <!-- Wallet Pass Save Bubble resources -->
         <structure type="lottie" name="IDR_WALLET_PASS_SAVE_LOYALTY_CARD_LOTTIE" file="resources/wallet/wallet_save_loyalty_card.json" compress="brotli"/>
         <structure type="lottie" name="IDR_WALLET_PASS_SAVE_EVENT_TICKET_LOTTIE" file="resources/wallet/wallet_save_event_ticket.json" compress="brotli"/>
-        <structure type="lottie" name="IDR_WALLET_PASS_SAVE_BOARDING_PASS_LOTTIE" file="resources/wallet/wallet_save_boarding_pass.json" compress="brotli"/>
-        <structure type="lottie" name="IDR_WALLET_PASS_SAVE_TRANSPORT_TICKET_LOTTIE" file="resources/wallet/wallet_save_transport_ticket.json" compress="brotli"/>
-      </if>
-    </structures>
+        <structure type="lottie" name="IDR_WALLET_PASS_SAVE_BOARDING_PASS_LOTTIE" file="resources/wallet/wallet_save_boarding_pass.json" compress="brotli" />
+        <structure type="lottie" name="IDR_WALLET_PASS_SAVE_TRANSPORT_TICKET_LOTTIE" file="resources/wallet/wallet_save_transport_ticket.json" compress="brotli" />
+
+        <!-- Toolbar Lottie resources -->
+        <structure type="lottie" name="IDR_APP_MENU_BUTTON_HOVER_LOTTIE" file="resources/toolbar/app_menu_button_hover.json" compress="brotli" />
+
+        <!-- Search AI Mode Lottie resources -->
+        <structure type="lottie" name="IDR_SEARCH_AI_MODE_SIGNIN_PROMO_LOTTIE" file="resources/search_ai_mode/search_ai_mode_signin_promo.json" compress="brotli" />
+        </if>
+        </structures>
     <includes>
+      <if expr="enable_src_internal">
+        <include name="IDR_APC_PROMPTS_JSON" file="../../internal/password_manager/apc_prompts.json" type="BINDATA" />
+      </if>
       <if expr="is_win">
         <include name="IDR_ABOUT_CONFLICTS_HTML" file="resources\conflicts\about_conflicts.html" type="BINDATA" />
         <include name="IDR_ABOUT_CONFLICTS_JS" file="${root_gen_dir}\chrome\browser\resources\conflicts\tsc\about_conflicts.js" use_base_dir="false" type="BINDATA" />

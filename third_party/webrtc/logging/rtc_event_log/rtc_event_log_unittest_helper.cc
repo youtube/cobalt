@@ -17,12 +17,12 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/dtls_transport_interface.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -127,7 +127,7 @@ constexpr ExtensionPair kExtensions[kMaxNumExtensions] = {
      .name = RtpExtension::kDependencyDescriptorUri}};
 
 template <typename T>
-void ShuffleInPlace(Random* prng, ArrayView<T> array) {
+void ShuffleInPlace(Random* prng, std::span<T> array) {
   RTC_DCHECK_LE(array.size(), std::numeric_limits<uint32_t>::max());
   for (uint32_t i = 0; i + 1 < array.size(); i++) {
     uint32_t other = prng->Rand(i, static_cast<uint32_t>(array.size() - 1));
@@ -657,7 +657,7 @@ RtpHeaderExtensionMap EventGenerator::NewRtpHeaderExtensionMap(
   std::vector<int> id(RtpExtension::kOneByteHeaderExtensionMaxId -
                       RtpExtension::kMinId + 1);
   std::iota(id.begin(), id.end(), RtpExtension::kMinId);
-  ShuffleInPlace(&prng_, ArrayView<int>(id));
+  ShuffleInPlace(&prng_, std::span<int>(id));
 
   auto not_excluded = [&](RTPExtensionType type) -> bool {
     return !absl::c_linear_search(excluded_extensions, type);
@@ -1031,7 +1031,7 @@ void EventVerifier::VerifyLoggedDependencyDescriptor(
     const Event& packet,
     const std::vector<uint8_t>& logged_dd) const {
   if (expect_dependency_descriptor_rtp_header_extension_is_set_) {
-    ArrayView<const uint8_t> original =
+    std::span<const uint8_t> original =
         packet.template GetRawExtension<RtpDependencyDescriptorExtension>();
     EXPECT_THAT(logged_dd, ElementsAreArray(original));
   } else {

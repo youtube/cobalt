@@ -4,14 +4,15 @@
 
 #include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
 
-#include "chrome/browser/ui/browser.h"
+#include "base/functional/callback_forward.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
 
 namespace {
@@ -22,7 +23,7 @@ SidePanelRegistry* GetSidePanelRegistryFromWebContents(
   if (!tab || !tab->GetTabFeatures()) {
     return nullptr;
   }
-  return tab->GetTabFeatures()->side_panel_registry();
+  return SidePanelRegistry::From(tab);
 }
 
 SidePanelRegistry* GetSidePanelRegistryFromTabHandle(tabs::TabHandle handle) {
@@ -30,7 +31,7 @@ SidePanelRegistry* GetSidePanelRegistryFromTabHandle(tabs::TabHandle handle) {
   if (!tab || !tab->GetTabFeatures()) {
     return nullptr;
   }
-  return tab->GetTabFeatures()->side_panel_registry();
+  return SidePanelRegistry::From(tab);
 }
 
 }  // namespace
@@ -39,7 +40,8 @@ SidePanelUIBase::PanelData::PanelData()
     : waiter(std::make_unique<SidePanelEntryWaiter>()) {}
 SidePanelUIBase::PanelData::~PanelData() = default;
 
-SidePanelUIBase::SidePanelUIBase(Browser* browser) : browser_(browser) {
+SidePanelUIBase::SidePanelUIBase(BrowserWindowInterface* browser)
+    : browser_(browser) {
   for (auto panel_type : SidePanelEntry::PanelTypes::All()) {
     panel_data_[panel_type] = std::make_unique<PanelData>();
   }
@@ -133,7 +135,9 @@ std::optional<SidePanelUIBase::UniqueKey> SidePanelUIBase::GetUniqueKeyForKey(
   // For tab-scoped side panels.
   if (GetActiveContextualRegistry() &&
       GetActiveContextualRegistry()->GetEntryForKey(entry_key)) {
-    return UniqueKey{browser_->GetActiveTabInterface()->GetHandle(), entry_key};
+    return UniqueKey{
+        TabListInterface::From(browser_)->GetActiveTab()->GetHandle(),
+        entry_key};
   }
 
   // For window-scoped side panels.
@@ -159,12 +163,12 @@ SidePanelEntry* SidePanelUIBase::GetEntryForUniqueKey(
 }
 
 SidePanelRegistry* SidePanelUIBase::GetActiveContextualRegistry() const {
-  if (browser_->tab_strip_model()->empty()) {
+  if (TabListInterface::From(browser_)->GetTabCount() == 0) {
     return nullptr;
   }
-  return browser_->GetActiveTabInterface()
-      ->GetTabFeatures()
-      ->side_panel_registry();
+
+  return SidePanelRegistry::From(
+      TabListInterface::From(browser_)->GetActiveTab());
 }
 
 SidePanelEntry* SidePanelUIBase::GetActiveContextualEntryForKey(
@@ -199,7 +203,7 @@ SidePanelUIBase::GetNewActiveKeyOnTabChanged(SidePanelEntry::PanelType type) {
   if (active_contextual_registry &&
       active_contextual_registry->GetActiveEntryFor(type)) {
     return UniqueKey{
-        browser_->GetActiveTabInterface()->GetHandle(),
+        TabListInterface::From(browser_)->GetActiveTab()->GetHandle(),
         (*active_contextual_registry->GetActiveEntryFor(type))->key()};
   }
 

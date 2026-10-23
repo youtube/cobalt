@@ -428,7 +428,7 @@ SendVideoStream::SendVideoStream(CallClient* sender,
   sender_->SendTask([&] {
     if (config.stream.fec_controller_factory) {
       send_stream_ = sender_->call_->CreateVideoSendStream(
-          std::move(send_config), std::move(encoder_config),
+          std::move(send_config), std::move(encoder_config), nullptr,
           config.stream.fec_controller_factory->CreateFecController(
               sender_->env_));
     } else {

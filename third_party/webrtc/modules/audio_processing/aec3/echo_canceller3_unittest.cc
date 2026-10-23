@@ -16,11 +16,11 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
 #include "api/audio/neural_residual_echo_estimator.h"
@@ -100,8 +100,8 @@ bool VerifyOutputFrameBitexactness(size_t frame_length,
   return true;
 }
 
-bool VerifyOutputFrameBitexactness(ArrayView<const float> reference,
-                                   ArrayView<const float> frame,
+bool VerifyOutputFrameBitexactness(std::span<const float> reference,
+                                   std::span<const float> frame,
                                    int offset) {
   for (size_t k = 0; k < frame.size(); ++k) {
     int reference_index = static_cast<int>(k) + offset;
@@ -200,10 +200,10 @@ void RunAecInStereo(AudioBuffer& buffer,
                     EchoCanceller3& aec3,
                     float channel_0_value,
                     float channel_1_value) {
-  ArrayView<float> data_channel_0(&buffer.channels()[0][0],
+  std::span<float> data_channel_0(&buffer.channels()[0][0],
                                   buffer.num_frames());
   std::fill(data_channel_0.begin(), data_channel_0.end(), channel_0_value);
-  ArrayView<float> data_channel_1(&buffer.channels()[1][0],
+  std::span<float> data_channel_1(&buffer.channels()[1][0],
                                   buffer.num_frames());
   std::fill(data_channel_1.begin(), data_channel_1.end(), channel_1_value);
   aec3.AnalyzeRender(&buffer);
@@ -214,7 +214,7 @@ void RunAecInStereo(AudioBuffer& buffer,
 void RunAecInSMono(AudioBuffer& buffer,
                    EchoCanceller3& aec3,
                    float channel_0_value) {
-  ArrayView<float> data_channel_0(&buffer.channels()[0][0],
+  std::span<float> data_channel_0(&buffer.channels()[0][0],
                                   buffer.num_frames());
   std::fill(data_channel_0.begin(), data_channel_0.end(), channel_0_value);
   aec3.AnalyzeRender(&buffer);
@@ -1171,14 +1171,14 @@ TEST(EchoCanceller3, InjectedNeuralResidualEchoEstimatorIsUsed) {
     NeuralResidualEchoEstimatorMock() {}
 
     void Estimate(const Block& render,
-                  ArrayView<const std::array<float, 64>> capture,
-                  ArrayView<const std::array<float, 64>> linear_aec_output,
-                  ArrayView<const std::array<float, 65>> S2_linear,
-                  ArrayView<const std::array<float, 65>> Y2,
-                  ArrayView<const std::array<float, 65>> E2,
+                  std::span<const std::array<float, 64>> capture,
+                  std::span<const std::array<float, 64>> linear_aec_output,
+                  std::span<const std::array<float, 65>> S2_linear,
+                  std::span<const std::array<float, 65>> Y2,
+                  std::span<const std::array<float, 65>> E2,
                   bool dominant_nearend,
-                  ArrayView<std::array<float, 65>> R2,
-                  ArrayView<std::array<float, 65>> R2_unbounded) override {
+                  std::span<std::array<float, 65>> R2,
+                  std::span<std::array<float, 65>> R2_unbounded) override {
       residual_echo_estimate_requested_ = true;
       for (auto& R2_ch : R2) {
         R2_ch.fill(0.0f);

@@ -79,6 +79,7 @@ class VerticalTabView : public views::View,
   const TabCollectionNode* collection_node() const { return collection_node_; }
   const TabStyle* tab_style() const { return tab_style_; }
   float radial_highlight_opacity() { return radial_highlight_opacity_; }
+  const tabs::TabData& data() const { return tab_data_; }
 
   TabCloseButton* close_button_for_testing() { return close_button_; }
   bool collapsed_for_testing() { return collapsed_; }
@@ -86,7 +87,6 @@ class VerticalTabView : public views::View,
   // HoverCardAnchorTarget:
   bool IsActive() const override;
   bool IsValid() const override;
-  const tabs::TabData& data() const override;
   views::BubbleBorder::Arrow GetAnchorPosition() const override;
   const views::View* GetAnchorView() const override;
 
@@ -131,6 +131,10 @@ class VerticalTabView : public views::View,
     int padding;
     bool align_leading;
     bool expand;
+    // Some alert indicators need to decorate the close button when the tab
+    // strip is collapsed. In that case, center the child and set a size of (0,
+    // 0).
+    bool decorate_on_collapse;
   };
 
   gfx::Rect GetChildBounds(const gfx::Rect& container,

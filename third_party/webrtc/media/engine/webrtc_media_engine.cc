@@ -11,12 +11,12 @@
 #include "media/engine/webrtc_media_engine.h"
 
 #include <algorithm>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
 #include "api/transport/bitrate_settings.h"
@@ -30,7 +30,7 @@ namespace {
 // Remove mutually exclusive extensions with lower priority.
 void DiscardRedundantExtensions(
     std::vector<RtpExtension>* extensions,
-    ArrayView<const char* const> extensions_decreasing_prio) {
+    std::span<const char* const> extensions_decreasing_prio) {
   RTC_DCHECK(extensions);
   bool found = false;
   for (const char* uri : extensions_decreasing_prio) {

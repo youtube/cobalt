@@ -172,6 +172,9 @@ void EventLogAnalyzer::InitializeMapOfNamedGraphs(bool show_detector_state,
   plots_.RegisterPlot("simulated_goog_cc", [this](Plot* plot) {
     this->CreateGoogCcSimulationGraph(plot);
   });
+  plots_.RegisterPlot("simulated_scream_delay", [this](Plot* plot) {
+    this->CreateScreamSimulationDelayGraph(plot);
+  });
   plots_.RegisterPlot("simulated_scream_bitrates", [this](Plot* plot) {
     this->CreateScreamSimulationBitrateGraph(plot);
   });
@@ -401,6 +404,10 @@ void EventLogAnalyzer::CreateTotalOutgoingBitrateGraph(
 
 void EventLogAnalyzer::CreateGoogCcSimulationGraph(Plot* plot) const {
   webrtc::CreateGoogCcSimulationGraph(parsed_log_, config_, plot);
+}
+
+void EventLogAnalyzer::CreateScreamSimulationDelayGraph(Plot* plot) const {
+  webrtc::CreateScreamSimulationDelayGraph(parsed_log_, config_, plot);
 }
 
 void EventLogAnalyzer::CreateScreamSimulationBitrateGraph(Plot* plot) const {

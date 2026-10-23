@@ -56,7 +56,6 @@ import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
-import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.content.ContentUtils;
 import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.desktop_site.DesktopSiteUtils;
@@ -2850,13 +2849,6 @@ class TabImpl implements Tab {
     @Override
     @CalledByNative
     public void setIsPinned(boolean isPinned) {
-        boolean isPinnedTabFeatureEnabled =
-                StripLayoutUtils.isTabPinningFromStripEnabled()
-                        || ChromeFeatureList.sAndroidPinnedTabs.isEnabled();
-
-        // Remove the tab pinned state if the feature is disabled.
-        isPinned = isPinnedTabFeatureEnabled && isPinned;
-
         if (mIsPinned == isPinned || isDestroyed()) return;
         mIsPinned = isPinned;
         for (TabObserver observer : mObservers) {
@@ -2936,6 +2928,13 @@ class TabImpl implements Tab {
     private NonNullObservableSupplier<Boolean> getIsDraggingSupplier() {
         TabDragStateData data = TabDragStateData.getOrCreateForTab(this);
         return data.getIsDraggingSupplier();
+    }
+
+    @Override
+    public boolean hasTabInterfaceAndroid() {
+        if (mNativeTabAndroid == 0) return false;
+
+        return TabImplJni.get().hasTabInterfaceAndroid(mNativeTabAndroid);
     }
 
     @Override
@@ -3031,6 +3030,8 @@ class TabImpl implements Tab {
                 @JniType("std::optional<base::Token>") @Nullable Token tabGroupId);
 
         void onDraggingStateChanged(long nativeTabAndroid, boolean isDragging);
+
+        boolean hasTabInterfaceAndroid(long nativeTabAndroid);
 
         void sendDidActivateUpdate(long nativeTabAndroid);
 

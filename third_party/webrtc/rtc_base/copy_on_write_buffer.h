@@ -14,11 +14,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <type_traits>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
@@ -30,7 +30,7 @@ namespace webrtc {
 
 class RTC_EXPORT CopyOnWriteBuffer {
  public:
-  using const_iterator = ArrayView<const uint8_t>::iterator;
+  using const_iterator = std::span<const uint8_t>::iterator;
 
   // An empty buffer.
   CopyOnWriteBuffer();
@@ -163,7 +163,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
             typename std::enable_if<
                 internal::BufferCompat<uint8_t, T>::value>::type* = nullptr>
   void SetData(const T* data, size_t size) {
-    Set(MakeArrayView(reinterpret_cast<const uint8_t*>(data), size));
+    Set(std::span(reinterpret_cast<const uint8_t*>(data), size));
   }
 
   template <typename T,
@@ -181,7 +181,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
             typename std::enable_if<
                 internal::BufferCompat<uint8_t, T>::value>::type* = nullptr>
   void AppendData(const T* data, size_t size) {
-    Append(MakeArrayView(reinterpret_cast<const uint8_t*>(data), size));
+    Append(std::span(reinterpret_cast<const uint8_t*>(data), size));
   }
 
   template <typename T,
@@ -238,7 +238,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
    public:
     explicit RawBuffer(size_t size);
 
-    ArrayView<uint8_t> data() { return MakeArrayView(data_.get(), size_); }
+    std::span<uint8_t> data() { return std::span(data_.get(), size_); }
     size_t capacity() const { return size_; }
 
    private:
@@ -249,7 +249,7 @@ class RTC_EXPORT CopyOnWriteBuffer {
 
   static scoped_refptr<RefCountedBuffer> CreateBuffer(size_t capacity);
 
-  ArrayView<const uint8_t> AsConstSpan() const {
+  std::span<const uint8_t> AsConstSpan() const {
     RTC_DCHECK(IsConsistent());
     if (buffer_ == nullptr) {
       return {};
@@ -257,8 +257,8 @@ class RTC_EXPORT CopyOnWriteBuffer {
     return buffer_->data().subspan(offset_, size_);
   }
 
-  void Set(ArrayView<const uint8_t> buffer);
-  void Append(ArrayView<const uint8_t> buffer);
+  void Set(std::span<const uint8_t> buffer);
+  void Append(std::span<const uint8_t> buffer);
 
   // Create a copy of the underlying data if it is referenced from other Buffer
   // objects or there is not enough capacity.

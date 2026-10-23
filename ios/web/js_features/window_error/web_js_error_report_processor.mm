@@ -19,6 +19,7 @@
 #import "base/system/sys_info.h"
 #import "build/branding_buildflags.h"
 #import "components/variations/variations_crash_keys.h"
+#import "ios/web/js_features/window_error/features.h"
 #import "ios/web/js_features/window_error/ios_javascript_error_report.h"
 #import "ios/web/public/browser_state.h"
 #import "ios/web/public/web_client.h"
@@ -57,7 +58,9 @@ enum class IOSJavascriptErrorReportProcessorResult {
   kErrorReportUploadFailed = 3,
   // The error report upload succeeded.
   kErrorReportUploadSucceeded = 4,
-  kMaxValue = kErrorReportUploadSucceeded,
+  // The error report was not sent due to message filtering.
+  kErrorReportNotSentFiltered = 5,
+  kMaxValue = kErrorReportNotSentFiltered,
 };
 
 // Returns the OS version of the currently running application.
@@ -151,6 +154,10 @@ std::string RedactStack(std::string stack) {
                               base::SPLIT_WANT_NONEMPTY)) {
     if (frame.find("@user-script:") != std::string::npos) {
       kept_frames.push_back(frame);
+    } else if (frame.find("@http") != std::string::npos) {
+      kept_frames.push_back("FRAME@HTTP_URL");
+    } else {
+      kept_frames.push_back("FRAME");
     }
   }
   return base::JoinString(kept_frames, kNewlineSeparator);
@@ -247,10 +254,20 @@ void WebJsErrorReportProcessor::SendErrorReport(
     return;
   }
 
+  std::string error_key =
+      base::StrCat({error_report.error_message, "(", error_report.api, ")"});
+
+  // Do not send reports which have been disabled via
+  // `kIOSJavaScriptErrorReportMessageFilter` flag.
+  if (!AllowUploadOfJavaScriptErrorReportWithSignature(error_key)) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "IOS.JavaScript.ErrorReportProcessor",
+        IOSJavascriptErrorReportProcessorResult::kErrorReportNotSentFiltered);
+    return;
+  }
+
   // Do not send duplicate reports to prevent spamming the crash server with the
   // same errors.
-  std::string error_key =
-      base::StrCat({error_report.api, "+", error_report.error_message});
   if (!ShouldUploadErrorReport(error_key)) {
     UMA_HISTOGRAM_ENUMERATION(
         "IOS.JavaScript.ErrorReportProcessor",

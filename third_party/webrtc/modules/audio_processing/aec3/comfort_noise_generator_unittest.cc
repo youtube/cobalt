@@ -23,7 +23,6 @@
 #include "test/gtest.h"
 
 namespace webrtc {
-namespace aec3 {
 namespace {
 
 float Power(const FftData& N) {
@@ -70,5 +69,4 @@ TEST(ComfortNoiseGenerator, CorrectLevel) {
   }
 }
 
-}  // namespace aec3
 }  // namespace webrtc

@@ -36,10 +36,6 @@
 namespace storage {
 namespace {
 
-// After this many consecutive commit errors we'll throw away the entire
-// database.
-const int kCommitErrorThreshold = 8;
-
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
 #if BUILDFLAG(IS_ANDROID)
@@ -231,12 +227,12 @@ void LocalStorageImpl::DeleteStorage(const blink::StorageKey& storage_key,
 
   auto found = areas_.find(storage_key);
   if (found != areas_.end()) {
-    // Renderer process expects |source| to always be two newline separated
-    // strings. We don't bother passing an observer because this is a one-shot
-    // event and we only care about observing its completion, for which the
-    // reply alone is sufficient.
+    // We don't bother passing an observer because this is a one-shot event and
+    // we only care about observing its completion, for which the reply alone is
+    // sufficient.
     found->second->storage_area()->DeleteAll(
-        "\n", /*new_observer=*/mojo::NullRemote(), std::move(callback));
+        /*source=*/nullptr,
+        /*new_observer=*/mojo::NullRemote(), std::move(callback));
     found->second->storage_area()->ScheduleImmediateCommit();
   } else if (database_) {
     std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
@@ -494,7 +490,7 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
 #if BUILDFLAG(IS_COBALT)
     status.Log("Cobalt.LocalStorage.DatabaseOpenError", in_memory_);
 #endif
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(DomStorageRecoveryReason::kOpenFailure);
     return;
   }
 
@@ -507,6 +503,14 @@ void LocalStorageImpl::OnConnectionFinished() {
   // to enable recreating the database on future errors.
   if (database_)
     tried_to_recreate_during_open_ = false;
+
+  // Emit recovery histogram if we just completed a recovery cycle.
+  if (recovery_state_) {
+    LogDomStorageRecoveryOutcome("LocalStorage", *recovery_state_,
+                                 /*has_database=*/database_ != nullptr,
+                                 in_memory_);
+    recovery_state_.reset();
+  }
 
   // Clear stale storage areas after a delay to prevent blocking session
   // restoration.
@@ -526,7 +530,17 @@ void LocalStorageImpl::OnConnectionFinished() {
   on_database_opened_callbacks_.clear();
 }
 
-void LocalStorageImpl::DeleteAndRecreateDatabase() {
+void LocalStorageImpl::DeleteAndRecreateDatabase(
+    DomStorageRecoveryReason reason) {
+  // Record the reason that initiated this recovery cycle. The first reason
+  // wins: subsequent calls during the same recovery cycle (e.g. an open
+  // failure after a destroy triggered by kCommitErrorThresholdExceeded) do not
+  // overwrite it. So, the histogram correctly attributes the outcome to the
+  // original reason.
+  if (!recovery_state_) {
+    recovery_state_.emplace(reason, in_memory_);
+  }
+
   // We're about to set database_ to null, so delete the StorageAreaImpls
   // that might still be using the old database.
   PurgeAllStorageAreas();
@@ -566,8 +580,7 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
 }
 
 void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory, DbStatus status) {
-  // We're essentially ignoring the status here. Even if destroying failed we
-  // still want to go ahead and try to recreate.
+  recovery_state_.value().AddDestroyResult(status.ok());
   InitiateConnection(recreate_in_memory);
 }
 
@@ -675,6 +688,10 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
       // We already tried to recover from a high commit error rate before, but
       // are still having problems: there isn't really anything left to try, so
       // just ignore errors.
+      base::UmaHistogramEnumeration(
+          "Storage.LocalStorage.Recovery.CommitErrorThresholdExceeded",
+          DomStorageDatabaseRecoveryOutcome::
+              kOngoingErrorsAfterAttemptedRecovery);
       return;
     }
     tried_to_recover_from_commit_errors_ = true;
@@ -685,7 +702,8 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
 #if BUILDFLAG(IS_COBALT)
     status.Log("Cobalt.LocalStorage.DatabaseCommitError", in_memory_);
 #endif
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(
+        DomStorageRecoveryReason::kCommitErrorThresholdExceeded);
   }
 }
 

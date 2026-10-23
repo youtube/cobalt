@@ -16,9 +16,11 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {ContentController, ContentType} from '../content/content_controller.js';
 import type {ContentListener, ContentState} from '../content/content_controller.js';
-import {LineFocusController, type LineFocusListener} from '../content/line_focus_controller.js';
+import {LineFocusController} from '../content/line_focus_controller.js';
+import type {LineFocusListener} from '../content/line_focus_controller.js';
 import {NodeStore} from '../content/node_store.js';
-import {DEFAULT_SETTINGS, type LineFocusMovement, type LineFocusStyle, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
+import {DEFAULT_SETTINGS, LineFocusType} from '../content/read_anything_types.js';
+import type {LineFocusMovement, LineFocusStyle, SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
 import type {Segment} from '../read_aloud/read_aloud_types.js';
@@ -200,7 +202,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
     // Clear state. We don't do this in disconnectedCallback because that's
     // not always reliabled called.
-    this.nodeStore_.clearDomNodes();
+    this.nodeStore_.clear();
     this.showLoading();
 
     this.settingsPrefs_ = {
@@ -495,6 +497,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.lineFocusStyle_ = this.lineFocusController_.getCurrentLineFocusStyle();
     this.lineFocusMovement_ =
         this.lineFocusController_.getCurrentLineFocusMovement();
+    this.setLineFocus_();
+    this.requestUpdate();
   }
 
   onContentStateChange(): void {

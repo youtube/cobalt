@@ -32,10 +32,8 @@ class X11ClipboardOzone : public PlatformClipboard {
   ~X11ClipboardOzone() override;
 
   // PlatformClipboard:
-  void OfferClipboardData(
-      ClipboardBuffer buffer,
-      const PlatformClipboard::DataMap& data_map,
-      PlatformClipboard::OfferDataClosure callback) override;
+  void OfferClipboardData(ClipboardBuffer buffer,
+                          const PlatformClipboard::DataMap& data_map) override;
   void RequestClipboardData(
       ClipboardBuffer buffer,
       const std::string& mime_type,
@@ -43,7 +41,8 @@ class X11ClipboardOzone : public PlatformClipboard {
   void GetAvailableMimeTypes(
       ClipboardBuffer buffer,
       PlatformClipboard::GetMimeTypesClosure callback) override;
-  bool IsSelectionOwner(ClipboardBuffer buffer) override;
+  void IsSelectionOwner(ClipboardBuffer buffer,
+                        IsSelectionOwnerClosure callback) override;
   void SetClipboardDataChangedCallback(
       ClipboardDataChangedCallback data_changed_callback) override;
   bool IsSelectionBufferAvailable() const override;

@@ -212,10 +212,12 @@ void RuleData::ComputeBloomFilterHashes(const StyleScope* style_scope,
   // captures most of the benefits. (It is fairly common, especially with
   // nesting, to have the same sets of parents in consecutive rules.)
   if (bloom_hash_size_ > 0 && bloom_hash_pos_ >= bloom_hash_size_ &&
-      UNSAFE_BUFFERS(std::equal(
-          bloom_hash_backing.begin() + bloom_hash_pos_ - bloom_hash_size_,
-          bloom_hash_backing.begin() + bloom_hash_pos_,
-          bloom_hash_backing.begin() + bloom_hash_pos_))) {
+      std::ranges::equal(base::span(bloom_hash_backing)
+                             .subspan(static_cast<wtf_size_t>(bloom_hash_pos_ -
+                                                              bloom_hash_size_),
+                                      bloom_hash_size_),
+                         base::span(bloom_hash_backing)
+                             .subspan(bloom_hash_pos_, bloom_hash_size_))) {
     bloom_hash_backing.resize(bloom_hash_pos_);
     bloom_hash_pos_ -= bloom_hash_size_;
   }
@@ -715,7 +717,7 @@ void RuleSet::FindBestBucketAndAdd(CSSSelector& component,
                  selector.TagQName().NamespaceURI() == g_star_atom;
         });
       }
-      AddToBucket(values.attr_value.LowerASCII(), input_rules_, rule_data);
+      AddToBucket(values.attr_value.ToAsciiLower(), input_rules_, rule_data);
       return;
     }
 
@@ -1685,7 +1687,7 @@ bool RuleSet::CanIgnoreEntireList(base::span<const RuleData> list,
     // Building the tree failed, so always check.
     return false;
   }
-  return !it->value->AnyMatch(value.LowerASCII().Utf8());
+  return !it->value->AnyMatch(value.ToAsciiLower().Utf8());
 }
 
 void RuleSet::CreateSubstringMatchers(
@@ -1723,7 +1725,7 @@ void RuleSet::CreateSubstringMatchers(
         }
       }
 
-      std::string pattern = values.attr_value.LowerASCII().Utf8();
+      std::string pattern = values.attr_value.ToAsciiLower().Utf8();
 
       // SubstringSetMatcher doesn't like duplicates, and since we only
       // use the tree for true/false information anyway, we can remove them.

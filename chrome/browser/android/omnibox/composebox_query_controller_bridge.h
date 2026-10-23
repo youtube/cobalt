@@ -31,7 +31,7 @@ class Profile;
 class GURL;
 
 class ComposeboxQueryControllerBridge
-    : public ComposeboxQueryController::FileUploadStatusObserver {
+    : public ComposeboxQueryController::ContextUploadStatusObserver {
  public:
   explicit ComposeboxQueryControllerBridge(
       Profile* profile,
@@ -57,7 +57,19 @@ class ComposeboxQueryControllerBridge
   void GetImageGenerationUrl(JNIEnv* env,
                              GURL url,
                              const base::android::JavaRef<jobject>& j_callback);
+
+  // Builds the URL to use for a navigation, supplementing the passed in URL
+  // with additional parameters. This will do things such as include the current
+  // tool (image gen, deep search, etc). The input state will be polled for this
+  // information. This reduces client side knowledge of how to use tools (and
+  // soon models), as the information of what parameters to add is coming from
+  // the server.
+  void GetAimUrlFromInputState(
+      JNIEnv* env,
+      GURL url,
+      const base::android::JavaRef<jobject>& j_callback);
   void RemoveAttachment(JNIEnv* env, const std::string& token);
+  bool IsFuseboxEligible(JNIEnv* env);
   bool IsPdfUploadEligible(JNIEnv* env);
   bool IsCreateImagesEligible(JNIEnv* env);
   void SetActiveTool(JNIEnv* env, omnibox::ToolMode tool_mode);
@@ -66,11 +78,11 @@ class ComposeboxQueryControllerBridge
   std::unique_ptr<lens::proto::LensOverlaySuggestInputs>
   CreateLensOverlaySuggestInputs() const;
 
-  // ComposeboxQueryController::FileUploadStatusObserver:
-  void OnFileUploadStatusChanged(
-      const base::UnguessableToken& file_token,
+  // ComposeboxQueryController::ContextUploadStatusObserver:
+  void OnContextUploadStatusChanged(
+      const base::UnguessableToken& context_token,
       lens::MimeType mime_type,
-      contextual_search::ContextUploadStatus file_upload_status,
+      contextual_search::ContextUploadStatus context_upload_status,
       const std::optional<contextual_search::ContextUploadErrorType>&
           error_type) override;
 

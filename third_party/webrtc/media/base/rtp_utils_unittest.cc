@@ -14,7 +14,6 @@
 #include <cstring>
 #include <vector>
 
-#include "api/array_view.h"
 #include "media/base/fake_rtp.h"
 #include "rtc_base/async_packet_socket.h"
 #include "test/gtest.h"
@@ -71,13 +70,6 @@ static uint8_t kRtpMsgWithTwoByteAbsSendTimeExtension[] = {
 static const int kAstIndexInOneByteRtpMsg = 21;
 // and in message `kRtpMsgWithTwoByteAbsSendTimeExtension`.
 static const int kAstIndexInTwoByteRtpMsg = 21;
-
-static const ArrayView<const uint8_t> kPcmuFrameArrayView =
-    MakeArrayView(kPcmuFrame, sizeof(kPcmuFrame));
-static const ArrayView<const uint8_t> kRtcpReportArrayView =
-    MakeArrayView(kRtcpReport, sizeof(kRtcpReport));
-static const ArrayView<const uint8_t> kInvalidPacketArrayView =
-    MakeArrayView(kInvalidPacket, sizeof(kInvalidPacket));
 
 TEST(RtpUtilsTest, GetRtcp) {
   int pt;
@@ -280,10 +272,9 @@ TEST(RtpUtilsTest, ApplyPacketOptionsWithAuthParamsAndAbsSendTime) {
 }
 
 TEST(RtpUtilsTest, InferRtpPacketType) {
-  EXPECT_EQ(RtpPacketType::kRtp, InferRtpPacketType(kPcmuFrameArrayView));
-  EXPECT_EQ(RtpPacketType::kRtcp, InferRtpPacketType(kRtcpReportArrayView));
-  EXPECT_EQ(RtpPacketType::kUnknown,
-            InferRtpPacketType(kInvalidPacketArrayView));
+  EXPECT_EQ(RtpPacketType::kRtp, InferRtpPacketType(kPcmuFrame));
+  EXPECT_EQ(RtpPacketType::kRtcp, InferRtpPacketType(kRtcpReport));
+  EXPECT_EQ(RtpPacketType::kUnknown, InferRtpPacketType(kInvalidPacket));
 }
 
 }  // namespace webrtc

@@ -5,92 +5,88 @@
 #ifndef COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CORE_ON_DEVICE_CATEGORY_CLASSIFIER_H_
 #define COMPONENTS_PAGE_CONTENT_ANNOTATIONS_CORE_ON_DEVICE_CATEGORY_CLASSIFIER_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/scoped_observation.h"
-#include "components/optimization_guide/core/inference/model_handler.h"
+#include "components/page_content_annotations/core/page_content_annotation_type.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace optimization_guide {
 class OptimizationGuideModelProvider;
 }  // namespace optimization_guide
 
+class GURL;
+
 namespace page_content_annotations {
 
-struct Category;
 enum class CategoryType;
+class CategoryClassifierModelHandler;
 
 // Manages the loading and execution of models used to classify the category
 // represented by the text.
 class OnDeviceCategoryClassifier
     : public passage_embeddings::EmbedderMetadataObserver {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    virtual void OnCategoriesClassified(
+        const GURL& url,
+        ukm::SourceId source_id,
+        const std::vector<Category>& categories) = 0;
+  };
+
   OnDeviceCategoryClassifier(
       optimization_guide::OptimizationGuideModelProvider*
           optimization_guide_model_provider,
-      passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
-      passage_embeddings::Embedder* embedder);
+      passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider);
   ~OnDeviceCategoryClassifier() override;
   OnDeviceCategoryClassifier(const OnDeviceCategoryClassifier&) = delete;
   OnDeviceCategoryClassifier& operator=(const OnDeviceCategoryClassifier&) =
       delete;
 
-  // Classifies `text` and invokes `callback` with the classifications of all
-  // supported categories when complete.
-  //
-  // Note that it is possible that this returns empty if the underlying models
-  // are not available yet.
-  void ClassifyText(const std::string& text,
-                    base::OnceCallback<void(std::vector<Category>)> callback);
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
- private:
-  // EmbedderMetadataObserver:
+  // Invoked when an embedding has been successfully computed for the page.
+  void OnPageEmbeddingAvailable(const GURL& url,
+                                ukm::SourceId source_id,
+                                const passage_embeddings::Embedding& embedding);
+
+  // passage_embeddings::EmbedderMetadataObserver:
   void EmbedderMetadataUpdated(
       passage_embeddings::EmbedderMetadata metadata) override;
 
-  // Callback invoked when the embedding has been computed.
-  void OnEmbeddingComputed(
-      base::OnceCallback<void(std::vector<Category>)> callback,
-      std::vector<std::string> passages,
-      std::vector<passage_embeddings::Embedding> embeddings,
-      passage_embeddings::Embedder::TaskId task_id,
-      passage_embeddings::ComputeEmbeddingsStatus status);
-
-  // Callback invoked when all category classifiers have completed execution.
+ private:
   void OnCategoryClassifiersCompleted(
-      base::OnceCallback<void(std::vector<Category>)> callback,
+      const GURL& url,
+      ukm::SourceId source_id,
       const std::vector<std::pair<CategoryType, std::optional<float>>>&
           classifier_outputs);
 
   // The model handlers for the category classifiers to run.
-  base::flat_map<
-      CategoryType,
-      std::unique_ptr<
-          optimization_guide::ModelHandler<float, const std::vector<float>&>>>
+  base::flat_map<CategoryType, std::unique_ptr<CategoryClassifierModelHandler>>
       category_classifier_model_handlers_;
-
-  // Whether the embedder is currently available.
-  bool is_embedder_available_ = false;
 
   // The model provider for category regression layers. Not owned.
   raw_ptr<optimization_guide::OptimizationGuideModelProvider>
       optimization_guide_model_provider_;
-  // The provider of embedder metadata to determine whether `embedder_` is
-  // currently available to submit jobs to. Not owned.
-  raw_ptr<passage_embeddings::EmbedderMetadataProvider>
-      embedder_metadata_provider_;
-  // The text embedder to use. Not owned.
-  raw_ptr<passage_embeddings::Embedder> embedder_;
+
+  // The current version of the embedder model.
+  std::optional<int64_t> embedder_version_;
+
+  base::ObserverList<Observer> observers_;
 
   base::ScopedObservation<passage_embeddings::EmbedderMetadataProvider,
                           passage_embeddings::EmbedderMetadataObserver>
-      scoped_observation_{this};
+      embedder_metadata_observation_{this};
 
   base::WeakPtrFactory<OnDeviceCategoryClassifier> weak_ptr_factory_{this};
 };

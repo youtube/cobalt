@@ -42,7 +42,7 @@ public:
     // DrawList requires that all Transforms be valid and asserts as much; invalid transforms should
     // be detected at the Device level or similar. The provided Renderer must be compatible with the
     // 'shape' and 'stroke' parameters.
-    std::pair<DrawParams*, Layer*> recordDraw(
+    std::pair<DrawParams*, Insertion> recordDraw(
             const Renderer* renderer,
             const Transform& localToDevice,
             const Geometry& geometry,
@@ -53,7 +53,7 @@ public:
             BarrierType barrierBeforeDraws,
             PipelineDataGatherer* gatherer,
             const StrokeStyle* stroke,
-            const Layer* latestDepthLayer) override;
+            const Insertion& latestInsertion) override;
 
     std::unique_ptr<DrawPass> snapDrawPass(Recorder* recorder,
                                            sk_sp<TextureProxy> target,
@@ -65,6 +65,7 @@ public:
     void reset(LoadOp op, SkColor4f clearColor = {0.f, 0.f, 0.f, 0.f}) override;
 
 private:
+    template<bool kIsDepthOnly>
     void recordBackwards(int stepIndex,
                          bool isStencil,
                          bool dependsOnDst,
@@ -73,7 +74,8 @@ private:
                          const UniformDataCache::Index& uniformIndex,
                          const LayerKey& key,
                          const DrawParams* drawParams,
-                         const Layer* stopLayer);
+                         const Insertion& stop,
+                         Insertion* capture);
 
     void recordForwards(int stepIndex,
                         bool isStencil,
@@ -83,17 +85,7 @@ private:
                         const UniformDataCache::Index& uniformIndex,
                         const LayerKey& key,
                         const DrawParams* drawParams,
-                        const Layer* startLayer);
-
-    void recordDepthOnly(int stepIndex,
-                         bool isStencil,
-                         bool dependsOnDst,
-                         bool requiresBarrier,
-                         const RenderStep* step,
-                         const UniformDataCache::Index& uniformIndex,
-                         const LayerKey& key,
-                         const DrawParams* drawParams,
-                         Layer** captureLayer);
+                        const Insertion& start);
 
     friend class DrawPass;
 
@@ -109,7 +101,6 @@ private:
 
     int fDrawCount = 0;
     CompressedPaintersOrder fOrderCounter = CompressedPaintersOrder::First();
-    Layer* fParentDepthLayer = nullptr;
     Layer* fStencilLayer = nullptr;
     BindingWrapper* fStencilWrapper = nullptr;
     StencilDraws* fStencilList = nullptr;

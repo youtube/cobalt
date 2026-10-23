@@ -177,8 +177,7 @@ class AttemptLoginToolInteractiveUiTest
   AttemptLoginToolInteractiveUiTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
         password_manager::features::kActorLogin,
-        password_manager::features::kActorLoginReauthTaskRefocus,
-        actor::kGlicEnableAutoLoginDialogs};
+        password_manager::features::kActorLoginReauthTaskRefocus};
     std::vector<base::test::FeatureRef> disabled_features;
 
     if (multi_instance_enabled()) {
@@ -190,13 +189,9 @@ class AttemptLoginToolInteractiveUiTest
     }
 
     if (federation_enabled()) {
-      enabled_features.push_back(
-          password_manager::features::kActorLoginFederatedLoginSupport);
       enabled_features.push_back(features::kFedCmEmbedderInitiatedLogin);
       enabled_features.push_back(features::kFedCmNavigationInterception);
     } else {
-      disabled_features.push_back(
-          password_manager::features::kActorLoginFederatedLoginSupport);
       disabled_features.push_back(features::kFedCmEmbedderInitiatedLogin);
       disabled_features.push_back(features::kFedCmNavigationInterception);
     }

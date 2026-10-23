@@ -10,15 +10,15 @@
 #include "net/dcsctp/packet/crc32c.h"
 
 #include <cstdint>
+#include <span>
 
 #include "absl/crc/crc32c.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 
 namespace dcsctp {
 
-uint32_t GenerateCrc32C(webrtc::ArrayView<const uint8_t> data) {
+uint32_t GenerateCrc32C(std::span<const uint8_t> data) {
   absl::crc32c_t crc32 = absl::ComputeCrc32c(absl::string_view(
       reinterpret_cast<const char*>(data.data()), data.size()));
   return absl::byteswap(static_cast<uint32_t>(crc32));

@@ -13,6 +13,7 @@
 #include "components/optimization_guide/core/model_execution/on_device_asset_manager.h"
 #include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_access_controller.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_classifier_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
@@ -41,8 +42,9 @@ ModelBrokerState::ModelBrokerState(
     on_device_model::ServiceClient::LaunchFn launch_fn,
     component_updater::ComponentUpdateService* component_update_service)
     : service_client_(std::move(launch_fn)),
-      download_progress_manager_(component_update_service,
-                                 {base_delegate->GetComponentId()}),
+      download_progress_manager_(
+          component_update_service,
+              std::vector<std::string>{base_delegate->GetComponentId()}),
       usage_tracker_(&local_state),
       model_broker_impl_(
           usage_tracker_,
@@ -53,8 +55,9 @@ ModelBrokerState::ModelBrokerState(
       component_state_manager_(&local_state,
                                performance_classifier_.GetSafeRef(),
                                usage_tracker_,
-                               std::move(base_delegate)),
-      service_controller_(
+                               std::move(base_delegate),
+                               OnDeviceModelServiceController::kModelType),
+      base_model_controller_(
           service_client_,
           usage_tracker_,
           model_broker_impl_,
@@ -63,8 +66,15 @@ ModelBrokerState::ModelBrokerState(
       asset_manager_(local_state,
                      usage_tracker_,
                      component_state_manager_,
-                     service_controller_,
-                     model_provider) {}
+                     base_model_controller_,
+                     model_provider) {
+  if (classifier_delegate) {
+    classifier_controller_.emplace(
+        local_state, performance_classifier_.GetSafeRef(), usage_tracker_,
+        service_client_.GetSafeRef(), model_broker_impl_,
+        std::move(classifier_delegate));
+  }
+}
 ModelBrokerState::~ModelBrokerState() = default;
 
 void ModelBrokerState::BindModelBroker(
@@ -113,7 +123,11 @@ OnDeviceModelEligibilityReason ModelBrokerState::GetOnDeviceModelEligibility(
               base::ToString(feature));
   // Ensure a solution is constructed for this feature, to avoid returning
   // kUnknown when this is called too early.
-  service_controller_.UpdateSolutionProvider(feature);
+  base_model_controller_.UpdateSolutionProvider(feature);
+  if (classifier_controller_) {
+    classifier_controller_->UpdateSolution();
+  }
+
   return model_broker_impl_.GetSolutionProvider(feature).solution().error_or(
       OnDeviceModelEligibilityReason::kSuccess);
 }
@@ -166,8 +180,17 @@ std::optional<const proto::Any> ModelBrokerState::GetFeatureMetadata(
   return solution.value()->GetAdapter()->GetFeatureMetadata();
 }
 
-void ModelBrokerState::EnsureInitialization(base::OnceClosure callback) {
-  performance_classifier_.EnsurePerformanceClassAvailable(std::move(callback));
+void ModelBrokerState::EnsureInitialization(
+    ModelBrokerImpl::InitCallback callback) {
+  performance_classifier_.EnsurePerformanceClassAvailable(
+      base::BindOnce(&ModelBrokerState::EnsureInitializationComplete,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ModelBrokerState::EnsureInitializationComplete(
+    ModelBrokerImpl::InitCallback callback) {
+  std::move(callback).Run(
+      performance_classifier_.GetPossibleOnDeviceCapabilities());
 }
 
 void ModelBrokerState::FinishGetOnDeviceModelEligibility(
@@ -208,7 +231,7 @@ on_device_model::Capabilities ModelBrokerState::GetOnDeviceCapabilities() {
   if (!features::IsOnDeviceExecutionEnabled()) {
     return {};
   }
-  auto capabilities = service_controller_.GetCapabilities();
+  auto capabilities = base_model_controller_.GetCapabilities();
   capabilities.RetainAll(
       performance_classifier_.GetPossibleOnDeviceCapabilities());
   return capabilities;

@@ -94,7 +94,7 @@ class MockStorageArea : public blink::mojom::StorageArea {
   void Put(const std::vector<uint8_t>& key,
            const std::vector<uint8_t>& value,
            const std::optional<std::vector<uint8_t>>& client_old_value,
-           const std::string& source,
+           blink::mojom::StorageAreaSourcePtr source,
            PutCallback callback) override {
     put_call_count_++;
     if (should_hang_) {
@@ -107,10 +107,10 @@ class MockStorageArea : public blink::mojom::StorageArea {
   }
   void Delete(const std::vector<uint8_t>& key,
               const std::optional<std::vector<uint8_t>>& client_old_value,
-              const std::string& source,
+              blink::mojom::StorageAreaSourcePtr source,
               DeleteCallback callback) override {}
   void DeleteAll(
-      const std::string& source,
+      blink::mojom::StorageAreaSourcePtr source,
       mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
       DeleteAllCallback callback) override {}
   void GetAll(

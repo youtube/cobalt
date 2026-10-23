@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
-import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.isTabPinningFromStripEnabled;
 import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.ACTIVE;
 import static org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin.TAB_STRIP_CONTEXT_MENU;
 import static org.chromium.chrome.browser.tabmodel.TabGroupUtils.createNewGroupForTabs;
@@ -31,6 +30,7 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator.AnchorInfo;
@@ -252,7 +252,11 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                         .getTabUngrouper()
                         .ungroupTabs(tabs, /* trailing= */ true, /* allowDialog= */ true);
             } else if (menuId == R.id.move_to_other_window_menu_id) {
-                multiInstanceManager.moveTabsToOtherWindow(tabs, NewWindowAppSource.MENU);
+                moveAndCleanupSource(
+                        multiInstanceManager,
+                        () ->
+                                multiInstanceManager.moveTabsToOtherWindow(
+                                        tabs, NewWindowAppSource.MENU));
             } else if (menuId == R.id.share_tab) {
                 assert tabs.size() == 1 : "Share is only available for single tab selection.";
                 ShareDelegate shareDelegate = shareDelegateSupplier.get();
@@ -384,7 +388,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         if (shouldShowMoveToWindowItem(tabs, anchorInfo)) {
             itemList.add(createMoveToWindowItem(anchorInfo, isIncognito));
         }
-        List<ListItem> reorderItems = createReorderItems(anchorInfo);
+        List<ListItem> reorderItems = createReorderItems(anchorInfo, isIncognito);
         // Need to check list is non-empty before calling addAll; otherwise we get assertion error.
         if (!reorderItems.isEmpty()) itemList.addAll(reorderItems);
         itemList.add(buildMenuDivider(isIncognito));
@@ -395,9 +399,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         if (ChromeFeatureList.sAndroidContextMenuDuplicateTabs.isEnabled()) {
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
-        if (isTabPinningFromStripEnabled()) {
-            itemList.add(createPinUnpinTabItem(tabs, isIncognito));
-        }
+        itemList.add(createPinUnpinTabItem(tabs, isIncognito));
         if (ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) {
             itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
         }
@@ -414,15 +416,13 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         if (shouldShowMoveToWindowItem(tabs, anchorInfo)) {
             itemList.add(createMoveToWindowItem(anchorInfo, isIncognito));
         }
-        List<ListItem> reorderItems = createReorderItems(anchorInfo);
+        List<ListItem> reorderItems = createReorderItems(anchorInfo, isIncognito);
         if (!reorderItems.isEmpty()) itemList.addAll(reorderItems);
         itemList.add(buildMenuDivider(isIncognito));
         if (ChromeFeatureList.sAndroidContextMenuDuplicateTabs.isEnabled()) {
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
-        if (isTabPinningFromStripEnabled()) {
-            itemList.add(createPinUnpinTabItem(tabs, isIncognito));
-        }
+        itemList.add(createPinUnpinTabItem(tabs, isIncognito));
         if (ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) {
             itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
         }
@@ -778,6 +778,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     }
 
     @Override
+    @RequiresNonNull("mMultiInstanceManager")
     protected void moveToNewWindow(AnchorInfo anchorInfo) {
         List<Integer> tabIds = anchorInfo.getAllTabIds();
         if (tabIds.isEmpty()) return;
@@ -786,11 +787,15 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         if (tabs.isEmpty()) return;
         ungroupTabs(tabs);
         recordMenuAction(R.id.move_to_new_window_sub_menu_id, tabs.size() > 1);
-        assumeNonNull(mMultiInstanceManager)
-                .moveTabsToNewWindow(tabs, /* finalizeCallback= */ null, NewWindowAppSource.MENU);
+        moveAndCleanupSource(
+                mMultiInstanceManager,
+                () ->
+                        mMultiInstanceManager.moveTabsToNewWindow(
+                                tabs, /* finalizeCallback= */ null, NewWindowAppSource.MENU));
     }
 
     @Override
+    @RequiresNonNull("mMultiInstanceManager")
     protected void moveToWindow(InstanceInfo instanceInfo, AnchorInfo anchorInfo) {
         List<Integer> tabIds = anchorInfo.getAllTabIds();
         if (tabIds.isEmpty()) return;
@@ -799,15 +804,17 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         if (tabs.isEmpty()) return;
         ungroupTabs(tabs);
         recordMenuAction(R.id.move_to_other_window_sub_menu_id, tabs.size() > 1);
-        assumeNonNull(mMultiInstanceManager)
-                .moveTabsToWindowByIdChecked(
-                        instanceInfo.instanceId,
-                        tabs,
-                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+        moveAndCleanupSource(
+                mMultiInstanceManager,
+                () ->
+                        mMultiInstanceManager.moveTabsToWindowByIdChecked(
+                                instanceInfo.instanceId,
+                                tabs,
+                                /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
+                                /* destGroupTabId= */ TabList.INVALID_TAB_INDEX));
     }
 
-    private List<ListItem> createReorderItems(AnchorInfo anchorInfo) {
+    private List<ListItem> createReorderItems(AnchorInfo anchorInfo, boolean isIncognito) {
         return createReorderItems(
                 anchorInfo,
                 mActivity
@@ -817,7 +824,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 mActivity
                         .getResources()
                         .getQuantityString(
-                                R.plurals.move_tabs_right, anchorInfo.getAllTabIds().size()));
+                                R.plurals.move_tabs_right, anchorInfo.getAllTabIds().size()),
+                isIncognito);
     }
 
     /** Ungroups any tabs in {@param tabs} which are currently in a group. */

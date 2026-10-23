@@ -423,6 +423,9 @@ class RtpTransceiver : public RtpTransceiverInterface {
       RTC_RUN_ON(context()->worker_thread());
   void ClearMediaChannelReferences() RTC_RUN_ON(context()->worker_thread());
 
+  VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+  GetEncoderSwitchRequestCallback();
+
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
   // Helper function for handling extensions during O/A
@@ -438,8 +441,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   TaskQueueBase* const thread_;
   const bool unified_plan_;
   const MediaType media_type_;
-  scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_
-      RTC_GUARDED_BY(thread_);
+  scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_;
   scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
       senders_;

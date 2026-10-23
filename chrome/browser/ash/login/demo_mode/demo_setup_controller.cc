@@ -11,6 +11,7 @@
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "base/barrier_closure.h"
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
@@ -30,7 +31,6 @@
 #include "chrome/browser/ash/policy/enrollment/enrollment_config.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_status.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
@@ -420,7 +420,8 @@ bool DemoSetupController::IsOobeDemoSetupFlowInProgress() {
 }
 
 // static
-std::string DemoSetupController::GetSubOrganizationEmail() {
+std::string DemoSetupController::GetSubOrganizationEmail(
+    const PrefService& local_state) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   DCHECK(command_line);
 
@@ -434,8 +435,7 @@ std::string DemoSetupController::GetSubOrganizationEmail() {
     }
   }
 
-  const std::string country =
-      g_browser_process->local_state()->GetString(prefs::kDemoModeCountry);
+  const std::string country = local_state.GetString(prefs::kDemoModeCountry);
 
   std::string country_uppercase = base::ToUpperASCII(country);
   std::string country_lowercase = base::ToLowerASCII(country);
@@ -478,7 +478,13 @@ std::string DemoSetupController::GetDemoSetupStepString(
   NOTREACHED();
 }
 
-DemoSetupController::DemoSetupController() = default;
+DemoSetupController::DemoSetupController(
+    PrefService* local_state,
+    scoped_refptr<component_updater::ComponentManagerAsh> component_manager_ash)
+    : local_state_(CHECK_DEREF(local_state)),
+      component_manager_ash_(std::move(component_manager_ash)) {
+  CHECK(component_manager_ash_);
+}
 
 DemoSetupController::~DemoSetupController() = default;
 
@@ -504,9 +510,8 @@ void DemoSetupController::Enroll(
 
   SetCurrentSetupStep(DemoSetupStep::kDownloadResources);
 
-  PrefService* prefs = g_browser_process->local_state();
-  prefs->SetString(prefs::kDemoModeRetailerId, retailer_name_);
-  prefs->SetString(prefs::kDemoModeStoreId, store_number_);
+  local_state_->SetString(prefs::kDemoModeRetailerId, retailer_name_);
+  local_state_->SetString(prefs::kDemoModeStoreId, store_number_);
 
   switch (demo_config_) {
     case DemoSession::DemoModeConfig::kOnline:
@@ -524,7 +529,8 @@ void DemoSetupController::LoadDemoComponents() {
   download_start_time_ = base::TimeTicks::Now();
 
   if (!demo_components_)
-    demo_components_ = std::make_unique<DemoComponents>(demo_config_);
+    demo_components_ = std::make_unique<DemoComponents>(
+        &local_state_.get(), component_manager_ash_, demo_config_);
 
   // Simulate loading demo components completed for unit tests.
   if (DBusThreadManager::Get()->IsUsingFakes() &&
@@ -622,7 +628,7 @@ void DemoSetupController::OnDemoComponentsLoaded() {
   policy::EnrollmentRequisitionManager::SetDeviceRequisition(
       policy::EnrollmentRequisitionManager::kDemoRequisition);
   policy::EnrollmentRequisitionManager::SetSubOrganization(
-      GetSubOrganizationEmail());
+      GetSubOrganizationEmail(local_state_.get()));
   policy::EnrollmentConfig config =
       policy::EnrollmentConfig::GetDemoModeEnrollmentConfig();
 
@@ -696,9 +702,9 @@ void DemoSetupController::OnDeviceRegistered() {
 
   SetCurrentSetupStep(DemoSetupStep::kComplete);
 
-  PrefService* prefs = g_browser_process->local_state();
-  prefs->SetInteger(prefs::kDemoModeConfig, static_cast<int>(demo_config_));
-  prefs->CommitPendingWrite();
+  local_state_->SetInteger(prefs::kDemoModeConfig,
+                           static_cast<int>(demo_config_));
+  local_state_->CommitPendingWrite();
   Reset();
   if (!on_setup_success_.is_null())
     std::move(on_setup_success_).Run();

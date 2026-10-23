@@ -85,12 +85,10 @@ class ContextualOmniboxClient : public SearchboxOmniboxClient {
 // shared between the composebox and realbox to support contextual search.
 class ContextualSearchboxHandler
     : public contextual_search::ContextualSearchContextController::
-          FileUploadStatusObserver,
+          ContextUploadStatusObserver,
       public SearchboxHandler,
       public TabStripModelObserver {
  public:
-  DECLARE_FEATURE(kExhaustiveGetRecentTabs);
-
   explicit ContextualSearchboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
@@ -157,11 +155,11 @@ class ContextualSearchboxHandler
       std::unique_ptr<lens::ContextualInputData> data,
       RecontextualizeTabCallback callback);
 
-  // contextual_search::FileUploadStatusObserver:
-  void OnFileUploadStatusChanged(
-      const base::UnguessableToken& file_token,
+  // contextual_search::ContextUploadStatusObserver:
+  void OnContextUploadStatusChanged(
+      const base::UnguessableToken& context_token,
       lens::MimeType mime_type,
-      contextual_search::ContextUploadStatus file_upload_status,
+      contextual_search::ContextUploadStatus context_upload_status,
       const std::optional<contextual_search::ContextUploadErrorType>&
           error_type) override;
 
@@ -184,7 +182,9 @@ class ContextualSearchboxHandler
   // Resets `input_state_model_`.
   void ResetInputStateModel();
   void SetActiveToolMode(omnibox::ToolMode tool) override;
+  void RecordToolSelectionAction(omnibox::ToolMode tool) override;
   void SetActiveModelMode(omnibox::ModelMode model) override;
+  void RecordModelSelectionAction(omnibox::ModelMode model) override;
   void ActivateMetricsFunnel(const std::string& funnel_name) override;
 
   void OnInputStateChangedForTesting(
@@ -195,6 +195,8 @@ class ContextualSearchboxHandler
  protected:
   // SearchboxHandler:
   omnibox::InputState GetInputState() const override;
+
+  virtual void OpenUrl(GURL url, const WindowOpenDisposition disposition);
 
   void ComputeAndOpenQueryUrl(
       const std::string& query_text,
@@ -216,6 +218,8 @@ class ContextualSearchboxHandler
                            DeleteContext_DelayUpload);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
                            OpenAutocompleteMatch_ZeroSuggestClick);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           OpenAutocompleteMatch_TypedSuggestNavigation);
 
   std::optional<lens::ImageEncodingOptions> CreateTabPreviewEncodingOptions(
       content::WebContents* web_contents);
@@ -266,8 +270,6 @@ class ContextualSearchboxHandler
   void SnapshotTabContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
-
-  void OpenUrl(GURL url, const WindowOpenDisposition disposition);
 
   void OnPreviewReceived(GetTabPreviewCallback callback,
                          const SkBitmap& preview_bitmap);

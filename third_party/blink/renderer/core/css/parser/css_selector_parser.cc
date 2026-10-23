@@ -981,7 +981,7 @@ PseudoId CSSSelectorParser::ParsePseudoElement(const String& selector_string,
       // Lowercase for case-insensitive matching. CSS pseudo-elements are
       // case-insensitive, and escape sequences like `:bef\oRE` may produce
       // mixed-case names after tokenization.
-      AtomicString selector_name = AtomicString::LowerASCII(
+      AtomicString selector_name = AtomicString::ToAsciiLower(
           selector_name_token.Value().ToAtomicString());
       CSSSelector::PseudoType pseudo_type = ParsePseudoType(
           selector_name,
@@ -1276,7 +1276,7 @@ base::span<CSSSelector> CSSSelectorParser::ConsumeCompoundSelector(
   AtomicString element_name;
   const bool has_q_name = ConsumeName(stream, element_name, namespace_prefix);
   if (context_->IsHTMLDocument()) {
-    element_name = element_name.LowerASCII();
+    element_name = element_name.ToAsciiLower();
   }
 
   // A tag name is not valid following a pseudo-element. This can happen for
@@ -1499,7 +1499,7 @@ bool CSSSelectorParser::ConsumeAttribute(CSSParserTokenStream& stream) {
   stream.ConsumeWhitespace();
 
   if (context_->IsHTMLDocument()) {
-    attribute_name = attribute_name.LowerASCII();
+    attribute_name = attribute_name.ToAsciiLower();
   }
 
   AtomicString namespace_uri = DetermineNamespace(namespace_prefix);
@@ -2161,7 +2161,7 @@ bool CSSSelectorParser::ConsumeANPlusB(CSSParserTokenStream& stream,
   } else if (token.GetType() == kIdentToken) {
     if (token.Value()[0] == '-') {
       result.first = -1;
-      n_string = token.Value().ToString().Substring(1);
+      n_string = token.Value().ToString().substr(1);
     } else {
       result.first = 1;
       n_string = token.Value().ToString();
@@ -2178,7 +2178,7 @@ bool CSSSelectorParser::ConsumeANPlusB(CSSParserTokenStream& stream,
   }
 
   if (n_string.length() > 2) {
-    auto parsed = StringToIntStrict(n_string.Substring(1));
+    auto parsed = StringToIntStrict(n_string.subview(1));
     result.second = parsed.value_or(0);
     return parsed.has_value();
   }

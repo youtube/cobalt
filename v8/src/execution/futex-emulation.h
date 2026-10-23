@@ -118,11 +118,14 @@ class FutexWaitListNode {
     // The task ID of the timeout task.
     CancelableTaskManager::Id timeout_task_id =
         CancelableTaskManager::kInvalidTaskId;
+
+    // True if the node is ready to be deleted (has to happen on the main
+    // thread).
+    bool waiting_for_main_thread_cleanup = false;
   };
 
   base::ConditionVariable cond_;
-  // prev_ and next_ are protected by either GetWaitList()->mutex() or
-  // the mutex of the FutexManagedObjectWaitList they are currently in.
+  // prev_ and next_ are protected by `GetWaitList()::mutex()`.
   FutexWaitListNode* prev_ = nullptr;
   FutexWaitListNode* next_ = nullptr;
 
@@ -134,13 +137,9 @@ class FutexWaitListNode {
   // this node is alive.
   void* wait_location_ = nullptr;
 
-  // waiting_ and interrupted_ are protected by mutex_.
+  // waiting_ and interrupted_ are protected by `GetWaitList()::mutex()`.
   bool waiting_ = false;
   bool interrupted_ = false;
-  // When locking both this mutex and the mutex of the FutexWaitList/
-  // FutexManagedObjectWaitList this node is currently in, make sure to lock
-  // this mutex last to avoid deadlocks.
-  base::Mutex mutex_;
 
   // State used for an async wait; nullptr on sync waits.
   const std::unique_ptr<AsyncState> async_state_;
@@ -153,9 +152,8 @@ class FutexManagedObjectWaitList {
       internal::kWasmFutexManagedObjectWaitListTag;
 
   FutexManagedObjectWaitList() = default;
-  FutexManagedObjectWaitList(const FutexManagedObjectWaitList&) = delete;
-  FutexManagedObjectWaitList& operator=(const FutexManagedObjectWaitList&) =
-      delete;
+  FutexManagedObjectWaitList(const FutexWaitList&) = delete;
+  FutexManagedObjectWaitList& operator=(const FutexWaitList&) = delete;
 
   void AddNode(FutexWaitListNode* node) {
     if (head_ == nullptr) {
@@ -187,8 +185,6 @@ class FutexManagedObjectWaitList {
     node->prev_ = node->next_ = nullptr;
   }
 
-  base::Mutex* mutex() { return &mutex_; }
-
  private:
   friend class FutexEmulation;
 
@@ -198,9 +194,6 @@ class FutexManagedObjectWaitList {
     }
     return false;
   }
-
-  // Protects the fields below.
-  base::Mutex mutex_;
 
   FutexWaitListNode* head_ = nullptr;
   FutexWaitListNode* tail_ = nullptr;
@@ -304,8 +297,7 @@ class FutexEmulation : public AllStatic {
   template <typename WaitList, typename T>
   static DirectHandle<Object> WaitSyncImpl(
       Isolate* isolate, WaitList* wait_list, FutexWaitListNode* node,
-      NoGarbageCollectionMutexGuard& lock_guard,
-      std::optional<base::MutexGuard>& node_lock_guard, bool use_timeout,
+      NoGarbageCollectionMutexGuard& lock_guard, bool use_timeout,
       base::TimeTicks timeout_time, T value, T loaded_value,
       std::optional<void*> wait_location);
 

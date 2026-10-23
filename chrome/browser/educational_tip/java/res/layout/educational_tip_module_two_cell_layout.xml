@@ -18,7 +18,6 @@ found in the LICENSE file.
     android:paddingBottom="@dimen/single_tab_module_padding_top"
     android:minHeight="@dimen/home_module_height"
     android:background="@drawable/home_surface_ui_background"
-    android:foreground="@drawable/single_tab_card_ripple"
     android:orientation="vertical">
 
     <LinearLayout
@@ -48,6 +47,7 @@ found in the LICENSE file.
             android:id="@+id/see_more"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:contentDescription="@string/accessibility_educational_tip_setup_list_see_more"
             android:text="@string/educational_tip_see_more"
             android:textAppearance="@style/TextAppearance.TextAccentMediumThick.Link"/>
 

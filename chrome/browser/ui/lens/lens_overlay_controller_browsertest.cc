@@ -93,7 +93,6 @@
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/webui/feedback/feedback_dialog.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/api/pdf_viewer_private.h"
@@ -663,6 +662,8 @@ std::unique_ptr<KeyedService> BuildMockAimServiceEligibilityServiceInstance(
   EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
       .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsFuseboxEligible())
       .WillRepeatedly(testing::Return(true));
 
   return std::move(mock_aim_eligibility_service);

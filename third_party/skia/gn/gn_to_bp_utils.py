@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2018 Google Inc.
+# Copyright 2018 Google LLC
 #
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -48,6 +48,7 @@ def CleanupCFlags(cflags):
   cflags = cflags.union([
     "-Wno-implicit-fallthrough",
     "-Wno-missing-field-initializers",
+    "-Wno-psabi",
     "-Wno-sign-conversion",
     "-Wno-thread-safety-analysis",
     "-Wno-unknown-warning-option",

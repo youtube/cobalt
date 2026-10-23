@@ -425,7 +425,7 @@ optional("fontmgr_FontConfigInterface") {
 }
 
 optional("fontmgr_fontations_empty") {
-  enabled = skia_use_fontations
+  enabled = skia_enable_fontmgr_fontations_empty
   public_defines = [ "SK_FONTMGR_FONTATIONS_AVAILABLE" ]
 
   deps = [ ":typeface_fontations" ]
@@ -1803,7 +1803,23 @@ skia_source_set("core") {
   sources = skia_core_sources
 
   # These deps don't belong to :core, but they are currently needed to support (de)serialization.
+  deps = [
+    ":fontmgr_mac_ct",
+    ":fontmgr_win",
+    ":fontmgr_win_gdi",
+    ":png_decode_libpng",
+    ":png_encode_libpng",
+    ":typeface_fontations",
+    ":typeface_freetype",
+  ]
+}
+
+skia_component("skia") {
+  public_configs = [ ":skia_public" ]
+  configs = skia_library_configs
+
   public_deps = [
+    ":core",
     ":fontmgr_FontConfigInterface",
     ":fontmgr_android",
     ":fontmgr_android_ndk",
@@ -1815,23 +1831,13 @@ skia_source_set("core") {
     ":fontmgr_mac_ct",
     ":fontmgr_win",
     ":fontmgr_win_gdi",
-    ":png_decode_libpng",
-    ":png_encode_libpng",
-  ]
-  deps = [ ":typeface_fontations" ]
-}
-
-skia_component("skia") {
-  public_configs = [ ":skia_public" ]
-  configs = skia_library_configs
-
-  public_deps = [
-    ":core",
     ":gpu",
     ":graphite",
     ":jpeg_encode",
     ":pdf",
     ":pdf_jpeg_helpers",
+    ":png_decode_libpng",
+    ":png_encode_libpng",
     ":webp_encode",
     ":xps",
   ]
@@ -1851,6 +1857,7 @@ skia_component("skia") {
     ":rust_icc",
     ":skx",
     ":typeface_fontations",
+    ":typeface_freetype",
     ":vello",
     ":webp_decode",
     ":wuffs",
@@ -2915,6 +2922,14 @@ if (skia_enable_tools) {
       ]
       if (skia_enable_graphite) {
         deps += [ ":common_flags_graphite" ]
+      }
+      if (skia_use_pprof) {
+        # https://packages.debian.org/trixie/libgoogle-perftools-dev
+        libs = [
+          "profiler",
+          "tcmalloc",
+        ]
+        defines = [ "SK_USE_PPROF" ]
       }
     }
   }

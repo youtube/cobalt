@@ -324,6 +324,7 @@
 -modules/audio_processing/capture_levels_adjuster/audio_samples_scaler_unittest.cc
 -modules/audio_processing/capture_levels_adjuster/capture_levels_adjuster_unittest.cc
 -modules/audio_processing/high_pass_filter.cc
+-modules/audio_processing/logging/apm_data_dumper.h
 -modules/audio_processing/post_filter.cc
 -modules/audio_processing/splitting_filter.cc
 -modules/audio_processing/splitting_filter_unittest.cc

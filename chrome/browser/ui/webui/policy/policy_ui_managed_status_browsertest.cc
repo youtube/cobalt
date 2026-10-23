@@ -37,7 +37,6 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/signin_browser_test_base.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/policy/policy_ui.h"
 #include "chrome/browser/ui/webui/policy/policy_ui_handler.h"
 #include "chrome/common/url_constants.h"
@@ -53,6 +52,7 @@
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/enterprise_metrics.h"
 #include "components/policy/core/common/external_data_fetcher.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/policy/core/common/policy_switches.h"
 #include "components/policy/core/common/schema.h"
@@ -153,16 +153,23 @@ class PolicyUIManagedStatusTest : public PlatformBrowserTest,
             base::Unretained(this))));
     embedded_test_server_.RegisterRequestHandler(base::BindRepeating(
         &FakeGaia::HandleRequest, base::Unretained(&fake_gaia_)));
-    scoped_feature_list_.InitWithFeatureState(
-        features::kEnablePolicyPromotionBanner, GetParam());
+
+    if (GetParam()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          policy::features::kPolicyPageMojoMigration);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          policy::features::kPolicyPageMojoMigration);
+    }
   }
+
   PolicyUIManagedStatusTest(const PolicyUIManagedStatusTest&) = delete;
   PolicyUIManagedStatusTest& operator=(const PolicyUIManagedStatusTest&) =
       delete;
 
   ~PolicyUIManagedStatusTest() override = default;
 
-  bool is_feature_enabled() { return GetParam(); }
+  bool is_mojo_feature_enabled() const { return GetParam(); }
 
   void SetUp() override {
     ASSERT_TRUE(embedded_test_server_.InitializeAndListen());
@@ -309,13 +316,11 @@ class PolicyUIManagedStatusTest : public PlatformBrowserTest,
     ASSERT_EQ(handlers->size(), 1u);
     auto* handler = static_cast<PolicyUIHandler*>(handlers[0][0].get());
 
-    // Only wait if the feature is enabled AND locale is en-US AND not
-    // dismissed.
+    // Only wait if the locale is en-US AND not dismissed.
     const bool is_dismissed = browser()->profile()->GetPrefs()->GetBoolean(
         policy::policy_prefs::kHasDismissedPolicyPagePromotionBanner);
 
-    if (is_feature_enabled() &&
-        g_browser_process->GetApplicationLocale() == kValidLocale &&
+    if (g_browser_process->GetApplicationLocale() == kValidLocale &&
         !is_dismissed && !handler->HasPromotionBeenChecked()) {
       // Check if the promotion has already been checked before waiting for the
       // observer to avoid racing condition.
@@ -346,11 +351,7 @@ IN_PROC_BROWSER_TEST_P(PolicyUIManagedStatusTest,
                        kPromotionBannerVisibilityJavaScript)
                     .ExtractString();
 
-  if (is_feature_enabled()) {
-    EXPECT_EQ(result, kBannerVisible);
-  } else {
-    EXPECT_EQ(result, kBannerHidden);
-  }
+  EXPECT_EQ(result, kBannerVisible);
 }
 
 IN_PROC_BROWSER_TEST_P(PolicyUIManagedStatusTest,
@@ -418,9 +419,8 @@ IN_PROC_BROWSER_TEST_P(PolicyUIManagedStatusTest,
                                            GURL(chrome::kChromeUIPolicyURL)));
   SetupAndListenForPromotion();
 
-  const bool expected_bucket = is_feature_enabled() ? true : false;
   histogram_tester.ExpectBucketCount(
-      "Enterprise.PolicyPromotionBannerDisplayed", expected_bucket, 1);
+      "Enterprise.PolicyPromotionBannerDisplayed", true, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(PolicyUIManagedStatusTest, PageLoadedInGuestMode) {
@@ -442,4 +442,4 @@ IN_PROC_BROWSER_TEST_P(PolicyUIManagedStatusTest, PageLoadedInGuestMode) {
 
 INSTANTIATE_TEST_SUITE_P(PolicyManagedUITestInstance,
                          PolicyUIManagedStatusTest,
-                         ::testing::Values(false, true));
+                         testing::Bool());

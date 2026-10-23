@@ -59,8 +59,18 @@ class SkillsService : public KeyedService {
     kReady,
   };
 
+  // Behavior of the skill display in the UI.
+  enum class DisplayState {
+    // When the skill is temporarily deleted in the UI.
+    kDeleted,
+    // When the skill is reshown in the UI if it was previously deleted from the
+    // UI (e.g. when undo is pressed after a delete)
+    kReshown,
+  };
+
   // Map of id to skill.
   using SkillsMap = absl::flat_hash_map<std::string, skills::proto::Skill>;
+  using SkillObjectsMap = absl::flat_hash_map<std::string, Skill>;
 
   // Observer for the service notifications.
   class Observer : public base::CheckedObserver {
@@ -71,6 +81,14 @@ class SkillsService : public KeyedService {
     virtual void OnSkillUpdated(std::string_view skill_id,
                                 UpdateSource update_source,
                                 bool is_position_changed) {}
+
+    // Called whenever a skill should be removed from the UI or brought back to
+    // the UI via an undo.
+    // NOTE: This will not actually delete the skill from the service, it will
+    // just be hidden from the UI.
+    virtual void OnTemporarySkillDisplay(
+        std::string_view skill_id,
+        SkillsService::DisplayState display_state) {}
 
     // Called when the service status is changed.
     virtual void OnStatusChanged() {}
@@ -83,6 +101,11 @@ class SkillsService : public KeyedService {
     // Called when the service is shutting down. Observers should remove
     // themselves.
     virtual void OnSkillsServiceShuttingDown() {}
+
+    // Returns true if the observer is active. This helps the skills service
+    // determine if it needs to periodically refresh first party skills by
+    // fetching them from the server.
+    virtual bool Require1PSkillRefresh();
   };
 
   SkillsService();
@@ -150,6 +173,12 @@ class SkillsService : public KeyedService {
   // Unregisters an observer.
   virtual void RemoveObserver(Observer* observer) = 0;
 
+  // Refreshes the list of discovery skills.
+  // 1st party discovery skills need to be refreshed periodically, to ensure
+  // that any security updates are applied, and that users do not invoke a skill
+  // that has been taken down.
+  virtual void RefreshDiscoverySkills() = 0;
+
   // Calls downloader to fetch 1p skills which will return updated skills to
   // Handle1pSkillsMap. If there has been no modification since the last fetch
   // nullptr will be returned.
@@ -169,6 +198,18 @@ class SkillsService : public KeyedService {
   // Sets the service status for testing purposes. This is useful for testing in
   // browser tests where the sync server is not available.
   virtual void SetServiceStatusForTesting(ServiceStatus status) = 0;
+
+  // Called when a skill should be removed from the UI or brought back to the UI
+  // via an undo.
+  // NOTE: This will not actually delete the skill from the
+  // service, it will just be hidden from the UI.
+  virtual void NotifyTemporarySkillDisplayChanged(
+      std::string_view skill_id,
+      DisplayState display_state) = 0;
+
+  // Notify that a glic panel associated with the skills service is being
+  // opened.
+  virtual void NotifyPanelWillOpen() = 0;
 };
 
 }  // namespace skills

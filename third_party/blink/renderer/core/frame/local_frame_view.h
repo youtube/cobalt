@@ -39,14 +39,15 @@
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/viewport_intersection_state.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink-forward.h"
+#include "third_party/blink/renderer/core/ad_tracker/overlay_interstitial_ad_detector.h"
+#include "third_party/blink/renderer/core/ad_tracker/sticky_ad_detector.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/dom/document_resize_options.h"
 #include "third_party/blink/renderer/core/frame/frame_view.h"
 #include "third_party/blink/renderer/core/frame/layout_subtree_root_list.h"
 #include "third_party/blink/renderer/core/frame/local_frame_ukm_aggregator.h"
-#include "third_party/blink/renderer/core/frame/overlay_interstitial_ad_detector.h"
-#include "third_party/blink/renderer/core/frame/sticky_ad_detector.h"
 #include "third_party/blink/renderer/core/layout/hit_test_request.h"
 #include "third_party/blink/renderer/core/paint/layout_object_counter.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_request_forward.h"
@@ -887,6 +888,8 @@ class CORE_EXPORT LocalFrameView final
   // one element may affect layout of another element, which means that the main
   // thread needs to be involved during the animation.
   bool HasRunningAnchorTransformAnimation() const;
+
+  mojom::blink::WebFeature SvgFilterPaintedCounter() const override;
 
  protected:
   void FrameRectsChanged(const gfx::Rect&) override;

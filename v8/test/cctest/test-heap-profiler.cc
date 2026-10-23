@@ -59,6 +59,13 @@
 #include "src/wasm/wasm-module-builder.h"
 #endif
 
+#if defined(__clang__)
+#if __has_warning("-Wlifetime-safety-dangling-global")
+// TODO(crbug/482994758): Fix the violations.
+#pragma GCC diagnostic ignored "-Wlifetime-safety-dangling-global"
+#endif
+#endif
+
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
@@ -2204,13 +2211,13 @@ TEST(ContextNameSimple) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("Object (global*) / Native context name"),
+  CHECK_EQ(std::string("Object [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("Object (global) / Native context name"),
+  CHECK_EQ(std::string("Object [JSGlobalProxy] / Native context name"),
            std::string(GetName(global_proxy)));
 }
 
@@ -2241,13 +2248,13 @@ TEST(ContextName) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("MyGlobal (global) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalProxy] / Native context name"),
            std::string(GetName(global_proxy)));
 }
 
@@ -2280,13 +2287,13 @@ TEST(ContextNameDetached) {
 
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot, false);
   CHECK_NOT_NULL(global);
-  CHECK_EQ(std::string("MyGlobal (global*) / Native context name"),
+  CHECK_EQ(std::string("MyGlobal [JSGlobalObject] / Native context name"),
            std::string(GetName(global)));
 
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env.isolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK_NOT_NULL(global_proxy);
-  CHECK_EQ(std::string("Object (global) / <detached>"),
+  CHECK_EQ(std::string("Object [JSGlobalProxy] / <detached>"),
            std::string(GetName(global_proxy)));
 }
 
@@ -3069,7 +3076,7 @@ TEST(CheckCodeNames) {
   const char* builtin_path1[] = {
       "::(GC roots)",
       "::(Builtins)",
-      "::(KeyedLoadIC_PolymorphicName builtin code)",
+      "::system / Code / KeyedLoadIC_PolymorphicName (builtin)",
   };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env.isolate(), snapshot, builtin_path1, arraysize(builtin_path1));
@@ -3078,13 +3085,13 @@ TEST(CheckCodeNames) {
   const char* builtin_path2[] = {
       "::(GC roots)",
       "::(Builtins)",
-      "::(CompileLazy builtin code)",
+      "::system / Code / CompileLazy (builtin)",
   };
   node = GetNodeByPath(env.isolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env.isolate(), node->GetName());
-  CHECK_EQ(0, strcmp("(CompileLazy builtin code)", *node_name));
+  CHECK_EQ(0, strcmp("system / Code / CompileLazy (builtin)", *node_name));
 }
 
 
@@ -3579,7 +3586,7 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
       GetChildByName(embedder_root, "EmbedderNodeC");
   CHECK_EQ(30, GetSize(embedder_node_C));
   const v8::HeapGraphNode* global_reference =
-      GetChildByName(embedder_node_C, "Object (global*)");
+      GetChildByName(embedder_node_C, "Object [JSGlobalObject]");
   CHECK(global_reference);
 }
 
@@ -4320,6 +4327,82 @@ TEST(SamplingHeapProfilerLargeInterval) {
   auto node = FindAllocationProfileNode(env.isolate(), profile.get(),
                                         v8::base::ArrayVector(names));
   CHECK(node);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSampleWithoutGCFlags) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(1024);
+
+  // Allocate objects that will be retained
+  CompileRun(
+      "var retained = [];\n"
+      "for (var i = 0; i < 500; i++) retained.push(new Array(10));\n");
+
+  CompileRun("for (var i = 0; i < 500; i++) new Array(10);\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  const auto& samples = profile->GetSamples();
+  CHECK(!samples.empty());
+
+  for (const auto& sample : samples) {
+    CHECK(sample.is_live);
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerSampleIsLive) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env.isolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(
+      64, 16,
+      static_cast<v8::HeapProfiler::SamplingFlags>(
+          v8::HeapProfiler::kSamplingForceGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC));
+
+  // Allocate objects that will be retained
+  CompileRun(
+      "var retained = [];\n"
+      "for (var i = 0; i < 500; i++) retained.push(new Array(10));\n");
+
+  CompileRun("for (var i = 0; i < 500; i++) new Array(10);\n");
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  const auto& samples = profile->GetSamples();
+  CHECK(!samples.empty());
+
+  int live_samples = 0;
+  int dead_samples = 0;
+  for (const auto& sample : samples) {
+    if (sample.is_live) {
+      ++live_samples;
+    } else {
+      ++dead_samples;
+    }
+  }
+
+  // We expect both retained and collected allocations in this profile.
+  CHECK_GT(live_samples, 0);
+  CHECK_GT(dead_samples, 0);
 
   heap_profiler->StopSamplingHeapProfiler();
 }

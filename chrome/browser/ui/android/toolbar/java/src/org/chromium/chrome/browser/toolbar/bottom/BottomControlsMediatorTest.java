@@ -35,12 +35,14 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
@@ -99,6 +101,8 @@ public class BottomControlsMediatorTest {
             ObservableSuppliers.createNullable();
     private final SettableNonNullObservableSupplier<Boolean> mOverlayPanelVisibilitySupplier =
             ObservableSuppliers.createNonNull(false);
+    private final OneshotSupplierImpl<BottomControlsContentDelegate> mContentDelegateSupplier =
+            new OneshotSupplierImpl<>();
 
     private PropertyModel mModel;
     private BottomControlsMediator mMediator;
@@ -126,6 +130,8 @@ public class BottomControlsMediatorTest {
                         mBottomControlsStacker,
                         mBrowserControlsVisibilityDelegate,
                         mFullscreenManager,
+                        LayerType.TABSTRIP_TOOLBAR,
+                        mContentDelegateSupplier,
                         mTabObscuringHandler,
                         DEFAULT_HEIGHT,
                         DEFAULT_SHADOW_HEIGHT,
@@ -143,6 +149,8 @@ public class BottomControlsMediatorTest {
                         mBottomControlsStacker,
                         mBrowserControlsVisibilityDelegate,
                         mFullscreenManager,
+                        LayerType.TABSTRIP_TOOLBAR,
+                        mContentDelegateSupplier,
                         mTabObscuringHandler,
                         DEFAULT_HEIGHT,
                         DEFAULT_SHADOW_HEIGHT,
@@ -187,6 +195,8 @@ public class BottomControlsMediatorTest {
                         mBottomControlsStacker,
                         mBrowserControlsVisibilityDelegate,
                         mFullscreenManager,
+                        LayerType.TABSTRIP_TOOLBAR,
+                        mContentDelegateSupplier,
                         mTabObscuringHandler,
                         DEFAULT_HEIGHT,
                         DEFAULT_SHADOW_HEIGHT,
@@ -218,6 +228,8 @@ public class BottomControlsMediatorTest {
                 mBottomControlsStacker,
                 mBrowserControlsVisibilityDelegate,
                 mFullscreenManager,
+                LayerType.TABSTRIP_TOOLBAR,
+                mContentDelegateSupplier,
                 mTabObscuringHandler,
                 DEFAULT_HEIGHT,
                 DEFAULT_SHADOW_HEIGHT,

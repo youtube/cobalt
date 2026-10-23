@@ -34,7 +34,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="OSCrypt.AppBoundEncryption.SupportLevel"
-    enum="AppBoundEncryptionSupportLevel" expires_after="2026-07-05">
+    enum="AppBoundEncryptionSupportLevel" expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -56,7 +56,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundProvider.Decrypt.ResultLastError"
-    enum="WinGetLastError" expires_after="2026-07-05">
+    enum="WinGetLastError" expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -95,7 +95,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.AppBoundProvider.KeyRetrieval.Status"
-    enum="OSCryptAppBoundKeyRetrievalStatus" expires_after="2026-07-05">
+    enum="OSCryptAppBoundKeyRetrievalStatus" expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -176,7 +176,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.EncryptorKeyCount{EncryptorKeyType}" units="key count"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>chrome-platform-security-core@google.com</owner>
   <summary>
@@ -316,7 +316,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.Win.Decrypt.Result" enum="BooleanSuccess"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>nparker@chromium.org</owner>
   <summary>
@@ -370,123 +370,6 @@ chromium-metrics-reviews@google.com.
     the main key for the os_crypt library on Windows. This is recorded during
     the OSCrypt::Init each time the decryption fails. Note that this metric was
     not recorded between 2021-08 (M91) and 2024-07 (M128).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Image.DecodingTime" units="ms"
-    expires_after="2026-03-22">
-  <owner>lukasza@chromium.org</owner>
-  <owner>rsesek@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `data_decoder::DecodeImage` and/or
-    `data_decoder::DecodeImageIsolated`. Logs the time that has elapsed while
-    decoding the image (typically this happens in the Utility process). The time
-    is recorded in all the cases (including empty input which don't require
-    actual image decoding).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Image.Isolated.EndToEndTime" units="ms"
-    expires_after="2025-03-09">
-  <owner>lukasza@chromium.org</owner>
-  <owner>rsesek@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `data_decoder::DecodeImageIsolated`.
-    Logs the time that has elapsed between 1) invocation of DecodeImageIsolated
-    and 2) calling the completion callback (both of these events happen in the
-    Browser process). The elapsed time covers A) spawning the utility process,
-    B) decoding the image, C) IPC overhead.
-
-    Note that there are 2 sets of similar metrics:
-    Security.DataDecoder.Image.Isolated. and
-    Security.DataDecoder.Image.Reusable. In the Isolated case a Utility process
-    is spawned for each image decoding operation and the ...End2End and
-    ...ProcessOverhead metrics always include process spawning overhead. In the
-    Reusable case a Utility process may get reused when decoding a batch of
-    images, and the ...End2End and ...ProcessOverhead metrics may or may not
-    include process spawning overhead (the process will only need to be spawned
-    for the first image in a batch + after the process has been shut down due to
-    inactivity).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Image.Isolated.ProcessOverhead"
-    units="ms" expires_after="2025-03-09">
-  <owner>lukasza@chromium.org</owner>
-  <owner>rsesek@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `data_decoder::DecodeImageIsolated`.
-    Logs the overhead of using a separate process for decoding the images by
-    calculating the difference between ...Image.Isolated.EndToEndTime and the
-    ...Image.DecodingTime metrics.
-
-    Note that there are 2 sets of similar metrics:
-    Security.DataDecoder.Image.Isolated. and
-    Security.DataDecoder.Image.Reusable. In the Isolated case a Utility process
-    is spawned for each image decoding operation and the ...End2End and
-    ...ProcessOverhead metrics always include process spawning overhead. In the
-    Reusable case a Utility process may get reused when decoding a batch of
-    images, and the ...End2End and ...ProcessOverhead metrics may or may not
-    include process spawning overhead (the process will only need to be spawned
-    for the first image in a batch + after the process has been shut down due to
-    inactivity).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Image.Reusable.EndToEndTime" units="ms"
-    expires_after="2025-03-09">
-  <owner>lukasza@chromium.org</owner>
-  <owner>rsesek@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `data_decoder::DecodeImage`. Logs the
-    time that has elapsed between 1) invocation of DecodeImage and 2) calling
-    the completion callback (both of these events happen in the Browser
-    process). The elapsed time covers A) spawning the utility process (if
-    needed), B) decoding the image, C) IPC overhead.
-
-    Note that there are 2 sets of similar metrics:
-    Security.DataDecoder.Image.Isolated. and
-    Security.DataDecoder.Image.Reusable. In the Isolated case a Utility process
-    is spawned for each image decoding operation and the ...End2End and
-    ...ProcessOverhead metrics always include process spawning overhead. In the
-    Reusable case a Utility process may get reused when decoding a batch of
-    images, and the ...End2End and ...ProcessOverhead metrics may or may not
-    include process spawning overhead (the process will only need to be spawned
-    for the first image in a batch + after the process has been shut down due to
-    inactivity).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Image.Reusable.ProcessOverhead"
-    units="ms" expires_after="2025-03-09">
-  <owner>lukasza@chromium.org</owner>
-  <owner>rsesek@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `data_decoder::DecodeImage`. Logs the
-    overhead of using a separate process for decoding the images by calculating
-    the difference between ...Image.Reusable.EndToEndTime and the
-    ...Image.DecodingTime metrics.
-
-    Note that there are 2 sets of similar metrics:
-    Security.DataDecoder.Image.Isolated. and
-    Security.DataDecoder.Image.Reusable. In the Isolated case a Utility process
-    is spawned for each image decoding operation and the ...End2End and
-    ...ProcessOverhead metrics always include process spawning overhead. In the
-    Reusable case a Utility process may get reused when decoding a batch of
-    images, and the ...End2End and ...ProcessOverhead metrics may or may not
-    include process spawning overhead (the process will only need to be spawned
-    for the first image in a batch + after the process has been shut down due to
-    inactivity).
-  </summary>
-</histogram>
-
-<histogram name="Security.DataDecoder.Json.DecodingTime" units="ms"
-    expires_after="2026-01-11">
-  <owner>djmitche@chromium.org</owner>
-  <owner>dadrian@chromium.org</owner>
-  <summary>
-    Logged once for every invocation of `DataDecoder::ParseJson`. Logs the time
-    that has elapsed while decoding the input.
   </summary>
 </histogram>
 
@@ -648,7 +531,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.SettingEnabledAtStartup2"
-    enum="HttpsFirstModeSetting" expires_after="2026-07-05">
+    enum="HttpsFirstModeSetting" expires_after="2026-09-06">
   <owner>cthomp@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -660,7 +543,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Security.HttpsFirstModeWithEngagementHeuristic.AccumulatedHostCount"
-    units="hostnames" expires_after="2026-07-05">
+    units="hostnames" expires_after="2026-09-06">
   <owner>meacer@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -682,7 +565,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstModeWithEngagementHeuristic.HostCount"
-    units="hostnames" expires_after="2026-07-05">
+    units="hostnames" expires_after="2026-09-06">
   <owner>meacer@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -717,7 +600,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.NavigationRequestSecurityLevel"
-    enum="NavigationRequestSecurityLevel" expires_after="2026-07-05">
+    enum="NavigationRequestSecurityLevel" expires_after="2026-09-06">
   <owner>jdeblasio@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -743,7 +626,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.AboutThisSiteInteraction"
-    enum="AboutThisSiteInteraction" expires_after="2026-07-05">
+    enum="AboutThisSiteInteraction" expires_after="2026-09-06">
   <owner>dullweber@chromium.org</owner>
   <owner>olesiamarukhno@chromium.org</owner>
   <summary>
@@ -876,7 +759,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PrivateNetworkAccess.CheckResult"
-    enum="LocalNetworkAccessCheckResult" expires_after="2026-07-05">
+    enum="LocalNetworkAccessCheckResult" expires_after="2026-09-06">
   <owner>hchao@chromium.org</owner>
   <owner>clamy@chromium.org</owner>
   <owner>cthomp@chromium.org</owner>

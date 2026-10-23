@@ -121,6 +121,9 @@ class WTF_EXPORT String {
 
   // Takes a printf format and args and prints into a String.
   // This function supports Latin-1 characters only.
+  // PRECONDITIONS: `format` must be compatible with subsequent args.
+  // Ideally, this would be UNSAFE_BUFFER_USAGE but there are too many
+  // callers at present to investigate.
   [[nodiscard]] PRINTF_FORMAT(1, 2) static String
       Format(const char* format, ...);
 
@@ -213,9 +216,17 @@ class WTF_EXPORT String {
   // Returns the Unicode code point starting at the specified offset of this
   // string. If the offset points an unpaired surrogate, this function returns
   // 0.
-  UChar32 CharacterStartingAt(size_type) const;
+  UChar32 CodePointAtOrZero(size_type) const;
 
   // [string.modifiers] ---------------------------------------------
+
+  // Removes `len` code units starting at `pos` from this string.
+  // If `pos` is greater than the string length, it crashes.
+  // If `len` exceeds the length from `pos` to the end of the string, the
+  // part from `pos` to the end is removed.
+  //
+  // This function returns a reference to `this` string.
+  String& erase(size_type pos, size_type len = npos);
 
   String& replace(size_type index,
                   size_type length_to_replace,
@@ -260,9 +271,6 @@ class WTF_EXPORT String {
       impl_ = impl_->Fill(c);
     }
   }
-
-  void Truncate(size_type length);
-  void Remove(size_type start, size_type length = 1);
 
   // [string.operations] --------------------------------------------
 
@@ -497,15 +505,15 @@ class WTF_EXPORT String {
   // for U+212A is 'k'.
   // This function is rarely used to implement web platform features. See
   // crbug.com/627682.
-  // This function is deprecated. We should use LowerASCII() or CaseMap.
+  // This function is deprecated. We should use ToAsciiLower() or CaseMap.
   [[nodiscard]] String DeprecatedLower() const;
 
   // Returns a lowercase version of the string.
   // This function converts ASCII characters only.
-  [[nodiscard]] String LowerASCII() const;
+  [[nodiscard]] String ToAsciiLower() const;
   // Returns a uppercase version of the string.
   // This function converts ASCII characters only.
-  [[nodiscard]] String UpperASCII() const;
+  [[nodiscard]] String ToAsciiUpper() const;
 
   // Returns the length of the string after stripping white spaces.
   // This is equivalent (minus the allocation overhead) of doing:
@@ -630,13 +638,6 @@ WTF_EXPORT int CodeUnitCompare(const String&, const String&);
 
 inline bool CodeUnitCompareLessThan(const String& a, const String& b) {
   return CodeUnitCompare(a.Impl(), b.Impl()) < 0;
-}
-
-WTF_EXPORT int CodeUnitCompareIgnoringASCIICase(const String&, const char*);
-
-inline bool CodeUnitCompareIgnoringASCIICaseLessThan(const String& a,
-                                                     const String& b) {
-  return CodeUnitCompareIgnoringASCIICase(a.Impl(), b.Impl()) < 0;
 }
 
 template <bool isSpecialCharacter(UChar)>

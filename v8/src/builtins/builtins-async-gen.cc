@@ -104,7 +104,24 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
     GotoIf(TaggedIsSmi(value), &if_non_thenable_fast_path);
     TNode<HeapObject> value_heap_object = CAST(value);
     TNode<Map> value_map = LoadMap(value_heap_object);
-    Branch(IsJSReceiverMap(value_map), &if_thenable_slow_path,
+    GotoIfNot(IsJSReceiverMap(value_map), &if_non_thenable_fast_path);
+
+    // "then" is an interesting property, so the map's
+    // may_have_interesting_properties bit tells us whether the object could
+    // have a "then" own property. When the bit is not set, we know:
+    // - No named interceptors (cuts off proxies, API objects)
+    // - Not a dictionary-mode object
+    // - No access checks needed
+    // - No "then" in own descriptors
+    // We still need to verify the prototype chain doesn't have "then".
+    TNode<Uint32T> bit_field3 = LoadMapBitField3(value_map);
+    GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(bit_field3),
+           &if_thenable_slow_path);
+    TNode<Object> object_prototype = LoadContextElementNoCell(
+        native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), object_prototype),
+              &if_thenable_slow_path);
+    Branch(IsPromiseThenProtectorCellInvalid(), &if_thenable_slow_path,
            &if_non_thenable_fast_path);
   }
 
@@ -208,6 +225,39 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
   }
   BIND(&if_instrumentation_done);
 
+  // Fast-path: if outer promise hooks are disabled, and value is a fulfilled
+  // JSPromise, we can skip PerformPromiseThen and directly enqueue a Fulfill
+  // reaction job.
+  Label if_perform_promise_then(this);
+  GotoIfNot(IsUndefined(var_throwaway.value()), &if_perform_promise_then);
+  {
+    TNode<JSPromise> js_promise = CAST(value);
+    TNode<Int32T> promise_flags =
+        SmiToInt32(LoadObjectField<Smi>(js_promise, JSPromise::kFlagsOffset));
+
+    TNode<Int32T> status =
+        Word32And(promise_flags, Int32Constant(JSPromise::StatusBits::kMask));
+    GotoIfNot(Word32Equal(status, Int32Constant(v8::Promise::kFulfilled)),
+              &if_perform_promise_then);
+
+    // Mark the promise as handled.
+    TNode<Int32T> new_flags =
+        Word32Or(promise_flags, Int32Constant(JSPromise::HasHandlerBit::kMask));
+    StoreObjectFieldNoWriteBarrier(js_promise, JSPromise::kFlagsOffset,
+                                   SmiFromInt32(new_flags));
+
+    // Extract the fulfilled value.
+    TNode<Object> fulfilled_value =
+        LoadObjectField(js_promise, JSPromise::kReactionsOrResultOffset);
+
+    // Enqueue the reaction job natively.
+    CallBuiltin(Builtin::kAsyncAwaitNonThenableFastPath, native_context,
+                fulfilled_value, on_resolve, UndefinedConstant());
+    var_result = UndefinedConstant();
+    Goto(&done);
+  }
+
+  BIND(&if_perform_promise_then);
   var_result = CallBuiltin(Builtin::kPerformPromiseThen, native_context, value,
                            on_resolve, on_reject, var_throwaway.value());
   Goto(&done);

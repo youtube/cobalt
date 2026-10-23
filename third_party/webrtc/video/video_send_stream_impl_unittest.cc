@@ -207,7 +207,9 @@ class VideoSendStreamImplTest : public ::testing::Test {
         /*metronome=*/nullptr, &bitrate_allocator_, &send_delay_stats_,
         config_.Copy(), std::move(encoder_config), suspended_ssrcs,
         suspended_payload_states,
-        /*fec_controller=*/nullptr, std::move(video_stream_encoder));
+        /*fec_controller=*/nullptr,
+        /*encoder_switch_request_callback=*/nullptr,
+        std::move(video_stream_encoder));
 
     // The call to GetStartBitrate() executes asynchronously on the tq.
     // Ensure all tasks get to run.

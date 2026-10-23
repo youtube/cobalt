@@ -320,6 +320,15 @@ HEADLESS_MODE_PROTOCOL_TEST(FullscreenWindowSizeScaled,
                             "shared/fullscreen-window-size-scaled.js")
 #endif  // !BUILDFLAG(IS_MAC)
 
+// TODO(http://crbug.com/491505696): Fails on macOS.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SetZoomedWindowBounds DISABLED_SetZoomedWindowBounds
+#else
+#define MAYBE_SetZoomedWindowBounds SetZoomedWindowBounds
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_SetZoomedWindowBounds,
+                            "shared/set-zoomed-window-bounds.js")
+
 HEADLESS_MODE_PROTOCOL_TEST(PrintToPdfTinyPage,
                             "shared/print-to-pdf-tiny-page.js")
 
@@ -483,8 +492,6 @@ HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
 
 HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
 
-// Emulation.UpdateScreen is not yet supported on Windows.
-#if !BUILDFLAG(IS_WIN)
 HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenBounds,
                             "shared/update-screen-bounds.js")
 
@@ -507,25 +514,13 @@ HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenLabel, "shared/update-screen-label.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenIsInternal,
                             "shared/update-screen-is-internal.js")
-#endif
 
-// Emulation.SetPrimaryScreen is not yet supported on Windows.
-#if !BUILDFLAG(IS_WIN)
 HEADLESS_MODE_PROTOCOL_TEST(SetPrimaryScreen, "shared/set-primary-screen.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(SetPrimaryScreenScaled,
                             "shared/set-primary-screen-scaled.js")
-#endif
 
 HEADLESS_MODE_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
                             "shared/range-mouse-event-after-node-removal.js")
 
-// TODO(crbug.com/423951863): Fails on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_SetZoomedWindowBounds DISABLED_SetZoomedWindowBounds
-#else
-#define MAYBE_SetZoomedWindowBounds SetZoomedWindowBounds
-#endif
-HEADLESS_MODE_PROTOCOL_TEST(MAYBE_SetZoomedWindowBounds,
-                            "shared/set-zoomed-window-bounds.js")
 }  // namespace headless

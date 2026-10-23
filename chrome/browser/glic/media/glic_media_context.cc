@@ -240,19 +240,6 @@ void GlicMediaContext::TrimTranscript(Transcript* transcript) {
   }
 }
 
-std::string GlicMediaContext::GetContext() const {
-  const Transcript* transcript = GetTranscriptIfExists();
-  if (!transcript) {
-    return "";
-  }
-
-  std::vector<std::string_view> pieces;
-  for (const auto& chunk : transcript->transcript_chunks_) {
-    pieces.push_back(chunk.text);
-  }
-  return base::JoinString(pieces, "");
-}
-
 std::list<GlicMediaContext::TranscriptChunk>
 GlicMediaContext::GetTranscriptChunks() const {
   const Transcript* transcript = GetTranscriptIfExists();
@@ -261,6 +248,13 @@ GlicMediaContext::GetTranscriptChunks() const {
     return {};
   }
   return transcript->transcript_chunks_;
+}
+
+bool GlicMediaContext::HasTranscriptChunks() const {
+  const Transcript* transcript = GetTranscriptIfExists();
+  // We don't have transcripts if we don't have any final chunk.
+  return transcript && transcript->next_sequence_number_ > 0 &&
+         !transcript->transcript_chunks_.empty();
 }
 
 void GlicMediaContext::OnPeerConnectionAdded() {

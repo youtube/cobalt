@@ -36,7 +36,6 @@
 #include "api/test/rtc_error_matchers.h"
 #include "api/units/data_rate.h"
 #include "api/video/render_resolution.h"
-#include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
@@ -2138,11 +2137,10 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan,
   worker_thread->BlockingCall([&] {
     // Simulate VideoStreamEncoder calling RequestEncoderSwitch after getting
     // the format from the EncoderSelector.
-    auto* switch_callback = static_cast<webrtc::EncoderSwitchRequestCallback*>(
-        static_cast<webrtc::WebRtcVideoSendChannel*>(
-            media_channel->AsVideoSendChannel()));
-    switch_callback->RequestEncoderSwitch(format_to_switch_to,
-                                          /*allow_default_fallback=*/false);
+    auto* video_send_channel = static_cast<webrtc::WebRtcVideoSendChannel*>(
+        media_channel->AsVideoSendChannel());
+    video_send_channel->RequestEncoderSwitch(std::move(format_to_switch_to),
+                                             /*allow_default_fallback=*/false);
   });
 
   // Allow the signaling thread to process the cache invalidation task posted
@@ -2186,15 +2184,13 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan, SendParamsCorrectWhenEncoderFallback) {
 
   worker_thread->BlockingCall([&] {
     // Simulate an encoder fallback on the worker thread.
-    auto* fallback_callback =
-        static_cast<webrtc::EncoderSwitchRequestCallback*>(
-            static_cast<webrtc::WebRtcVideoSendChannel*>(
-                media_channel->AsVideoSendChannel()));
-    fallback_callback->RequestEncoderFallback();
+    auto* video_send_channel = static_cast<webrtc::WebRtcVideoSendChannel*>(
+        media_channel->AsVideoSendChannel());
+    video_send_channel->RequestEncoderSwitch(std::nullopt, true);
   });
 
   // Allow the signaling thread to process the cache invalidation task posted
-  // by RequestEncoderFallback.
+  // by RequestEncoderSwitch(std::nullopt, true).
   run_loop_.Flush();
 
   // Call GetParameters. This triggers an internal consistency check in the

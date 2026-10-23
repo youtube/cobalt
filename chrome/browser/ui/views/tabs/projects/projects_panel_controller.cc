@@ -202,6 +202,8 @@ void ProjectsPanelController::OnContextualTasksServiceInitialized() {
           }
         }
 
+        weak_this->SortThreads();
+
         for (auto& observer : weak_this->observers_) {
           observer.OnThreadsInitialized(weak_this->threads_);
         }
@@ -209,41 +211,65 @@ void ProjectsPanelController::OnContextualTasksServiceInitialized() {
       weak_ptr_factory_.GetWeakPtr()));
 }
 
-void ProjectsPanelController::OnGotThreadUrlForResumption(GURL thread_url) {
-  // Look across all browser windows, in activation order, for a tab with the
-  // thread URL.
-  BrowserWindowInterface* browser_with_thread_tab = nullptr;
-  std::optional<int> thread_tab_index_in_browser;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser_window) {
-        if (browser_window->GetProfile() != browser_->GetProfile()) {
-          return true;
-        }
-
-        auto* tab_strip_model = browser_window->GetTabStripModel();
-        if (!tab_strip_model) {
-          return true;
-        }
-
-        for (int i = 0; i < tab_strip_model->count(); ++i) {
-          auto* web_contents = tab_strip_model->GetWebContentsAt(i);
-          if (web_contents->GetLastCommittedURL().EqualsIgnoringRef(
-                  thread_url)) {
-            browser_with_thread_tab = browser_window;
-            thread_tab_index_in_browser = i;
-            return false;
-          }
-        }
-        return true;
-      });
-
-  if (browser_with_thread_tab && thread_tab_index_in_browser.has_value()) {
-    browser_with_thread_tab->GetTabStripModel()->ActivateTabAt(
-        thread_tab_index_in_browser.value());
-    browser_with_thread_tab->GetWindow()->Activate();
+void ProjectsPanelController::OnTaskAdded(
+    const contextual_tasks::ContextualTask& task,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  if (!task.GetThread().has_value()) {
     return;
   }
 
-  // If no tab exists for the thread, create a new one.
+  const contextual_tasks::Thread thread = task.GetThread().value();
+  threads_.insert(threads_.begin(), thread);
+  thread_server_id_to_task_id_.emplace(thread.server_id, task.GetTaskId());
+
+  SortThreads();
+}
+
+void ProjectsPanelController::OnTaskUpdated(
+    const contextual_tasks::ContextualTask& task,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  std::optional<contextual_tasks::Thread> thread = task.GetThread();
+  if (!thread.has_value()) {
+    return;
+  }
+
+  auto existing_thread = std::ranges::find(
+      threads_, thread->server_id, &contextual_tasks::Thread::server_id);
+  if (existing_thread == threads_.end()) {
+    OnTaskAdded(task, source);
+    return;
+  }
+  *existing_thread = thread.value();
+
+  SortThreads();
+}
+
+void ProjectsPanelController::OnTaskRemoved(
+    const base::Uuid& task_id,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  auto it = std::ranges::find_if(
+      thread_server_id_to_task_id_,
+      [&](const auto& pair) { return pair.second == task_id; });
+  if (it == thread_server_id_to_task_id_.end()) {
+    return;
+  }
+
+  const std::string server_id = it->first;
+  thread_server_id_to_task_id_.erase(it);
+
+  std::erase_if(threads_, [&](const contextual_tasks::Thread& thread) {
+    return thread.server_id == server_id;
+  });
+}
+
+void ProjectsPanelController::SortThreads() {
+  std::ranges::sort(threads_, std::ranges::greater(),
+                    &contextual_tasks::Thread::last_turn_time);
+}
+
+void ProjectsPanelController::OnGotThreadUrlForResumption(GURL thread_url) {
+  // TODO(crbug.com/491192199): Open threads in either the side panel or full
+  // tab depending on where the last turn was taken. For now, always open the
+  // thread in a new tab.
   browser_->OpenGURL(thread_url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
 }

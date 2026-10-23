@@ -202,13 +202,10 @@ class SingleClientValuablesSyncTest
       public testing::WithParamInterface<SyncTest::SetupSyncMode> {
  public:
   SingleClientValuablesSyncTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        autofill::features::kAutofillEnableLoyaltyCardsFilling,
-        syncer::kSyncAutofillLoyaltyCard};
     if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
-      enabled_features.push_back(syncer::kReplaceSyncPromosWithSignInPromos);
+      feature_list_.InitAndEnableFeature(
+          syncer::kReplaceSyncPromosWithSignInPromos);
     }
-    feature_list_.InitWithFeatures(enabled_features, {});
   }
 
   ~SingleClientValuablesSyncTest() override = default;
@@ -337,7 +334,7 @@ class SingleClientEntityValuablesSyncTest
  public:
   SingleClientEntityValuablesSyncTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
-        syncer::kSyncAutofillLoyaltyCard, syncer::kSyncWalletFlightReservations,
+        syncer::kSyncWalletFlightReservations,
         syncer::kSyncWalletVehicleRegistrations};
     if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
       enabled_features.push_back(syncer::kReplaceSyncPromosWithSignInPromos);

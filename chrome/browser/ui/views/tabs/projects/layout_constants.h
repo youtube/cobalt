@@ -49,6 +49,15 @@ inline constexpr auto kTabGroupIconMargins = gfx::Insets(6);
 // Margins for the lists separator.
 inline constexpr gfx::Insets kListsSeparatorMargins = gfx::Insets::VH(12, 20);
 
+// Maximum number of recent threads displayed in the UI.
+// This value affects how the `Projects.ProjectsPanel.Threads.CountOnPanelOpen`
+// histogram is recorded. If it needs to be changed, audit its uses and rename
+// any affected histograms.
+inline constexpr size_t kMaxNumberOfRecentThreads = 300;
+
+// Number of threads visible when the threads section when collapsed.
+inline constexpr int kNumThreadsVisibleWhenCollapsed = 3;
+
 // Minimum width of the projects panel.
 inline constexpr int kProjectsPanelMinWidth = 240;
 
@@ -59,6 +68,16 @@ inline constexpr ui::ColorId kProjectsPanelBackgroundColor =
 // Interior margins for the panel.
 inline constexpr gfx::Insets kProjectsPanelRegionInteriorMargins =
     gfx::Insets::VH(12, 12);
+
+// Insets for an item's trailing icon.
+inline constexpr gfx::Insets kTrailingIconMargins =
+    gfx::Insets::TLBR(3,
+                      3 + projects_panel::kListItemSpacingBetweenChildren,
+                      3,
+                      3);
+
+// Height and width of an item's trailing icon.
+inline constexpr int kTrailingIconSize = 18;
 
 }  // namespace projects_panel
 
