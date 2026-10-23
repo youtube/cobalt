@@ -9,58 +9,35 @@ import json
 from pathlib import Path
 import subprocess
 
-_INFRA_PREFIXES = ('.github/', '.gn', 'DEPS', 'build/', 'testing/',
-                   'docker-compose.yaml', 'cobalt/build/', 'cobalt/docker/',
-                   'cobalt/tools/', 'starboard/build/')
-
-
-def _resolve_labels(all_labels: set[str], raw_targets: list[str]) -> list[str]:
-  resolved = set()
-  for target in raw_targets:
-    if not target or target == 'null':
-      continue
-    label = target if target.startswith('//') else f'//{target}'
-    matched = [
-        l for l in all_labels if l.split('(')[0] == label or
-        (':' not in target and l.split('(')[0].endswith(f':{target}'))
-    ]
-    if not matched:
-      raise ValueError(f'Cannot resolve target label: {target}')
-    resolved.update(matched)
-  return sorted(resolved)
-
-
-def should_skip_from_deps(deps_file: str, files: list[str]) -> bool:
-  if not files or any(f.startswith(_INFRA_PREFIXES) for f in files):
-    return False
-  raw_deps = json.loads(Path(deps_file).read_text(encoding='utf-8'))
-  if isinstance(raw_deps, dict):
-    deps = {f for flist in raw_deps.values() for f in flist}
-  elif isinstance(raw_deps, list):
-    deps = set(raw_deps)
-  else:
-    raise ValueError(
-        f'Unexpected deps format in {deps_file}: expected list or dict')
-
-  normalized_deps = {d[2:] if d.startswith('//') else d for d in deps}
-  for f in files:
-    norm_f = f[2:] if f.startswith('//') else f
-    if norm_f in normalized_deps:
-      return False
-  return True
+_INFRA_PREFIXES = (
+    '.github/',
+    '.gn',
+    'DEPS',
+    'build/',
+    'build_overrides/',
+    'testing/',
+    'docker-compose.yaml',
+    'cobalt/build/',
+    'cobalt/docker/',
+    'cobalt/tools/',
+    'starboard/build/',
+)
 
 
 def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
   if not files or any(f.startswith(_INFRA_PREFIXES) for f in files):
     return False
-  all_labels = set(
-      subprocess.check_output(['gn', 'ls', out_dir], text=True).splitlines())
+  clean_targets = [
+      t if t.startswith('//') else f'//{t}'
+      for t in targets
+      if t and t != 'null'
+  ]
   in_file = Path(out_dir) / 'analyze_in.json'
   out_file = Path(out_dir) / 'analyze_out.json'
   in_file.write_text(
       json.dumps({
-          'files': [f'//{f}' for f in files],
-          'additional_compile_targets': _resolve_labels(all_labels, targets),
+          'files': [f if f.startswith('//') else f'//{f}' for f in files],
+          'additional_compile_targets': clean_targets,
           'test_targets': [],
       }),
       encoding='utf-8')
@@ -74,22 +51,16 @@ def should_skip(out_dir: str, files: list[str], targets: list[str]) -> bool:
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      '--out-dir', help='Path to GN output directory for live gn analyze.')
-  parser.add_argument(
-      '--deps-file',
-      help='Path to precomputed target dependencies JSON (e.g. tvos on Linux).')
+      '--out-dir',
+      required=True,
+      help='Path to GN output directory for live gn analyze.')
   parser.add_argument('--changed-files', required=True)
   parser.add_argument('--targets', default='[]')
   args = parser.parse_args()
-  if not args.out_dir and not args.deps_file:
-    parser.error('Either --out-dir or --deps-file must be specified.')
 
   files = Path(args.changed_files).read_text(encoding='utf-8').split()
-  if args.deps_file:
-    skip = should_skip_from_deps(args.deps_file, files)
-  else:
-    targets = json.loads(args.targets)
-    skip = should_skip(args.out_dir, files, targets)
+  targets = json.loads(args.targets)
+  skip = should_skip(args.out_dir, files, targets)
   print('true' if skip else 'false')
 
 

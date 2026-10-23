@@ -5,9 +5,9 @@
 """Unit tests for filter_platform.py."""
 
 import json
+from pathlib import Path
 import tempfile
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from cobalt.build import filter_platform
@@ -19,6 +19,7 @@ class FilterPlatformTest(unittest.TestCase):
     infra_files = [
         '.github/workflows/main.yaml',
         'build/config/BUILD.gn',
+        'build_overrides/build.gni',
         'DEPS',
         'cobalt/build/gn.py',
     ]
@@ -26,55 +27,12 @@ class FilterPlatformTest(unittest.TestCase):
       with self.subTest(infra_file=infra_file):
         self.assertFalse(
             filter_platform.should_skip('out/dummy', [infra_file], ['cobalt']))
-        with tempfile.NamedTemporaryFile('w', encoding='utf-8') as f:
-          json.dump(['some/unrelated/file.cc'], f)
-          f.flush()
-          self.assertFalse(
-              filter_platform.should_skip_from_deps(f.name, [infra_file]))
 
   def test_empty_files_never_skipped(self):
     self.assertFalse(filter_platform.should_skip('out/dummy', [], ['cobalt']))
-    with tempfile.NamedTemporaryFile('w', encoding='utf-8') as f:
-      json.dump(['some/file.cc'], f)
-      f.flush()
-      self.assertFalse(filter_platform.should_skip_from_deps(f.name, []))
-
-  def test_should_skip_from_deps_list(self):
-    with tempfile.NamedTemporaryFile('w', encoding='utf-8') as f:
-      json.dump(['//cobalt/browser/main.cc', 'starboard/common/log.cc'], f)
-      f.flush()
-      # Unrelated file -> should skip
-      self.assertTrue(
-          filter_platform.should_skip_from_deps(
-              f.name, ['starboard/android/shared/audio.cc']))
-      # Matching file -> should not skip
-      self.assertFalse(
-          filter_platform.should_skip_from_deps(f.name,
-                                                ['cobalt/browser/main.cc']))
-      # Leading // match -> should not skip
-      self.assertFalse(
-          filter_platform.should_skip_from_deps(f.name,
-                                                ['//starboard/common/log.cc']))
-
-  def test_should_skip_from_deps_dict(self):
-    with tempfile.NamedTemporaryFile('w', encoding='utf-8') as f:
-      json.dump(
-          {
-              'target1': ['cobalt/browser/main.cc'],
-              'target2': ['//starboard/tvos/player.mm']
-          }, f)
-      f.flush()
-      self.assertTrue(
-          filter_platform.should_skip_from_deps(
-              f.name, ['cobalt/android/apk/app.java']))
-      self.assertFalse(
-          filter_platform.should_skip_from_deps(f.name,
-                                                ['starboard/tvos/player.mm']))
 
   @mock.patch('subprocess.check_call')
-  @mock.patch('subprocess.check_output')
-  def test_should_skip_gn_analyze_no_dependency(self, mock_output, mock_call):
-    mock_output.return_value = '//cobalt:cobalt\n//starboard:nplb\n'
+  def test_should_skip_gn_analyze_no_dependency(self, mock_call):
     with tempfile.TemporaryDirectory() as tmp_dir:
       out_dir = Path(tmp_dir)
 
@@ -90,10 +48,7 @@ class FilterPlatformTest(unittest.TestCase):
               str(out_dir), ['starboard/android/audio.cc'], ['cobalt']))
 
   @mock.patch('subprocess.check_call')
-  @mock.patch('subprocess.check_output')
-  def test_should_skip_gn_analyze_found_dependency(self, mock_output,
-                                                   mock_call):
-    mock_output.return_value = '//cobalt:cobalt\n//starboard:nplb\n'
+  def test_should_skip_gn_analyze_found_dependency(self, mock_call):
     with tempfile.TemporaryDirectory() as tmp_dir:
       out_dir = Path(tmp_dir)
 
@@ -105,26 +60,42 @@ class FilterPlatformTest(unittest.TestCase):
       mock_call.side_effect = fake_analyze
       self.assertFalse(
           filter_platform.should_skip(
-              str(out_dir), ['cobalt/browser/main.cc'], ['cobalt']))
+              str(out_dir), ['cobalt/browser/main.cc'], ['//cobalt:cobalt']))
 
-  def test_resolve_labels(self):
-    # pylint: disable=protected-access
-    all_labels = {
-        '//cobalt:cobalt',
-        '//cobalt:gn_all(//build/toolchain/linux:clang_x64)',
-        '//starboard:nplb',
-    }
-    self.assertEqual(
-        filter_platform._resolve_labels(all_labels, ['//cobalt:cobalt']),
-        ['//cobalt:cobalt'])
-    self.assertEqual(
-        filter_platform._resolve_labels(all_labels, ['cobalt:gn_all']),
-        ['//cobalt:gn_all(//build/toolchain/linux:clang_x64)'])
-    self.assertEqual(
-        filter_platform._resolve_labels(all_labels, ['nplb']),
-        ['//starboard:nplb'])
-    with self.assertRaises(ValueError):
-      filter_platform._resolve_labels(all_labels, ['nonexistent'])
+  @mock.patch('subprocess.check_call')
+  def test_target_formatting(self, mock_call):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      out_dir = Path(tmp_dir)
+
+      def fake_analyze(cmd):
+        out_json = Path(cmd[4])
+        out_json.write_text(
+            json.dumps({'status': 'No dependency'}), encoding='utf-8')
+
+      mock_call.side_effect = fake_analyze
+      filter_platform.should_skip(
+          str(out_dir), ['some/file.cc'],
+          ['cobalt:gn_all', '//starboard:nplb', '', 'null'])
+      in_json = json.loads(
+          (out_dir / 'analyze_in.json').read_text(encoding='utf-8'))
+      self.assertEqual(in_json['additional_compile_targets'],
+                       ['//cobalt:gn_all', '//starboard:nplb'])
+      self.assertEqual(in_json['files'], ['//some/file.cc'])
+
+  @mock.patch('subprocess.check_call')
+  def test_gn_analyze_error_raises(self, mock_call):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      out_dir = Path(tmp_dir)
+
+      def fake_analyze(cmd):
+        out_json = Path(cmd[4])
+        out_json.write_text(
+            json.dumps({'error': 'Target not found'}), encoding='utf-8')
+
+      mock_call.side_effect = fake_analyze
+      with self.assertRaises(RuntimeError):
+        filter_platform.should_skip(
+            str(out_dir), ['some/file.cc'], ['//cobalt'])
 
 
 if __name__ == '__main__':
