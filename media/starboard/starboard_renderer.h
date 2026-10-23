@@ -195,7 +195,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void UpdateAudioWriteDuration();
+  void StartOrDeferPlayerBridgeCreation();
   void CreatePlayerBridge();
+  void OnRevealResume();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
@@ -337,6 +339,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_dropped_ = 0;
 
   SbWindow sb_window_ = kSbWindowInvalid;
+  bool init_deferred_for_conceal_ = false;
+  size_t pending_sb_window_handle_callbacks_ = 0;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc
