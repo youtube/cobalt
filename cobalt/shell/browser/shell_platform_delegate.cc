@@ -23,13 +23,13 @@
 #include "content/public/browser/gpu_utils.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/media_player_utils.h"
+#include "content/public/browser/media_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "media/starboard/starboard_renderer.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -167,7 +167,7 @@ void ShellPlatformDelegate::OnConceal() {
     // SbPlayers are released while concealed (b/568868974). As in Chrome
     // Android's SuspendedTab, the page is hidden before its players are
     // suspended. The suspend completes asynchronously; the media barrier
-    // (StarboardRenderer::FlushAndSuspendActiveRenderers()) force-suspends any
+    // (FlushAndSuspendMediaServiceOnUI()) force-suspends any
     // StarboardRenderer that is still alive before the window is destroyed.
     // Players resume when the page is shown again.
     content::SuspendAllMediaPlayers(shell->web_contents());
@@ -178,7 +178,7 @@ void ShellPlatformDelegate::OnConceal() {
     // Ensure all StarboardRenderers have flushed and destroyed their SbPlayer
     // instances before ConcealShell destroys the SbWindow and
     // CleanupGpuProcessOnUI terminates the EGLDisplay.
-    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+    content::FlushAndSuspendMediaServiceOnUI(
         base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
                        weak_factory_.GetWeakPtr(), nullptr));
     return;
@@ -196,9 +196,9 @@ void ShellPlatformDelegate::OnReveal() {
   }
   weak_factory_.InvalidateWeakPtrs();
   content::RestoreGpuProcessOnUI();
-  // Clear the concealed state in StarboardRenderer so subsequent playback or
+  // Clear the concealed state in the MediaService so subsequent playback or
   // pipeline resume requests can create new SbPlayer instances.
-  media::StarboardRenderer::ResumeActiveRenderers();
+  content::ResumeMediaServiceOnUI();
   pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
@@ -382,10 +382,10 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
 
     base::WeakPtr<content::WebContents> wc_weak =
         web_contents ? web_contents->GetWeakPtr() : nullptr;
-    // Wait for StarboardRenderer to flush and destroy any remaining SbPlayer
+    // Wait for the MediaService to flush and destroy any remaining SbPlayer
     // instances before unmapping the platform window (SbWindowDestroy) and
     // tearing down GPU/EGL resources.
-    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+    content::FlushAndSuspendMediaServiceOnUI(
         base::BindOnce(&ShellPlatformDelegate::CompleteConcealAfterMediaBarrier,
                        weak_factory_.GetWeakPtr(), wc_weak));
   }

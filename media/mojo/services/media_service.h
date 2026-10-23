@@ -38,6 +38,11 @@ class MEDIA_MOJO_EXPORT MediaService final : public mojom::MediaService {
   void CreateInterfaceFactory(
       mojo::PendingReceiver<mojom::InterfaceFactory> receiver,
       mojo::PendingRemote<mojom::FrameInterfaceFactory> frame_interfaces) final;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  void FlushAndSuspendActiveRenderers(
+      FlushAndSuspendActiveRenderersCallback callback) final;
+  void ResumeActiveRenderers() final;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
   mojo::Receiver<mojom::MediaService> receiver_;
 

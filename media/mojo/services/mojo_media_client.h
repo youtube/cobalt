@@ -136,6 +136,11 @@ class MEDIA_MOJO_EXPORT MojoMediaClient {
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote);
+
+#if BUILDFLAG(IS_COBALT)
+  virtual void FlushAndSuspendActiveRenderers(base::OnceClosure done_cb);
+  virtual void ResumeActiveRenderers();
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns the CdmFactory to be used by MojoCdmService. |frame_interfaces|
