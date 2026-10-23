@@ -18,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "base/time/time.h"
@@ -47,11 +48,19 @@ class SplashScreenMetrics {
     // Shell started loading the splash screen.
     kSplashStart,
     // The splash screen finished loading. The minimum splash screen duration
-    // starts here or, for a video, when it starts playing, within 2s.
+    // starts when its content shows instead, within
+    // kSplashScreenContentWaitMaxDelay (2s by default) of this: for an image,
+    // at kSplashFirstContentfulPaint, and for a video, at kSplashVideoStarted.
     kSplashLoaded,
-    // The splash screen's first visually non-empty paint. For the image splash
-    // screen, this is when the image is shown.
+    // The splash screen's first visually non-empty paint. That may be its
+    // background alone, as Blink counts a page as visually non-empty once it
+    // has finished parsing.
     kSplashFirstPaint,
+    // The splash screen's first contentful paint. If its page shows its image
+    // (see OnSplashScreenShowsImage()), this is when the image is shown.
+    // Otherwise, it's the paint of its video element, which counts as
+    // contentful before the video's first frame.
+    kSplashFirstContentfulPaint,
     // The splash screen video started playing.
     kSplashVideoStarted,
     // The splash screen video reached its end.
@@ -89,6 +98,31 @@ class SplashScreenMetrics {
     kMaxValue = kMainLoaded,
   };
 
+  // What the minimum splash screen duration waits for before it starts.
+  enum class SplashContent {
+    // Its image to be painted.
+    kImage,
+    // Its video to start playing.
+    kVideo,
+  };
+
+  // How the minimum splash screen duration's wait for the splash screen
+  // content ended. These values are persisted to logs. Entries should not be
+  // renumbered and numeric values should never be reused. Keep in sync with
+  // CobaltSplashScreenContentWaitResult in
+  // tools/metrics/histograms/metadata/cobalt/enums.xml.
+  enum class ContentWaitResult {
+    // The content showed within kSplashScreenContentWaitMaxDelay of the page
+    // of the splash screen loading.
+    kContentShown = 0,
+    // It didn't, so the minimum duration started anyway.
+    kTimedOut = 1,
+    // Cobalt switched to the main WebContents before either, e.g., because the
+    // splash screen closed itself when it couldn't show its image.
+    kSwitchedBeforeContent = 2,
+    kMaxValue = kSwitchedBeforeContent,
+  };
+
   // Sets the start of the launch, which the timeline histograms are measured
   // from. Only the first call has an effect.
   static void SetAppStartTime(base::TimeTicks start_time);
@@ -109,6 +143,18 @@ class SplashScreenMetrics {
   // Marks that `event` happened now. Only the first occurrence counts.
   void MarkEvent(Event event);
 
+  // Marks that the page of the splash screen shows its image rather than its
+  // video, so that its first contentful paint is when its image shows: for the
+  // image splash screen, or the video splash screen if it can't play its video.
+  // Otherwise, that paint is its video element's, and doesn't count as the
+  // splash screen content being shown.
+  void OnSplashScreenShowsImage();
+
+  // Marks how the minimum splash screen duration's wait for `content` ended.
+  // Recorded when switching to the main WebContents, so the wait must end by
+  // then. Only the first call counts.
+  void OnContentWaitEnded(SplashContent content, ContentWaitResult result);
+
   // Drops the metrics of this launch, e.g., because the app was concealed.
   void Invalidate();
 
@@ -117,6 +163,13 @@ class SplashScreenMetrics {
   void OnSwitchedToMain(SwitchTrigger trigger);
 
  private:
+  // What the minimum splash screen duration waited for, and how the wait
+  // ended.
+  struct ContentWait {
+    SplashContent content;
+    ContentWaitResult result;
+  };
+
   SplashScreenMetrics(bool has_splash_screen, bool is_visible);
 
   base::TimeTicks GetTime(Event event) const;
@@ -138,6 +191,10 @@ class SplashScreenMetrics {
   const bool has_splash_screen_;
   bool is_valid_;
   bool has_recorded_ = false;
+  // Whether the page of the splash screen shows its image.
+  bool shows_image_ = false;
+  // Set once the wait for the splash screen content ended, if there was one.
+  std::optional<ContentWait> content_wait_;
   std::array<base::TimeTicks, static_cast<size_t>(Event::kMaxValue) + 1>
       event_times_;
 };

@@ -78,6 +78,14 @@ void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
   Shell::MaybeHideSystemSplashScreen();
 }
 
+void SplashScreenWebContentsObserver::
+    OnFirstContentfulPaintInPrimaryMainFrame() {
+  NotifyStartupEvent(SplashScreenMetrics::Event::kSplashFirstContentfulPaint);
+  if (on_first_contentful_paint_) {
+    on_first_contentful_paint_.Run();
+  }
+}
+
 void SplashScreenWebContentsObserver::MediaStartedPlaying(
     const MediaPlayerInfo& video_type,
     const MediaPlayerId& id) {
