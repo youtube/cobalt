@@ -18,9 +18,11 @@
 #include <iosfwd>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/mime_param.h"
 
 namespace starboard {
 
@@ -76,33 +78,32 @@ class MimeType {
 
   int GetParamCount() const;
   ParamType GetParamType(int index) const;
-  const std::string& GetParamName(int index) const;
   // GetParamIndexByName() will return |kInvalidParamIndex| if the param name is
   // not found.
-  int GetParamIndexByName(const char* name) const;
+  int GetParamIndexByName(const MimeParam& param) const;
 
   int GetParamIntValue(int index) const;
   float GetParamFloatValue(int index) const;
   const std::string& GetParamStringValue(int index) const;
   bool GetParamBoolValue(int index) const;
 
-  int GetParamIntValue(const char* name, int default_value) const;
-  float GetParamFloatValue(const char* name, float default_value) const;
+  int GetParamIntValue(const MimeParam& param, int default_value) const;
+  float GetParamFloatValue(const MimeParam& param, float default_value) const;
   const std::string& GetParamStringValue(
-      const char* name,
+      const MimeParam& param,
       const std::string& default_value) const;
-  bool GetParamBoolValue(const char* name, bool default_value) const;
+  bool GetParamBoolValue(const MimeParam& param, bool default_value) const;
 
   // Validate functions will return true if the param contains a valid value or
   // if param name is not found.
-  bool ValidateIntParameter(const char* name) const;
-  bool ValidateFloatParameter(const char* name) const;
+  bool ValidateIntParameter(const MimeParam& param) const;
+  bool ValidateFloatParameter(const MimeParam& param) const;
   // Allows passing a pattern on the format "value_1|...|value_n"
   // where the parameter value must match one of the values in the pattern in
   // order to be considered valid.
-  bool ValidateStringParameter(const char* name,
+  bool ValidateStringParameter(const MimeParam& param,
                                const std::string& pattern = "") const;
-  bool ValidateBoolParameter(const char* name) const;
+  bool ValidateBoolParameter(const MimeParam& param) const;
 
   friend std::ostream& operator<<(std::ostream& os, const MimeType& mime_type);
 
