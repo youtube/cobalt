@@ -21,8 +21,10 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -123,6 +125,9 @@ class VideoCodecCapability : public CodecCapability {
 
   bool is_software_decoder() const { return is_software_decoder_; }
   bool is_hdr_capable() const { return is_hdr_capable_; }
+  Size max_size() const {
+    return Size(supported_widths_.maximum, supported_heights_.maximum);
+  }
 
   bool IsBitrateSupported(int bitrate) const;
   // VideoCodecCapability caches java object MediaCodecInfo.VideoCapabilities.
@@ -233,6 +238,10 @@ class MediaCapabilitiesCache {
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode);
+
+  const VideoCodecCapability* FindVideoCodecCapability(
+      std::string_view mime_type,
+      std::string_view decoder_name);
 
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
