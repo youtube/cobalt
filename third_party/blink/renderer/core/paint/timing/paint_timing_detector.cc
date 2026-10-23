@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -182,11 +183,19 @@ bool PaintTimingDetector::NotifyBackgroundImagePaint(
 
   PaintTimingDetector& paint_timing_detector =
       frame_view->GetPaintTimingDetector();
+  ImagePaintTimingDetector& image_paint_timing_detector =
+      paint_timing_detector.GetImagePaintTimingDetector();
+  // ATOM_PERF (PoC): Log visible image paints independently of LCP state.
+  if (IsBackgroundImageContentful(*object, image)) {
+    if (ImageResourceContent* atom_cached_image = style_image.CachedImage()) {
+      image_paint_timing_detector.AtomRecordImage(
+          *object, *atom_cached_image, current_paint_chunk_properties,
+          image_border);
+    }
+  }
   if (paint_timing_detector.IsUnrelatedSoftNavigationPaint(node)) {
     return false;
   }
-  ImagePaintTimingDetector& image_paint_timing_detector =
-      paint_timing_detector.GetImagePaintTimingDetector();
   if (!image_paint_timing_detector.IsRecordingLargestImagePaint()) {
     return false;
   }
@@ -223,6 +232,9 @@ bool PaintTimingDetector::NotifyImagePaint(
       frame_view->GetPaintTimingDetector();
   ImagePaintTimingDetector& image_paint_timing_detector =
       paint_timing_detector.GetImagePaintTimingDetector();
+  // ATOM_PERF (PoC): Log visible image paints independently of LCP state.
+  image_paint_timing_detector.AtomRecordImage(
+      object, media_timing, current_paint_chunk_properties, image_border);
   if (!image_paint_timing_detector.IsRecordingLargestImagePaint()) {
     return false;
   }
@@ -272,6 +284,10 @@ void PaintTimingDetector::OnInputOrScroll() {
   if (!image_paint_timing_detector_->IsRecordingLargestImagePaint()) {
     return;
   }
+
+  // ATOM_PERF (PoC): LCP recording stops here (first input or scroll).
+  LOG(INFO) << "ATOM_PERF lcp_stopped t_us="
+            << base::TimeTicks::Now().since_origin().InMicroseconds();
 
   // TextPaintTimingDetector is used for both Largest Contentful Paint and for
   // Element Timing. Therefore, here we only want to stop recording Largest

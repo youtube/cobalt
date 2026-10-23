@@ -5,6 +5,7 @@
 
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/features.h"
@@ -216,6 +217,7 @@ ImagePaintTimingDetector::TakePaintTimingCallback() {
         if (self) {
           self->records_manager_.AssignPaintTimeToRegisteredQueuedRecords(
               presentation_timestamp, paint_timing_info, frame_index);
+          self->AtomLogPaintedImages(presentation_timestamp, frame_index);
         }
       },
       WrapWeakPersistent(this), frame_index_);
@@ -229,6 +231,57 @@ ImagePaintTimingDetector::TakePaintTimingCallback() {
     return std::nullopt;
   }
   return std::move(callback);
+}
+
+void ImagePaintTimingDetector::AtomRecordImage(
+    const LayoutObject& object,
+    const MediaTiming& media_timing,
+    const PropertyTreeStateOrAlias& current_paint_chunk_properties,
+    const gfx::Rect& image_border) {
+  if (!object.GetNode() || image_border.IsEmpty() || media_timing.IsBroken() ||
+      IgnorePaintTimingScope::IgnoreDepth() ||
+      !media_timing.IsSufficientContentLoadedForPaint() ||
+      !frame_view_->GetFrame().IsOutermostMainFrame()) {
+    return;
+  }
+  MediaRecordIdHash hash = MediaRecordId::GenerateHash(&object, &media_timing);
+  if (atom_seen_images_.Contains(hash)) {
+    return;
+  }
+  PaintTimingDetector& detector = frame_view_->GetPaintTimingDetector();
+  gfx::RectF rect =
+      detector.CalculateVisualRect(image_border, current_paint_chunk_properties);
+  gfx::RectF viewport = detector.BlinkSpaceToDIPs(
+      gfx::RectF(frame_view_->GetScrollableArea()->VisibleContentRect()));
+  rect.Intersect(viewport);
+  if (rect.IsEmpty()) {
+    // Not visible yet. It may become visible later (e.g., when scrolled in).
+    return;
+  }
+  atom_seen_images_.insert(hash);
+  atom_pending_images_.push_back(
+      AtomPendingImage{media_timing.Url().GetString(), rect, frame_index_});
+  added_entry_in_latest_frame_ = true;
+}
+
+void ImagePaintTimingDetector::AtomLogPaintedImages(
+    base::TimeTicks presentation_timestamp,
+    unsigned last_queued_frame_index) {
+  Vector<AtomPendingImage> remaining;
+  for (const AtomPendingImage& image : atom_pending_images_) {
+    if (image.frame_index > last_queued_frame_index) {
+      remaining.push_back(image);
+      continue;
+    }
+    LOG(INFO) << "ATOM_PERF image_paint t_us="
+              << presentation_timestamp.since_origin().InMicroseconds()
+              << " x=" << static_cast<int>(image.rect.x())
+              << " y=" << static_cast<int>(image.rect.y())
+              << " w=" << static_cast<int>(image.rect.width())
+              << " h=" << static_cast<int>(image.rect.height())
+              << " url=" << image.url.Left(120).Utf8();
+  }
+  atom_pending_images_ = std::move(remaining);
 }
 
 void ImagePaintTimingDetector::NotifyImageRemoved(
