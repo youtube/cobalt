@@ -24,6 +24,8 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -300,6 +302,91 @@ TEST_F(CobaltContentBrowserClientHeaderTest,
       features::kCobaltSkipTrustedHeaderClient);
 
   EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       ExecuteOrCoalesceCookieFlushCoalescesAndDeduplicatesWhenEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltCookieFlushOptimization);
+  base::HistogramTester histogram_tester;
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  int cookie_store_flushes = 0;
+  base::OnceClosure in_flight_cookie_flush_cb;
+
+  auto flush_cookies = [&]() {
+    return base::BindLambdaForTesting([&](base::OnceClosure cb) {
+      ++cookie_store_flushes;
+      in_flight_cookie_flush_cb = std::move(cb);
+    });
+  };
+
+  // 1. Start first flush (e.g., h5vcc.system.exit() or onPause).
+  bool cb1_done = false;
+  client.ExecuteOrCoalesceCookieFlush(
+      flush_cookies(), base::BindLambdaForTesting([&]() { cb1_done = true; }));
+  EXPECT_EQ(cookie_store_flushes, 1);
+  EXPECT_FALSE(cb1_done);
+
+  // 2. Concurrent second flush arrives while first is still in flight (e.g.,
+  // onPause). CookieStore flush coalesces into the in-flight callback.
+  bool cb2_done = false;
+  client.ExecuteOrCoalesceCookieFlush(
+      flush_cookies(), base::BindLambdaForTesting([&]() { cb2_done = true; }));
+  EXPECT_EQ(cookie_store_flushes, 1);
+  EXPECT_FALSE(cb2_done);
+
+  // Complete the in-flight CookieStore flush: both callbacks should fire.
+  ASSERT_TRUE(in_flight_cookie_flush_cb);
+  std::move(in_flight_cookie_flush_cb).Run();
+  EXPECT_TRUE(cb1_done);
+  EXPECT_TRUE(cb2_done);
+
+  // 3. Back-to-back flush after completion (within the 2,000 ms transition
+  // window, e.g., onStop) skips redundant CookieStore flush and invokes
+  // callback immediately.
+  bool cb3_done = false;
+  client.ExecuteOrCoalesceCookieFlush(
+      flush_cookies(), base::BindLambdaForTesting([&]() { cb3_done = true; }));
+  EXPECT_EQ(cookie_store_flushes, 1);
+  EXPECT_TRUE(cb3_done);
+
+  // 4. DispatchFocus() / ResetCookieFlushDeduplicationWindow() resets the
+  // deduplication window so the next pause flushes the CookieStore again.
+  client.DispatchFocus();
+  bool cb4_done = false;
+  client.ExecuteOrCoalesceCookieFlush(
+      flush_cookies(), base::BindLambdaForTesting([&]() { cb4_done = true; }));
+  EXPECT_EQ(cookie_store_flushes, 2);
+  EXPECT_FALSE(cb4_done);
+  ASSERT_TRUE(in_flight_cookie_flush_cb);
+  std::move(in_flight_cookie_flush_cb).Run();
+  EXPECT_TRUE(cb4_done);
+
+  // 5. If the Mojo pipe disconnects and drops the in-flight callback without
+  // running it, WrapCallbackWithDefaultInvokeIfNotRun still drains
+  // pending_flush_callbacks_ so subsequent flushes are not wedged.
+  client.ResetCookieFlushDeduplicationWindow();
+  bool cb5_done = false;
+  client.ExecuteOrCoalesceCookieFlush(
+      flush_cookies(), base::BindLambdaForTesting([&]() { cb5_done = true; }));
+  EXPECT_EQ(cookie_store_flushes, 3);
+  EXPECT_FALSE(cb5_done);
+  ASSERT_TRUE(in_flight_cookie_flush_cb);
+  in_flight_cookie_flush_cb.Reset();
+  EXPECT_TRUE(cb5_done);
+
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.Storage.Cookie.FlushAction",
+      CobaltContentBrowserClient::CookieFlushAction::kExecuted, 3);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.Storage.Cookie.FlushAction",
+      CobaltContentBrowserClient::CookieFlushAction::kCoalescedInFlight, 1);
+  histogram_tester.ExpectBucketCount(
+      "Cobalt.Storage.Cookie.FlushAction",
+      CobaltContentBrowserClient::CookieFlushAction::kSkippedRecentFlush, 1);
 }
 
 }  // namespace

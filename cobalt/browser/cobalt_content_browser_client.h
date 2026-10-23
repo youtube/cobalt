@@ -17,7 +17,9 @@
 
 #include <optional>
 #include <string_view>
+#include <vector>
 
+#include "base/time/time.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -152,7 +154,20 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Recorded in Cobalt.Storage.Cookie.FlushAction; keep values in sync with
+  // histograms.xml / storage_histograms.txt.
+  enum class CookieFlushAction {
+    kExecuted = 0,
+    kCoalescedInFlight = 1,
+    kSkippedRecentFlush = 2,
+    kMaxValue = kSkippedRecentFlush,
+  };
+
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  void ExecuteOrCoalesceCookieFlush(
+      base::OnceCallback<void(base::OnceClosure)> flush_cookie_store,
+      base::OnceClosure on_complete_callback);
+  void ResetCookieFlushDeduplicationWindow();
   void DispatchBlur();
   void DispatchFocus();
 
@@ -177,6 +192,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
  private:
   void DispatchEvent(const std::string&, base::OnceClosure);
+  void OnFlushCookiesComplete();
   void OnSbWindowCreated(SbWindow window);
   void OnSbWindowDestroyed(SbWindow window);
   const std::optional<int64_t> startup_timestamp_;
@@ -184,6 +200,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+
+  std::vector<base::OnceClosure> pending_flush_callbacks_;
+  base::TimeTicks last_flush_complete_time_;
 
   uint64_t cached_sb_window_ = 0;
   std::vector<

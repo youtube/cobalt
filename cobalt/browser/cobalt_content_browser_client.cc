@@ -48,6 +48,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
@@ -79,16 +80,13 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-
-#if BUILDFLAG(IS_STARBOARD)
-#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
-#endif
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
@@ -637,7 +635,12 @@ void CobaltContentBrowserClient::DispatchBlur() {
       std::move(start_time)));
 }
 
+void CobaltContentBrowserClient::ResetCookieFlushDeduplicationWindow() {
+  last_flush_complete_time_ = base::TimeTicks();
+}
+
 void CobaltContentBrowserClient::DispatchFocus() {
+  ResetCookieFlushDeduplicationWindow();
   if (web_contents_observer_) {
     auto* web_contents = web_contents_observer_->web_contents();
     if (web_contents) {
@@ -699,14 +702,82 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     std::move(callback).Run();
     return;
   }
-  // Flushes localStorage.
+  // Always invoke StoragePartition::Flush() so any DOMStorage changes dirtied
+  // during blur/visibilitychange/freeze handlers are scheduled immediately
+  // (StorageAreaImpl::ScheduleImmediateCommit() is a fast no-op when clean).
   storage_partition->Flush();
+
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   if (!cookie_manager) {
     std::move(callback).Run();
     return;
   }
-  cookie_manager->FlushCookieStore(std::move(callback));
+  ExecuteOrCoalesceCookieFlush(
+      base::BindOnce(&network::mojom::CookieManager::FlushCookieStore,
+                     base::Unretained(cookie_manager)),
+      std::move(callback));
+}
+
+void CobaltContentBrowserClient::ExecuteOrCoalesceCookieFlush(
+    base::OnceCallback<void(base::OnceClosure)> flush_cookie_store,
+    base::OnceClosure on_complete_callback) {
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltCookieFlushOptimization)) {
+    base::UmaHistogramEnumeration("Cobalt.Storage.Cookie.FlushAction",
+                                  CookieFlushAction::kExecuted);
+    std::move(flush_cookie_store)
+        .Run(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+            std::move(on_complete_callback)));
+    return;
+  }
+
+  // Coalesce concurrent callers if a CookieStore flush is already in flight
+  // (e.g., onPause() or onStop() arriving while the previous flush is still
+  // executing).
+  if (!pending_flush_callbacks_.empty()) {
+    base::UmaHistogramEnumeration("Cobalt.Storage.Cookie.FlushAction",
+                                  CookieFlushAction::kCoalescedInFlight);
+    pending_flush_callbacks_.push_back(std::move(on_complete_callback));
+    return;
+  }
+
+  // Only execute a new CookieStore flush if no flush has completed yet during
+  // this unfocused lifecycle transition, or if at least
+  // `kRedundantFlushWindow` (2,000 ms, matching AppEventRunner's transition
+  // timeout and covering Android TV's ~650 ms onPause -> onStop delay) has
+  // elapsed since the last flush completed. Otherwise, skip the redundant
+  // Mojo/SQLite flush and run `on_complete_callback` immediately.
+  // The window is reset immediately upon DispatchFocus() / DoFocus().
+  constexpr base::TimeDelta kRedundantFlushWindow = base::Milliseconds(2000);
+  const bool has_recent_completed_flush =
+      !last_flush_complete_time_.is_null() &&
+      (base::TimeTicks::Now() - last_flush_complete_time_) <
+          kRedundantFlushWindow;
+  if (has_recent_completed_flush) {
+    base::UmaHistogramEnumeration("Cobalt.Storage.Cookie.FlushAction",
+                                  CookieFlushAction::kSkippedRecentFlush);
+    std::move(on_complete_callback).Run();
+    return;
+  }
+
+  base::UmaHistogramEnumeration("Cobalt.Storage.Cookie.FlushAction",
+                                CookieFlushAction::kExecuted);
+  pending_flush_callbacks_.push_back(std::move(on_complete_callback));
+  std::move(flush_cookie_store)
+      .Run(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+          base::BindOnce(&CobaltContentBrowserClient::OnFlushCookiesComplete,
+                         weak_factory_.GetWeakPtr())));
+}
+
+void CobaltContentBrowserClient::OnFlushCookiesComplete() {
+  last_flush_complete_time_ = base::TimeTicks::Now();
+  std::vector<base::OnceClosure> callbacks;
+  callbacks.swap(pending_flush_callbacks_);
+  for (auto& cb : callbacks) {
+    if (cb) {
+      std::move(cb).Run();
+    }
+  }
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

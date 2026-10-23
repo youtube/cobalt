@@ -50,6 +50,7 @@
 #include "url/third_party/mozilla/url_parse.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -518,6 +519,7 @@ class SQLitePersistentCookieStore::Backend
 #if BUILDFLAG(IS_COBALT)
   // Timer for the total load time of the cookie database.
   std::unique_ptr<base::ElapsedTimer> load_timer_;
+  bool commit_timer_running_ GUARDED_BY(lock_) = false;
 #endif  // BUILDFLAG(IS_COBALT)
 };
 
@@ -1512,6 +1514,12 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
   auto po = std::make_unique<PendingOperation>(op, cc);
 
   PendingOperationsMap::size_type num_pending;
+#if BUILDFLAG(IS_COBALT)
+  bool should_start_commit_timer = false;
+  bool should_commit_batch_now = false;
+  const bool optimize_cookie_flush = base::FeatureList::IsEnabled(
+      base::features::kCobaltCookieFlushOptimization);
+#endif  // BUILDFLAG(IS_COBALT)
   {
     base::AutoLock locked(lock_);
     // When queueing the operation, see if it overwrites any already pending
@@ -1519,6 +1527,9 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
     auto key = cc.StrictlyUniqueKey();
     auto iter_and_result = pending_.emplace(key, PendingOperationsForKey());
     PendingOperationsForKey& ops_for_key = iter_and_result.first->second;
+#if BUILDFLAG(IS_COBALT)
+    bool replaced_update_access = false;
+#endif  // BUILDFLAG(IS_COBALT)
     if (!iter_and_result.second) {
       // Insert failed -> already have ops.
       if (po->op() == PendingOperation::COOKIE_DELETE) {
@@ -1530,6 +1541,9 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
           // If access timestamp is updated twice in a row, can dump the earlier
           // one.
           ops_for_key.pop_back();
+#if BUILDFLAG(IS_COBALT)
+          replaced_update_access = true;
+#endif  // BUILDFLAG(IS_COBALT)
         }
         // At most delete + add before (and no access time updates after above
         // conditional).
@@ -1544,17 +1558,45 @@ void SQLitePersistentCookieStore::Backend::BatchOperation(
     // Note that num_pending_ counts number of calls to BatchOperation(), not
     // the current length of the queue; this is intentional to guarantee
     // progress, as the length of the queue may decrease in some cases.
+#if BUILDFLAG(IS_COBALT)
+    if (optimize_cookie_flush) {
+      if (!replaced_update_access) {
+        ++num_pending_;
+        should_commit_batch_now = (num_pending_ == kCommitAfterBatchSize);
+      }
+      num_pending = num_pending_;
+      if (op != PendingOperation::COOKIE_UPDATEACCESS &&
+          !commit_timer_running_ && !should_commit_batch_now) {
+        commit_timer_running_ = true;
+        should_start_commit_timer = true;
+      }
+    } else {
+      num_pending = ++num_pending_;
+      should_start_commit_timer = (num_pending == 1);
+      should_commit_batch_now = (num_pending == kCommitAfterBatchSize);
+    }
+#else
     num_pending = ++num_pending_;
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (should_start_commit_timer) {
+#else
   if (num_pending == 1) {
+#endif  // BUILDFLAG(IS_COBALT)
     // We've gotten our first entry for this batch, fire off the timer.
     if (!background_task_runner()->PostDelayedTask(
             FROM_HERE, base::BindOnce(&Backend::Commit, this),
             kCommitInterval)) {
       DUMP_WILL_BE_NOTREACHED() << "background_task_runner() is not running.";
     }
+#if BUILDFLAG(IS_COBALT)
+  }
+  if (should_commit_batch_now) {
+#else
   } else if (num_pending == kCommitAfterBatchSize) {
+#endif  // BUILDFLAG(IS_COBALT)
     // We've reached a big enough batch, fire off a commit now.
     PostBackgroundTask(FROM_HERE, base::BindOnce(&Backend::Commit, this));
   }
@@ -1572,6 +1614,14 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     base::AutoLock locked(lock_);
     pending_.swap(ops);
     num_pending_ = 0;
+#if BUILDFLAG(IS_COBALT)
+    commit_timer_running_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
+  }
+
+  // Maybe an old timer fired or we are already Close()'ed.
+  if (!db() || ops.empty()) {
+    return;
   }
 
 #if BUILDFLAG(IS_COBALT)
@@ -1579,12 +1629,8 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     op_count += op.second.size();
   }
   UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
-                           op_count);
+                            op_count);
 #endif  // BUILDFLAG(IS_COBALT)
-
-  // Maybe an old timer fired or we are already Close()'ed.
-  if (!db() || ops.empty())
-    return;
 
   sql::Statement add_statement(db()->GetCachedStatement(
       SQL_FROM_HERE,
