@@ -173,17 +173,10 @@ class MEDIA_EXPORT AudioDecoderConfig {
   int bytes_per_channel_ = 0;
   int bytes_per_frame_ = 0;
 
-<<<<<<< HEAD
-=======
-  // Count of channels. By default derived from `channel_layout_`, but can also
-  // be manually set in `SetChannelsForDiscrete()`;
-  int channels_ = 0;
-
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Full mime string for the audio decoder config.
   std::string mime_type_ = "";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.

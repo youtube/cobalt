@@ -122,7 +122,6 @@ TEST(AudioDecoderConfigStructTraitsTest, TargetOutputChannelLayout) {
   EXPECT_EQ(output.target_output_sample_format(), kSampleFormatDts);
 }
 
-<<<<<<< HEAD
 TEST(AudioDecoderConfigStructTraitsTest, ChannelLayout) {
   mojom::AudioDecoderConfigPtr input = CreateValidAudioDecoderConfig();
 
@@ -183,7 +182,7 @@ TEST(AudioDecoderConfigStructTraitsTest, ChannelLayout) {
   input->channels = 9;
   EXPECT_FALSE(CanBeCreated(input));
 }
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(AudioDecoderConfigStructTraitsTest, WithMimeType) {
   AudioDecoderConfig input;
@@ -198,6 +197,5 @@ TEST(AudioDecoderConfigStructTraitsTest, WithMimeType) {
   EXPECT_EQ(output.mime_type(), "audio/mp4; codecs=\"mp4a.40.2\"");
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace media

@@ -546,7 +546,6 @@ config("compiler") {
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
 
-<<<<<<< HEAD
     if (use_thin_lto) {
       # These passes were recently added to the mach-o lld thintlo link step,
       # but cause timeouts in certain build configs. Disable them until that's
@@ -557,18 +556,6 @@ config("compiler") {
         "-Wl,-mllvm",
         "-Wl,-vectorize-slp=false",
       ]
-=======
-    if (xcode_version_int >= 2700) {
-      # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
-      # requires at least LLVM 22.1.0 to work correctly.
-      defines += [
-        "INFINITY=__builtin_inff()",
-        "NAN=__builtin_nanf(\"\")",
-      ]
-      # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
-      # on a local variable, which depends on LLVM 23.1.0.
-      cflags += [ "-Wno-unknown-attributes" ]
->>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   }
 
