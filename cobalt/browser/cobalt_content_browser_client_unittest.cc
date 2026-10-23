@@ -18,6 +18,8 @@
 #include <string>
 #include <variant>
 
+#include "base/metrics/field_trial_param_associator.h"
+#include "base/test/scoped_command_line.h"
 #include "base/base_paths.h"
 #include "base/features.h"
 #include "base/files/file_path.h"
@@ -27,8 +29,16 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
+#include "cobalt/browser/features.h"
+#include "cobalt/browser/global_features.h"
+#include "components/prefs/pref_service.h"
+#include "components/variations/service/buildflags.h"
+#include "components/variations/variations_switches.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
@@ -301,6 +311,132 @@ TEST_F(CobaltContentBrowserClientHeaderTest,
 
   EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
 }
+
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+class CobaltContentBrowserClientFieldTrialConfigTest
+    : public CobaltContentBrowserClientTest {
+ protected:
+  void SetUp() override { ResetGlobalState(); }
+
+  void TearDown() override { ResetGlobalState(); }
+
+  void ResetGlobalState() {
+    auto* global_features = GlobalFeatures::GetInstance();
+    ASSERT_NE(global_features, nullptr);
+    global_features->experiment_config()->ClearPref(kExperimentConfigFeatures);
+    global_features->experiment_config()->ClearPref(
+        kExperimentConfigFeatureParams);
+    global_features->experiment_config()->ClearPref(
+        kExperimentConfigActiveConfigData);
+    global_features->InitializeActiveConfigData(
+        ExperimentConfigType::kEmptyConfig);
+    global_features->experiment_config_manager()->ResetForTesting();
+    base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+  }
+
+  void PopulateCachedExperimentConfig() {
+    auto* experiment_config =
+        GlobalFeatures::GetInstance()->experiment_config();
+    base::DictValue feature_map;
+    feature_map.Set(features::kTestFinchFeature.name, true);
+    experiment_config->SetDict(kExperimentConfigFeatures,
+                               std::move(feature_map));
+    base::DictValue param_map;
+    param_map.Set(features::kTestFinchFeatureParam.name, "CachedConfigValue");
+    experiment_config->SetDict(kExperimentConfigFeatureParams,
+                               std::move(param_map));
+    experiment_config->SetString(kExperimentConfigActiveConfigData,
+                                 "cached_active_config_data");
+  }
+
+  base::test::ScopedCommandLine scoped_command_line_;
+  CobaltContentBrowserClient client_{/*startup_timestamp=*/std::nullopt,
+                                     /*deep_link=*/""};
+};
+
+TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
+       SetUpCobaltFeaturesAndParamsAppliesFieldTrialTestingConfig) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
+      variations::switches::kEnableFieldTrialTestingConfig);
+  PopulateCachedExperimentConfig();
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+  client_.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  EXPECT_TRUE(GlobalFeatures::GetInstance()->active_config_data().empty());
+  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "1");
+}
+
+TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
+       SetUpCobaltFeaturesAndParamsDisableFieldTrialTestingConfigUsesCache) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
+      variations::switches::kDisableFieldTrialTestingConfig);
+  PopulateCachedExperimentConfig();
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+  client_.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  auto* global_features = GlobalFeatures::GetInstance();
+  EXPECT_EQ(
+      global_features->experiment_config_manager()->GetExperimentConfigType(),
+      ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(global_features->active_config_data(), "cached_active_config_data");
+  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+  EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "CachedConfigValue");
+}
+
+TEST_F(CobaltContentBrowserClientFieldTrialConfigTest,
+       SetUpCobaltFeaturesAndParamsRespectsFeatureOverridePrecedence) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
+      variations::switches::kEnableFieldTrialTestingConfig);
+
+  // 1. Command-line overrides (1st) should take precedence over extra feature
+  // overrides (2nd) and FieldTrialTestingConfig (3rd).
+  {
+    auto feature_list = std::make_unique<base::FeatureList>();
+    feature_list->InitFromCommandLine(
+        /*enable_features=*/"",
+        /*disable_features=*/features::kTestFinchFeature.name);
+    feature_list->RegisterExtraFeatureOverrides(
+        {{std::cref(features::kTestFinchFeature),
+          base::FeatureList::OVERRIDE_ENABLE_FEATURE}});
+    client_.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+    EXPECT_FALSE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+    EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "");
+  }
+
+  base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
+
+  // 2. Extra feature overrides (2nd) should take precedence over
+  // FieldTrialTestingConfig (3rd).
+  {
+    auto feature_list = std::make_unique<base::FeatureList>();
+    feature_list->InitFromCommandLine(/*enable_features=*/"",
+                                      /*disable_features=*/"");
+    feature_list->RegisterExtraFeatureOverrides(
+        {{std::cref(features::kTestFinchFeature),
+          base::FeatureList::OVERRIDE_DISABLE_FEATURE}});
+    client_.SetUpCobaltFeaturesAndParams(feature_list.get());
+
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+    EXPECT_FALSE(base::FeatureList::IsEnabled(features::kTestFinchFeature));
+    EXPECT_EQ(features::kTestFinchFeatureParam.Get(), "");
+  }
+}
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
 
 }  // namespace
 }  // namespace cobalt
