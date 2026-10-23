@@ -340,7 +340,15 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
               : std::nullopt);
       video_input_thread_->Start();
       video_output_thread_ = std::make_unique<DecoderThread>(
-          "VidDecOut", [this] { OutputThreadFunc(); }, ThreadPriority::kHigh);
+          "VidDecOut",
+          [this] {
+            if (enable_codec_thread_improvements_) {
+              OutputThreadFuncV2();
+            } else {
+              OutputThreadFunc();
+            }
+          },
+          ThreadPriority::kHigh);
       video_output_thread_->Start();
     }
   } else if (!decoder_thread_) {
@@ -754,6 +762,65 @@ void MediaCodecDecoder::OutputThreadFunc() {
               lock, std::chrono::microseconds(8'000));
         }
       }
+    }
+  }
+}
+
+// TODO(b/329686979): Consider adding unit tests once launched.
+void MediaCodecDecoder::OutputThreadFuncV2() {
+  // Initialize() should be called before creating the thread, where `error_cb_`
+  // is set.  Check `error_cb_` here to ensure Initialize() has been called.
+  SB_DCHECK(error_cb_);
+  SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  SB_DCHECK(use_dual_threads_);
+  SB_DCHECK(enable_codec_thread_improvements_);
+
+  std::vector<DequeueOutputResult> dequeue_output_results;
+
+  while (!destroying_.load()) {
+    dequeue_output_results.clear();
+    {
+      std::unique_lock lock(mutex_);
+      if (dequeue_output_results_.empty()) {
+        if (tunnel_mode_enabled_) {
+          // In tunnel mode the codec renders frames itself; sleep until an
+          // output format change arrives or the thread is terminated.
+          video_output_condition_variable_.wait(lock, [this] {
+            return destroying_.load() || !dequeue_output_results_.empty();
+          });
+        } else {
+          // TODO(b/329686979): Allow Tick() to return the time to next frame
+          // release to dynamically adjust the wait duration.
+          video_output_condition_variable_.wait_for(
+              lock, std::chrono::microseconds(8'000), [this] {
+                return destroying_.load() || !dequeue_output_results_.empty();
+              });
+        }
+      }
+      if (destroying_.load()) {
+        break;
+      }
+      // Collect pending outputs before releasing |mutex_| so they are all
+      // drained in one lock acquisition per wakeup.
+      CollectPendingOutputData_Locked(&dequeue_output_results);
+    }
+
+    // Process all collected output buffers in a batch before calling Tick() so
+    // the renderer sees every newly arrived frame right away.
+    for (const auto& dequeue_output_result : dequeue_output_results) {
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else if (!tunnel_mode_enabled_) {
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result,
+                                   GetNumberOfPendingInputs());
+      }
+    }
+
+    if (!tunnel_mode_enabled_) {
+      // Call Tick() once per iteration after draining pending output buffers,
+      // avoiding redundant back-to-back Tick() calls after rendering a frame.
+      host_->Tick(media_codec_bridge_.get());
     }
   }
 }
