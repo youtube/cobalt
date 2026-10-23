@@ -46,19 +46,13 @@ class FailOnBenchmarkErrorReporter : public ::benchmark::ConsoleReporter {
 // --benchmark_filter can be passed through the test runner. gtest keeps a
 // copy of the original command line, and InitGoogleTest() leaves the flags it
 // does not recognize in it. Other flags are dropped as Google Benchmark
-// rejects flags it does not know. Runs only the player benchmarks unless a
-// filter is given explicitly.
+// rejects flags it does not know.
 std::vector<std::string> GetBenchmarkArgs() {
   std::vector<std::string> args = {"player_benchmarks"};
-  bool has_filter = false;
   for (const std::string& arg : ::testing::internal::GetArgvs()) {
     if (arg.rfind("--benchmark_", 0) == 0) {
       args.push_back(arg);
-      has_filter |= arg.rfind("--benchmark_filter", 0) == 0;
     }
-  }
-  if (!has_filter) {
-    args.push_back("--benchmark_filter=BM_Player");
   }
   return args;
 }
