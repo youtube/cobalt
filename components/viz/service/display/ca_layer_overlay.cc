@@ -567,7 +567,8 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
     GetVideoGeometrySetter()->SetVideoGeometry(
         ca_layer.display_rect,
         std::get<gfx::OverlayTransform>(ca_layer.transform),
-        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id);
+        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id,
+        /*z_index=*/0);
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

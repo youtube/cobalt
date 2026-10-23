@@ -76,13 +76,14 @@ void VideoGeometrySetterService::SubscribeToVideoGeometryChange(
 void VideoGeometrySetterService::SetVideoGeometry(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform transform,
-    const base::UnguessableToken& overlay_plane_id) {
+    const base::UnguessableToken& overlay_plane_id,
+    int32_t z_index) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   auto video_geometry_change_client =
       video_geometry_change_clients_.find(overlay_plane_id);
   if (video_geometry_change_client != video_geometry_change_clients_.end()) {
-    video_geometry_change_client->second->OnVideoGeometryChange(rect_f,
-                                                                transform);
+    video_geometry_change_client->second->OnVideoGeometryChange(
+        rect_f, transform, z_index);
   }
 }
 
