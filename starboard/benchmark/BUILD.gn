@@ -21,34 +21,6 @@ if (is_cobalt_hermetic_build) {
   _benchmark_type = "executable"
 }
 
-# The SbPlayer benchmarks. This is a source_set rather than a static library so
-# that the BENCHMARK() registrations are always linked into the dependents.
-source_set("player_benchmarks") {
-  testonly = true
-
-  sources = [
-    "player/player_benchmark_helper.cc",
-    "player/player_benchmark_helper.h",
-    "player/player_create_benchmark.cc",
-    "player/player_destroy_benchmark.cc",
-    "player/player_seek_benchmark.cc",
-  ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  public_deps = [
-    "//starboard:starboard_group",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//starboard/testing:fake_graphics_context_provider",
-    "//third_party/google_benchmark",
-  ]
-
-  # The .dmp files played back by the seek benchmarks.
-  data_deps = [ "//starboard/shared/starboard/player:player_test_data" ]
-}
-
 target(_benchmark_type, "benchmark") {
   testonly = true
 
@@ -60,7 +32,6 @@ target(_benchmark_type, "benchmark") {
   ]
 
   public_deps = [
-    ":player_benchmarks",
     "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/google_benchmark",
@@ -70,25 +41,39 @@ target(_benchmark_type, "benchmark") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
-# Runs the SbPlayer benchmarks inside a gtest so that they can be executed
-# through the standard test runner, in particular on Android where a test APK
-# provides the Java side of the player and the activity with the video surface.
-test("player_benchmarks_gtest") {
+# The SbPlayer benchmarks, wrapped in a gtest. The gtest is what makes them
+# work on Android TV: the player there needs the Java side of the Starboard
+# implementation and an activity with a video surface, which only the test APK
+# and the standard test runner provide. The same binary works on other
+# platforms such as Linux too, where it can be run directly from the shell.
+# Any --benchmark_* flag on the command line is passed through to the
+# benchmarks, e.g. --benchmark_filter=BM_PlayerCreateSync.
+test("player_benchmarks") {
   testonly = true
 
-  sources = [ "player/player_benchmark_gtest_wrapper.cc" ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  sources = [
+    "player/player_benchmark_gtest_wrapper.cc",
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
+  ]
 
   public_deps = [
-    ":player_benchmarks",
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
     "//testing/gtest",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
+
+  # The .dmp files played back by the seek benchmarks.
+  data_deps = [ "//starboard/shared/starboard/player:player_test_data" ]
 
   if (is_android) {
     deps += [
@@ -98,4 +83,6 @@ test("player_benchmarks_gtest") {
     android_manifest_template =
         "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
   }
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
