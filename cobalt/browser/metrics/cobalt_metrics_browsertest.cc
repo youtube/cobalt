@@ -496,7 +496,13 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       local_state->FindPreference(metrics::prefs::kMetricsLastSeenPrefix +
                                   std::string("BrowserStabilityMetrics")));
   EXPECT_TRUE(local_state->FindPreference(kLastLoggedProcessExitTimestampMs));
+#if !BUILDFLAG(IS_ANDROID)
+  // On Android, CobaltBrowserMainParts records prior-session exit reasons on
+  // every launch and persists the timestamp into Local State, which the test
+  // runner reuses across tests, so the default value is only observable on a
+  // pristine profile.
   EXPECT_EQ(local_state->GetInt64(kLastLoggedProcessExitTimestampMs), -1);
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
