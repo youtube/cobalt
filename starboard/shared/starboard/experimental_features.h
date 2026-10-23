@@ -195,6 +195,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
 
+inline constexpr ExperimentalFeatureKey<bool>
+    kMediaEnableCodecThreadImprovements("Media.EnableCodecThreadImprovements");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaEnableFlushDuringSeek(
     "Media.EnableFlushDuringSeek");
 

@@ -63,16 +63,16 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      Span<const uint8_t> initialization_data) override;
+      span<const uint8_t> initialization_data) override;
   void UpdateSession(int ticket,
-                     Span<const uint8_t> key,
+                     span<const uint8_t> key,
                      std::string_view session_id) override;
   void CloseSession(std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               Span<const uint8_t> certificate) override {}
+                               span<const uint8_t> certificate) override {}
   std::optional<std::string_view> GetMetrics() override;
   // SbDrmSystemPrivate override ends.
 
@@ -105,7 +105,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
    public:
     SessionUpdateRequest(int ticket,
                          std::string_view mime_type,
-                         Span<const uint8_t> initialization_data);
+                         span<const uint8_t> initialization_data);
     ~SessionUpdateRequest() = default;
 
     MediaDrmBridge::OperationResult Generate(

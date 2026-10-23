@@ -547,13 +547,13 @@ int AudioTrackAudioSink::WriteData(const void* buffer,
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     samples_written = audio_track_->WriteSample(
-        MakeSpan(static_cast<const float*>(buffer),
-                 expected_written_frames * channels_));
+        make_span(static_cast<const float*>(buffer),
+                  expected_written_frames * channels_));
   } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    samples_written =
-        audio_track_->WriteSample(MakeSpan(static_cast<const uint16_t*>(buffer),
-                                           expected_written_frames * channels_),
-                                  sync_time);
+    samples_written = audio_track_->WriteSample(
+        make_span(static_cast<const uint16_t*>(buffer),
+                  expected_written_frames * channels_),
+        sync_time);
   } else {
     SB_NOTREACHED();
   }
