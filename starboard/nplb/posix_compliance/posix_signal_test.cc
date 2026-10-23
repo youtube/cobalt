@@ -442,7 +442,8 @@ TEST_F(PosixSignalTest, PthreadSigmaskBlocksAndUnblocksSignal) {
 
 TEST_F(PosixSignalTest, PthreadKillSendsSignalToSpecificThread) {
   // Use a condition variable for reliable thread readiness notification.
-  ThreadArgs args = {&mutex_, &cond_, &thread_ready_};
+  ThreadArgs args = {
+      .mutex = &mutex_, .cond = &cond_, .thread_ready = &thread_ready_};
   pthread_t thread;
   ASSERT_EQ(pthread_create(&thread, nullptr, WaitForSigusr1, &args), 0);
 

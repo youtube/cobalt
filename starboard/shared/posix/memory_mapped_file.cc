@@ -23,9 +23,9 @@ namespace starboard {
 namespace {
 
 const CobaltExtensionMemoryMappedFileApi kMemoryMappedFileApi = {
-    kCobaltExtensionMemoryMappedFileName,
-    1,
-    &SbPageMapFile,
+    .name = kCobaltExtensionMemoryMappedFileName,
+    .version = 1,
+    .MemoryMapFile = &SbPageMapFile,
 };
 
 }  // namespace

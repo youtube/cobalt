@@ -20,10 +20,12 @@
 namespace starboard::features {
 namespace {
 
-const SbFeature kTestFeatureEnabledByDefault = {"TestFeatureEnabledByDefault",
-                                                true};
-const SbFeature kTestFeatureDisabledByDefault = {"TestFeatureDisabledByDefault",
-                                                 false};
+const SbFeature kTestFeatureEnabledByDefault = {
+    .name = "TestFeatureEnabledByDefault",
+    .is_enabled = true};
+const SbFeature kTestFeatureDisabledByDefault = {
+    .name = "TestFeatureDisabledByDefault",
+    .is_enabled = false};
 
 class ScopedFeatureListTest : public ::testing::Test {
  protected:

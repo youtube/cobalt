@@ -83,9 +83,9 @@ bool WasLowMemoryKilled() {
 }
 
 const StarboardExtensionLowMemoryKillApi kLowMemoryKillApi = {
-    kStarboardExtensionLowMemoryKillName,
-    1,  // API version that's implemented.
-    &WasLowMemoryKilled,
+    .name = kStarboardExtensionLowMemoryKillName,
+    .version = 1,  // API version that's implemented.
+    .WasLowMemoryKilled = &WasLowMemoryKilled,
 };
 
 }  // namespace

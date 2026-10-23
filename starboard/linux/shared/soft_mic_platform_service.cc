@@ -184,12 +184,12 @@ void* Send(PlatformServiceImpl* service,
 }
 
 const CobaltPlatformServiceApi kSoftMicPlatformServiceApi = {
-    kSoftMicPlatformServiceName,
-    1,  // API version that's implemented.
-    &Has,
-    &Open,
-    &Close,
-    &Send};
+    .name = kSoftMicPlatformServiceName,
+    .version = 1,  // API version that's implemented.
+    .Has = &Has,
+    .Open = &Open,
+    .Close = &Close,
+    .Send = &Send};
 
 }  // namespace
 

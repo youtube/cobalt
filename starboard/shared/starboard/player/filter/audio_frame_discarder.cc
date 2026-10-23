@@ -26,9 +26,11 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
     SB_DCHECK_EQ(input_buffer->sample_type(), kSbMediaTypeAudio);
 
     input_buffer_infos_.push({
-        input_buffer->timestamp(),
-        input_buffer->audio_sample_info().discarded_duration_from_front,
-        input_buffer->audio_sample_info().discarded_duration_from_back,
+        .timestamp = input_buffer->timestamp(),
+        .discarded_duration_from_front =
+            input_buffer->audio_sample_info().discarded_duration_from_front,
+        .discarded_duration_from_back =
+            input_buffer->audio_sample_info().discarded_duration_from_back,
     });
   }
 

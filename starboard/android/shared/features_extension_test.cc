@@ -29,7 +29,8 @@ TEST(FeaturesExtensionTest, InitializeFeatures) {
   EXPECT_EQ(extension_api->version, 1u);
   ASSERT_NE(extension_api->InitializeStarboardFeatures, nullptr);
 
-  SbFeature test_feature = {"AndroidExtensionTestFeature", true};
+  SbFeature test_feature = {.name = "AndroidExtensionTestFeature",
+                            .is_enabled = true};
 
   SbFeatureParam test_param;
   test_param.feature_name = "AndroidExtensionTestFeature";

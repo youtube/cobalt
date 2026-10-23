@@ -33,14 +33,28 @@ typedef struct {
 
 /* Index is nb_channel-1 */
 static const VorbisLayout vorbis_mappings[8] = {
-    {1, 0, {0}},                      /* 1: mono */
-    {1, 1, {0, 1}},                   /* 2: stereo */
-    {2, 1, {0, 2, 1}},                /* 3: 1-d surround */
-    {2, 2, {0, 1, 2, 3}},             /* 4: quadraphonic surround */
-    {3, 2, {0, 4, 1, 2, 3}},          /* 5: 5-channel surround */
-    {4, 2, {0, 4, 1, 2, 3, 5}},       /* 6: 5.1 surround */
-    {4, 3, {0, 4, 1, 2, 3, 5, 6}},    /* 7: 6.1 surround */
-    {5, 3, {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
+    {.nb_streams = 1, .nb_coupled_streams = 0, .mapping = {0}}, /* 1: mono */
+    {.nb_streams = 1,
+     .nb_coupled_streams = 1,
+     .mapping = {0, 1}}, /* 2: stereo */
+    {.nb_streams = 2,
+     .nb_coupled_streams = 1,
+     .mapping = {0, 2, 1}}, /* 3: 1-d surround */
+    {.nb_streams = 2,
+     .nb_coupled_streams = 2,
+     .mapping = {0, 1, 2, 3}}, /* 4: quadraphonic surround */
+    {.nb_streams = 3,
+     .nb_coupled_streams = 2,
+     .mapping = {0, 4, 1, 2, 3}}, /* 5: 5-channel surround */
+    {.nb_streams = 4,
+     .nb_coupled_streams = 2,
+     .mapping = {0, 4, 1, 2, 3, 5}}, /* 6: 5.1 surround */
+    {.nb_streams = 4,
+     .nb_coupled_streams = 3,
+     .mapping = {0, 4, 1, 2, 3, 5, 6}}, /* 7: 6.1 surround */
+    {.nb_streams = 5,
+     .nb_coupled_streams = 3,
+     .mapping = {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
 };
 
 constexpr int kMinimumBuffersToDecode = 2;

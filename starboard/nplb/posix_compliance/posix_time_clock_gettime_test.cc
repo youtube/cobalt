@@ -36,7 +36,8 @@ const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 // clocks.
 constexpr long kSleepDurationMicroseconds = 100'000;  // 100ms
 constexpr struct timespec kSleepDuration = {
-    0, kSleepDurationMicroseconds * 1'000L};
+    .tv_sec = 0,
+    .tv_nsec = kSleepDurationMicroseconds * 1'000L};
 
 // Work time long enough to ensure measurable CPU time usage.
 constexpr long kMinimumWorkTimeMicroseconds = 100'000;  // 100ms

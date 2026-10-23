@@ -127,7 +127,7 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
   ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &start_time))
       << "clock_gettime failed for start_time";
 
-  struct timespec req = {0, kTestSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kTestSleepNs};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep, got: " << strerror(ret);
@@ -147,7 +147,7 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
   ASSERT_EQ(0, clock_gettime(CLOCK_REALTIME, &start_time))
       << "clock_gettime failed for start_time";
 
-  struct timespec req = {0, kTestSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kTestSleepNs};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_REALTIME, 0, &req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep, got: " << strerror(ret);
@@ -240,7 +240,7 @@ TEST_F(PosixClockNanosleepTest, AbsoluteSleepTimeInPastReturnsImmediately) {
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsNegative) {
-  struct timespec req = {0, -1};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = -1};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(EINVAL, ret) << "Expected EINVAL for negative ns, got: "
@@ -249,8 +249,9 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsNegative) {
 
 TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsTooLarge) {
   struct timespec req = {
-      0,
-      kNanosecondsPerSecond};  // 10^9 ns, which is invalid for tv_nsec field.
+      .tv_sec = 0,
+      .tv_nsec = kNanosecondsPerSecond};  // 10^9 ns, which is invalid for
+                                          // tv_nsec field.
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(EINVAL, ret) << "Expected EINVAL for ns >= 10^9, got: "
@@ -258,7 +259,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsTooLarge) {
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestSecondsNegative) {
-  struct timespec req = {-1, 0};
+  struct timespec req = {.tv_sec = -1, .tv_nsec = 0};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(EINVAL, ret)
@@ -267,7 +268,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestSecondsNegative) {
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidClockId) {
-  struct timespec req = {0, kShortSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kShortSleepNs};
   struct timespec rem;
   clockid_t bad_clock_id = -123;  // An unlikely to be valid clock ID
   int ret = clock_nanosleep(bad_clock_id, 0, &req, &rem);
@@ -280,7 +281,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
-  struct timespec req = {0, kShortSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kShortSleepNs};
   struct timespec rem;
   int invalid_flags = 0xFF;  // Some likely invalid flags
   int ret = clock_nanosleep(CLOCK_MONOTONIC, invalid_flags, &req, &rem);
@@ -289,7 +290,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEnotsupForThreadCpuClock) {
-  struct timespec req = {0, kShortSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kShortSleepNs};
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_THREAD_CPUTIME_ID, 0, &req, &rem);
 
@@ -303,7 +304,8 @@ TEST_F(PosixClockNanosleepTest, ErrorEnotsupForThreadCpuClock) {
 }
 
 TEST_F(PosixClockNanosleepTest, RelativeSleepNullRemain) {
-  struct timespec req = {0, kShortSleepNs};  // 1 millisecond
+  struct timespec req = {.tv_sec = 0,
+                         .tv_nsec = kShortSleepNs};  // 1 millisecond
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, nullptr);
   EXPECT_EQ(0, ret) << "Expected successful sleep with NULL remain, got: "
                     << strerror(ret);
@@ -322,7 +324,7 @@ TEST_F(PosixClockNanosleepTest, AbsoluteSleepNullRemain) {
 }
 
 TEST_F(PosixClockNanosleepTest, RelativeSleepZeroDuration) {
-  struct timespec req = {0, 0};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = 0};
   struct timespec rem;
 
   struct timeval start_time, end_time;
@@ -345,7 +347,7 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepZeroDuration) {
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEintrRelativeSleep) {
-  struct timespec req = {kLongSleepSec, 0};
+  struct timespec req = {.tv_sec = kLongSleepSec, .tv_nsec = 0};
   struct timespec rem;
 
   struct sigaction sa;
@@ -379,7 +381,8 @@ TEST_F(PosixClockNanosleepTest, ErrorEintrRelativeSleep) {
 
 TEST_F(PosixClockNanosleepTest, ErrorEintrAbsoluteSleep) {
   struct timespec req;
-  struct timespec rem = {7, 7};  // Initialize with sentinel values
+  struct timespec rem = {.tv_sec = 7,
+                         .tv_nsec = 7};  // Initialize with sentinel values
   clockid_t clock_id = CLOCK_MONOTONIC;
 
   ASSERT_EQ(0, clock_gettime(clock_id, &req))

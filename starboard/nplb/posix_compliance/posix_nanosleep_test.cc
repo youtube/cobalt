@@ -80,7 +80,7 @@ TEST_F(PosixNanosleepTests, SuccessfulSleep) {
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
 
-  struct timespec req = {0, kTestSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kTestSleepNs};
   struct timespec rem;
   errno = 0;
   int ret = nanosleep(&req, &rem);
@@ -98,7 +98,7 @@ TEST_F(PosixNanosleepTests, SuccessfulSleep) {
 }
 
 TEST_F(PosixNanosleepTests, SuccessfulSleepNullRemain) {
-  struct timespec req = {0, kShortSleepNs};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = kShortSleepNs};
   errno = 0;
   int ret = nanosleep(&req, nullptr);
   EXPECT_EQ(0, ret) << "Expected successful sleep with NULL remain. Return: "
@@ -107,7 +107,7 @@ TEST_F(PosixNanosleepTests, SuccessfulSleepNullRemain) {
 }
 
 TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
-  struct timespec req = {0, 0L};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = 0L};
   struct timespec rem;
   errno = 0;
 
@@ -131,7 +131,7 @@ TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
-  struct timespec req = {0, -1L};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = -1L};
   struct timespec rem;
   errno = 0;
   int ret = nanosleep(&req, &rem);
@@ -141,7 +141,7 @@ TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsTooLarge) {
-  struct timespec req = {0, 1'000'000'000L};
+  struct timespec req = {.tv_sec = 0, .tv_nsec = 1'000'000'000L};
   struct timespec rem;
   errno = 0;
   int ret = nanosleep(&req, &rem);
@@ -151,7 +151,7 @@ TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsTooLarge) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestSecondsNegative) {
-  struct timespec req = {-1, 0L};
+  struct timespec req = {.tv_sec = -1, .tv_nsec = 0L};
   struct timespec rem;
   errno = 0;
   int ret = nanosleep(&req, &rem);
@@ -174,7 +174,7 @@ TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEintr) {
-  struct timespec req = {kLongSleepSec, 0};
+  struct timespec req = {.tv_sec = kLongSleepSec, .tv_nsec = 0};
   struct timespec rem;
 
   struct sigaction sa;

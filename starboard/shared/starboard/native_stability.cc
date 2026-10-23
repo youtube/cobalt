@@ -44,10 +44,10 @@ void RegisterReadReportsCallback(ReadReportsCallback callback) {
 }
 
 const StarboardExtensionNativeStabilityApi kNativeStabilityApi = {
-    kStarboardExtensionNativeStabilityName,
-    1,
-    &ReadReports,
-    &RegisterReadReportsCallback,
+    .name = kStarboardExtensionNativeStabilityName,
+    .version = 1,
+    .ReadReports = &ReadReports,
+    .RegisterReadReportsCallback = &RegisterReadReportsCallback,
 };
 
 }  // namespace

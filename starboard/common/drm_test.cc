@@ -50,15 +50,18 @@ INSTANTIATE_TEST_SUITE_P(
     DrmTest,
     SbDrmSessionRequestTypeTest,
     ::testing::Values(
-        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRequest,
-                                   "license-request"},
-        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRenewal,
-                                   "license-renewal"},
-        DrmSessionRequestTypeParam{kSbDrmSessionRequestTypeLicenseRelease,
-                                   "license-release"},
         DrmSessionRequestTypeParam{
-            kSbDrmSessionRequestTypeIndividualizationRequest,
-            "individualization-request"}));
+            .type = kSbDrmSessionRequestTypeLicenseRequest,
+            .name = "license-request"},
+        DrmSessionRequestTypeParam{
+            .type = kSbDrmSessionRequestTypeLicenseRenewal,
+            .name = "license-renewal"},
+        DrmSessionRequestTypeParam{
+            .type = kSbDrmSessionRequestTypeLicenseRelease,
+            .name = "license-release"},
+        DrmSessionRequestTypeParam{
+            .type = kSbDrmSessionRequestTypeIndividualizationRequest,
+            .name = "individualization-request"}));
 
 struct DrmStatusParam {
   SbDrmStatus status;
@@ -86,12 +89,16 @@ INSTANTIATE_TEST_SUITE_P(
     DrmTest,
     SbDrmStatusTest,
     ::testing::Values(
-        DrmStatusParam{kSbDrmStatusSuccess, "success"},
-        DrmStatusParam{kSbDrmStatusTypeError, "type-error"},
-        DrmStatusParam{kSbDrmStatusNotSupportedError, "not-supported-error"},
-        DrmStatusParam{kSbDrmStatusInvalidStateError, "invalid-state-error"},
-        DrmStatusParam{kSbDrmStatusQuotaExceededError, "quota-exceeded-error"},
-        DrmStatusParam{kSbDrmStatusUnknownError, "unknown-error"}));
+        DrmStatusParam{.status = kSbDrmStatusSuccess, .name = "success"},
+        DrmStatusParam{.status = kSbDrmStatusTypeError, .name = "type-error"},
+        DrmStatusParam{.status = kSbDrmStatusNotSupportedError,
+                       .name = "not-supported-error"},
+        DrmStatusParam{.status = kSbDrmStatusInvalidStateError,
+                       .name = "invalid-state-error"},
+        DrmStatusParam{.status = kSbDrmStatusQuotaExceededError,
+                       .name = "quota-exceeded-error"},
+        DrmStatusParam{.status = kSbDrmStatusUnknownError,
+                       .name = "unknown-error"}));
 
 }  // namespace
 }  // namespace starboard

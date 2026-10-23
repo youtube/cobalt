@@ -61,10 +61,10 @@ const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
 #endif
 
 static constexpr ::crashpad::SanitizationInformation kSanitizationInfo = {
-    /*allowed_annotations_address=*/0,
-    /*target_module_address=*/0,
-    /*allowed_memory_ranges_address=*/0,
-    /*sanitize_stacks=*/1};
+    .allowed_annotations_address = 0,
+    .target_module_address = 0,
+    .allowed_memory_ranges_address = 0,
+    .sanitize_stacks = 1};
 
 ::crashpad::CrashpadClient* GetCrashpadClient() {
   static auto* crashpad_client = new ::crashpad::CrashpadClient();

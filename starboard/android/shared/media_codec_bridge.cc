@@ -336,8 +336,8 @@ MediaCodecBridge::GetAudioOutputFormat() {
   }
 
   return AudioOutputFormatResult{
-      Java_MediaFormatWrapper_sampleRate(env, result),
-      Java_MediaFormatWrapper_channelCount(env, result),
+      .sample_rate = Java_MediaFormatWrapper_sampleRate(env, result),
+      .channel_count = Java_MediaFormatWrapper_channelCount(env, result),
   };
 }
 

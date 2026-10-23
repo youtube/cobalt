@@ -35,9 +35,10 @@ std::optional<ExperimentalFeatures>& GetThreadLocalExperimentalFeatures() {
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi
     kExperimentalFeaturesConfigurationApi = {
-        kStarboardExtensionExperimentalFeaturesConfigurationName,
-        1,
-        &SetExperimentalFeaturesForCurrentThread,
+        .name = kStarboardExtensionExperimentalFeaturesConfigurationName,
+        .version = 1,
+        .SetExperimentalFeaturesForCurrentThread =
+            &SetExperimentalFeaturesForCurrentThread,
 };
 
 }  // namespace

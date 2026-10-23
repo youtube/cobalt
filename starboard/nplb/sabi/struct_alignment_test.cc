@@ -101,7 +101,7 @@ static_assert(offsetof(Struct4, d) == 8);
 }  // namespace
 
 TEST(SbSabiStructAlignmentTest, AscendingDataTypeSizes) {
-  const Struct1 struct1 = {kInt8, kInt16, kInt32, kInt64};
+  const Struct1 struct1 = {.a = kInt8, .b = kInt16, .c = kInt32, .d = kInt64};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct1);
 
   EXPECT_EQ(kInt8, *base);
@@ -111,7 +111,7 @@ TEST(SbSabiStructAlignmentTest, AscendingDataTypeSizes) {
 }
 
 TEST(SbSabiStructAlignmentTest, DescendingDataTypeSizes) {
-  const Struct2 struct2 = {kInt64, kInt32, kInt16, kInt8};
+  const Struct2 struct2 = {.a = kInt64, .b = kInt32, .c = kInt16, .d = kInt8};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct2);
 
   EXPECT_EQ(kInt64, *reinterpret_cast<const int64_t*>(base));
@@ -121,7 +121,7 @@ TEST(SbSabiStructAlignmentTest, DescendingDataTypeSizes) {
 }
 
 TEST(SbSabiStructAlignmentTest, NestedStruct) {
-  const Struct3 struct3 = {kInt8, {kInt32}, kInt8};
+  const Struct3 struct3 = {.a = kInt8, .c = {kInt32}, .d = kInt8};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct3);
 
   EXPECT_EQ(kInt8, *base);
@@ -130,7 +130,7 @@ TEST(SbSabiStructAlignmentTest, NestedStruct) {
 }
 
 TEST(SbSabiStructAlignmentTest, NestedUnion) {
-  const Struct4 struct4 = {kInt8, {kInt32}, kInt8};
+  const Struct4 struct4 = {.a = kInt8, .c = {kInt32}, .d = kInt8};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct4);
 
   EXPECT_EQ(kInt8, *base);

@@ -147,9 +147,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDay) {
 // Test marked as flaky because it calls DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   {
-    TakeThenSignalContext context = {TestSemaphore(0),
-                                     PTHREAD_MUTEX_INITIALIZER,
-                                     PTHREAD_COND_INITIALIZER, 0};
+    TakeThenSignalContext context = {.do_signal = TestSemaphore(0),
+                                     .mutex = PTHREAD_MUTEX_INITIALIZER,
+                                     .condition = PTHREAD_COND_INITIALIZER,
+                                     .delay_after_signal = 0};
 
     DoSunnyDay(&context, true, false);
   }
@@ -159,9 +160,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   // this mode, hoping to have the auto-initting contend in various ways.
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    TakeThenSignalContext context = {TestSemaphore(0),
-                                     PTHREAD_MUTEX_INITIALIZER,
-                                     PTHREAD_COND_INITIALIZER, 0};
+    TakeThenSignalContext context = {.do_signal = TestSemaphore(0),
+                                     .mutex = PTHREAD_MUTEX_INITIALIZER,
+                                     .condition = PTHREAD_COND_INITIALIZER,
+                                     .delay_after_signal = 0};
     DoSunnyDay(&context, false, false);
   }
 }
@@ -170,8 +172,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
 // to DoSunnyDay().
 TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   const int64_t kOtherDelaySec = 3'000'000;  // 3s
-  TakeThenSignalContext context = {TestSemaphore(0), PTHREAD_MUTEX_INITIALIZER,
-                                   PTHREAD_COND_INITIALIZER, kOtherDelaySec};
+  TakeThenSignalContext context = {.do_signal = TestSemaphore(0),
+                                   .mutex = PTHREAD_MUTEX_INITIALIZER,
+                                   .condition = PTHREAD_COND_INITIALIZER,
+                                   .delay_after_signal = kOtherDelaySec};
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
 
   InitCondition(&context.condition, false /* use_monotonic */);
