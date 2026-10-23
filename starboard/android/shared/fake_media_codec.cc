@@ -136,6 +136,10 @@ void FakeMediaCodec::SimulateOutputAvailable(int index,
   handler_->OnMediaCodecOutputBufferAvailable(index, flags, offset, pts, size);
 }
 
+void FakeMediaCodec::SimulateFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
 bool FakeMediaCodec::WaitForInputQueue(size_t num_packets, int timeout_ms) {
   std::unique_lock<std::mutex> lock(mutex_);
   return cv_.wait_for(
@@ -189,6 +193,7 @@ FakeMediaCodecFactory::CreateVideoMediaCodec(
     std::lock_guard lock(mutex_);
     last_video_color_metadata_ =
         color_metadata ? std::make_optional(*color_metadata) : std::nullopt;
+    last_video_platform_options_ = platform_options;
   }
   video_codec_create_count_++;
   auto fake =
