@@ -4232,7 +4232,13 @@ void Heap::CollectGarbageOnMemoryPressure() {
   const double kMaxMemoryPressurePauseMs = 100;
 
   double start = MonotonicallyIncreasingTimeInMs();
-  CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
+  GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
+#if BUILDFLAG(IS_COBALT)
+  if (v8_flags.flush_code_on_critical_memory_pressure) {
+    gc_flags |= GCFlag::kLastResort;
+  }
+#endif
+  CollectAllGarbage(gc_flags,
                     GarbageCollectionReason::kMemoryPressure,
                     kGCCallbackFlagCollectAllAvailableGarbage);
   EagerlyFreeExternalMemoryAndWasmCode();
@@ -4249,7 +4255,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-      CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
+      CollectAllGarbage(gc_flags,
                         GarbageCollectionReason::kMemoryPressure,
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {

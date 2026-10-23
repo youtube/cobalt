@@ -392,11 +392,20 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (isolate->heap()->IsLastResortGC() &&
+      (v8_flags.flush_code_on_critical_memory_pressure ||
+       v8_flags.flush_code_based_on_time ||
+       v8_flags.flush_code_based_on_tab_visibility)) {
+    code_flush_mode.Add(CodeFlushMode::kForceFlush);
+  }
+#else
   if (isolate->heap()->IsLastResortGC() &&
       (v8_flags.flush_code_based_on_time ||
        v8_flags.flush_code_based_on_tab_visibility)) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
+#endif
 
   return code_flush_mode;
 }
