@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/modular_executable.gni")
+import("//testing/test.gni")
 
 if (is_cobalt_hermetic_build) {
   _benchmark_type = "modular_executable"
@@ -36,6 +37,52 @@ target(_benchmark_type, "benchmark") {
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
+# The SbPlayer benchmarks, wrapped in a gtest. The gtest is what makes them
+# work on Android TV: the player there needs the Java side of the Starboard
+# implementation and an activity with a video surface, which only the test APK
+# and the standard test runner provide. The same binary works on other
+# platforms such as Linux too, where it can be run directly from the shell.
+# Any --benchmark_* flag on the command line is passed through to the
+# benchmarks, e.g. --benchmark_filter=BM_PlayerCreateSync.
+test("player_benchmarks") {
+  testonly = true
+
+  sources = [
+    "player/player_benchmark_gtest_wrapper.cc",
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
+  ]
+
+  public_deps = [
+    "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
+    "//testing/gtest",
+    "//third_party/google_benchmark",
+  ]
+  deps = cobalt_platform_dependencies
+
+  # The .dmp files played back by the seek benchmarks.
+  data_deps = [ "//starboard/shared/starboard/player:player_test_data" ]
+
+  if (is_android) {
+    deps += [
+      "//cobalt/android:cobalt_testing_java",
+      "//cobalt/android:jni_headers",
+    ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
