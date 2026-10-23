@@ -32,6 +32,17 @@ PSS_RE = re.compile(r'TOTAL PSS:\s+(\d+)')
 # A quiet period this long after an image paint means the screen has settled.
 SETTLE_GAP_US = 3_000_000
 FAR_FUTURE = 1 << 62
+# Kabuki BedrockRepetitiveActionType (string or numeric enum) -> metric key.
+KABUKI_ACTIONS = {
+    'BEDROCK_REPETITIVE_ACTION_TYPE_TILE_TO_TILE': 't2t_input',
+    '1': 't2t_input',
+    'BEDROCK_REPETITIVE_ACTION_TYPE_ROW_TO_ROW': 'r2r_input',
+    '2': 'r2r_input',
+    'BEDROCK_REPETITIVE_ACTION_TYPE_TILE_TO_TILE_TOTAL': 't2t_transition',
+    '4': 't2t_transition',
+    'BEDROCK_REPETITIVE_ACTION_TYPE_ROW_TO_ROW_TOTAL': 'r2r_transition',
+    '5': 'r2r_transition',
+}
 # Number of D-pad presses run_once.sh sends before OK.
 N_DPAD = 10
 
@@ -44,6 +55,10 @@ METRICS = [
     ('home_ui_load', 'HOME UI LOAD: nav start -> visually complete'),
     ('input_median', 'INPUT: D-pad keydown -> presented (median)'),
     ('input_max', 'INPUT: D-pad keydown -> presented (max)'),
+    ('r2r_transition', 'KABUKI R2R transition (median)'),
+    ('r2r_input', 'KABUKI R2R input (median)'),
+    ('t2t_transition', 'KABUKI T2T transition (median)'),
+    ('t2t_input', 'KABUKI T2T input (median)'),
     ('browse_to_watch', 'BROWSE-TO-WATCH: OK keydown -> presenting'),
     ('warm_launch', 'WARM LAUNCH: activity start -> first frame'),
     ('mem_home_mb', 'MEMORY: PSS on home (MB)'),
@@ -173,6 +188,17 @@ def analyze(run_dir):
   if lat:
     r['input_median'] = statistics.median(lat)
     r['input_max'] = max(lat)
+
+  # Kabuki's own list latency (the source of the Rasta R2R/T2T metrics),
+  # measured during the r2r and dpad phases.
+  kabuki = {}
+  for kv in of('kabuki_latency'):
+    key = KABUKI_ACTIONS.get(kv.get('action', ''))
+    if key and float(kv.get('duration_ms', -1)) >= 0:
+      kabuki.setdefault(key, []).append(float(kv['duration_ms']))
+  for key, values in kabuki.items():
+    r[key] = statistics.median(values)
+    notes.append(f'{key}: n={len(values)}')
 
   # Browse-to-watch: OK keydown -> first Presenting after it.
   if ok_keys:

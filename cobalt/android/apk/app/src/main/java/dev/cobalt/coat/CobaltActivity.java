@@ -377,15 +377,30 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   protected boolean dispatchKeyEventToIme(int keyCode, int action) {
+    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
+    // app closes.
+    long eventTime = SystemClock.uptimeMillis();
+    return dispatchKeyEventToIme(new KeyEvent(eventTime, eventTime, action, keyCode, 0));
+  }
+
+  // ATOM_PERF (PoC): Keep the original event's timing and repeat count. Rebuilding the event with
+  // the current time hides the Android-side delivery delay from event.timeStamp and drops repeat.
+  protected boolean dispatchKeyEventToIme(KeyEvent original, int action) {
+    return dispatchKeyEventToIme(
+        new KeyEvent(
+            original.getDownTime(),
+            original.getEventTime(),
+            action,
+            original.getKeyCode(),
+            original.getRepeatCount()));
+  }
+
+  private boolean dispatchKeyEventToIme(KeyEvent event) {
     ImeAdapterImpl imeAdapter = getImeAdapterImpl();
     if (imeAdapter == null) {
       return false;
     }
-
-    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
-    // app closes.
-    long eventTime = SystemClock.uptimeMillis();
-    return imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, action, keyCode, 0));
+    return imeAdapter.dispatchKeyEvent(event);
   }
 
   @Override
@@ -398,7 +413,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (KeyEvent.isGamepadButton(keyCode) || KeyboardUtils.isPartnerFallbackKey(keyCode)) {
       return super.onKeyDown(keyCode, event);
     }
-    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
+    return dispatchKeyEventToIme(event, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
@@ -409,7 +424,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mPhysicalBackKeyPressed = false;
     }
-    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
+    return dispatchKeyEventToIme(event, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -505,6 +520,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // and base::TimeTicks (CLOCK_MONOTONIC).
     atomPerfMark("process_start", android.os.Process.getStartUptimeMillis() * 1000L);
     atomPerfMark("activity_create");
+    maybeClearHttpCacheForMeasurement();
     super.onCreate(savedInstanceState);
 
     setupStartupGuard();
@@ -751,6 +767,30 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private static void atomPerfMark(String event, long timestampUs) {
     android.util.Log.i("ATOM_PERF", "ATOM_PERF " + event + " t_us=" + timestampUs);
+  }
+
+  // ATOM_PERF (PoC): For empty-cache measurements on non-debuggable builds (where `run-as` is not
+  // available), delete the HTTP disk cache before native init when launched with
+  // `--ez atomClearHttpCache true`. Cookies, login and the V8 code cache are kept.
+  private void maybeClearHttpCacheForMeasurement() {
+    if (isReleaseBuild() || !getIntent().getBooleanExtra("atomClearHttpCache", false)) {
+      return;
+    }
+    java.io.File cacheDir = new java.io.File(getCacheDir(), "Cache");
+    deleteRecursively(cacheDir);
+    atomPerfMark("http_cache_cleared");
+  }
+
+  private static void deleteRecursively(java.io.File file) {
+    java.io.File[] children = file.listFiles();
+    if (children != null) {
+      for (java.io.File child : children) {
+        deleteRecursively(child);
+      }
+    }
+    if (file.exists() && !file.delete()) {
+      Log.w(TAG, "ATOM_PERF: failed to delete " + file);
+    }
   }
 
   private void maybeRegisterNetworkRecoveryObserver() {
