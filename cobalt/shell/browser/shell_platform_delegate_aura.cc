@@ -118,6 +118,15 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   content->Show();
 }
 
+bool ShellPlatformDelegate::HasPlatformWindow() const {
+  if (!platform_ || !platform_->aura || !platform_->aura->host()) {
+    return false;
+  }
+  auto* host =
+      static_cast<aura::WindowTreeHostPlatform*>(platform_->aura->host());
+  return host->platform_window() && host->platform_window()->IsVisible();
+}
+
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
   ShellData& shell_data = shell_data_map_.at(shell);
   if (!shell_data.window) {
@@ -155,11 +164,18 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
   if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
+    TrackWebContentsToReveal(web_contents);
   }
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+#if BUILDFLAG(IS_STARBOARD)
+void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
+  // The splash screen isn't shown here, so always show the main WebContents.
+  SetContents(shell);
+}
+#endif
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 

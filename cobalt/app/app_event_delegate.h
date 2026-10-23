@@ -114,6 +114,10 @@ class AppEventDelegate {
  private:
   static const char* GetStateString(ApplicationState state);
 
+  // Returns true if the step to |next_state| is kConcealed -> kBlurred, which
+  // calls OnReveal() and creates the platform window.
+  static bool IsRevealStep(ApplicationState next_state, bool is_activating);
+
   void HandleEventLocked(const SbEvent* event) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Starts a transition of the application state from its current state to the
@@ -169,6 +173,13 @@ class AppEventDelegate {
   ApplicationState target_state_ GUARDED_BY(lock_) = ApplicationState::kInitial;
   bool is_transitioning_ GUARDED_BY(lock_) = false;
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
+  // Set when a reveal step couldn't create a platform window. The next step is
+  // then kBlurred -> kConcealed, whatever the target state.
+  bool conceal_after_failed_reveal_ GUARDED_BY(lock_) = false;
+  // Set when the target becomes a visible state (kStarted or kBlurred),
+  // cleared when a reveal step starts. After a reveal step that couldn't
+  // create a window, true means the reveal should be tried again.
+  bool visible_target_since_reveal_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
 #if BUILDFLAG(IS_STARBOARD)

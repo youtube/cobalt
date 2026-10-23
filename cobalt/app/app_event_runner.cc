@@ -49,6 +49,7 @@
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/public/browser/browser_thread.h"
@@ -95,6 +96,10 @@ class AppEventRunnerImpl : public AppEventRunner,
   PendingAck pending_ack() const override {
     base::AutoLock lock(lock_);
     return pending_ack_;
+  }
+
+  bool HasValidPlatformWindow() const override {
+    return content::Shell::GetPlatform()->HasPlatformWindow();
   }
 
   void InitializeSystem() override {
@@ -246,7 +251,12 @@ class AppEventRunnerImpl : public AppEventRunner,
 
   void DoReveal() override {
     content::Shell::OnReveal();
-    WaitForAck(PendingAck::kReveal);
+    // Without a platform window, the frames can't become visible, so a reveal
+    // ACK would never come. In that case AppEventDelegate conceals the
+    // application again anyway.
+    if (HasValidPlatformWindow()) {
+      WaitForAck(PendingAck::kReveal);
+    }
   }
 
   void DoFreeze(base::OnceClosure callback) override {

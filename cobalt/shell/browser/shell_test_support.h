@@ -86,6 +86,7 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(void, OnUnfreeze, (), (override));
   MOCK_METHOD(void, OnStop, (), (override));
   MOCK_METHOD(void, MainFrameCreated, (Shell*), (override));
+  MOCK_METHOD(bool, HasPlatformWindow, (), (const, override));
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   MOCK_METHOD(bool,
               IsFullscreenForTabOrPending,
@@ -247,6 +248,8 @@ class ShellTestBase : public ::testing::Test {
     ON_CALL(*platform_, OnStop()).WillByDefault([this]() {
       platform_->ShellPlatformDelegate::OnStop();
     });
+    ON_CALL(*platform_, HasPlatformWindow())
+        .WillByDefault(::testing::Return(true));
     ON_CALL(*platform_, DidCloseLastWindow()).WillByDefault([this]() {
       ClearPlatform();
       Shell::Shutdown();

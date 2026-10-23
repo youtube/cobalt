@@ -349,7 +349,7 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     Shell* shell,
     WebContents* web_contents) {
   if (!is_visible_) {
-    TrackPreviouslyVisibleWebContents(web_contents);
+    TrackWebContentsToReveal(web_contents);
   }
   auto it = shell_data_map_.find(shell);
   if (it == shell_data_map_.end()) {
@@ -361,6 +361,24 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
     shell_data.window_widget->GetNativeWindow()->Show();
     shell_data.window_widget->Restore();
   }
+}
+bool ShellPlatformDelegate::HasPlatformWindow() const {
+  for (const auto& [shell, shell_data] : shell_data_map_) {
+    if (!shell_data.window_widget) {
+      continue;
+    }
+    auto* native_window = shell_data.window_widget->GetNativeWindow();
+    if (!native_window || !native_window->GetHost()) {
+      continue;
+    }
+    auto* host_platform =
+        static_cast<aura::WindowTreeHostPlatform*>(native_window->GetHost());
+    auto* platform_window = host_platform->platform_window();
+    if (platform_window && platform_window->IsVisible()) {
+      return true;
+    }
+  }
+  return false;
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
   // Dynamically re-enable Chromium's thread watchdog on resume!
@@ -445,6 +463,19 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
     shell_data.window_widget->Show();
   }
 }
+
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
+  // If the splash screen was still up when the application was concealed,
+  // show it again. Shell::SwitchToMainWebContents() replaces it once the main
+  // page has loaded.
+  if (shell->splash_screen_web_contents()) {
+    LoadSplashScreenContents(shell);
+  } else {
+    SetContents(shell);
+  }
+}
+#endif
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {
   SetContents(shell);

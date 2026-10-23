@@ -102,7 +102,7 @@ TEST_F(LifecycleTest, Reveal) {
 
   // Simulate that the frame was visible before conceal, so OnReveal will
   // trigger WasShown().
-  platform_->AddPreviouslyVisibleWebContentsForTesting(shell_->web_contents());
+  platform_->AddWebContentsToRevealForTesting(shell_->web_contents());
 
   // Trigger reveal.
   EXPECT_CALL(*platform_, OnReveal()).WillOnce([this]() {
