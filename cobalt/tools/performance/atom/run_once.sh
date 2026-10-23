@@ -21,8 +21,10 @@
 #   empty: delete the HTTP cache before launch (worst case: all resources are
 #          downloaded again). Cookies, login, and the V8 code cache are kept.
 #
-# Pass: cold launch -> 10 D-pad presses -> OK (play) -> BACK -> HOME ->
-#       warm launch.
+# Pass: cold launch -> normalize to HOME (handles the account picker) ->
+#       10 D-pad presses -> OK (play) -> BACK -> HOME -> warm launch.
+#
+# With multiple adb devices, set ANDROID_SERIAL to pick one.
 set -euo pipefail
 
 OUT_DIR="${1:?Usage: run_once.sh <out_dir> [warm|empty]}"
@@ -33,7 +35,11 @@ HTTP_CACHE_DIR="/data/data/${PKG}/cache/Cache"
 mkdir -p "${OUT_DIR}"
 
 key() { adb shell input keyevent "$1"; sleep "${2:-1.5}"; }
-mark() { echo "HARNESS $1 host_time=$(date +%s.%N)" >> "${OUT_DIR}/harness.log"; }
+mark() {
+  echo "HARNESS $1 host_time=$(date +%s.%N)" >> "${OUT_DIR}/harness.log"
+  # Phase marker in logcat; parse_atom_perf.py groups events by these markers.
+  adb shell log -t ATOM_PERF "ATOM_PERF phase name=$1"
+}
 
 echo "cache_mode=${CACHE_MODE}" > "${OUT_DIR}/config.txt"
 adb logcat -G 16M >/dev/null 2>&1 || true
@@ -50,17 +56,30 @@ adb shell am start -W -n "${ACT}" > "${OUT_DIR}/am_start_cold.txt"
 sleep 25  # Let the home page settle (thumbnails load).
 adb shell dumpsys meminfo "${PKG}" > "${OUT_DIR}/meminfo_home.txt"
 
-# 2. Input latency: D-pad moves on home.
+# 2. Normalize to HOME. The app occasionally starts on the account picker.
+#   SELECT: picker -> choose 1st account, go HOME | home -> start 1st video
+#   SELECT: picker path -> pause video            | home path -> start video
+#   PLAY:   picker path -> resume video           | home path -> no-op
+#   BACK:   both paths -> HOME
+mark normalize
+key KEYCODE_DPAD_CENTER 8
+key KEYCODE_DPAD_CENTER 5
+key KEYCODE_MEDIA_PLAY 5
+key KEYCODE_BACK 5
+
+# 3. Input latency: D-pad moves on home. Ends one tile right of the start, so
+#    browse-to-watch opens a video that the normalize step did not play
+#    (replaying it resumes at the last position, which adds a seek).
 mark dpad
 for _ in 1 2 3 4 5; do key KEYCODE_DPAD_RIGHT; done
-for _ in 1 2 3 4 5; do key KEYCODE_DPAD_LEFT; done
+for _ in 1 2 3 4; do key KEYCODE_DPAD_LEFT; done
 
-# 3. Browse-to-watch: select the focused thumbnail.
+# 4. Browse-to-watch: select the focused thumbnail.
 mark browse_to_watch
 key KEYCODE_DPAD_CENTER 15
 adb shell dumpsys meminfo "${PKG}" > "${OUT_DIR}/meminfo_playback.txt"
 
-# 4. Warm launch: back to home, go to the launcher, then relaunch.
+# 5. Warm launch: back to home, go to the launcher, then relaunch.
 mark back_and_home
 key KEYCODE_BACK 5
 key KEYCODE_HOME 8

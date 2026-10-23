@@ -48,19 +48,27 @@ METRICS = [
     ('warm_launch', 'WARM LAUNCH: activity start -> first frame'),
     ('mem_home_mb', 'MEMORY: PSS on home (MB)'),
     ('mem_playback_mb', 'MEMORY: PSS in playback (MB)'),
+    ('launched_to_picker', 'Launched to account picker (1=yes)'),
 ]
 
 
 def read_events(run_dir):
+  """Returns [(name, kv, phase)]. Phase comes from run_once.sh markers."""
   events = []
+  phase = None
   with open(
       os.path.join(run_dir, 'atom_perf.log'),
       encoding='utf-8',
       errors='replace') as f:
     for line in f:
       m = LINE_RE.search(line)
-      if m:
-        events.append((m.group(1), dict(KV_RE.findall(m.group(2)))))
+      if not m:
+        continue
+      kv = dict(KV_RE.findall(m.group(2)))
+      if m.group(1) == 'phase':
+        phase = kv.get('name')
+        continue
+      events.append((m.group(1), kv, phase))
   return events
 
 
@@ -93,25 +101,39 @@ def analyze(run_dir):
   def t(kv, k='t_us'):
     return int(kv[k])
 
-  def of(name):
-    return [kv for n, kv in events if n == name]
+  def of(name, phase=None):
+    return [
+        kv for n, kv, p in events if n == name and (phase is None or p == phase)
+    ]
 
   def first(name):
     return next(iter(of(name)), None)
+
+  def keydowns_in(phase):
+    return [kv for kv in of('event', phase) if kv.get('name') == 'keydown']
 
   r, notes = {}, []
   # Exclude blob: images: the splash screen logo and the autoplay preview
   # frame of the focused tile (which appears seconds later, right before the
   # preview video starts) are not part of the home UI loading.
-  paints = [
-      t(kv)
-      for kv in of('image_paint')
+  image_paints = [
+      kv for kv in of('image_paint')
       if not kv.get('url', '').startswith('blob:')
   ]
+  paints = [t(kv) for kv in image_paints]
   keydowns = [kv for kv in of('event') if kv.get('name') == 'keydown']
   stops = [t(kv) for kv in of('activity_stop')]
   first_stop = min(stops, default=FAR_FUTURE)
   first_key = min((int(k['created_us']) for k in keydowns), default=FAR_FUTURE)
+
+  # The app occasionally starts on the account picker instead of HOME. HOME
+  # paints video thumbnails (i.ytimg.com/vi/) before the first key press.
+  launched_to_home = any(
+      t(kv) < first_key and 'i.ytimg.com/vi/' in kv.get('url', '')
+      for kv in image_paints)
+  r['launched_to_picker'] = 0 if launched_to_home else 1
+  if not launched_to_home:
+    notes.append('launched to account picker; cold launch metrics skipped')
 
   # Cold launch. The splash screen is a separate document with its own FCP;
   # the YouTube app's FCP is the last one before the first key press.
@@ -124,26 +146,37 @@ def analyze(run_dir):
       r['activity_create'] = (t(first('activity_create')) - start) / 1000
     if fcp:
       r['nav_start'] = (int(fcp['nav_start_us']) - start) / 1000
+    if fcp and launched_to_home:
       r['fcp'] = (t(fcp) - start) / 1000
     vc, n = settle_time(paints, start, first_key)
-    if vc:
+    if vc and launched_to_home:
       r['cold_launch'] = (vc - start) / 1000
       notes.append(f'{n} image paints before visually complete')
       if fcp:
         r['home_ui_load'] = (vc - int(fcp['nav_start_us'])) / 1000
 
-  # Input latency: the first N_DPAD keydowns are the D-pad presses (see
-  # run_once.sh); the next one is OK (play), then BACK.
-  session_keys = [k for k in keydowns if int(k['created_us']) < first_stop]
-  lat = [(int(k['presented_us']) - int(k['created_us'])) / 1000
-         for k in session_keys[:N_DPAD]]
+  has_phases = any(p for _, _, p in events)
+  if has_phases:
+    dpad_keys = keydowns_in('dpad')
+    ok_keys = keydowns_in('browse_to_watch')
+  else:
+    # Older runs without phase markers: the first N_DPAD keydowns are the
+    # D-pad presses, the next one is OK.
+    session_keys = [k for k in keydowns if int(k['created_us']) < first_stop]
+    dpad_keys = session_keys[:N_DPAD]
+    ok_keys = session_keys[N_DPAD:N_DPAD + 1]
+
+  # Input latency: D-pad keydown -> next frame presented.
+  lat = [
+      (int(k['presented_us']) - int(k['created_us'])) / 1000 for k in dpad_keys
+  ]
   if lat:
     r['input_median'] = statistics.median(lat)
     r['input_max'] = max(lat)
 
   # Browse-to-watch: OK keydown -> first Presenting after it.
-  if len(session_keys) > N_DPAD:
-    ok = int(session_keys[N_DPAD]['created_us'])
+  if ok_keys:
+    ok = int(ok_keys[0]['created_us'])
     presenting = [
         t(kv) for kv in of('player_state') if
         kv.get('name') == 'kSbPlayerStatePresenting' and ok < t(kv) < first_stop
@@ -161,7 +194,8 @@ def analyze(run_dir):
     else:
       notes.append('no first_frame_after_visible after warm start')
 
-  r['mem_home_mb'] = read_pss_mb(run_dir, 'meminfo_home.txt')
+  r['mem_home_mb'] = (
+      read_pss_mb(run_dir, 'meminfo_home.txt') if launched_to_home else None)
   r['mem_playback_mb'] = read_pss_mb(run_dir, 'meminfo_playback.txt')
   return {k: v for k, v in r.items() if v is not None}, notes
 

@@ -14,8 +14,18 @@ are CLOCK_MONOTONIC microseconds (same clock as `base::TimeTicks` and Java
 ./parse_atom_perf.py <run_dir> [...]   # timeline (1 dir) or summary (N dirs)
 ```
 
-Each pass: cold launch -> 10 D-pad presses -> OK (play) -> BACK -> HOME ->
-warm launch. `empty` deletes only the HTTP cache (`cache/Cache`); cookies,
+Each pass: cold launch -> normalize to HOME -> 9 D-pad presses -> OK (play) ->
+BACK -> HOME -> warm launch. The harness writes `ATOM_PERF phase name=<phase>`
+markers to logcat, and the parser groups events by phase.
+
+- **Normalize:** the app occasionally starts on the account picker. SELECT,
+  SELECT, PLAY, BACK ends on HOME from either state (see `run_once.sh`). Runs
+  that started on the picker are flagged (`Launched to account picker`) and
+  their cold-launch metrics are skipped.
+- **D-pad:** 5 right, 4 left, ending one tile right of the start, so OK opens a
+  video the normalize step did not play (replaying it would resume at the last
+  position and add a seek).
+- With multiple adb devices, set `ANDROID_SERIAL`. `empty` deletes only the HTTP cache (`cache/Cache`); cookies,
 login, and the V8 code cache are kept.
 
 ## Metrics
