@@ -27,6 +27,10 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
+#endif
 #include "cc/animation/animation_host.h"
 #include "cc/input/scroll_elasticity_helper.h"
 #include "cc/layers/content_layer_client.h"
@@ -8279,6 +8283,17 @@ MULTI_THREAD_BLOCKNOTIFY_TEST_F(LayerTreeHostTestBeginFrameAcks);
 
 class LayerTreeHostTestQueueImageDecode : public LayerTreeHostTest {
  protected:
+#if BUILDFLAG(IS_COBALT)
+  LayerTreeHostTestQueueImageDecode() {
+    // kSendExplicitDecodeRequestsImmediately is enabled by default on Cobalt;
+    // disable it here so this test continues to cover the commit-queued
+    // fallback path. The immediate path is covered by
+    // LayerTreeHostTestQueueImageDecodeImmediately below.
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kSendExplicitDecodeRequestsImmediately);
+  }
+#endif
+
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
   void InitializeSettings(LayerTreeSettings* settings) override {
@@ -8329,6 +8344,9 @@ class LayerTreeHostTestQueueImageDecode : public LayerTreeHostTest {
   }
 
  private:
+#if BUILDFLAG(IS_COBALT)
+  base::test::ScopedFeatureList scoped_feature_list_;
+#endif
   bool first_ = true;
   bool one_commit_done_ = false;
   int finished_decode_count_ = 0;
@@ -8336,6 +8354,54 @@ class LayerTreeHostTestQueueImageDecode : public LayerTreeHostTest {
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestQueueImageDecode);
+
+#if BUILDFLAG(IS_COBALT)
+class LayerTreeHostTestQueueImageDecodeImmediately : public LayerTreeHostTest {
+ protected:
+  LayerTreeHostTestQueueImageDecodeImmediately() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kSendExplicitDecodeRequestsImmediately);
+  }
+
+  void BeginTest() override { PostSetNeedsCommitToMainThread(); }
+
+  void DidCommit() override {
+    if (layer_tree_host()->SourceFrameNumber() != 1) {
+      return;
+    }
+
+    // Defer subsequent BeginMainFrame/commits before queueing the decode.
+    // With kSendExplicitDecodeRequestsImmediately enabled, both the decode
+    // request and its completion callback must bypass the commit pipeline and
+    // complete while SourceFrameNumber() remains 1.
+    defer_main_frame_update_ = layer_tree_host()->DeferMainFrameUpdate();
+    image_ =
+        DrawImage(CreateDiscardablePaintImage(gfx::Size(400, 400)), false,
+                  SkIRect::MakeWH(400, 400), PaintFlags::FilterQuality::kNone,
+                  SkM44(), PaintImage::kDefaultFrameIndex, TargetColorParams());
+    layer_tree_host()->QueueImageDecode(
+        image_,
+        base::BindOnce(
+            &LayerTreeHostTestQueueImageDecodeImmediately::ImageDecodeFinished,
+            base::Unretained(this)),
+        /*speculative=*/false);
+  }
+
+  void ImageDecodeFinished(bool decode_succeeded) {
+    EXPECT_TRUE(decode_succeeded);
+    EXPECT_EQ(layer_tree_host()->SourceFrameNumber(), 1);
+    defer_main_frame_update_.reset();
+    EndTest();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<ScopedDeferMainFrameUpdate> defer_main_frame_update_;
+  DrawImage image_;
+};
+
+SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestQueueImageDecodeImmediately);
+#endif
 
 class LayerTreeHostTestQueueImageDecodeNonLazy : public LayerTreeHostTest {
  protected:
