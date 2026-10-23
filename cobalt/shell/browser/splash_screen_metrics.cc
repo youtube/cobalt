@@ -60,6 +60,11 @@ void RecordTime(const std::string& name,
   base::UmaHistogramCustomTimes(name, sample, min, max, /*buckets=*/100);
 }
 
+void RecordBoolean(const std::string& name, bool sample) {
+  VLOG(1) << "NativeSplash: " << name << ": " << (sample ? "true" : "false");
+  base::UmaHistogramBoolean(name, sample);
+}
+
 // Records the time from the start of the launch to `time`, if both are known.
 void RecordTimeline(std::string_view event,
                     base::TimeTicks time,
@@ -132,6 +137,12 @@ void SplashScreenMetrics::MarkEvent(Event event) {
   }
 }
 
+void SplashScreenMetrics::OnContentWaitEnded(bool timed_out) {
+  if (!content_wait_timed_out_) {
+    content_wait_timed_out_ = timed_out;
+  }
+}
+
 void SplashScreenMetrics::Invalidate() {
   if (is_valid_ && !has_recorded_) {
     VLOG(1) << "NativeSplash: Not recording startup metrics for this launch.";
@@ -149,7 +160,8 @@ void SplashScreenMetrics::OnSwitchedToMain(SwitchTrigger trigger) {
   const std::string_view mode = GetMode();
   const bool is_video = mode == kVideoMode;
   const base::TimeTicks content_shown =
-      GetTime(is_video ? Event::kSplashVideoStarted : Event::kSplashFirstPaint);
+      GetTime(is_video ? Event::kSplashVideoStarted
+                       : Event::kSplashFirstContentfulPaint);
   const base::TimeTicks content_ended =
       GetTime(is_video ? Event::kSplashVideoEnded : Event::kSplashClosed);
 
@@ -174,11 +186,16 @@ void SplashScreenMetrics::OnSwitchedToMain(SwitchTrigger trigger) {
                  mode);
 
   const bool content_ended_before_switch = !content_ended.is_null();
-  const std::string content_ended_name =
-      base::StrCat({kSplashScreenPrefix, "ContentEndedBeforeSwitch.", mode});
-  VLOG(1) << "NativeSplash: " << content_ended_name << ": "
-          << (content_ended_before_switch ? "true" : "false");
-  base::UmaHistogramBoolean(content_ended_name, content_ended_before_switch);
+  RecordBoolean(
+      base::StrCat({kSplashScreenPrefix, "ContentEndedBeforeSwitch.", mode}),
+      content_ended_before_switch);
+  // Only if the minimum duration waited for the content, and stopped waiting
+  // before the switch.
+  if (content_wait_timed_out_) {
+    RecordBoolean(
+        base::StrCat({kSplashScreenPrefix, "ContentWaitTimedOut.", mode}),
+        *content_wait_timed_out_);
+  }
 
   const std::string trigger_name =
       base::StrCat({kSplashScreenPrefix, "SwitchTrigger.", mode});

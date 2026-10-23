@@ -41,11 +41,11 @@
           return;
         }
 
-        // When the video starts playing: the timeout of a video counts from
-        // there, as in Shell.
-        let videoStartMs = 0;
+        // When the content shows, i.e., the video starts playing or the image
+        // is painted: its timeout counts from there, as in Shell.
+        let contentStartMs = 0;
         videoEl.addEventListener('playing', () => {
-          videoStartMs = performance.now();
+          contentStartMs = performance.now();
         }, {once: true});
 
         const onSplashEnd = () => {
@@ -55,7 +55,7 @@
               new URLSearchParams(window.location.search).get('timeout')) || 0;
           const loadEndMs =
               performance.getEntriesByType('navigation')[0]?.loadEventEnd || 0;
-          const startMs = videoStartMs || loadEndMs;
+          const startMs = contentStartMs || loadEndMs;
           const remainingMs =
               Math.max(0, timeoutMs - (performance.now() - startMs));
           if (remainingMs > 0) {
@@ -76,14 +76,46 @@
             placeholderEl.style.opacity = '100%';
           }
         };
-        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage, /*afterImageLoad=*/ onSplashEnd);
+        // The image stays for 1s to align with the splash video, counted from
+        // when it's painted rather than fetched, as it may only be painted
+        // much later, e.g., while the main WebContents keeps the renderer busy.
+        const afterImageShown = (paintMs) => {
+          contentStartMs = contentStartMs || paintMs;
+          setTimeout(onSplashEnd,
+                     Math.max(0, paintMs + 1000 - performance.now()));
+        };
+        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage,
+                            /*afterImageShown=*/ afterImageShown,
+                            /*onImageError=*/ onSplashEnd);
+      }
+
+      /**
+       * Calls `callback` with the time of the page's first contentful paint,
+       * once it's on screen. With the static image, that's when the image
+       * shows: the background, and the placeholder while it's transparent,
+       * aren't contentful. Shell starts the splash screen at the same paint.
+       * @param callback Callback function with the time of the paint.
+       */
+      function onFirstContentfulPaint(callback) {
+        const observer = new PerformanceObserver((list) => {
+          const entry = list.getEntriesByName('first-contentful-paint')[0];
+          if (entry) {
+            observer.disconnect();
+            callback(entry.startTime);
+          }
+        });
+        observer.observe({type: 'paint', buffered: true});
       }
 
       /**
        * Displays static splash screen for devices that don't support VP9
        * @param urlParams URL parameters containing cache configuration
+       * @param splashTopic Prefix of the built-in image of the topic.
+       * @param afterImageShown Callback function with the time the image is
+       *     painted at.
+       * @param onImageError Callback function if the image can't be shown.
        */
-      function handleStaticImageFallback(urlParams, splashTopic, afterImageLoad) {
+      function handleStaticImageFallback(urlParams, splashTopic, afterImageShown, onImageError) {
         const placeholderEl = getPlaceholderEl();
         if (!placeholderEl) {
           return;
@@ -108,15 +140,17 @@
             placeholderEl.style.backgroundSize = `${width}px ${height}px`;
             placeholderEl.style.backgroundImage = `url(${imageUrl})`;
             placeholderEl.style.opacity = '100%';
+            afterImageShown && onFirstContentfulPaint(afterImageShown);
+          };
+          image.onerror = () => {
+            console.error('Failed to decode splash image.');
+            onImageError && onImageError();
           };
           image.src = imageUrl;
-          // set timeout to align with timeout for splash video
-          setTimeout(() => {
-            afterImageLoad && afterImageLoad();
-          }, 1000);
         })
         .catch(error => {
           console.error('Failed to fetch splash image:', error);
+          onImageError && onImageError();
         });
         return;
       }
@@ -160,9 +194,12 @@
       /**
        * Plays the splash animation depending on device type.
        * @param afterVideoStart Callback function when the video starts playing.
-       * @param afterImageLoad Callback function for static image.
+       * @param afterImageShown Callback function with the time the static image
+       *     is painted at.
+       * @param onImageError Callback function if the static image can't be
+       *     shown.
        */
-      function playSplashAnimation(afterVideoStart, afterImageLoad) {
+      function playSplashAnimation(afterVideoStart, afterImageShown, onImageError) {
         const params = new URLSearchParams(window.location.search);
         const forceImage = params.get('force_image');
         // The default splash video is splash.webm. If it does not exist in
@@ -179,7 +216,7 @@
         // Shell asks Starboard the same (kSplashVideoType), so both agree on
         // whether the video plays.
         if (forceImage === 'true' || !MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
-          return handleStaticImageFallback(params, splashTopic, afterImageLoad);
+          return handleStaticImageFallback(params, splashTopic, afterImageShown, onImageError);
         }
 
         return handleVideo(params, splashTopic, afterVideoStart);

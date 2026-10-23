@@ -95,6 +95,13 @@ class SplashScreenTest : public ShellTestBase {
     shell->OnSplashScreenVideoStarted();
   }
 
+  // Simulates the splash screen's first contentful paint, i.e., its image
+  // showing, through its observer.
+  void CallOnSplashScreenFirstContentfulPaint(Shell* shell) {
+    GetSplashScreenWebContentsObserver(shell)
+        ->OnFirstContentfulPaintInPrimaryMainFrame();
+  }
+
   void CallOnSplashScreenVideoSupportChecked(Shell* shell,
                                              bool can_play_video) {
     shell->OnSplashScreenVideoSupportChecked(can_play_video);
@@ -185,6 +192,7 @@ TEST_F(SplashScreenTest, ParallelLoading) {
   CallLoadSplashScreenWebContents(shell);
   ExpectStateStarted(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
@@ -214,6 +222,7 @@ TEST_F(SplashScreenTest, EarlyMainContentLoad) {
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
@@ -288,6 +297,7 @@ TEST_F(SplashScreenTest, DestroyShellWhileSwitching) {
 
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
@@ -380,6 +390,7 @@ TEST_F(SplashScreenTest, MultipleLoadProgressEvents) {
 
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   CallLoadProgressChanged(shell, 0.5);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   CallLoadProgressChanged(shell, 1.0);
@@ -406,6 +417,7 @@ TEST_F(SplashScreenTest, SplashTimeoutExceededBeforeMainLoad) {
       CreateShell(std::move(web_contents), std::move(splash_contents));
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   task_environment_.FastForwardBy(base::Milliseconds(2000));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   CallLoadProgressChanged(shell, 1.0);
@@ -433,6 +445,7 @@ TEST_F(SplashScreenTest, MainContentLoadBeforeSplashStart) {
   EXPECT_CALL(*platform_, LoadSplashScreenContents(shell));
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   task_environment()->FastForwardBy(base::Milliseconds(2000));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
@@ -456,6 +469,7 @@ TEST_F(SplashScreenTest, MainContentDidStopLoadingFallback) {
 
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   CallLoadProgressChanged(shell, 0.9);
   EXPECT_FALSE(IsMainFrameLoaded(shell));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
@@ -509,6 +523,7 @@ TEST_F(SplashScreenTest, SplashTimerStartsOnLoadComplete) {
   task_environment_.FastForwardBy(base::Seconds(10));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   task_environment_.FastForwardBy(base::Milliseconds(1600));
@@ -591,6 +606,7 @@ TEST_F(SplashScreenTest, SplashTimeoutFromFeatureParam) {
 
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
+  CallOnSplashScreenFirstContentfulPaint(shell);
   CallLoadProgressChanged(shell, 1.0);
   EXPECT_TRUE(IsMainFrameLoaded(shell));
 
@@ -649,7 +665,8 @@ TEST_F(SplashScreenTest, VideoFirstFrameWaitIsBounded) {
   CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
 
-  // Without a first frame, the timeout starts 2 s after the page loaded.
+  // Without a first frame, the timeout starts 2 s (the default max_delay) after
+  // the page loaded.
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   task_environment()->FastForwardBy(base::Milliseconds(4900));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
@@ -663,7 +680,7 @@ TEST_F(SplashScreenTest, VideoFirstFrameWaitIsBounded) {
   shell->Close();
 }
 
-TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
+TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWhenImageShows) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
@@ -677,8 +694,10 @@ TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
   task_environment()->RunUntilIdle();
   CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnSplashScreenFirstContentfulPaint(shell);
 
-  // As for the image, the timeout counts from the page's load.
+  // As for the image, the timeout counts from when the image shows.
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
   task_environment()->FastForwardBy(base::Milliseconds(2900));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
@@ -692,7 +711,7 @@ TEST_F(SplashScreenTest, VideoSplashScreenWithoutVideoStartsWithPageLoad) {
   shell->Close();
 }
 
-TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
+TEST_F(SplashScreenTest, VideoSupportCheckedAfterImageShows) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       {{cobalt::features::kForceVideoSplashScreen, {}},
@@ -703,8 +722,12 @@ TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
-  // Shell only learns that the page shows its image after the page loaded.
-  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  // Shell only learns that the page shows its image after the image showed.
+  // Until then, the paint doesn't count, as a video's page paints before the
+  // video's first frame.
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallOnSplashScreenFirstContentfulPaint(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(500));
   CallOnSplashScreenVideoSupportChecked(shell, false);
 
   // The timeout counts from then, rather than 2 s after the page loaded.
@@ -721,27 +744,238 @@ TEST_F(SplashScreenTest, VideoSupportCheckedAfterPageLoad) {
   shell->Close();
 }
 
-TEST_F(SplashScreenTest, ImageSplashScreenStartsWithPageLoad) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      {{cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}}}},
-      {cobalt::features::kForceVideoSplashScreen});
+// The image may show long after its page loaded, e.g., while the main
+// WebContents keeps the renderer busy. A main WebContents that has loaded by
+// then mustn't cut the image before it's seen (b/563221091).
+TEST_F(SplashScreenTest, ImageSplashScreenStartsWhenImageShows) {
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+
+  // Counted from the page's load, the 1500ms minimum would end before the
+  // image shows.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1800));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+  CallOnSplashScreenFirstContentfulPaint(shell);  // t=1800
+  // A video starting in the page of the image doesn't restart the timeout.
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallOnSplashScreenVideoStarted(shell);  // t=2300
+
+  task_environment()->FastForwardBy(base::Milliseconds(900));  // t=3200
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=3400
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// If the image never shows, e.g., if it can't be fetched, the minimum starts
+// 2 s (the default max_delay) after the page loaded anyway.
+TEST_F(SplashScreenTest, ImageSplashScreenWaitForImageIsBounded) {
+  base::HistogramTester histogram_tester;
   Shell* shell = CreateShellWithSplashScreen();
 
   CallLoadSplashScreenWebContents(shell);
   CallOnSplashScreenLoadComplete(shell);
   CallLoadProgressChanged(shell, 1.0);
-  // A video starting in the page of the image doesn't restart the timeout.
-  task_environment()->FastForwardBy(base::Milliseconds(1000));
-  CallOnSplashScreenVideoStarted(shell);
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
-  task_environment()->FastForwardBy(base::Milliseconds(1900));
+  task_environment()->FastForwardBy(base::Milliseconds(3400));
   EXPECT_FALSE(HasSwitchedToMainFrame(shell));
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
   task_environment()->FastForwardBy(base::Milliseconds(200));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", true, 1);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// The page of a video paints before the video's first frame, which the video
+// splash screen waits for instead.
+TEST_F(SplashScreenTest, VideoSplashScreenIgnoresFirstContentfulPaint) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+  CallOnSplashScreenFirstContentfulPaint(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnSplashScreenVideoStarted(shell);  // t=1000
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));  // t=2400
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=2600
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// How long the splash screen waits for its content is configurable, e.g.,
+// shorter.
+TEST_F(SplashScreenTest, ImageSplashScreenWaitForImageFromFeatureParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenContentWait, {{"max_delay", "500ms"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+
+  // Without the image, the 1500ms minimum starts at t=500.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1900));  // t=1900
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=2100
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// Or longer, for devices that may paint the image more than 2 s after its page
+// loaded.
+TEST_F(SplashScreenTest, ImageSplashScreenWaitsLongerWithLargerMaxDelay) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenContentWait, {{"max_delay", "4s"}});
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(3000));
+  CallOnSplashScreenFirstContentfulPaint(shell);  // t=3000
+
+  // The 1500ms minimum counts from when the image shows.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));  // t=4400
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=4600
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", false, 1);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// Without SplashScreenContentWait, the splash screen starts when its page
+// loads.
+TEST_F(SplashScreenTest,
+       ImageSplashScreenStartsWithPageLoadWithoutContentWait) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      cobalt::features::kSplashScreenContentWait);
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  // The image showing doesn't restart the minimum.
+  CallOnSplashScreenFirstContentfulPaint(shell);  // t=1000
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(400));  // t=1400
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=1600
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  // It didn't wait for its content.
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", 0);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// A max_delay that isn't positive doesn't wait either, e.g., for the video's
+// first frame.
+TEST_F(SplashScreenTest, VideoSplashScreenStartsWithPageLoadWithZeroMaxDelay) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{cobalt::features::kForceVideoSplashScreen, {}},
+       {cobalt::features::kSplashScreenContentWait, {{"max_delay", "0s"}}}},
+      {});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnSplashScreenVideoStarted(shell);  // t=1000
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(400));  // t=1400
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));  // t=1600
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// If the splash screen closes itself before its content shows, e.g., if its
+// image can't be fetched, the switch ends the wait. Otherwise, the end of the
+// wait would schedule another switch, which hides the main WebContents of a
+// video splash screen.
+TEST_F(SplashScreenTest, SwitchEndsContentWait) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  // E.g., without VP9, splash.html shows its image instead.
+  Shell::SetCanSplashScreenPlayVideoForTesting(false);
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  task_environment()->RunUntilIdle();
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallClosingSplashScreenWebContents(shell);
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  // Past the end of the wait for the image.
+  task_environment()->FastForwardBy(base::Seconds(5));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+  // The wait didn't end before the switch.
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", 0);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));
@@ -849,39 +1083,52 @@ TEST_F(SplashScreenTest, StartupMetricsForImageSplashScreen) {
   task_environment()->FastForwardBy(base::Milliseconds(100));
   CallOnSplashScreenLoadComplete(shell);  // t=100
   task_environment()->FastForwardBy(base::Milliseconds(50));
+  // The first visually non-empty paint may only be the background, so the
+  // image shows at the first contentful paint.
   GetSplashScreenWebContentsObserver(shell)
       ->DidFirstVisuallyNonEmptyPaint();  // t=150
-  task_environment()->FastForwardBy(base::Milliseconds(250));
+  task_environment()->FastForwardBy(base::Milliseconds(150));
+  CallOnSplashScreenFirstContentfulPaint(shell);  // t=300
+  task_environment()->FastForwardBy(base::Milliseconds(100));
   // The main WebContents loads at t=400, so the switch happens when the 1500ms
-  // minimum duration elapses at t=1600.
+  // minimum duration, counted from when the image shows, elapses at t=1800.
   CallLoadProgressChanged(shell, 1.0);
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment()->FastForwardBy(base::Milliseconds(1300));
+  task_environment()->FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
 
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.PageLoad.Image", base::Milliseconds(100), 1);
   histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.SplashFirstPaint.Image", base::Milliseconds(150),
+      1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.SplashContentShown.Image",
+      base::Milliseconds(300), 1);
+  histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.LoadedToContentShown.Image",
-      base::Milliseconds(50), 1);
+      base::Milliseconds(200), 1);
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.ContentShownToSwitch.Image",
-      base::Milliseconds(1450), 1);
+      base::Milliseconds(1500), 1);
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.MainLoadedToSwitch.Image",
-      base::Milliseconds(1200), 1);
+      base::Milliseconds(1400), 1);
   histogram_tester.ExpectUniqueTimeSample(
-      "Cobalt.Startup.Timeline.MainVisible.Image", base::Milliseconds(1600), 1);
+      "Cobalt.Startup.Timeline.MainVisible.Image", base::Milliseconds(1800), 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Image", false, 1);
+  // The minimum started when the image showed, within max_delay.
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", false, 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.SplashScreen.SwitchTrigger.Image",
       SplashScreenMetrics::SwitchTrigger::kTimer, 1);
   histogram_tester.ExpectTotalCount("Cobalt.Startup.Timeline.MainReady.Image",
                                     0);
 
-  task_environment()->FastForwardBy(base::Milliseconds(500));
+  task_environment()->FastForwardBy(base::Milliseconds(300));
   shell->OnMainReady();  // t=2200
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.Startup.Timeline.MainReady.Image", base::Milliseconds(2200), 1);
@@ -892,6 +1139,9 @@ TEST_F(SplashScreenTest, StartupMetricsForImageSplashScreen) {
 }
 
 TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
   base::HistogramTester histogram_tester;
   Shell* shell = CreateShellWithSplashScreen();
   const WebContentsObserver::MediaPlayerInfo video(/*has_video=*/true,
@@ -913,11 +1163,11 @@ TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
       video, player_id,
       WebContentsObserver::MediaStoppedReason::kReachedEndOfStream);  // t=1200
   // The main WebContents loads at t=1200, so the switch happens when the
-  // 1500ms minimum duration elapses at t=1500.
+  // 1500ms minimum duration, counted from the first frame, elapses at t=1700.
   CallLoadProgressChanged(shell, 1.0);
 
   EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
-  task_environment()->FastForwardBy(base::Milliseconds(400));
+  task_environment()->FastForwardBy(base::Milliseconds(600));
   EXPECT_TRUE(HasSwitchedToMainFrame(shell));
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -925,15 +1175,18 @@ TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
       base::Milliseconds(200), 1);
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.ContentShownToSwitch.Video",
-      base::Milliseconds(1300), 1);
+      base::Milliseconds(1500), 1);
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.SplashScreen.Time.MainLoadedToSwitch.Video",
-      base::Milliseconds(300), 1);
+      base::Milliseconds(500), 1);
   histogram_tester.ExpectUniqueTimeSample(
       "Cobalt.Startup.Timeline.SplashContentEnded.Video",
       base::Milliseconds(1200), 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Video", true, 1);
+  // The minimum started when the video started playing, within max_delay.
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Video", false, 1);
   histogram_tester.ExpectUniqueSample(
       "Cobalt.SplashScreen.SwitchTrigger.Video",
       SplashScreenMetrics::SwitchTrigger::kTimer, 1);

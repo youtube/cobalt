@@ -63,7 +63,9 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   metrics->MarkEvent(Event::kSplashLoaded);  // t=300
   AdvanceMs(50);
   metrics->MarkEvent(Event::kSplashFirstPaint);  // t=350
-  AdvanceMs(150);
+  AdvanceMs(100);
+  metrics->MarkEvent(Event::kSplashFirstContentfulPaint);  // t=450
+  AdvanceMs(50);
   metrics->MarkEvent(Event::kMainCommit);  // t=500
   AdvanceMs(500);
   metrics->MarkEvent(Event::kMainLoaded);  // t=1000
@@ -74,7 +76,9 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashStart.Image", 100);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashLoaded.Image", 300);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashFirstPaint.Image", 350);
-  ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentShown.Image", 350);
+  // The image shows at the first contentful paint, not at the first visually
+  // non-empty paint, which may be the background alone.
+  ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentShown.Image", 450);
   ExpectTimeMs("Cobalt.Startup.Timeline.SplashContentEnded.Image", 1300);
   ExpectTimeMs("Cobalt.Startup.Timeline.MainNavigationStart.Image", 100);
   ExpectTimeMs("Cobalt.Startup.Timeline.MainCommit.Image", 500);
@@ -82,8 +86,8 @@ TEST_F(SplashScreenMetricsTest, ImageSplashScreenClosedAfterMainLoaded) {
   ExpectTimeMs("Cobalt.Startup.Timeline.MainVisible.Image", 1300);
 
   ExpectTimeMs("Cobalt.SplashScreen.Time.PageLoad.Image", 200);
-  ExpectTimeMs("Cobalt.SplashScreen.Time.LoadedToContentShown.Image", 50);
-  ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 950);
+  ExpectTimeMs("Cobalt.SplashScreen.Time.LoadedToContentShown.Image", 150);
+  ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 850);
   ExpectTimeMs("Cobalt.SplashScreen.Time.MainLoadedToSwitch.Image", 300);
 
   histogram_tester_.ExpectUniqueSample(
@@ -344,7 +348,7 @@ TEST_F(SplashScreenMetricsTest, NoTimelineWithoutAppStartTime) {
       /*has_splash_screen=*/true, /*is_visible=*/true);
   ASSERT_TRUE(metrics);
 
-  metrics->MarkEvent(Event::kSplashFirstPaint);
+  metrics->MarkEvent(Event::kSplashFirstContentfulPaint);
   AdvanceMs(100);
   metrics->OnSwitchedToMain(SwitchTrigger::kTimer);
 
@@ -352,6 +356,52 @@ TEST_F(SplashScreenMetricsTest, NoTimelineWithoutAppStartTime) {
   EXPECT_TRUE(
       histogram_tester_.GetTotalCountsForPrefix("Cobalt.Startup.").empty());
   ExpectTimeMs("Cobalt.SplashScreen.Time.ContentShownToSwitch.Image", 100);
+}
+
+TEST_F(SplashScreenMetricsTest, ContentWaitTimedOutRecordedWithFinalMode) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  metrics->MarkEvent(Event::kSplashLoaded);  // t=0
+  AdvanceMs(2000);
+  // The video hasn't started by then, so the wait for it timed out.
+  metrics->OnContentWaitEnded(/*timed_out=*/true);  // t=2000
+  // Only the first end of the wait counts.
+  metrics->OnContentWaitEnded(/*timed_out=*/false);
+  // Nothing is recorded until the switch, once the mode is final.
+  EXPECT_TRUE(
+      histogram_tester_
+          .GetTotalCountsForPrefix("Cobalt.SplashScreen.ContentWaitTimedOut.")
+          .empty());
+
+  AdvanceMs(500);
+  metrics->MarkEvent(Event::kSplashVideoStarted);  // t=2500
+  AdvanceMs(1000);
+  metrics->OnSwitchedToMain(SwitchTrigger::kTimer);  // t=3500
+
+  histogram_tester_.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Video", true, 1);
+  histogram_tester_.ExpectTotalCount(
+      "Cobalt.SplashScreen.ContentWaitTimedOut.Image", 0);
+}
+
+TEST_F(SplashScreenMetricsTest, ContentWaitTimedOutNotRecordedWithoutWait) {
+  auto metrics = SplashScreenMetrics::MaybeCreateForLaunch(
+      /*has_splash_screen=*/true, /*is_visible=*/true);
+  ASSERT_TRUE(metrics);
+
+  // E.g., SplashScreenContentWait is disabled, or the splash screen switched
+  // before its content showed.
+  metrics->MarkEvent(Event::kSplashLoaded);
+  metrics->OnSwitchedToMain(SwitchTrigger::kSplashClosed);
+  // Too late to be recorded.
+  metrics->OnContentWaitEnded(/*timed_out=*/true);
+
+  EXPECT_TRUE(
+      histogram_tester_
+          .GetTotalCountsForPrefix("Cobalt.SplashScreen.ContentWaitTimedOut.")
+          .empty());
 }
 
 }  // namespace
