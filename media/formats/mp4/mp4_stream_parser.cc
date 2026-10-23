@@ -1459,7 +1459,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   const size_t original_scratch_capacity = scratch_frame_buf_.capacity();
 #endif
 
-  const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
   if (auto* media_client = GetMediaClient()) {

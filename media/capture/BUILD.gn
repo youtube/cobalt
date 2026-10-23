@@ -209,7 +209,6 @@ component("capture_lib") {
   if ((is_linux || is_chromeos) && !is_cobalt) {
     deps += [ "video/linux" ]
   }
-  }
 
   if (is_cobalt_hermetic_build) {
     sources +=
@@ -272,24 +271,6 @@ source_set("test_support") {
     "//ui/gfx:test_support",
   ]
 
-Looking at upstream Chromium changes in `media/capture/BUILD.gn`, upstream refactored the platform-specific sources and test support into separate subdirectories / BUILD.gn files (e.g. `video/linux:test_support`, `video/mac/test:test_support`).
-
-In `HEAD`, the platform-specific sources (like `fake_device_provider.cc`, `fake_v4l2_impl.cc`, `screen_capture_kit_test_helper.mm`) were moved into those subdirectories' BUILD.gn files, and `capture_test_support` now delegates to them via:
-```gn
-  if (is_chromeos) {
-    public_deps = [ "video/chromeos:test_support" ]
-  } else if (is_linux) {
-    public_deps = [ "video/linux:test_support" ]
-  } else if (is_mac) {
-    public_deps = [ "video/mac/test:test_support" ]
-  }
-```
-
-The conflicted block on the Cobalt revert side contained the old sources in `media/capture/BUILD.gn` that have now moved upstream to `video/linux/BUILD.gn` and `video/mac/test/BUILD.gn`. Therefore, adopting upstream's refactored architecture means the block inside `media/capture/BUILD.gn` should be removed (empty).
-
-Resolving the conflict by accepting HEAD:
-```gn
-```
   if (is_chromeos) {
     public_deps = [ "video/chromeos:test_support" ]
   } else if (is_linux) {
