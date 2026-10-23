@@ -12,9 +12,9 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string_view>
 
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/units/data_rate.h"
@@ -32,7 +32,7 @@ scoped_refptr<const RTCStatsReport> GetStatsAndProcess(
 
 std::optional<scoped_refptr<const RTCStatsReport>> GetFirstReportAtOrAfter(
     Timestamp time,
-    ArrayView<const scoped_refptr<const RTCStatsReport>> reports);
+    std::span<const scoped_refptr<const RTCStatsReport>> reports);
 
 DataRate GetAvailableSendBitrate(
     const scoped_refptr<const RTCStatsReport>& report);

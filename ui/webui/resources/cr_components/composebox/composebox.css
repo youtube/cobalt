@@ -114,7 +114,7 @@
 }
 
 :host([searchbox-next-enabled]) #input::placeholder {
-  font-size: var(--cr-composebox-input-placeholder-font-size, 18px);
+  font-size: var(--cr-composebox-input-placeholder-font-size, 16px);
   font-weight: 400;
 }
 
@@ -244,17 +244,43 @@ search-animated-glow {
 }
 
 #input,
+#mirror,
 #smartCompose {
   box-sizing: border-box;
   font-family: inherit;
   font-size: var(--cr-composebox-font-size, inherit);
   line-height: 24px;
-  min-height: 48px;
-  max-height: var(--text-input-max-height);
   padding-block: var(--text-input-top-spacing) 0;
   padding-inline: 12px var(--text-input-inline-end-spacing);
-  scrollbar-width: none;
   width: 100%;
+}
+
+#mirror {
+  color: transparent;
+  font-variant-ligatures: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  text-rendering: geometricPrecision;
+  top: 0;
+  user-select: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:host([entrypoint-name='ContextualTasks']) #mirror {
+  padding-block: 12px;
+  padding-inline-end: var(--text-input-inline-end-spacing);
+  padding-inline-start: 0;
+}
+
+#input,
+#smartCompose {
+  min-height: 48px;
+  max-height: var(--text-input-max-height);
+  scrollbar-width: none;
 }
 
 :host(:not[searchbox-next-enabled]) #input {
@@ -264,7 +290,6 @@ search-animated-glow {
 #input {
   background-color: inherit;
   border: none;
-  caret-color: var(--color-composebox-font-light);
   color: var(--color-composebox-font-light);
   field-sizing: content;
   mask-image: linear-gradient(transparent 7px, black var(--text-input-top-spacing));
@@ -274,9 +299,64 @@ search-animated-glow {
   resize: none;
 }
 
-:host(:not([disable-caret-color-animation])) #input:focus {
-  caret-color: var(--google-blue-500);
-  animation: color-change 5s infinite;
+:host(:not([disable-caret-color-animation])) #input {
+  caret-color: transparent;
+}
+
+#caret.caret-visible {
+  display: block;
+}
+
+#caret {
+  background-color: var(--google-blue-500);
+  display: none;
+  height: 24px;
+  pointer-events: none;
+  position: absolute;
+  top: -2px;
+  width: 2px;
+}
+
+:host([entrypoint-name='Omnibox']) #caret {
+  height: 18px;
+  top: 0;
+}
+
+#caret.animating {
+  animation: blink 1s step-end infinite, cycleColor step-end 4s infinite;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  49.9% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cycleColor {
+  0% {
+    background-color: var(--google-blue-500);
+  }
+  25% {
+    background-color: var(--google-red-500);
+  }
+  50% {
+    background-color: var(--google-yellow-500);
+  }
+  75% {
+    background-color: var(--google-green-500);
+  }
+  100% {
+    background-color: var(--google-blue-500);
+  }
 }
 
 #input::placeholder {
@@ -325,14 +405,6 @@ search-animated-glow {
 
 :host([expanding_][is-collapsible]) #input {
   --text-input-top-spacing: 24px;
-}
-
-@keyframes color-change {
-  0%,
-  100% { caret-color: var(--google-blue-500); }
-  25% { caret-color: var(--google-red-500); }
-  50% { caret-color: var(--google-yellow-500); }
-  75% { caret-color: var(--google-green-500); }
 }
 
 #input::-webkit-search-decoration,
@@ -565,8 +637,12 @@ search-animated-glow {
 }
 
 #toolChipsContainer {
-  padding-top: 14px;
-  padding-inline-start: 16px;
+  margin-bottom: 12px;
+  padding-inline-start: 44px;
+}
+
+:host(:not([show-file-carousel_])) #toolChipsContainer {
+  padding-top: 6px;
 }
 
 :host(:not([file-uploads-complete])) .upload-button {
@@ -689,6 +765,7 @@ search-animated-glow {
   align-items: flex-start;
   display: flex;
   flex-direction: row;
+  position: relative;
 }
 
 :host([submit-enabled_][searchbox-layout-mode='Compact']) #submitContainer {
@@ -697,13 +774,15 @@ search-animated-glow {
   position: relative;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='Compact']:not([show-file-carousel_])) #submitContainer {
-  bottom: 0;
-  margin-top: 14px;
+:host([submit-enabled_][searchbox-layout-mode='Compact'][in-tool-mode_]) #submitContainer,
+:host([submit-enabled_][searchbox-layout-mode='Compact'][show-file-carousel_]) #submitContainer {
+  position: absolute;
+  bottom: 12px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='Compact'][show-file-carousel_]) #submitContainer {
-  top: 14px;
+:host([submit-enabled_][searchbox-layout-mode='Compact']:not([in-tool-mode_]):not([show-file-carousel_])) #submitContainer {
+  bottom: 0;
+  margin-top: 14px;
 }
 
 :host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) #submitContainer {
@@ -728,7 +807,8 @@ search-animated-glow {
 }
 
 :host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_][show-file-carousel_]) .carousel-divider,
-:host([submit-enabled_][searchbox-layout-mode='Compact'][show-dropdown_][show-file-carousel_]) .carousel-divider {
+:host([submit-enabled_][searchbox-layout-mode='Compact'][show-dropdown_][show-file-carousel_]) .carousel-divider,
+:host([searchbox-layout-mode='Compact'][show-dropdown_]:not([show-file-carousel_])) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 8px;
 }
 

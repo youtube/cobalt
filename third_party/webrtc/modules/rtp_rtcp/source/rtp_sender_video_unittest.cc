@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -141,13 +141,13 @@ class LoopbackTransportTest : public Transport {
         kCorruptionDetectionExtensionId);
   }
 
-  bool SendRtp(ArrayView<const uint8_t> data,
+  bool SendRtp(std::span<const uint8_t> data,
                const PacketOptions& /* options */) override {
     sent_packets_.push_back(RtpPacketReceived(&receivers_extensions_));
     EXPECT_TRUE(sent_packets_.back().Parse(data));
     return true;
   }
-  bool SendRtcp(ArrayView<const uint8_t> /* data */,
+  bool SendRtcp(std::span<const uint8_t> /* data */,
                 const PacketOptions& /* options */) override {
     return false;
   }
@@ -626,7 +626,7 @@ TEST_F(RtpSenderVideoTest,
   // when rtx packet barely fit.
   for (size_t frame_size = 800; frame_size < kMaxPacketSize; ++frame_size) {
     SCOPED_TRACE(frame_size);
-    ArrayView<const uint8_t> payload(kPayload, frame_size);
+    std::span<const uint8_t> payload(kPayload, frame_size);
 
     EXPECT_TRUE(rtp_sender_video_->SendVideo(
         kMediaPayloadId, /*codec_type=*/kVideoCodecVP8, /*rtp_timestamp=*/0,
@@ -929,7 +929,7 @@ TEST_F(RtpSenderVideoTest,
   ON_CALL(*encryptor, GetMaxCiphertextByteSize).WillByDefault(ReturnArg<1>());
   ON_CALL(*encryptor, Encrypt)
       .WillByDefault(WithArgs<3, 5>(
-          [](ArrayView<const uint8_t> frame, size_t* bytes_written) {
+          [](std::span<const uint8_t> frame, size_t* bytes_written) {
             *bytes_written = frame.size();
             return 0;
           }));
@@ -1504,7 +1504,7 @@ TEST_F(RtpSenderVideoTest, SendGenericVideo) {
       kPayloadTypeGeneric, kCodecType, 1234, fake_clock_.CurrentTime(),
       kPayload, sizeof(kPayload), video_header, TimeDelta::PlusInfinity(), {}));
 
-  ArrayView<const uint8_t> sent_payload =
+  std::span<const uint8_t> sent_payload =
       transport_.last_sent_packet().payload();
   uint8_t generic_header = sent_payload[0];
   EXPECT_TRUE(generic_header & RtpFormatVideoGeneric::kKeyFrameBit);
@@ -1543,7 +1543,7 @@ TEST_F(RtpSenderVideoRawPacketizationTest, SendRawVideo) {
       fake_clock_.CurrentTime(), kPayload, sizeof(kPayload), video_header,
       TimeDelta::PlusInfinity(), {}));
 
-  ArrayView<const uint8_t> sent_payload =
+  std::span<const uint8_t> sent_payload =
       transport_.last_sent_packet().payload();
   EXPECT_THAT(sent_payload, ElementsAreArray(kPayload));
 }

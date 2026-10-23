@@ -43,25 +43,26 @@ void PrefetchContainerObserver::OnDeterminedHead(
     // https://chromium-review.googlesource.com/c/chromium/src/+/6615559/comment/3f439d19_8c9cf99a
     //
     // TODO(crbug.com/400761083): Use the callback.
-    if (prefetch_container.GetNonRedirectResponseReader() &&
-        prefetch_container.GetNonRedirectResponseReader()->load_state() ==
-            PrefetchResponseReader::LoadState::kResponseReceived) {
-      on_prefetch_head_received_.Run(*prefetch_container.GetNonRedirectHead());
+    if (prefetch_container.GetLoadState() ==
+        PrefetchContainer::LoadState::kDeterminedHead) {
+      const auto* head = prefetch_container.GetNonRedirectHead();
+      CHECK(head);
+      on_prefetch_head_received_.Run(*head);
     }
   }
 }
 
 void PrefetchContainerObserver::OnPrefetchCompletedOrFailed(
     const PrefetchContainer& prefetch_container,
-    const network::URLLoaderCompletionStatus& completion_status,
-    const std::optional<int>& response_code) {
+    const network::URLLoaderCompletionStatus& completion_status) {
   // `IsDecoy()` check is added to preserve the existing behavior.
   // https://crbug.com/400761083
   if (prefetch_container.IsDecoy()) {
     return;
   }
   if (on_prefetch_completed_or_failed_) {
-    on_prefetch_completed_or_failed_.Run(completion_status, response_code);
+    on_prefetch_completed_or_failed_.Run(completion_status,
+                                         prefetch_container.GetResponseCode());
   }
 }
 

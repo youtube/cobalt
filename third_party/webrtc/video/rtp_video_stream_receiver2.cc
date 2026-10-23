@@ -16,12 +16,12 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -719,7 +719,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
       !UseH26xPacketBuffer(packet->codec())) {
     video_coding::H264SpsPpsTracker::FixedBitstream fixed =
         tracker_.CopyAndFixBitstream(
-            MakeArrayView(codec_payload.cdata(), codec_payload.size()),
+            std::span(codec_payload.cdata(), codec_payload.size()),
             &packet->video_header);
 
     switch (fixed.action) {
@@ -828,7 +828,7 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
   int64_t min_recv_time;
   int64_t max_recv_time;
   std::optional<int64_t> absolute_capture_time_ms;
-  std::vector<ArrayView<const uint8_t>> payloads;
+  std::vector<std::span<const uint8_t>> payloads;
   RtpPacketInfos::vector_type packet_infos;
 
   bool skip_frame = false;
@@ -1283,7 +1283,7 @@ void RtpVideoStreamReceiver2::NotifyReceiverOfEmptyPacket(
 }
 
 bool RtpVideoStreamReceiver2::DeliverRtcp(
-    ArrayView<const uint8_t> rtcp_packet) {
+    std::span<const uint8_t> rtcp_packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
 
   if (!receiving_) {

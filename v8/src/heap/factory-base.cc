@@ -1174,7 +1174,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
     if (raw->raw_hash_field() == String::kEmptyHashField &&
         number.value() >= 0) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(number.value()), raw->length());
+          static_cast<uint32_t>(number.value()), raw->length(),
+          HashSeed(read_only_roots()));
       raw->set_raw_hash_field(raw_hash_field);
     }
   }
@@ -1513,7 +1514,8 @@ JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
   // Dispatch entries are only freed on major GCs.
   AllocationType type = AllocationType::kOld;
   auto allocator = isolate()->heap()->allocator();
-  allocator->RetryCustomAllocateOrFail(allocate_callback, type);
+  allocator->RetryCustomAllocateOrFail(
+      allocate_callback, type, GarbageCollectionReason::kAllocationFailure);
   return *result;
 }
 

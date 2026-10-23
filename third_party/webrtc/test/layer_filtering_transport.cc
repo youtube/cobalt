@@ -14,9 +14,9 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
@@ -50,8 +50,8 @@ LayerFilteringTransport::LayerFilteringTransport(
     const std::map<uint8_t, MediaType>& payload_type_map,
     uint32_t ssrc_to_filter_min,
     uint32_t ssrc_to_filter_max,
-    ArrayView<const RtpExtension> audio_extensions,
-    ArrayView<const RtpExtension> video_extensions)
+    std::span<const RtpExtension> audio_extensions,
+    std::span<const RtpExtension> video_extensions)
     : DirectTransport(env,
                       task_queue,
                       std::move(pipe),
@@ -79,8 +79,8 @@ LayerFilteringTransport::LayerFilteringTransport(
     int selected_tl,
     int selected_sl,
     const std::map<uint8_t, MediaType>& payload_type_map,
-    ArrayView<const RtpExtension> audio_extensions,
-    ArrayView<const RtpExtension> video_extensions)
+    std::span<const RtpExtension> audio_extensions,
+    std::span<const RtpExtension> video_extensions)
     : LayerFilteringTransport(env,
                               task_queue,
                               std::move(pipe),
@@ -99,7 +99,7 @@ bool LayerFilteringTransport::DiscardedLastPacket() const {
   return discarded_last_packet_;
 }
 
-bool LayerFilteringTransport::SendRtp(ArrayView<const uint8_t> packet,
+bool LayerFilteringTransport::SendRtp(std::span<const uint8_t> packet,
                                       const PacketOptions& options) {
   if (selected_tl_ == -1 && selected_sl_ == -1) {
     // Nothing to change, forward the packet immediately.

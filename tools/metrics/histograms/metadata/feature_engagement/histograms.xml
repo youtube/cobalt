@@ -654,6 +654,9 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_TabOrganizationSuccess"
       summary="tab organization success"/>
   <variant name="IPH_TabSearch" summary="tab search discovery"/>
+  <variant name="IPH_TabSearchComboButton"
+      summary="IPH for the first time a user opens Chrome with tab search
+               moved to the tab strip combo button"/>
   <variant name="IPH_TabSearchToolbarButton"
       summary="IPH for the first time a user opens Chrome with tab search
                moved to a toolbar button"/>
@@ -770,7 +773,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.Gestural.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2026-06-28">
+    enum="InProductHelpDismissalReason" expires_after="2026-08-30">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>adamta@google.com</owner>
   <summary>
@@ -802,7 +805,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.ShownTime.{IPHFeature}" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>
   <summary>

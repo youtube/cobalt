@@ -213,8 +213,7 @@ class TestPrefetchService final : public PrefetchService {
       base::WeakPtr<PrefetchContainer> prefetch_container) override;
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override;
+      const network::URLLoaderCompletionStatus& completion_status) override;
   void EvictPrefetch(size_t index);
 
   std::vector<base::WeakPtr<PrefetchContainer>> prefetches_;
@@ -227,6 +226,9 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
  public:
   PrefetchingMetricsTestBase();
   ~PrefetchingMetricsTestBase() override;
+
+  RenderFrameHostImpl* main_rfhi();
+  blink::DocumentToken MainDocumentToken();
 
   const int kTotalTimeDuration = 4321;
   const int kConnectTimeDuration = 123;

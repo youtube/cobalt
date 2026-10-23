@@ -490,7 +490,9 @@ void WebAppCommandScheduler::InstallFromSync(const WebApp& web_app,
     theme_color = web_app.sync_proto().theme_color();
   }
   std::optional<webapps::ManifestId> migrated_from_manifest_id;
-  if (web_app.sync_proto().has_migrated_from_manifest_id()) {
+  if (base::FeatureList::IsEnabled(
+          features::kWebAppHandleAppMigrationViaSync) &&
+      web_app.sync_proto().has_migrated_from_manifest_id()) {
     migrated_from_manifest_id = webapps::ManifestId(
         GURL(web_app.sync_proto().migrated_from_manifest_id()));
   }
@@ -810,16 +812,9 @@ void WebAppCommandScheduler::GetAllAppsForFilter(
       base::BindOnce(
           [](const WebAppFilter& filter, AllAppsLock& lock,
              base::DictValue& debug_value) {
-            std::vector<webapps::AppId> apps;
-            // GetAppIds() automatically excludes some things like stubs and
-            // uninstalling. If those are needed, the filter should likely
-            // be just integrated into the GetApps() system directly.
-            for (const webapps::AppId& app_id : lock.registrar().GetAppIds()) {
-              if (lock.registrar().AppMatches(app_id, filter)) {
-                apps.push_back(app_id);
-              }
-            }
-            return apps;
+            // `filter` automatically excludes some things like stubs and
+            // uninstalling apps.
+            return lock.registrar().GetAppIds(filter);
           },
           filter),
       /*on_complete=*/std::move(callback),

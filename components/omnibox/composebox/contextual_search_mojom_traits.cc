@@ -21,8 +21,9 @@ using UsedInputTypeConfigDataView =
 using UsedSectionConfigDataView =
     composebox_query::mojom::SectionConfigDataView;
 using UsedInputStateDataView = composebox_query::mojom::InputStateDataView;
-using UsedFileUploadStatus = composebox_query::mojom::FileUploadStatus;
-using UsedFileUploadErrorType = composebox_query::mojom::FileUploadErrorType;
+using UsedContextUploadStatus = composebox_query::mojom::ContextUploadStatus;
+using UsedContextUploadErrorType =
+    composebox_query::mojom::ContextUploadErrorType;
 
 }  // namespace
 
@@ -196,119 +197,123 @@ bool EnumTraits<UsedInputType, omnibox::InputType>::FromMojom(
 }
 
 // static
-UsedFileUploadStatus
-EnumTraits<UsedFileUploadStatus, contextual_search::FileUploadStatus>::ToMojom(
-    contextual_search::FileUploadStatus input) {
+UsedContextUploadStatus
+EnumTraits<UsedContextUploadStatus, contextual_search::ContextUploadStatus>::
+    ToMojom(contextual_search::ContextUploadStatus input) {
   switch (input) {
-    case contextual_search::FileUploadStatus::kNotUploaded:
-      return UsedFileUploadStatus::kNotUploaded;
-    case contextual_search::FileUploadStatus::kProcessing:
-      return UsedFileUploadStatus::kProcessing;
-    case contextual_search::FileUploadStatus::kValidationFailed:
-      return UsedFileUploadStatus::kValidationFailed;
-    case contextual_search::FileUploadStatus::kUploadStarted:
-      return UsedFileUploadStatus::kUploadStarted;
-    case contextual_search::FileUploadStatus::kUploadSuccessful:
-      return UsedFileUploadStatus::kUploadSuccessful;
-    case contextual_search::FileUploadStatus::kUploadFailed:
-      return UsedFileUploadStatus::kUploadFailed;
-    case contextual_search::FileUploadStatus::kUploadExpired:
-      return UsedFileUploadStatus::kUploadExpired;
-    case contextual_search::FileUploadStatus::kProcessingSuggestSignalsReady:
-      return UsedFileUploadStatus::kProcessingSuggestSignalsReady;
-    case contextual_search::FileUploadStatus::kUploadReplaced:
-      return UsedFileUploadStatus::kUploadReplaced;
+    case contextual_search::ContextUploadStatus::kNotUploaded:
+      return UsedContextUploadStatus::kNotUploaded;
+    case contextual_search::ContextUploadStatus::kProcessing:
+      return UsedContextUploadStatus::kProcessing;
+    case contextual_search::ContextUploadStatus::kValidationFailed:
+      return UsedContextUploadStatus::kValidationFailed;
+    case contextual_search::ContextUploadStatus::kUploadStarted:
+      return UsedContextUploadStatus::kUploadStarted;
+    case contextual_search::ContextUploadStatus::kUploadSuccessful:
+      return UsedContextUploadStatus::kUploadSuccessful;
+    case contextual_search::ContextUploadStatus::kUploadFailed:
+      return UsedContextUploadStatus::kUploadFailed;
+    case contextual_search::ContextUploadStatus::kUploadExpired:
+      return UsedContextUploadStatus::kUploadExpired;
+    case contextual_search::ContextUploadStatus::kProcessingSuggestSignalsReady:
+      return UsedContextUploadStatus::kProcessingSuggestSignalsReady;
+    case contextual_search::ContextUploadStatus::kUploadReplaced:
+      return UsedContextUploadStatus::kUploadReplaced;
   }
   NOTREACHED();
 }
 
 // static
-bool EnumTraits<UsedFileUploadStatus, contextual_search::FileUploadStatus>::
-    FromMojom(UsedFileUploadStatus input,
-              contextual_search::FileUploadStatus* output) {
+bool EnumTraits<UsedContextUploadStatus,
+                contextual_search::ContextUploadStatus>::
+    FromMojom(UsedContextUploadStatus input,
+              contextual_search::ContextUploadStatus* output) {
   switch (input) {
-    case UsedFileUploadStatus::kNotUploaded:
-      *output = contextual_search::FileUploadStatus::kNotUploaded;
+    case UsedContextUploadStatus::kNotUploaded:
+      *output = contextual_search::ContextUploadStatus::kNotUploaded;
       return true;
-    case UsedFileUploadStatus::kProcessing:
-      *output = contextual_search::FileUploadStatus::kProcessing;
+    case UsedContextUploadStatus::kProcessing:
+      *output = contextual_search::ContextUploadStatus::kProcessing;
       return true;
-    case UsedFileUploadStatus::kValidationFailed:
-      *output = contextual_search::FileUploadStatus::kValidationFailed;
+    case UsedContextUploadStatus::kValidationFailed:
+      *output = contextual_search::ContextUploadStatus::kValidationFailed;
       return true;
-    case UsedFileUploadStatus::kUploadStarted:
-      *output = contextual_search::FileUploadStatus::kUploadStarted;
+    case UsedContextUploadStatus::kUploadStarted:
+      *output = contextual_search::ContextUploadStatus::kUploadStarted;
       return true;
-    case UsedFileUploadStatus::kUploadSuccessful:
-      *output = contextual_search::FileUploadStatus::kUploadSuccessful;
+    case UsedContextUploadStatus::kUploadSuccessful:
+      *output = contextual_search::ContextUploadStatus::kUploadSuccessful;
       return true;
-    case UsedFileUploadStatus::kUploadFailed:
-      *output = contextual_search::FileUploadStatus::kUploadFailed;
+    case UsedContextUploadStatus::kUploadFailed:
+      *output = contextual_search::ContextUploadStatus::kUploadFailed;
       return true;
-    case UsedFileUploadStatus::kUploadExpired:
-      *output = contextual_search::FileUploadStatus::kUploadExpired;
+    case UsedContextUploadStatus::kUploadExpired:
+      *output = contextual_search::ContextUploadStatus::kUploadExpired;
       return true;
-    case UsedFileUploadStatus::kProcessingSuggestSignalsReady:
+    case UsedContextUploadStatus::kProcessingSuggestSignalsReady:
+      *output = contextual_search::ContextUploadStatus::
+          kProcessingSuggestSignalsReady;
+      return true;
+    case UsedContextUploadStatus::kUploadReplaced:
+      *output = contextual_search::ContextUploadStatus::kUploadReplaced;
+      return true;
+  }
+  NOTREACHED();
+}
+
+// static
+UsedContextUploadErrorType
+EnumTraits<UsedContextUploadErrorType,
+           contextual_search::ContextUploadErrorType>::
+    ToMojom(contextual_search::ContextUploadErrorType input) {
+  switch (input) {
+    case contextual_search::ContextUploadErrorType::kUnknown:
+      return UsedContextUploadErrorType::kUnknown;
+    case contextual_search::ContextUploadErrorType::kBrowserProcessingError:
+      return UsedContextUploadErrorType::kBrowserProcessingError;
+    case contextual_search::ContextUploadErrorType::kNetworkError:
+      return UsedContextUploadErrorType::kNetworkError;
+    case contextual_search::ContextUploadErrorType::kServerError:
+      return UsedContextUploadErrorType::kServerError;
+    case contextual_search::ContextUploadErrorType::kServerSizeLimitExceeded:
+      return UsedContextUploadErrorType::kServerSizeLimitExceeded;
+    case contextual_search::ContextUploadErrorType::kAborted:
+      return UsedContextUploadErrorType::kAborted;
+    case contextual_search::ContextUploadErrorType::kImageProcessingError:
+      return UsedContextUploadErrorType::kImageProcessingError;
+  }
+  NOTREACHED();
+}
+
+// static
+bool EnumTraits<UsedContextUploadErrorType,
+                contextual_search::ContextUploadErrorType>::
+    FromMojom(UsedContextUploadErrorType input,
+              contextual_search::ContextUploadErrorType* output) {
+  switch (input) {
+    case UsedContextUploadErrorType::kUnknown:
+      *output = contextual_search::ContextUploadErrorType::kUnknown;
+      return true;
+    case UsedContextUploadErrorType::kBrowserProcessingError:
       *output =
-          contextual_search::FileUploadStatus::kProcessingSuggestSignalsReady;
+          contextual_search::ContextUploadErrorType::kBrowserProcessingError;
       return true;
-    case UsedFileUploadStatus::kUploadReplaced:
-      *output = contextual_search::FileUploadStatus::kUploadReplaced;
+    case UsedContextUploadErrorType::kNetworkError:
+      *output = contextual_search::ContextUploadErrorType::kNetworkError;
       return true;
-  }
-  NOTREACHED();
-}
-
-// static
-UsedFileUploadErrorType
-EnumTraits<UsedFileUploadErrorType, contextual_search::FileUploadErrorType>::
-    ToMojom(contextual_search::FileUploadErrorType input) {
-  switch (input) {
-    case contextual_search::FileUploadErrorType::kUnknown:
-      return UsedFileUploadErrorType::kUnknown;
-    case contextual_search::FileUploadErrorType::kBrowserProcessingError:
-      return UsedFileUploadErrorType::kBrowserProcessingError;
-    case contextual_search::FileUploadErrorType::kNetworkError:
-      return UsedFileUploadErrorType::kNetworkError;
-    case contextual_search::FileUploadErrorType::kServerError:
-      return UsedFileUploadErrorType::kServerError;
-    case contextual_search::FileUploadErrorType::kServerSizeLimitExceeded:
-      return UsedFileUploadErrorType::kServerSizeLimitExceeded;
-    case contextual_search::FileUploadErrorType::kAborted:
-      return UsedFileUploadErrorType::kAborted;
-    case contextual_search::FileUploadErrorType::kImageProcessingError:
-      return UsedFileUploadErrorType::kImageProcessingError;
-  }
-  NOTREACHED();
-}
-
-// static
-bool EnumTraits<UsedFileUploadErrorType,
-                contextual_search::FileUploadErrorType>::
-    FromMojom(UsedFileUploadErrorType input,
-              contextual_search::FileUploadErrorType* output) {
-  switch (input) {
-    case UsedFileUploadErrorType::kUnknown:
-      *output = contextual_search::FileUploadErrorType::kUnknown;
+    case UsedContextUploadErrorType::kServerError:
+      *output = contextual_search::ContextUploadErrorType::kServerError;
       return true;
-    case UsedFileUploadErrorType::kBrowserProcessingError:
-      *output = contextual_search::FileUploadErrorType::kBrowserProcessingError;
-      return true;
-    case UsedFileUploadErrorType::kNetworkError:
-      *output = contextual_search::FileUploadErrorType::kNetworkError;
-      return true;
-    case UsedFileUploadErrorType::kServerError:
-      *output = contextual_search::FileUploadErrorType::kServerError;
-      return true;
-    case UsedFileUploadErrorType::kServerSizeLimitExceeded:
+    case UsedContextUploadErrorType::kServerSizeLimitExceeded:
       *output =
-          contextual_search::FileUploadErrorType::kServerSizeLimitExceeded;
+          contextual_search::ContextUploadErrorType::kServerSizeLimitExceeded;
       return true;
-    case UsedFileUploadErrorType::kAborted:
-      *output = contextual_search::FileUploadErrorType::kAborted;
+    case UsedContextUploadErrorType::kAborted:
+      *output = contextual_search::ContextUploadErrorType::kAborted;
       return true;
-    case UsedFileUploadErrorType::kImageProcessingError:
-      *output = contextual_search::FileUploadErrorType::kImageProcessingError;
+    case UsedContextUploadErrorType::kImageProcessingError:
+      *output =
+          contextual_search::ContextUploadErrorType::kImageProcessingError;
       return true;
   }
   NOTREACHED();

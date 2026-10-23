@@ -1918,6 +1918,12 @@ ExtensionFunction::ResponseAction DeveloperPrivateChoosePathFunction::Run() {
 
   select_file_dialog_ = ui::SelectFileDialog::Create(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, although we are not actually writing to the file, we still need
+  // to set this flag to trigger ACTION_OPEN_DOCUMENT intent to bypass the
+  // file chooser dialog.
+  select_file_dialog_->SetOpenWritable(true);
+#endif  // BUILDFLAG(IS_ANDROID)
   select_file_dialog_->SelectFile(file_type, select_title, last_directory,
                                   &file_type_info, file_type_index,
                                   base::FilePath::StringType(), owning_window);
@@ -2007,9 +2013,12 @@ void DeveloperPrivateRequestFileSourceFunction::Finish(
         file_contents, properties.line_number ? *properties.line_number : 0);
   }
 
-  response.before_highlight = highlighter->GetBeforeFeature();
-  response.highlight = highlighter->GetFeature();
-  response.after_highlight = highlighter->GetAfterFeature();
+  developer::ErrorFileSource source;
+  source.before_highlight = highlighter->GetBeforeFeature();
+  source.highlight = highlighter->GetFeature();
+  source.after_highlight = highlighter->GetAfterFeature();
+
+  response.source = std::move(source);
 
   Respond(WithArguments(response.ToValue()));
 }

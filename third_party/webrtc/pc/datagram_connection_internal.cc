@@ -14,11 +14,11 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/datagram_connection.h"
@@ -254,7 +254,7 @@ void DatagramConnectionInternal::SetRemoteDtlsParameters(
 }
 
 void DatagramConnectionInternal::SendPackets(
-    ArrayView<PacketSendParameters> packets) {
+    std::span<PacketSendParameters> packets) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   for (size_t i = 0; i < packets.size(); ++i) {
     SendSinglePacket(packets[i],

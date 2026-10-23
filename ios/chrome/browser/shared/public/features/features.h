@@ -890,8 +890,16 @@ bool IsCloseOtherTabsEnabled();
 // Feature flag to enable the Assistant Container.
 BASE_DECLARE_FEATURE(kAssistantContainer);
 
+// Variations for the Assistant Container feature.
+extern const char kAssistantContainerParam[];
+extern const char kAssistantContainerParamDebug[];
+
 // Returns true if the Assistant Container is enabled.
 bool IsAssistantContainerEnabled();
+
+// Returns true if debug elements (like detents) should be added to the
+// Assistant Container.
+bool ShouldShowAssistantContainerDebugElements();
 
 // Enables the ComposeboxIpad feature.
 BASE_DECLARE_FEATURE(kComposeboxIpad);
@@ -952,6 +960,17 @@ BASE_DECLARE_FEATURE(kRecordRecentActiveDays);
 // Returns true if kRecordRecentActiveDays is enabled.
 bool IsRecordRecentActiveDaysEnabled();
 
+// Feature for the Soft Lock.
+BASE_DECLARE_FEATURE(kIOSSoftLock);
+// Parameter for the kIOSSoftLock feature. The time delay needed
+// for Soft Lock to trigger.
+extern const char kIOSSoftLockBackgroundThresholdParam[];
+extern const base::FeatureParam<base::TimeDelta>
+    kIOSSoftLockBackgroundThreshold;
+
+// Whether the Soft Lock feature is enabled.
+bool IsIOSSoftLockEnabled();
+
 // Enables the AimCobrowse feature.
 BASE_DECLARE_FEATURE(kAimCobrowse);
 
@@ -969,5 +988,11 @@ BASE_DECLARE_FEATURE(kFullscreenRefactoring);
 
 // Returns true if the FullscreenRefactoring feature is enabled.
 bool IsFullscreenRefactoringEnabled();
+
+// Enables the AskAboutThisPage feature.
+BASE_DECLARE_FEATURE(kAskAboutThisPage);
+
+// Returns true if the AskAboutThisPage feature is enabled.
+bool IsAskAboutThisPageEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

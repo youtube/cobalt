@@ -26,6 +26,8 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.extensions.R;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.ListMenuButton;
 
@@ -59,7 +61,9 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
             NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
             ThemeColorProvider themeColorProvider,
-            ViewGroup rootView) {
+            ViewGroup rootView,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         mBridge = new ExtensionActionsBridge(task, profile);
 
         extensionToolbarStub.setLayoutResource(R.layout.extension_toolbar_container);
@@ -76,7 +80,9 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
                         profile,
                         currentTabSupplier,
                         mExtensionsToolbarBridge,
-                        rootView);
+                        rootView,
+                        contextMenuPopulatorFactory,
+                        selectionDropdownMenuDelegate);
         mExtensionsMenuAndAccessControlButtonCoordinator =
                 new ExtensionsMenuAndAccessControlButtonCoordinator(
                         context,

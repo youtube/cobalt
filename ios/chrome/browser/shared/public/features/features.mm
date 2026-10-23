@@ -1046,8 +1046,20 @@ bool IsCloseOtherTabsEnabled() {
 
 BASE_FEATURE(kAssistantContainer, base::FEATURE_DISABLED_BY_DEFAULT);
 
+const char kAssistantContainerParam[] = "kAssistantContainerParam";
+const char kAssistantContainerParamDebug[] = "kAssistantContainerParamDebug";
+
 bool IsAssistantContainerEnabled() {
   return base::FeatureList::IsEnabled(kAssistantContainer);
+}
+
+bool ShouldShowAssistantContainerDebugElements() {
+  if (!base::FeatureList::IsEnabled(kAssistantContainer)) {
+    return false;
+  }
+  std::string feature_param = base::GetFieldTrialParamValueByFeature(
+      kAssistantContainer, kAssistantContainerParam);
+  return feature_param == kAssistantContainerParamDebug;
 }
 
 BASE_FEATURE(kComposeboxIpad, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1139,6 +1151,18 @@ bool IsRecordRecentActiveDaysEnabled() {
   return base::FeatureList::IsEnabled(kRecordRecentActiveDays);
 }
 
+BASE_FEATURE(kIOSSoftLock, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsIOSSoftLockEnabled() {
+  return base::FeatureList::IsEnabled(kIOSSoftLock);
+}
+
+const char kIOSSoftLockBackgroundThresholdParam[] =
+    "soft-lock-background-threshold-minutes";
+
+const base::FeatureParam<base::TimeDelta> kIOSSoftLockBackgroundThreshold{
+    &kIOSSoftLock, kIOSSoftLockBackgroundThresholdParam, base::Minutes(10)};
+
 BASE_FEATURE(kAimCobrowse, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAimCobrowseEnabled() {
@@ -1155,4 +1179,11 @@ BASE_FEATURE(kFullscreenRefactoring, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsFullscreenRefactoringEnabled() {
   return base::FeatureList::IsEnabled(kFullscreenRefactoring);
+}
+
+BASE_FEATURE(kAskAboutThisPage, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAskAboutThisPageEnabled() {
+  return IsAimCobrowseEnabled() &&
+         base::FeatureList::IsEnabled(kAskAboutThisPage);
 }

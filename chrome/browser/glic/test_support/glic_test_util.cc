@@ -6,6 +6,7 @@
 
 #include "base/strings/strcat.h"
 #include "base/task/current_thread.h"
+#include "build/build_config.h"
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
@@ -17,7 +18,6 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
@@ -25,6 +25,7 @@
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/base_window.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -39,81 +40,6 @@ GlicInstanceCoordinatorImpl& GetInstanceCoordinator(GlicKeyedService& service) {
 }
 
 }  // namespace
-
-BrowserActivator::BrowserActivator() {
-  observation_.Observe(GlobalBrowserCollection::GetInstance());
-  if (auto* const browser =
-          GetLastActiveBrowserWindowInterfaceWithAnyProfile()) {
-    OnBrowserCreated(browser);
-  }
-}
-
-BrowserActivator::~BrowserActivator() = default;
-
-void BrowserActivator::SetMode(Mode mode) {
-  mode_ = mode;
-}
-
-void BrowserActivator::OnBrowserCreated(BrowserWindowInterface* browser) {
-  switch (mode_) {
-    case Mode::kSingleBrowser:
-      CHECK(!active_browser_) << "BrowserActivator::kSingleBrowser found "
-                                 "second active browser.";
-      break;
-    case Mode::kFirst:
-      if (active_browser_) {
-        return;
-      }
-      break;
-    case Mode::kManual:
-      return;
-  }
-
-  SetActivePrivate(browser);
-}
-
-void BrowserActivator::OnBrowserClosed(BrowserWindowInterface* browser) {
-  if (active_browser_.get() == browser) {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
-    active_lock_.reset();
-#endif
-    active_browser_ = nullptr;
-    if (mode_ == Mode::kFirst) {
-      if (auto* const replacement_browser =
-              GetLastActiveBrowserWindowInterfaceWithAnyProfile()) {
-        if (replacement_browser != browser) {
-          SetActivePrivate(replacement_browser);
-        }
-      }
-    }
-  }
-}
-
-void BrowserActivator::SetActive(BrowserWindowInterface* browser) {
-  mode_ = Mode::kManual;
-  if (!browser) {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
-    active_lock_.reset();
-#endif
-    active_browser_ = nullptr;
-  } else {
-    SetActivePrivate(browser);
-  }
-}
-
-void BrowserActivator::SetActivePrivate(
-    BrowserWindowInterface* browser_window_interface) {
-  CHECK(browser_window_interface);
-#if !BUILDFLAG(IS_ANDROID)
-  if (auto* const browser_view =
-          BrowserView::GetBrowserViewForBrowser(browser_window_interface)) {
-    active_lock_ = browser_view->GetWidget()->LockPaintAsActive();
-    active_browser_ = browser_window_interface;
-  }
-#else  // NEEDS_ANDROID_IMPL
-  active_browser_ = browser_window_interface;
-#endif
-}
 
 #if !BUILDFLAG(IS_ANDROID)
 GlicInstanceTracker::GlicInstanceTracker(Profile* profile) {

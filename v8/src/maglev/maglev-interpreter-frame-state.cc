@@ -1019,8 +1019,16 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 
     // Soundness of the loop phi Smi type relies on the back-edge static types
     // sminess.
-    if (result->uses_require_31_bit_value()) {
-      unmerged_phi->SetUseRequires31BitValue();
+    if (result->uses_require_smi()) {
+      unmerged_phi->SetUseRequiresSmi();
+    } else if (NodeTypeIs(unmerged_phi->type(), NodeType::kSmi)) {
+      // The backedge has Smi type, but it's possible that this is only true
+      // because {result} itself is eventually known to be a Smi, thanks to for
+      // instance a CheckedSmiUntag. If we don't set {use_requires_smi}, then
+      // such a CheckedSmiUntag could be elided during Phi untagging, thus
+      // invalidating the type of the backedge, and in turn potentially
+      // invalidating some Phi untagging without us realizing it.
+      unmerged_phi->SetUseRequiresSmi();
     }
     if (result->uses_require_heap_object()) {
       unmerged_phi->SetUseRequiresHeapObject();

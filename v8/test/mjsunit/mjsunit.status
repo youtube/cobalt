@@ -205,9 +205,6 @@
   # Also disabled on Mac ASAN for https://crbug.com/v8/11437.
   'regress/regress-crbug-9161': [PASS, SLOW, ['not asan or system == macos', SKIP]],
 
-  # Test is only useful with ASAN.
-  'regress/regress-483851884': [PASS, SLOW, ['not asan', SKIP]],
-
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
   'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['verify_predictable', SKIP]],
@@ -640,7 +637,7 @@
   # --experimental-wasm-memory-control
   'wasm/memory-control': [SKIP],
 
-  # --experimental-wasm-exnref
+  # exnref
   'regress/wasm/regress-14689': [SKIP],
   'regress/wasm/regress-1502837': [SKIP],
   'regress/wasm/regress-1507743': [SKIP],
@@ -832,6 +829,7 @@
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
   'regress/wasm/regress-403308742': [SKIP],
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
@@ -1077,6 +1075,7 @@
   'regress/regress-1320641': [SKIP],
   'regress/regress-354626177': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
+  'turbolev/regress-488090094': [SKIP],
 
   # Float parameters are not supported in the fast api on these platforms
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
@@ -1308,6 +1307,9 @@
   'wasm/many-memories': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
   'wasm/shared-memory-worker-gc-stress': [SKIP],
+
+  # BUG(490306727): data race detected by TSAN.
+  'regress/regress-489941769': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -1648,6 +1650,7 @@
 
   # Code coverage tests are not supported in multiple isolates because the
   # counters are shared across isolates.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 
   # JSON.parse is not supported with --shared-string-table and multiple isolates
@@ -1918,6 +1921,7 @@
   'wasm/denormals': [SKIP],
 
   # Wasm code coverage is not supported yet.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 }],  # arch in [ppc64, s390x]'
 
@@ -2533,6 +2537,7 @@
   'regress/wasm/regress-454276076': [SKIP],
   'regress/wasm/regress-474491347': [SKIP],
   'regress/wasm/regress-475896261': [SKIP],
+  'regress/wasm/regress-487750545': [SKIP],
 
   # weakrefs/minor-gc-* tests require a young generation.
   'weakrefs/minor-gc-*': [SKIP],
@@ -3039,6 +3044,7 @@
   'regress/regress-crbug-1209152': [SKIP],
 
   # Wasm code coverage is not currently supported.
+  'regress/wasm/regress-488943662': [SKIP],
   'wasm/wasm-code-coverage': [SKIP],
 
   # Tests that require the sampler/profiler, which doesn't work on older kernel

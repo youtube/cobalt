@@ -1635,7 +1635,7 @@ Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
                                       Local<Promise> result_promise,
                                       Local<Value> namespace_or_source) {
   Local<Array> module_resolution_data = v8::Array::New(isolate);
-  if (module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate))
+  if (module_resolution_data->SetPrototype(realm, v8::Null(isolate))
           .IsNothing()) {
     return Nothing<bool>();
   }
@@ -4345,26 +4345,26 @@ Local<FunctionTemplate> Shell::CreateWorkerTemplate(Isolate* isolate) {
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminate",
       FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "terminateAndWait",
       FunctionTemplate::New(isolate, WorkerTerminateAndWait, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "postMessage",
       FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->Set(
       isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->PrototypeTemplate()->SetAccessorProperty(
       String::NewFromUtf8(isolate, "onmessage", NewStringType::kInternalized)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, WorkerOnMessageGetter, Local<Value>(),
-                            worker_signature),
+                            worker_signature, 0, ConstructorBehavior::kThrow),
       FunctionTemplate::New(isolate, WorkerOnMessageSetter, Local<Value>(),
-                            worker_signature));
+                            worker_signature, 0, ConstructorBehavior::kThrow));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
   return worker_fun_template;
 }
@@ -5431,7 +5431,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
       Local<Value> args[] = {message};
       USE(callback.As<Function>()->Call(context, Undefined(isolate_), 1, args));
 #ifdef DEBUG
-      if (try_catch.HasCaught()) {
+      if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
         Local<Object> exception = try_catch.Exception().As<Object>();
         Local<String> key = v8::String::NewFromUtf8Literal(
             isolate_, "message", NewStringType::kInternalized);

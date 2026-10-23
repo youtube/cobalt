@@ -43,8 +43,8 @@ public:
     }
 #endif
 
-    bool startTimerQuery() override;
-    void endTimerQuery() override;
+    bool startStatsQuery(GpuStatsFlags) override;
+    void endStatsQuery(GpuStatsFlags) override;
     std::optional<GpuStats> gpuStats() override;
 
 private:
@@ -182,6 +182,7 @@ private:
     size_t fCurrentIndirectBufferOffset = 0;
 
     bool fWroteFirstPassTimestamps = false;
+    bool fHasStatsQuery = false;
     wgpu::QuerySet fTimestampQuerySet;
     sk_sp<DawnBuffer> fTimestampQueryBuffer;
     sk_sp<DawnBuffer> fTimestampQueryXferBuffer;

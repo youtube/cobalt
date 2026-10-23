@@ -908,6 +908,9 @@ BrowserView::BrowserView(Browser* browser)
 
   main_background_region_ =
       AddChildView(std::make_unique<MainBackgroundRegionView>(*this));
+  main_background_region_->SetProperty(
+      views::kElementIdentifierKey,
+      BrowserViewLayoutViews::kMainBackgroundRegionElementId);
 
   top_container_ = AddChildView(std::make_unique<TopContainerView>(this));
   top_container_insertion_index_ = GetIndexOf(top_container_.get());
@@ -973,6 +976,9 @@ BrowserView::BrowserView(Browser* browser)
   // It must render after those elements.
   main_shadow_overlay_ =
       AddChildView(std::make_unique<ShadowOverlayView>(*this));
+  main_shadow_overlay_->SetProperty(
+      views::kElementIdentifierKey,
+      BrowserViewLayoutViews::kShadowOverlayElementId);
 
   // TODO(crbug.com/454362874): Support dynamic horizontal alignment.
 
@@ -1004,12 +1010,18 @@ BrowserView::BrowserView(Browser* browser)
             views::ShapeContextTokens::kContentSeparatorRadius,
             CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
             /*is_vertical_window_edge=*/true));
+    vertical_tab_strip_top_corner_->SetProperty(
+        views::kElementIdentifierKey,
+        BrowserViewLayoutViews::kVerticalTabStripTopCornerElementId);
     vertical_tab_strip_bottom_corner_ =
         AddChildView(std::make_unique<CustomFloatingCorner>(
             *this, CustomFloatingCorner::CornerOrientation::kBottomLeading,
             views::ShapeContextTokens::kContentSeparatorRadius,
             CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
             /*is_vertical_window_edge=*/true));
+    vertical_tab_strip_bottom_corner_->SetProperty(
+        views::kElementIdentifierKey,
+        BrowserViewLayoutViews::kVerticalTabStripBottomCornerElementId);
   } else {
     horizontal_tab_strip_region_view_->InitializeTabStrip();
   }
@@ -1273,7 +1285,7 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
 bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
   const bool is_pwa = GetIsWebAppType();
   const bool is_tabbed_window = GetSupportsTabStrip();
-  return is_tabbed_window && !is_pwa;
+  return is_tabbed_window && !is_pwa && !ShouldDrawVerticalTabStrip();
 }
 #endif
 
@@ -1519,6 +1531,8 @@ void BrowserView::OnVerticalTabStripModeChanged(
     vertical_tab_strip_region_view_->ResetTabStrip();
     horizontal_tab_strip_region_view_->InitializeTabStrip();
   }
+
+  ImmersiveModeController::From(browser())->OnVerticalTabStripModeChanged();
 
   UpdateTabSearchBubbleHost();
   InvalidateLayout();
@@ -4333,8 +4347,7 @@ const views::Widget* BrowserView::GetWidget() const {
 }
 
 void BrowserView::CreateTabSearchBubble(
-    const tab_search::mojom::TabSearchSection section,
-    const tab_search::mojom::TabOrganizationFeature organization_feature) {
+    const tab_search::mojom::TabSearchSection section) {
   // Do not spawn the bubble if using the WebUITabStrip.
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
   if (WebUITabStripContainerView::UseTouchableTabStrip(browser_.get())) {
@@ -4343,7 +4356,7 @@ void BrowserView::CreateTabSearchBubble(
 #endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
   if (auto* tab_search_host = GetTabSearchBubbleHost()) {
-    tab_search_host->ShowTabSearchBubble(true, section, organization_feature);
+    tab_search_host->ShowTabSearchBubble(true, section);
   }
 }
 
@@ -6069,6 +6082,11 @@ Profile* BrowserView::GetProfile() const {
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView, ImmersiveModeController::Observer implementation:
 void BrowserView::OnImmersiveFullscreenEntered() {
+  if (auto* controller =
+          tabs::VerticalTabStripStateController::From(browser())) {
+    vertical_tabs_enable_state_lock_ = controller->GetEnableStateLock();
+  }
+
   AppMenuButton* app_menu_button =
       toolbar_button_provider()->GetAppMenuButton();
   if (app_menu_button) {
@@ -6096,10 +6114,14 @@ void BrowserView::OnImmersiveFullscreenExited() {
 
   InvalidateLayout();
   GetWidget()->GetRootView()->DeprecatedLayoutImmediately();
+
+  vertical_tabs_enable_state_lock_.reset();
 }
 
 void BrowserView::OnImmersiveModeControllerDestroyed() {
   ReparentTopContainerForEndOfImmersive();
+
+  vertical_tabs_enable_state_lock_.reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

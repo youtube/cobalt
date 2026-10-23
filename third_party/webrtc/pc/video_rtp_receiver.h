@@ -91,8 +91,8 @@ class VideoRtpReceiver : public RtpReceiverInternal {
   absl::AnyInvocable<void() &&> GetSetupForMediaChannel(uint32_t ssrc) override;
   absl::AnyInvocable<void() &&> GetSetupForUnsignaledMediaChannel() override;
   std::optional<uint32_t> ssrc() const override;
-  void NotifyFirstPacketReceived() override;
-  void NotifyFirstPacketReceivedAfterReceptiveChange() override;
+  void NotifyFirstPacketReceived(uint32_t ssrc) override;
+  void NotifyFirstPacketReceivedAfterReceptiveChange(uint32_t ssrc) override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
   void set_transport(
       scoped_refptr<DtlsTransportInterface> dtls_transport) override;

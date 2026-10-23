@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/buffer.h"

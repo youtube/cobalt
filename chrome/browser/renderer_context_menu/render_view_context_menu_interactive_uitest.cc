@@ -1181,19 +1181,14 @@ class GlicInteractiveContextMenuTest
     if (UseMultiInstance()) {
       scoped_feature_list_.InitWithFeatures(
           /*enabled_features=*/{features::kGlic, features::kGlicShareImage,
-                                features::kGlicMultiInstance,
-                                features::kGlicUnifiedFreScreen,
-                                glic::mojom::features::kGlicMultiTab,
                                 features::kGlicMultitabUnderlines},
           /*disabled_features=*/{features::kGlicWarming,
-                                 features::kGlicFreWarming,
                                  blink::features::kSvgFallBackToContainerSize,
                                  features::kGlicTrustFirstOnboarding});
     } else {
       scoped_feature_list_.InitWithFeatures(
           /*enabled_features=*/{features::kGlic, features::kGlicShareImage},
           /*disabled_features=*/{features::kGlicWarming,
-                                 features::kGlicFreWarming,
                                  blink::features::kSvgFallBackToContainerSize,
                                  features::kGlicTrustFirstOnboarding});
     }

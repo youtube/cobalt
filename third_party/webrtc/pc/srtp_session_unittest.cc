@@ -13,9 +13,9 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/field_trials.h"
 #include "media/base/fake_rtp.h"
 #include "pc/test/srtp_test_util.h"
@@ -215,7 +215,7 @@ TEST_F(SrtpSessionTest, TestReplay) {
 
   // Initial sequence number.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       seqnum_big);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
@@ -223,7 +223,7 @@ TEST_F(SrtpSessionTest, TestReplay) {
 
   // Replay within the 1024 window should succeed.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       seqnum_big - replay_window + 1);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
@@ -231,7 +231,7 @@ TEST_F(SrtpSessionTest, TestReplay) {
 
   // Replay out side of the 1024 window should fail.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       seqnum_big - replay_window - 1);
   EXPECT_FALSE(s1_.ProtectRtp(rtp_packet_));
@@ -239,14 +239,14 @@ TEST_F(SrtpSessionTest, TestReplay) {
 
   // Increment sequence number to a small number.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       seqnum_small);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));
 
   // Replay around 0 but out side of the 1024 window should fail.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       kMaxSeqnum + seqnum_small - replay_window - 1);
   EXPECT_FALSE(s1_.ProtectRtp(rtp_packet_));
@@ -254,7 +254,7 @@ TEST_F(SrtpSessionTest, TestReplay) {
 
   // Replay around 0 but within the 1024 window should succeed.
   for (uint16_t seqnum = 65000; seqnum < 65003; ++seqnum) {
-    SetBE16(ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(),
+    SetBE16(std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(),
                                rtp_packet_.size())
                 .subspan(2, 2),
             seqnum);
@@ -268,7 +268,7 @@ TEST_F(SrtpSessionTest, TestReplay) {
   // number in libsrtp, eventually the new sequence number would go out side
   // of the window.
   SetBE16(
-      ArrayView<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
+      std::span<uint8_t>(rtp_packet_.MutableData<uint8_t>(), rtp_packet_.size())
           .subspan(2, 2),
       seqnum_small + 1);
   EXPECT_TRUE(s1_.ProtectRtp(rtp_packet_));

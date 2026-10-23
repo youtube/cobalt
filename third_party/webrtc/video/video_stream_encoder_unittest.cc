@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,7 +26,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -255,7 +255,7 @@ class FakeNV12NativeBuffer : public VideoFrameBuffer {
     return nv12_buffer_->ToI420();
   }
   scoped_refptr<VideoFrameBuffer> GetMappedFrameBuffer(
-      ArrayView<VideoFrameBuffer::Type> types) override {
+      std::span<VideoFrameBuffer::Type> types) override {
     if (absl::c_find(types, Type::kNV12) != types.end()) {
       return nv12_buffer_;
     }

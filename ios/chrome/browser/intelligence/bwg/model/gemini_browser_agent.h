@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/shared/model/browser/browser_observer.h"
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
@@ -52,12 +53,16 @@ class ScopedFullscreenDisabler;
 class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
                            public GeminiTabHelperObserver,
                            public FullscreenControllerObserver,
-                           public TabsDependencyInstaller {
+                           public TabsDependencyInstaller,
+                           public BrowserObserver {
  public:
   GeminiBrowserAgent(const GeminiBrowserAgent&) = delete;
   GeminiBrowserAgent& operator=(const GeminiBrowserAgent&) = delete;
 
   ~GeminiBrowserAgent() override;
+
+  // BrowserObserver:
+  void BrowserDestroyed(Browser* browser) override;
 
   // TabsDependencyInstaller:
   void OnWebStateInserted(web::WebState* web_state) override;
@@ -89,6 +94,14 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // `StartGeminiFlow` instead (and let this be handled internally within the
   // browser agent).
   void UpdateFloatyPageContext(
+      base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
+                     PageContextWrapperError> expected_page_context);
+
+  // Updates the page context for the floaty after cancelling the timeout.
+  // TODO(crbug.com/465535924): Deprecated, new callers should use
+  // `StartGeminiFlow` instead (and let this be handled internally within the
+  // browser agent).
+  void CancelTimeoutAndUpdateFloatyPageContext(
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                      PageContextWrapperError> expected_page_context);
 
@@ -224,8 +237,8 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
       gemini::FloatyUpdateSource source,
       bool is_presented);
 
-  // Returns true if the floaty is temporarily hidden.
-  bool IsFloatyTemporarilyHidden() const;
+  // Returns true if the floaty has active hiding sources.
+  bool DoesFloatyHaveActiveHidingSources() const;
 
   // Returns true if the floaty is only hidden by the keyboard.
   bool IsOnlyHiddenByKeyboard() const;
@@ -235,9 +248,20 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // expect the source to re-show the floaty after hiding it.
   bool ShouldSourceReshowFloaty(gemini::FloatyUpdateSource source) const;
 
+  // Called when keyboard state changes.
+  void OnKeyboardStateChanged(bool is_visible);
+
+  // Called for the fullscreen update animation.
+  void FullscreenProgressUpdatedForAnimation();
+
+  // Called when the page content sharing preference changes.
+  void OnPageContentPrefChanged();
+
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
 
+  /// TODO(crbug.com/491093929): Rename the below classes to move away from the
+  /// `-Handler` naming scheme used by Chromium Objective-C command protocols.
   // Handler for opening links from BWG.
   __strong BWGLinkOpeningHandler* bwg_link_opening_handler_ = nullptr;
 
@@ -275,9 +299,6 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // floaty is considered temporarily hidden.
   std::set<gemini::FloatyUpdateSource> active_hiding_sources_;
 
-  // Called when keyboard state changes.
-  void OnKeyboardStateChanged(bool is_visible);
-
   // Used to track the last shown view state of an invoked floaty. Used to show
   // a hidden floaty with the previous view state.
   ios::provider::GeminiViewState last_shown_view_state_ =
@@ -285,6 +306,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Whether the floaty is currently invoked.
   bool is_floaty_invoked_ = false;
+
+  // Whether the floaty is temporarily hidden. Used to hide the floaty without
+  // triggering logic related to ending floaty persistence.
+  bool is_floaty_temporarily_hidden_ = false;
 
   // Records when the floaty was last hidden. Prevents the floaty from
   // reappearing too soon, particularly after a
@@ -311,9 +336,6 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Registrar for pref changes.
   PrefChangeRegistrar pref_change_registrar_;
-
-  // Called when the page content sharing preference changes.
-  void OnPageContentPrefChanged();
 
   // Timer to force page context generation if page load takes too long.
   base::OneShotTimer page_context_timeout_timer_;

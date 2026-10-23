@@ -1080,7 +1080,7 @@ class WeakHomomorphicFixedArrayRef : public HeapObjectRef {
 
   IndirectHandle<WeakHomomorphicFixedArray> object() const;
 
-  int length() const;
+  SafeHeapObjectSize length() const;
 };
 
 class BytecodeArrayRef : public HeapObjectRef {
@@ -1158,13 +1158,20 @@ class ScopeInfoRef : public HeapObjectRef {
   IndirectHandle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  int ContextHeaderLength() const;
+  int FunctionContextSlotIndex() const;
+  int ReceiverContextSlotIndex() const;
+  MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
+  VariableMode ContextLocalMode(int var) const;
   bool HasContext() const;
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool SomeContextHasExtension() const;
   bool ClassScopeHasPrivateBrand() const;
   bool SloppyEvalCanExtendVars() const;
+  bool HasAllocatedReceiver() const;
   ScopeType scope_type() const;
+  FunctionKind function_kind() const;
 
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;
 };

@@ -14,8 +14,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/video/video_codec_type.h"
 #include "modules/video_coding/utility/qp_parser.h"
 #include "video/corruption_detection/evaluation/av1_qp_parser.h"
@@ -29,7 +29,7 @@ class GenericQpParser {
  public:
   std::optional<uint32_t> Parse(VideoCodecType codec_type,
                                 size_t spatial_idx,
-                                ArrayView<const uint8_t> frame_data,
+                                std::span<const uint8_t> frame_data,
                                 int operating_point = 0);
 
  private:

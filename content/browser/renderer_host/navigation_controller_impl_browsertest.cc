@@ -21202,16 +21202,10 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     // committing the new NavigationEntry which keeps the "initial" status:
     // #1 was triggered by DiscardNonCommittedEntries().
     // #2 is triggered by NotifyNavigationEntryCommitted().
+    // Only one notification will actually be sent out.
     // Note that this is different from the _Ignore test below, which wouldn't
     // fire the events because the client chooses to ignore the updates.
-    // With "SkipRedundantNavigationStateNotification" enabled, only 1 call will
-    // take place.
-    if (base::FeatureList::IsEnabled(
-            features::kSkipRedundantNavigationStateNotification)) {
-      EXPECT_EQ(1, all_navigation_state_changed_delegate.call_count());
-    } else {
-      EXPECT_EQ(2, all_navigation_state_changed_delegate.call_count());
-    }
+    EXPECT_EQ(1, all_navigation_state_changed_delegate.call_count());
   }
 
   {
@@ -21229,20 +21223,12 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_EQ(1, controller.GetEntryCount());
     EXPECT_FALSE(controller.GetLastCommittedEntry()->IsInitialEntry());
 
-    // 1 or 2 additional INVALIDATE_TYPE_ALL NavigationStateChanged calls were
-    // triggered (increasing the count to either 2 or 4 depending on whether
-    // "SkipRedundantNavigationStateNotification" is enabled), and they're not
-    // for the initial NavigationEntry.
+    // 2 additional INVALIDATE_TYPE_ALL NavigationStateChanged calls were
+    // triggered (though only 1 notification will be sent, increasing the count
+    // to 2), and they're not for the initial NavigationEntry.
     // #1 was triggered by DiscardNonCommittedEntries().
     // #2 is triggered by NotifyNavigationEntryCommitted().
-    // With "SkipRedundantNavigationStateNotification" enabled, only 1 call will
-    // take place.
-    if (base::FeatureList::IsEnabled(
-            features::kSkipRedundantNavigationStateNotification)) {
-      EXPECT_EQ(2, all_navigation_state_changed_delegate.call_count());
-    } else {
-      EXPECT_EQ(4, all_navigation_state_changed_delegate.call_count());
-    }
+    EXPECT_EQ(2, all_navigation_state_changed_delegate.call_count());
   }
 }
 
@@ -24441,10 +24427,31 @@ IN_PROC_BROWSER_TEST_P(RestrictDuplicateNavsToOriginsBrowserTest,
     histogram_tester.ExpectUniqueSample(
         "Navigation.RendererInitiated.DuplicateNavOriginMatch",
         navigate_to_target_origin(), 1);
+    if (navigate_to_target_origin()) {
+      // The first navigation is recorded as non-duplicate, and the second one
+      // as duplicate.
+      EXPECT_THAT(
+          histogram_tester.GetAllSamples(
+              "Navigation.RendererInitiated.IsDuplicateWithoutThresholdCheck2."
+              "OnTargetOrigins"),
+          base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+      histogram_tester.ExpectUniqueSample(
+            "Navigation.RendererInitiated.DuplicateNavIsUnderThreshold2."
+            "OnTargetOrigins",
+            true, 1);
+    } else {
+      histogram_tester.ExpectTotalCount(
+          "Navigation.RendererInitiated.IsDuplicateWithoutThresholdCheck2."
+          "OnTargetOrigins", 0);
+    }
   } else {
     // Otherwise, ensure that the histogram is not recorded.
     histogram_tester.ExpectTotalCount(
         "Navigation.RendererInitiated.DuplicateNavOriginMatch", 0);
+    histogram_tester.ExpectTotalCount(
+        "Navigation.RendererInitiated.IsDuplicateWithoutThresholdCheck2."
+        "OnTargetOrigins",
+        0);
   }
 }
 

@@ -1504,6 +1504,8 @@ void LocalFrameMojoHandler::UpdatePrerenderURL(
           kPrerenderNoVarySearchActivation,
       /*data=*/nullptr, WebFrameLoadType::kReplaceCurrentItem,
       FirePopstate::kNo,
+      /*should_skip_screenshot=*/true, params->involvement,
+      params->interaction_id,
       /*is_browser_initiated=*/true);
   std::move(callback).Run();
 }

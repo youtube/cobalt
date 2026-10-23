@@ -2083,8 +2083,14 @@ angle::Result Renderer11::drawLineLoop(const gl::Context *context,
     {
         return angle::Result::Continue;
     }
-    unsigned int spaceNeeded =
-        static_cast<unsigned int>(sizeof(GLuint) * mScratchIndexDataBuffer.size());
+
+    uint64_t spaceNeeded64 = sizeof(GLuint) * mScratchIndexDataBuffer.size();
+    ANGLE_CHECK(GetImplAs<Context11>(context), spaceNeeded64 <= std::numeric_limits<int>::max(),
+                "Failed to create a 32-bit looping index buffer for "
+                "a GL_LINE_LOOP of <32-bit element type; too many indices required.",
+                GL_OUT_OF_MEMORY);
+    int spaceNeeded = static_cast<int>(spaceNeeded64);
+
     ANGLE_TRY(
         mLineLoopIB->reserveBufferSpace(context, spaceNeeded, gl::DrawElementsType::UnsignedInt));
 
@@ -2108,6 +2114,12 @@ angle::Result Renderer11::drawLineLoop(const gl::Context *context,
 
     if (instances > 0)
     {
+        // D3D11 requires that indexCount * instances fits in 32 bits.
+        ANGLE_CHECK(GetImplAs<Context11>(context),
+                    static_cast<uint64_t>(indexCount) * static_cast<uint64_t>(instances) <=
+                        std::numeric_limits<uint32_t>::max(),
+                    "Failed to draw: instance count * index count overflows 32 bits.",
+                    GL_OUT_OF_MEMORY);
         mDeviceContext->DrawIndexedInstanced(indexCount, instances, 0, baseVertex, 0);
     }
     else
@@ -2165,8 +2177,12 @@ angle::Result Renderer11::drawTriangleFan(const gl::Context *context,
     GetTriFanIndices(indexPointer, type, count, glState.isPrimitiveRestartEnabled(),
                      &mScratchIndexDataBuffer);
 
-    const unsigned int spaceNeeded =
-        static_cast<unsigned int>(mScratchIndexDataBuffer.size() * sizeof(unsigned int));
+    uint64_t spaceNeeded64 = mScratchIndexDataBuffer.size() * sizeof(unsigned int);
+    ANGLE_CHECK(GetImplAs<Context11>(context), spaceNeeded64 <= std::numeric_limits<int>::max(),
+                "Failed to create a 32-bit looping index buffer for "
+                "a GL_TRIANGLE_FAN of <32-bit element type; too many indices required.",
+                GL_OUT_OF_MEMORY);
+    int spaceNeeded = static_cast<int>(spaceNeeded64);
     ANGLE_TRY(mTriangleFanIB->reserveBufferSpace(context, spaceNeeded,
                                                  gl::DrawElementsType::UnsignedInt));
 
@@ -2188,6 +2204,12 @@ angle::Result Renderer11::drawTriangleFan(const gl::Context *context,
 
     if (instances > 0)
     {
+        // D3D11 requires that indexCount * instances fits in 32 bits.
+        ANGLE_CHECK(GetImplAs<Context11>(context),
+                    static_cast<uint64_t>(indexCount) * static_cast<uint64_t>(instances) <=
+                        std::numeric_limits<uint32_t>::max(),
+                    "Failed to draw: instance count * index count overflows 32 bits.",
+                    GL_OUT_OF_MEMORY);
         mDeviceContext->DrawIndexedInstanced(indexCount, instances, 0, baseVertex, 0);
     }
     else
@@ -3906,7 +3928,11 @@ angle::Result Renderer11::blitRenderbufferRect(const gl::Context *context,
 
         // D3D11 needs depth-stencil CopySubresourceRegions to have a NULL pSrcBox
         // We also require complete framebuffer copies for depth-stencil blit.
-        D3D11_BOX *pSrcBox = wholeBufferCopy && readLayer == 0 ? nullptr : &readBox;
+        // For 3D source textures, always provide a srcBox to limit the copy to a single
+        // depth slice; a NULL pSrcBox would copy all depth slices of the source subresource
+        // which does not fit in a 2D destination.
+        D3D11_BOX *pSrcBox =
+            wholeBufferCopy && readLayer == 0 && !readTexture.is3D() ? nullptr : &readBox;
 
         mDeviceContext->CopySubresourceRegion(drawTexture.get(), drawSubresource, dstX, dstY, dstZ,
                                               readTexture.get(), readSubresource, pSrcBox);

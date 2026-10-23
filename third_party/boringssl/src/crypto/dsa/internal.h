@@ -29,17 +29,17 @@ class DSAImpl : public dsa_st, public RefCounted<DSAImpl> {
  public:
   DSAImpl();
 
-  BIGNUM *p = nullptr;
-  BIGNUM *q = nullptr;
-  BIGNUM *g = nullptr;
+  UniquePtr<BIGNUM> p;
+  UniquePtr<BIGNUM> q;
+  UniquePtr<BIGNUM> g;
 
-  BIGNUM *pub_key = nullptr;
-  BIGNUM *priv_key = nullptr;
+  UniquePtr<BIGNUM> pub_key;
+  UniquePtr<BIGNUM> priv_key;
 
   // Normally used to cache montgomery values
-  bssl::CRYPTO_MUTEX method_mont_lock;
-  BN_MONT_CTX *method_mont_p = nullptr;
-  BN_MONT_CTX *method_mont_q = nullptr;
+  mutable Mutex method_mont_lock;
+  mutable UniquePtr<BN_MONT_CTX> method_mont_p;
+  mutable UniquePtr<BN_MONT_CTX> method_mont_q;
   CRYPTO_EX_DATA ex_data;
 
  private:

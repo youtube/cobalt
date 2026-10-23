@@ -235,8 +235,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
   if (v8_flags.heap_snapshot_on_oom) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
-    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC(
-        v8::HeapProfiler::HeapSnapshotMode::kExposeInternals);
+    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
   V8::FatalProcessOutOfMemory(isolate, reason.c_str());
 }
@@ -1349,7 +1348,8 @@ bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
     return false;
   }
   return isolate_->heap()->allocator()->RetryCustomAllocate(
-      std::move(allocate), AllocationType::kOld);
+      std::move(allocate), AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
 }
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }

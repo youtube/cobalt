@@ -19,12 +19,12 @@
 #include "common_video/h264/h264_common.h"
 #include "rtc_base/bitstream_reader.h"
 
+namespace webrtc {
+
 namespace {
 constexpr int kScalingDeltaMin = -128;
 constexpr int kScaldingDeltaMax = 127;
 }  // namespace
-
-namespace webrtc {
 
 SpsParser::SpsState::SpsState() = default;
 SpsParser::SpsState::SpsState(const SpsState&) = default;

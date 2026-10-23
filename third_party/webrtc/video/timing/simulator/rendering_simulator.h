@@ -16,11 +16,11 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/units/data_size.h"
@@ -389,7 +389,7 @@ inline bool RenderOrder(const RenderingSimulator::Frame& a,
                         const RenderingSimulator::Frame& b) {
   return a.render_timestamp < b.render_timestamp;
 }
-inline void SortByRenderOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByRenderOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, RenderOrder);
 }
 
@@ -397,7 +397,7 @@ inline bool DecodedOrder(const RenderingSimulator::Frame& a,
                          const RenderingSimulator::Frame& b) {
   return a.decoded_timestamp < b.decoded_timestamp;
 }
-inline void SortByDecodedOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByDecodedOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, DecodedOrder);
 }
 
@@ -405,7 +405,7 @@ inline bool RenderedOrder(const RenderingSimulator::Frame& a,
                           const RenderingSimulator::Frame& b) {
   return a.rendered_timestamp < b.rendered_timestamp;
 }
-inline void SortByRenderedOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByRenderedOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, RenderedOrder);
 }
 

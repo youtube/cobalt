@@ -10,9 +10,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/rtp_headers.h"
@@ -72,7 +72,7 @@ TEST_F(BandwidthEndToEndTest, ReceiveStreamSendsRemb) {
           RtpExtension(RtpExtension::kAbsSendTimeUri, kAbsSendTimeExtensionId));
     }
 
-    Action OnReceiveRtcp(ArrayView<const uint8_t> packet) override {
+    Action OnReceiveRtcp(std::span<const uint8_t> packet) override {
       test::RtcpPacketParser parser;
       EXPECT_TRUE(parser.Parse(packet));
 
@@ -141,7 +141,7 @@ class BandwidthStatsTest : public test::EndToEndTest {
   }
 
   // Called on the pacer thread.
-  Action OnSendRtp(ArrayView<const uint8_t> packet) override {
+  Action OnSendRtp(std::span<const uint8_t> packet) override {
     // Stats need to be fetched on the thread where the caller objects were
     // constructed.
     task_queue_->PostTask([this]() {

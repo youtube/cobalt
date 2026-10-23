@@ -39,17 +39,13 @@
 namespace jni_zero {
 
 namespace internal {
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-concept IsJobject =
-    std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 }
 
 // Creates a new local reference frame, in which at least a given number of
@@ -101,6 +97,17 @@ namespace internal {
 // Should only be used by the JNI Zero code generator.
 template <typename T>
 JavaRef<T> AsJavaRef(const T& obj);
+
+// Forward declaration of template class that contains @CalledByNative methods.
+template <typename T>
+class _CalledByNatives;
+
+// Concept to check if the _CalledByNatives<T> specialization is defined.
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+template <typename T>
+concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -137,6 +144,19 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
   // parameters (which should not be released).
   static JavaRef<jobject> CreateLeaky(JNIEnv* env, jobject obj) {
     return JavaRef<jobject>(env, obj);
+  }
+
+  // Allows calling methods as another type, or to pass to a function as
+  // another type, but does not allow assignment to a ScopedJavaLocalRef.
+  // There is an rvalue version of this in ScopedJavaLocalRef that enables
+  // assignment.
+  template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  const JavaRef<To>& As() const {
+    return *reinterpret_cast<const JavaRef<To>*>(this);
   }
 
 #if !JNI_ZERO_ENABLE_COMPAT_API
@@ -211,7 +231,17 @@ class JavaRef : public JavaRef<jobject> {
 
   T obj() const { return static_cast<T>(JavaRef<jobject>::obj()); }
 
-  T operator->() const { return obj(); }
+  // Define this only when the _jni.h header has been #included.
+  const internal::_CalledByNatives<T>* operator->() const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::HasCalledByNatives<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  {
+    // CalledByNatives does the reverse reinterpret_cast<>.
+    // This approach optimizes better than passing |this| as a parameter.
+    return reinterpret_cast<const internal::_CalledByNatives<T>*>(this);
+  }
 
   // Get a JavaObjectArrayReader for the array pointed to by this reference.
   // Only defined for JavaRef<jobjectArray>.
@@ -361,6 +391,17 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   // Alias for Release(). For use in templates when global refs are invalid.
   T ReleaseLocal() { return static_cast<T>(JavaRef<T>::ReleaseInternal()); }
 
+  // Enables casting while assigning. E.g.:
+  // ScopedJavaLocalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
+  template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  ScopedJavaLocalRef<To>&& As() && {
+    return std::move(*reinterpret_cast<ScopedJavaLocalRef<To>*>(this));
+  }
+
 #if !JNI_ZERO_ENABLE_COMPAT_API
  private:
 #endif
@@ -487,6 +528,17 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
     }
     return ScopedJavaLocalRef<T>::Adopt(
         env, static_cast<T>(env->NewLocalRef(j_obj)));
+  }
+
+  // Enables casting while assigning. E.g.:
+  // ScopedJavaGlobalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
+  template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+    requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+  ScopedJavaGlobalRef<To>&& As() && {
+    return std::move(*reinterpret_cast<ScopedJavaGlobalRef<To>*>(this));
   }
 };
 

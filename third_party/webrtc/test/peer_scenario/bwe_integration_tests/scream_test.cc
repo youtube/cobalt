@@ -11,11 +11,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
@@ -188,12 +188,12 @@ struct SendMediaTestResult {
   std::vector<scoped_refptr<const RTCStatsReport>> caller_stats;
   std::vector<scoped_refptr<const RTCStatsReport>> callee_stats;
 
-  ArrayView<const scoped_refptr<const RTCStatsReport>> caller() const {
-    return ArrayView<const scoped_refptr<const RTCStatsReport>>(caller_stats);
+  std::span<const scoped_refptr<const RTCStatsReport>> caller() const {
+    return std::span<const scoped_refptr<const RTCStatsReport>>(caller_stats);
   }
 
-  ArrayView<const scoped_refptr<const RTCStatsReport>> callee() const {
-    return ArrayView<const scoped_refptr<const RTCStatsReport>>(callee_stats);
+  std::span<const scoped_refptr<const RTCStatsReport>> callee() const {
+    return std::span<const scoped_refptr<const RTCStatsReport>>(callee_stats);
   }
 };
 

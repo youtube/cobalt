@@ -47,6 +47,9 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_type_util.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/route_matching/route_map.h"
+#include "third_party/blink/renderer/core/timing/dom_window_performance.h"
+#include "third_party/blink/renderer/core/timing/event_timing.h"
+#include "third_party/blink/renderer/core/timing/responsiveness_metrics.h"
 #include "third_party/blink/renderer/platform/bindings/exception_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -852,7 +855,23 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
   }
 
   has_dropped_navigation_ = false;
-  DispatchEvent(*navigate_event);
+  {
+    // TODO(crbug.com/418007230): This event timing only measures the initial
+    // event dispatch of the navigate event. However, the interesting work is
+    // in the intercept() handlers, which can be dispatched async.  Investigate
+    // ways to measure such multi-part + promise-awaiting events.
+    NavigationEventTiming event_timing_scope(window_->GetFrame(),
+                                             *navigate_event, this);
+    // Save interactionId for async `NavigateEvent::CommitNow()` use case.
+    // Note: we don't use this to measure the navigate event continuation
+    // (yet!), but to match `popstate` and `hashchange` events to this one.
+    if (std::optional<PerformanceTimelineEntryIdInfo> id =
+            event_timing_scope.GetInteractionIdInfo()) {
+      params->interaction_id = *id;
+    }
+
+    DispatchEvent(*navigate_event);
+  }
 
   if (navigate_event->defaultPrevented()) {
     if (IsBackForwardOrRestore(params->frame_load_type) &&

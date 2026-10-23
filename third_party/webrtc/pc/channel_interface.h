@@ -25,6 +25,7 @@
 
 namespace webrtc {
 class Call;
+class RtpPacketReceived;
 class VideoBitrateAllocatorFactory;
 class VideoChannel;
 class VoiceChannel;
@@ -75,14 +76,14 @@ class ChannelInterface {
   virtual void Enable(bool enable) = 0;
 
   // Used for latency measurements.
-  virtual void SetFirstPacketReceivedCallback(
-      absl::AnyInvocable<void() &&> callback) = 0;
-  virtual void SetFirstPacketSentCallback(
+  virtual void SetFirstPacketReceivedCallback_n(
+      absl::AnyInvocable<void(const RtpPacketReceived&) &&> callback) = 0;
+  virtual void SetFirstPacketSentCallback_n(
       absl::AnyInvocable<void() &&> callback) = 0;
 
   // Used to unmute.
   virtual void SetPacketReceivedCallback_n(
-      absl::AnyInvocable<void()> callback) = 0;
+      absl::AnyInvocable<void(const RtpPacketReceived&)> callback) = 0;
 
   // Channel control
   virtual bool SetLocalContent(const MediaContentDescription* content,

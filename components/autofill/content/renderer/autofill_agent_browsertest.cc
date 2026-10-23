@@ -30,6 +30,7 @@
 #include "components/autofill/content/renderer/form_tracker.h"
 #include "components/autofill/content/renderer/form_tracker_test_api.h"
 #include "components/autofill/content/renderer/test_utils.h"
+#include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/field_data_manager.h"
 #include "components/autofill/core/common/form_data.h"
@@ -48,6 +49,7 @@
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
+#include "third_party/blink/public/web/web_input_method_controller.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/public/web/web_view.h"
 
@@ -2039,6 +2041,255 @@ TEST_F(AutofillAgentAtMemoryTest,
       mojom::FieldActionType::kReplaceAtMemoryTrigger,
       mojom::ActionPersistence::kPreview, field_id, u" extra");
   EXPECT_EQ(input.SuggestedValue().Utf16(), u"hello result extra");
+}
+
+// TODO(crbug.com/479492562): Make a parametrized test with a parameter to test
+// an <input>, <textarea>, or contenteditable.
+class AutofillAgentMemoryContentEditableTriggerTest
+    : public test::AutofillRendererTest {
+ public:
+  void SetUp() override {
+    test::AutofillRendererTest::SetUp();
+    LoadHTML(R"(<div id="ce" contenteditable="true"
+                     style="width:100px; height:100px;"></div>)");
+    WaitForFormsSeen();
+    ExecuteJavaScriptForTests("document.getElementById('ce').focus();");
+  }
+
+  void SimulateTyping(const std::string& text) {
+    for (char c : text) {
+      SimulateUserTypingASCIICharacter(c, /*flush_message_loop=*/true);
+      task_environment_.FastForwardBy(base::Milliseconds(100));
+    }
+    task_environment_.RunUntilIdle();
+  }
+
+  // Sets text via innerText and moves the caret to the end. Manually notifies
+  // the agent because programmatic changes bypass Blink's editing events.
+  void SimulateComplexTyping(const std::string& text) {
+    ExecuteJavaScriptForTests(base::StringPrintf(R"(
+      const el = document.getElementById('ce');
+      el.focus();
+      el.innerText = '%s';
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    )",
+                                                 text.c_str()));
+    test_api(autofill_agent())
+        .ContentEditableDidChange(GetWebElementById("ce"));
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillAtMemory};
+};
+
+// Tests that @memory popup is triggered if we type just the "@@".
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest, TriggerViaTyping) {
+  EXPECT_CALL(autofill_driver(),
+              AskForValuesToFill(_, _, _,
+                                 AutofillSuggestionTriggerSource::kAtMemory, _))
+      .Times(1);
+
+  SimulateTyping("@@");
+}
+
+// Tests that @memory popup triggers if we type the "@@" one symbol at a
+// time, and is not triggered when the subsequent characters are typed.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest, TriggerSequence) {
+  testing::MockFunction<void(int)> check_point;
+  {
+    testing::InSequence s;
+
+    // 1. Typing first "@" -> No @memory trigger.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(0);
+    EXPECT_CALL(check_point, Call(1));
+
+    // 2. Typing second "@" -> @memory triggers.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(1);
+    EXPECT_CALL(check_point, Call(2));
+
+    // 3. Typing something else -> No @memory trigger.
+    EXPECT_CALL(autofill_driver(),
+                AskForValuesToFill(
+                    _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+        .Times(0);
+    EXPECT_CALL(check_point, Call(3));
+  }
+
+  // Ignore standard Autofill calls for this test.
+  EXPECT_CALL(
+      autofill_driver(),
+      AskForValuesToFill(
+          _, _, _, testing::Ne(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(testing::AnyNumber());
+
+  SimulateTyping("@");
+  check_point.Call(1);
+  SimulateTyping("@");
+  check_point.Call(2);
+  SimulateTyping("b");
+  check_point.Call(3);
+}
+
+// Tests that @memory popup triggers in the presence of non-trivial symbols.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest,
+       TriggerWithComplexPrecedingText) {
+  EXPECT_CALL(autofill_driver(),
+              AskForValuesToFill(
+                  _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(1);
+  // SimulateUserTypingASCIICharacter doesn't support characters like '#', '(',
+  // ')', ':', so we test them separately with SimulateComplexTyping.
+  SimulateComplexTyping("Memory log #123 (Feb 2026): @@");
+}
+
+// Tests that @memory popup doesn't trigger on a single "@".
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest, NoTriggerOnSingleAt) {
+  EXPECT_CALL(autofill_driver(),
+              AskForValuesToFill(
+                  _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(0);
+  SimulateTyping("@");
+}
+
+// Tests that @memory popup doesn't trigger on selection.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest, NoTriggerOnSelection) {
+  EXPECT_CALL(autofill_driver(),
+              AskForValuesToFill(
+                  _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(0);
+
+  // Manually set text and select it all.
+  ExecuteJavaScriptForTests(R"(
+    const el = document.getElementById('ce');
+    el.innerText = '@@';
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  )");
+  test_api(autofill_agent()).ContentEditableDidChange(GetWebElementById("ce"));
+}
+
+// Tests that @memory popup triggers each time the new trigger is typed.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest, MultipleTriggers) {
+  // Verify that it triggers every time @@ is completed.
+  EXPECT_CALL(autofill_driver(),
+              AskForValuesToFill(
+                  _, _, _, Eq(AutofillSuggestionTriggerSource::kAtMemory), _))
+      .Times(2);
+
+  SimulateTyping("@@");
+  SimulateTyping("abc@@");
+}
+
+// Tests that kReplaceAtMemoryTrigger correctly replaces the "@@" trigger in a
+// contenteditable element and places the cursor after the filled value.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest,
+       ReplaceAtMemoryTriggerInContentEditable) {
+  blink::WebElement ce = GetWebElementById("ce");
+
+  // 1. Set initial text with the trigger and position cursor at the end.
+  SimulateComplexTyping("Prefix@@");
+
+  // 2. Trigger the fill action.
+  autofill_agent().ApplyFieldAction(
+      mojom::FieldActionType::kReplaceAtMemoryTrigger,
+      mojom::ActionPersistence::kFill, form_util::GetFieldRendererId(ce),
+      u"Suffix");
+
+  // 3. Verify the trigger was replaced.
+  EXPECT_EQ(u"PrefixSuffix", ce.TextContent().Utf16());
+
+  // 4. Verify the cursor position (at the end of "PrefixSuffix").
+  blink::WebRange selection =
+      GetMainFrame()->GetInputMethodController()->GetSelectionOffsets();
+  EXPECT_EQ(12, selection.StartOffset());
+  EXPECT_EQ(12, selection.EndOffset());
+}
+
+// Tests that kReplaceAtMemoryTrigger inserts a value at the current cursor
+// position if "@@" is not found immediately before the cursor (for example,
+// during context menu invocation).
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest,
+       ReplaceAtMemoryTriggerForContextMenu) {
+  blink::WebElement ce = GetWebElementById("ce");
+
+  // 1. Set initial text without the trigger and position cursor at the end.
+  SimulateComplexTyping("PrefixSuffix");
+
+  // 2. Put cursor position between "Prefix" and "Suffix".
+  GetMainFrame()->SetEditableSelectionOffsets(6, 6);
+  test_api(autofill_agent()).ContentEditableDidChange(ce);
+
+  // Verify the cursor position before triggering the fill action.
+  EXPECT_EQ(6, GetMainFrame()
+                   ->GetInputMethodController()
+                   ->GetSelectionOffsets()
+                   .StartOffset());
+
+  // 3. Trigger the fill action.
+  autofill_agent().ApplyFieldAction(
+      mojom::FieldActionType::kReplaceAtMemoryTrigger,
+      mojom::ActionPersistence::kFill, form_util::GetFieldRendererId(ce),
+      u"Result");
+
+  // 4. Verify the text was inserted.
+  EXPECT_EQ(u"PrefixResultSuffix", ce.TextContent().Utf16());
+
+  // 5. Verify the cursor position (at the end of "Result").
+  // "Prefix" (6) + "Result" (6) = 12.
+  blink::WebRange selection =
+      GetMainFrame()->GetInputMethodController()->GetSelectionOffsets();
+  EXPECT_EQ(12, selection.StartOffset());
+}
+
+// Tests that kReplaceAtMemoryTrigger replaces a pre-existing selection.
+TEST_F(AutofillAgentMemoryContentEditableTriggerTest,
+       ReplaceAtMemoryTriggerWithSelection) {
+  blink::WebElement ce = GetWebElementById("ce");
+
+  // 1. Set initial text and select a middle portion.
+  ExecuteJavaScriptForTests(R"(
+    const el = document.getElementById('ce');
+    el.focus();
+    el.innerText = 'PrefixSelectedSuffix';
+    const range = document.createRange();
+    // Select "Selected" (offsets 6 to 14).
+    range.setStart(el.childNodes[0], 6);
+    range.setEnd(el.childNodes[0], 14);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  )");
+  test_api(autofill_agent()).ContentEditableDidChange(ce);
+
+  // 2. Trigger the fill action.
+  autofill_agent().ApplyFieldAction(
+      mojom::FieldActionType::kReplaceAtMemoryTrigger,
+      mojom::ActionPersistence::kFill, form_util::GetFieldRendererId(ce),
+      u"Result");
+
+  // 3. Verify "Selected" was replaced by "Result".
+  EXPECT_EQ(u"PrefixResultSuffix", ce.TextContent().Utf16());
+
+  // 4. Verify the cursor position (at the end of "Result").
+  // "Prefix" (6) + "Result" (6) = 12.
+  blink::WebRange selection =
+      GetMainFrame()->GetInputMethodController()->GetSelectionOffsets();
+  EXPECT_EQ(12, selection.StartOffset());
 }
 
 }  // namespace

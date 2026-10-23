@@ -2742,12 +2742,12 @@ Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
 }
 
 template <typename T>
-Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
+Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                                     AllocationType allocation) {
   DCHECK_LT(0, grow_by);
-  DCHECK_LE(grow_by, kMaxInt - src->length());
-  int old_len = src->length();
-  int new_len = old_len + grow_by;
+  const uint32_t old_len = src->ulength().value();
+  DCHECK_LE(grow_by + old_len, static_cast<uint32_t>(kMaxInt));
+  const uint32_t new_len = old_len + grow_by;
   // TODO(jgruber,v8:14345): Use T::Allocate instead.
   Tagged<HeapObject> new_object = AllocateRawFixedArray(new_len, allocation);
   DisallowGarbageCollection no_gc;
@@ -2797,7 +2797,8 @@ DirectHandle<WeakArrayList> Factory::NewWeakArrayList(
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayAndGrow(
-    DirectHandle<FixedArray> array, int grow_by, AllocationType allocation) {
+    DirectHandle<FixedArray> array, uint32_t grow_by,
+    AllocationType allocation) {
   return CopyArrayAndGrow(array, grow_by, allocation);
 }
 
@@ -2808,7 +2809,7 @@ DirectHandle<WeakFixedArray> Factory::CopyWeakFixedArray(
 }
 
 DirectHandle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
-    DirectHandle<WeakFixedArray> src, int grow_by) {
+    DirectHandle<WeakFixedArray> src, uint32_t grow_by) {
   DCHECK(!IsTransitionArray(*src));  // Compacted by GC, this code doesn't work
   return CopyArrayAndGrow(src, grow_by, AllocationType::kOld);
 }
@@ -2857,7 +2858,7 @@ DirectHandle<WeakArrayList> Factory::CompactWeakArrayList(
 }
 
 DirectHandle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
-    DirectHandle<PropertyArray> array, int grow_by) {
+    DirectHandle<PropertyArray> array, uint32_t grow_by) {
   return CopyArrayAndGrow(array, grow_by, AllocationType::kYoung);
 }
 
@@ -4139,7 +4140,8 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
     if (value <= JSArray::kMaxArrayIndex &&
         raw->raw_hash_field() == String::kEmptyHashField) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(value), raw->length());
+          static_cast<uint32_t>(value), raw->length(),
+          HashSeed(read_only_roots()));
       raw->set_raw_hash_field(raw_hash_field);
     }
   }

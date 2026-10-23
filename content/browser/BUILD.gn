@@ -9,6 +9,7 @@ import("//build/config/features.gni")
 import("//build/config/linux/pangocairo/pangocairo.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
+import("//components/surface_embed/buildflags/buildflags.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/browser/devtools/features.gni")
 import("//content/common/features.gni")
@@ -48,6 +49,19 @@ if (is_android) {
       "//third_party/rust/skrifa/v0_40:lib",
     ]
   }
+}
+
+rust_static_library("child_process_security_policy_impl") {
+  # allow_unsafe is needed for FFI that underpins the `cxx` crate. While this
+  # allows allow_unsafe for the entire crate, the Rust file also implements
+  # finer-grained controls that allow unsafe code only for FFI code while
+  # disallowing it by default for other code.
+  allow_unsafe = true
+  crate_root = "child_process_security_policy_impl.rs"
+  sources = [ "child_process_security_policy_impl.rs" ]
+  cxx_bindings = [ "child_process_security_policy_impl.rs" ]
+  visibility = [ ":browser" ]
+  deps = [ "//third_party/rust/cxx/v1:lib" ]
 }
 
 if (is_ios) {
@@ -96,6 +110,7 @@ source_set("browser") {
   ldflags = []
 
   deps = [
+    ":child_process_security_policy_impl",
     "//base",
     "//base:base_static",
     "//base:clang_profiling_buildflags",
@@ -131,6 +146,7 @@ source_set("browser") {
     "//components/metrics",
     "//components/metrics:single_sample_metrics",
     "//components/metrics/dwa:dwa_builders",
+    "//components/metrics/mapping",
     "//components/metrics/private_metrics",
     "//components/network_session_configurator/browser",
     "//components/offline_pages/buildflags",
@@ -152,6 +168,7 @@ source_set("browser") {
     "//components/services/storage/public/cpp",
     "//components/services/storage/public/mojom",
     "//components/sqlite_proto",
+    "//components/surface_embed/buildflags",
     "//components/system_media_controls",
     "//components/tracing:tracing_config",
     "//components/ukm",
@@ -1918,6 +1935,8 @@ source_set("browser") {
     "renderer_host/media/render_frame_audio_input_stream_factory.h",
     "renderer_host/media/render_frame_audio_output_stream_factory.cc",
     "renderer_host/media/render_frame_audio_output_stream_factory.h",
+    "renderer_host/media/rtc_logging_dispatcher.cc",
+    "renderer_host/media/rtc_logging_dispatcher.h",
     "renderer_host/media/service_launched_video_capture_device.cc",
     "renderer_host/media/service_launched_video_capture_device.h",
     "renderer_host/media/service_video_capture_device_launcher.cc",
@@ -2455,6 +2474,7 @@ source_set("browser") {
     "webid/document_metadata.h",
     "webid/fake_identity_request_dialog_controller.cc",
     "webid/fake_identity_request_dialog_controller.h",
+    "webid/federated_embedder_login_request.cc",
     "webid/flags.cc",
     "webid/flags.h",
     "webid/identity_credential_source_impl.cc",
@@ -2978,6 +2998,8 @@ source_set("browser") {
         "date_time_chooser/ios/date_time_chooser_util.mm",
         "date_time_chooser/ios/date_time_chooser_view_controller.h",
         "date_time_chooser/ios/date_time_chooser_view_controller.mm",
+        "renderer_host/ios_extended_text_input_traits.h",
+        "renderer_host/ios_extended_text_input_traits.mm",
         "renderer_host/render_widget_host_view_ios_uiview.h",
         "renderer_host/render_widget_host_view_ios_uiview.mm",
         "speech/tts_ios.mm",
@@ -3781,6 +3803,15 @@ source_set("browser") {
   # TODO(crbug.com/371609830): Remove dep on experiment end.
   if (is_chromeos) {
     deps += [ "//ash/constants" ]
+  }
+
+  if (enable_surface_embed) {
+    sources += [
+      "surface_embed/dummy_surface_provider.cc",
+      "surface_embed/dummy_surface_provider.h",
+      "surface_embed/surface_embed_connector_impl.cc",
+      "surface_embed/surface_embed_connector_impl.h",
+    ]
   }
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.

@@ -24,7 +24,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/candidate.h"

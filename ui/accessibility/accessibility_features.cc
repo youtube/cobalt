@@ -60,7 +60,7 @@ bool IsAccessibilityHandleOccludingViewsEnabled() {
       ::features::kAccessibilityHandleOccludingViews);
 }
 
-BASE_FEATURE(kAccessibilityTextChangeTypes, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAccessibilityTextChangeTypes, base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityTextChangeTypesEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityTextChangeTypes);
@@ -238,13 +238,6 @@ BASE_FEATURE(kAccessibilityReducedAnimationsInKiosk,
 bool IsAccessibilityReducedAnimationsInKioskEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityReducedAnimationsInKiosk);
-}
-
-BASE_FEATURE(kExperimentalAccessibilityGoogleTtsHighQualityVoices,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsExperimentalAccessibilityGoogleTtsHighQualityVoicesEnabled() {
-  return base::FeatureList::IsEnabled(
-      ::features::kExperimentalAccessibilityGoogleTtsHighQualityVoices);
 }
 
 BASE_FEATURE(kExperimentalAccessibilityDictationContextChecking,

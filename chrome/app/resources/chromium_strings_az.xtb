@@ -29,6 +29,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> ilə Gmail və ya YouTube kimi Google xidmətlərinə daxil olduqda eyni hesab ilə Chromium-a avtomatik daxil ola bilərsiniz</translation>
 <translation id="1290883685122687410">Ayarlama xətası: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Yeni Chromium profilinizi ayarlayın</translation>
+<translation id="132092532143527429">Chromium-da Gemini ilə sınayın</translation>
 <translation id="1324107359134968521">Chromium Bluetooth cihazlarını araşdırmaq üçün 
  Bluetooth-a giriş tələb edir. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Dili aşkar edin</translation>
@@ -239,6 +240,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3509308970982693815">Bütün Chromium pəncərələrini bağlayın və yenidən cəhd edin.</translation>
 <translation id="3522404737534491619">Pəncərəni paylaşmaq üçün Sistem Ayarlarında Chromium üzrə ekranın qeydə alınmasına icazə verin</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> artıq giriş edib.  Baxışı ayrı saxlamaq üçün öz profilinizdə Chromium-a <ph name="USER_EMAIL_ADDRESS" /> kimi daxil olun.</translation>
+<translation id="3531741627422851418">Mobil cihazlarda Chromium brauzerini endirmək üçün QR kodu</translation>
 <translation id="3561853857681580870">Ekranı paylaşmaq üçün Sistem Ayarlarında Chromium üçün ekranın qeydə alınmasına icazə verin.</translation>
 <translation id="3588112919289558122">Təkmil qoruma Chromium-un tanımadığı saytlar üçün JavaScript optimallaşdırmasını söndürür</translation>
 <translation id="3597003331831379823">Artırılmış imtiyazlar ilə ayarlamanı işə salmaq alınmadı. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -374,7 +376,6 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="5174969993834422967">Adətən bildirişləri bloklayırsınız. Bu saytın sizi xəbərdar etməsi üçün məkan panelinin sağ küncündəki bildiriş işarəsinə klikləyin.</translation>
 <translation id="5174983315706567306">Kifayət qədər disk ölçüsü yoxdur.</translation>
 <translation id="5187123684706427865">Chromium hesabı təkrar doğrulama tələb edir</translation>
-<translation id="5219681158518957165">Tövsiyə olunan brauzer ayarlarından istifadə edin</translation>
 <translation id="5224391634244552924">Yadda saxlanmış parol yoxdur. Parollarınızı yadda saxladıqda Chromium onları yoxlaya bilər.</translation>
 <translation id="5231355151045086930">Chromium hesabından çıxın</translation>
 <translation id="5234764350956374838">Kənarlaşdırın</translation>
@@ -606,6 +607,7 @@ Bəzilərini silənə qədər yeni əlfəcinləri hesabınızda yadda saxlamaq o
 <translation id="7622753900276619808">Artıq Chromium-da sizin üçün daha çox funksiya əlçatandır</translation>
 <translation id="7624307931717240213">Məlumatdan bu xidməti təkmilləşdirmək üçün istifadə edirik. Məxfilik Siyasətinə və Xidmət Şərtlərinə baxın.</translation>
 <translation id="7649070708921625228">Yardım</translation>
+<translation id="7650134251917003571">Chromium tətbiqini əldə edin</translation>
 <translation id="7656340475565475526">Chromium-a sizin üçün axtarış etməyə icazə verin</translation>
 <translation id="7658239707568436148">Ləğv edin</translation>
 <translation id="7686590090926151193">Chromium defolt brauzeriniz deyil</translation>

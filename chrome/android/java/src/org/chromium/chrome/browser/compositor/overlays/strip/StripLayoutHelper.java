@@ -39,14 +39,11 @@ import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.ListPopupWindow;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.view.ViewCompat;
 
 import org.chromium.base.Callback;
@@ -106,8 +103,8 @@ import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
@@ -532,7 +529,7 @@ public class StripLayoutHelper
 
     // Layout Constants
     private final float mNewTabButtonWidth;
-    private @Nullable ListPopupWindow mGlicButtonMenu;
+    private @Nullable GlicButtonContextMenuCoordinator mGlicButtonContextMenuCoordinator;
 
     // All views are overlapped by TAB_OVERLAP_WIDTH_DP. Group titles do not need to be overlapped
     // by this much, so we offset the drawX.
@@ -890,26 +887,7 @@ public class StripLayoutHelper
 
         // Create Glic unpin menu
         if (mGlicButton != null) {
-            mGlicButtonMenu = new ListPopupWindow(mContext);
-            mGlicButtonMenu.setBackgroundDrawable(
-                    AppCompatResources.getDrawable(
-                            mContext, R.drawable.tablet_tab_strip_context_menu));
-            mGlicButtonMenu.setAdapter(
-                    new ArrayAdapter<>(
-                            mContext,
-                            R.layout.one_line_list_item,
-                            new String[] {mContext.getString(R.string.menu_unpin_glic_button)}));
-            mGlicButtonMenu.setOnItemClickListener(
-                    (parent, view, position, id) -> {
-                        if (mGlicButtonMenu != null) {
-                            mGlicButtonMenu.dismiss();
-                            // TODO(crbug.com/480741391): Unpin Glic button
-                        }
-                    });
-            int glicButtonMenuWidth =
-                    mContext.getResources().getDimensionPixelSize(R.dimen.glic_button_menu_width);
-            mGlicButtonMenu.setWidth(glicButtonMenuWidth);
-            mGlicButtonMenu.setModal(true);
+            mGlicButtonContextMenuCoordinator = new GlicButtonContextMenuCoordinator(mContext);
         }
 
         mIsFirstLayoutPass = true;
@@ -958,8 +936,9 @@ public class StripLayoutHelper
             mModel.removeObserver(mTabModelObserver);
             mModel = null;
         }
-        if (mGlicButtonMenu != null) {
-            mGlicButtonMenu = null;
+        if (mGlicButtonContextMenuCoordinator != null) {
+            mGlicButtonContextMenuCoordinator.dismiss();
+            mGlicButtonContextMenuCoordinator = null;
         }
     }
 
@@ -1166,23 +1145,17 @@ public class StripLayoutHelper
      * @param msbTouchTargetSize The touch target size for the model selector button.
      */
     // TODO(crbug.com/483119043): Fading assets only support 2 buttons (NTB and MSB)
-    // TODO(crbug.com/483140976): Align NTB, Glic, MSB when all 3 are showing
     public void updateEndMarginForStripButtons(
             float glicTouchTargetSize, float msbTouchTargetSize) {
         // There are two additional tab strip buttons: Glic & MSB
         // When both buttons are not visible we add strip end padding here.
-        // When either is visible, the strip end padding will be included in the visible button
-        // margin, so just add padding between NTB and visible button here. When both are visible,
-        // add additional padding between Glic and MSB.
+        // When either is visible, the strip end padding will be included in the visible button(s)
+        // touch target, so just add padding between NTB and visible button(s) here.
         float stripButtonsTouchTargetSize = glicTouchTargetSize + msbTouchTargetSize;
         float padding =
                 stripButtonsTouchTargetSize > 0
                         ? NEW_TAB_BUTTON_WITH_STRIP_BUTTON_PADDING
                         : mFixedEndPadding;
-        padding +=
-                glicTouchTargetSize > 0 && msbTouchTargetSize > 0
-                        ? StripLayoutHelperManager.GLIC_MSB_BUTTON_PADDING_DP
-                        : 0;
         mReservedEndMargin = stripButtonsTouchTargetSize + mNewTabButtonWidth + padding;
         updateMargins(true);
     }
@@ -1280,7 +1253,7 @@ public class StripLayoutHelper
         if (mStripViews.length > 0) mUpdateHost.requestUpdate();
 
         // Dismiss tab menu, similar to how the app menu is dismissed on orientation change
-        if (mGlicButtonMenu != null) mGlicButtonMenu.dismiss();
+        if (mGlicButtonContextMenuCoordinator != null) mGlicButtonContextMenuCoordinator.dismiss();
 
         // Dismiss iph on orientation change, as its position might become incorrect.
         dismissTabStripSyncIph();
@@ -2382,7 +2355,8 @@ public class StripLayoutHelper
                         && mTabContextMenuCoordinator.isMenuShowing())
                 || (mTabStripContextMenuCoordinator != null
                         && mTabStripContextMenuCoordinator.isMenuShowing())
-                || (mGlicButtonMenu != null && mGlicButtonMenu.isShowing());
+                || (mGlicButtonContextMenuCoordinator != null
+                        && mGlicButtonContextMenuCoordinator.isShowing());
     }
 
     @VisibleForTesting
@@ -2390,7 +2364,7 @@ public class StripLayoutHelper
         if (mTabGroupContextMenuCoordinator != null) mTabGroupContextMenuCoordinator.dismiss();
         if (mTabContextMenuCoordinator != null) mTabContextMenuCoordinator.dismiss();
         if (mTabStripContextMenuCoordinator != null) mTabStripContextMenuCoordinator.dismiss();
-        if (mGlicButtonMenu != null) mGlicButtonMenu.dismiss();
+        if (mGlicButtonContextMenuCoordinator != null) mGlicButtonContextMenuCoordinator.dismiss();
     }
 
     /**
@@ -3365,20 +3339,10 @@ public class StripLayoutHelper
     private void handleTabClick(StripLayoutTab tab, int modifiers) {
         if (tab == null || tab.isDying() || mModel == null) return;
 
-        // If feature disabled, return to legacy behaviour.
-        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) {
-            selectTab(tab);
-            clearMultiSelection(/* clearAnchor= */ true, /* notifyObservers= */ true);
-            mRenderHost.requestRender();
-            return;
-        }
-
         // Force flags are required for testing on an emulator, as key presses don't seem to be
         // propagated to the app.
-        boolean isShiftPressed = (modifiers & KeyEvent.META_SHIFT_ON) != 0
-                || StripLayoutUtils.isTabHighlightingForceShiftClick();
-        boolean isCtrlPressed = (modifiers & KeyEvent.META_CTRL_ON) != 0
-                || StripLayoutUtils.isTabHighlightingForceCtrlClick();
+        boolean isShiftPressed = (modifiers & KeyEvent.META_SHIFT_ON) != 0;
+        boolean isCtrlPressed = (modifiers & KeyEvent.META_CTRL_ON) != 0;
 
         if (isShiftPressed && isCtrlPressed) {
             handleShiftClick(tab, /* isDestructive= */ false);
@@ -5423,55 +5387,17 @@ public class StripLayoutHelper
     }
 
     /**
-     * Displays the unpin menu below the Glic button.
+     * Shows the unpin menu below the Glic button.
      *
      * @param anchorView The Glic button the menu will be anchored to
      */
     private void showGlicButtonMenu(StripLayoutView anchorView) {
-        if (mGlicButtonMenu == null) return;
-        // We anchor to the toolbar container view
-        // We shift up by the combined height of the tab strip and the Glic button to align the menu
-        // with the bottom of the tab strip.
-        int verticalOffset =
-                (int)
-                        -(mContext.getResources().getDimension(R.dimen.tab_strip_height)
-                                + StripLayoutHelperManager.BUTTON_BACKGROUND_HEIGHT_DP);
-        showMenuBelowStripView(mGlicButtonMenu, anchorView, mToolbarContainerView, verticalOffset);
-    }
-
-    /**
-     * Helper method to show a menu anchored to a specific StripLayoutView.
-     *
-     * @param menu The ListPopupWindow to show.
-     * @param anchorStripView The virtual view to align the menu with horizontally.
-     * @param anchorView The actual Android View to anchor the popup to.
-     * @param verticalOffset The vertical offset to apply to the menu relative to the anchor.
-     */
-    private void showMenuBelowStripView(
-            ListPopupWindow menu,
-            StripLayoutView anchorStripView,
-            View anchorView,
-            int verticalOffset) {
-        menu.setAnchorView(anchorView);
-        menu.setVerticalOffset(verticalOffset);
-
-        // Set the horizontal offset to align the menu with the right side of the strip view
-        float density = mContext.getResources().getDisplayMetrics().density;
-        int horizontalOffset =
-                Math.round((anchorStripView.getDrawX() + anchorStripView.getWidth()) * density)
-                        - menu.getWidth();
-
-        // Cap the horizontal offset so that the menu doesn't get drawn off screen.
-        menu.setHorizontalOffset(Math.max(horizontalOffset, 0));
-
-        menu.show();
-
-        // Set clipToOutline to true to contain the mouse hover effect inside the popup's outline.
-        // Also set the background of the list view to tablet_tab_strip_context_menu to make its
-        // shape the same as the popup.
-        assumeNonNull(menu.getListView());
-        menu.getListView().setBackgroundResource(R.drawable.tablet_tab_strip_context_menu);
-        menu.getListView().setClipToOutline(true);
+        if (mGlicButtonContextMenuCoordinator == null) return;
+        RectProvider anchorRectProvider = new RectProvider();
+        anchorView.getAnchorRect(anchorRectProvider.getRect());
+        getAdjustedAnchorRect(anchorRectProvider);
+        var activity = assertNonNull(mWindowAndroid.getActivity().get());
+        mGlicButtonContextMenuCoordinator.showMenu(anchorRectProvider, activity);
     }
 
     /**
@@ -5573,14 +5499,8 @@ public class StripLayoutHelper
 
     /** Returns true if the Glic button menu is showing */
     public boolean isGlicButtonMenuShowingForTesting() {
-        return mGlicButtonMenu != null && mGlicButtonMenu.isShowing();
-    }
-
-    /**
-     * @param menuItemId The id of the menu item to click
-     */
-    public void clickGlicButtonMenuItemForTesting(int menuItemId) {
-        if (mGlicButtonMenu != null) mGlicButtonMenu.performItemClick(menuItemId);
+        return mGlicButtonContextMenuCoordinator != null
+                && mGlicButtonContextMenuCoordinator.isShowing();
     }
 
     /** Returns The width of the tab strip. */
@@ -5772,13 +5692,17 @@ public class StripLayoutHelper
                             R.string.accessibility_tabstrip_tab_multiselected_pinned_recording,
                             R.string.accessibility_tabstrip_tab_multiselected_pinned_sharing,
                             R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_picture_in_picture,
+                            R.string
                                     .accessibility_tabstrip_tab_multiselected_pinned_audible_incognito,
                             R.string
                                     .accessibility_tabstrip_tab_multiselected_pinned_muted_incognito,
                             R.string
                                     .accessibility_tabstrip_tab_multiselected_pinned_recording_incognito,
                             R.string
-                                    .accessibility_tabstrip_tab_multiselected_pinned_sharing_incognito);
+                                    .accessibility_tabstrip_tab_multiselected_pinned_sharing_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_picture_in_picture_incognito);
                 } else {
                     return getMediaAccessibilityString(
                             mediaState,
@@ -5787,10 +5711,13 @@ public class StripLayoutHelper
                             R.string.accessibility_tabstrip_tab_pinned_muted,
                             R.string.accessibility_tabstrip_tab_pinned_recording,
                             R.string.accessibility_tabstrip_tab_pinned_sharing,
+                            R.string.accessibility_tabstrip_tab_pinned_picture_in_picture,
                             R.string.accessibility_tabstrip_tab_pinned_audible_incognito,
                             R.string.accessibility_tabstrip_tab_pinned_muted_incognito,
                             R.string.accessibility_tabstrip_tab_pinned_recording_incognito,
-                            R.string.accessibility_tabstrip_tab_pinned_sharing_incognito);
+                            R.string.accessibility_tabstrip_tab_pinned_sharing_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_pinned_picture_in_picture_incognito);
                 }
             } else {
                 if (isMultiSelected) {
@@ -5801,10 +5728,13 @@ public class StripLayoutHelper
                             R.string.accessibility_tabstrip_tab_multiselected_muted,
                             R.string.accessibility_tabstrip_tab_multiselected_recording,
                             R.string.accessibility_tabstrip_tab_multiselected_sharing,
+                            R.string.accessibility_tabstrip_tab_multiselected_picture_in_picture,
                             R.string.accessibility_tabstrip_tab_multiselected_audible_incognito,
                             R.string.accessibility_tabstrip_tab_multiselected_muted_incognito,
                             R.string.accessibility_tabstrip_tab_multiselected_recording_incognito,
-                            R.string.accessibility_tabstrip_tab_multiselected_sharing_incognito);
+                            R.string.accessibility_tabstrip_tab_multiselected_sharing_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_picture_in_picture_incognito);
                 } else {
                     return getMediaAccessibilityString(
                             mediaState,
@@ -5813,10 +5743,12 @@ public class StripLayoutHelper
                             R.string.accessibility_tabstrip_tab_muted,
                             R.string.accessibility_tabstrip_tab_recording,
                             R.string.accessibility_tabstrip_tab_sharing,
+                            R.string.accessibility_tabstrip_tab_picture_in_picture,
                             R.string.accessibility_tabstrip_tab_audible_incognito,
                             R.string.accessibility_tabstrip_tab_muted_incognito,
                             R.string.accessibility_tabstrip_tab_recording_incognito,
-                            R.string.accessibility_tabstrip_tab_sharing_incognito);
+                            R.string.accessibility_tabstrip_tab_sharing_incognito,
+                            R.string.accessibility_tabstrip_tab_picture_in_picture_incognito);
                 }
             }
         } else {
@@ -5828,10 +5760,13 @@ public class StripLayoutHelper
                         R.string.accessibility_tabstrip_tab_selected_pinned_muted,
                         R.string.accessibility_tabstrip_tab_selected_pinned_recording,
                         R.string.accessibility_tabstrip_tab_selected_pinned_sharing,
+                        R.string.accessibility_tabstrip_tab_selected_pinned_picture_in_picture,
                         R.string.accessibility_tabstrip_tab_selected_pinned_audible_incognito,
                         R.string.accessibility_tabstrip_tab_selected_pinned_muted_incognito,
                         R.string.accessibility_tabstrip_tab_selected_pinned_recording_incognito,
-                        R.string.accessibility_tabstrip_tab_selected_pinned_sharing_incognito);
+                        R.string.accessibility_tabstrip_tab_selected_pinned_sharing_incognito,
+                        R.string
+                                .accessibility_tabstrip_tab_selected_pinned_picture_in_picture_incognito);
             } else {
                 return getMediaAccessibilityString(
                         mediaState,
@@ -5840,10 +5775,12 @@ public class StripLayoutHelper
                         R.string.accessibility_tabstrip_tab_selected_muted,
                         R.string.accessibility_tabstrip_tab_selected_recording,
                         R.string.accessibility_tabstrip_tab_selected_sharing,
+                        R.string.accessibility_tabstrip_tab_selected_picture_in_picture,
                         R.string.accessibility_tabstrip_tab_selected_audible_incognito,
                         R.string.accessibility_tabstrip_tab_selected_muted_incognito,
                         R.string.accessibility_tabstrip_tab_selected_recording_incognito,
-                        R.string.accessibility_tabstrip_tab_selected_sharing_incognito);
+                        R.string.accessibility_tabstrip_tab_selected_sharing_incognito,
+                        R.string.accessibility_tabstrip_tab_selected_picture_in_picture_incognito);
             }
         }
     }
@@ -5915,10 +5852,12 @@ public class StripLayoutHelper
             @StringRes int muted,
             @StringRes int recording,
             @StringRes int sharing,
+            @StringRes int pictureInPicture,
             @StringRes int audibleIncognito,
             @StringRes int mutedIncognito,
             @StringRes int recordingIncognito,
-            @StringRes int sharingIncognito) {
+            @StringRes int sharingIncognito,
+            @StringRes int pictureInPictureIncognito) {
         if (isIncognito) {
             switch (mediaState) {
                 case MediaState.AUDIBLE:
@@ -5929,6 +5868,8 @@ public class StripLayoutHelper
                     return recordingIncognito;
                 case MediaState.SHARING:
                     return sharingIncognito;
+                case MediaState.PICTURE_IN_PICTURE:
+                    return pictureInPictureIncognito;
                 default:
                     assert false : "Invalid media state: " + mediaState;
                     return 0;
@@ -5943,6 +5884,8 @@ public class StripLayoutHelper
                     return recording;
                 case MediaState.SHARING:
                     return sharing;
+                case MediaState.PICTURE_IN_PICTURE:
+                    return pictureInPicture;
                 default:
                     assert false : "Invalid media state: " + mediaState;
                     return 0;

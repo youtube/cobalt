@@ -16,6 +16,12 @@
     ],
   "breakages": [
     {
+      "bad_change_id": "Idf7dc285df910026e3fedb1136c4f266e0104e5a",
+      "good_change_ids": ["I437630cbd8458bffe74e84e9b19e8ed6d788b2f3"],
+      "bugs": ["b/489835176"],
+      "comment": "Suspected race condition causing a Cronet segfault on initialization citing base::Feature"
+    },
+    {
       "bad_change_id": "Ic2b5cf6b19baaa298fe6bd64bd55268f85d70fa7",
       "good_change_ids": ["Ia28dbc3aa037a6a9fd0cc157213f6f9aa34641f6"],
       "bugs": ["b/445372626"],

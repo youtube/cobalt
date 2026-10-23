@@ -70,6 +70,8 @@
 #include <dirent.h>  // IWYU pragma: keep
 #endif
 
+namespace webrtc {
+
 namespace {
 using ::testing::_;
 using ::testing::DoAll;
@@ -79,20 +81,15 @@ using ::testing::Ne;
 using ::testing::Return;
 using ::testing::ReturnPointee;
 using ::testing::SetArgPointee;
-using ::webrtc::CreateEnvironment;
-using ::webrtc::Environment;
-using ::webrtc::IceCandidateType;
-using ::webrtc::SocketAddress;
 
 const SocketAddress kLocalAddr1("11.11.11.11", 0);
 const SocketAddress kLocalAddr2("22.22.22.22", 0);
 const SocketAddress kLocalIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c3", 0);
 const SocketAddress kLocalIPv6Addr2("2401:fa00:4:2000:be30:5bff:fee5:d4", 0);
-const SocketAddress kTurnUdpIntAddr("99.99.99.3", webrtc::TURN_SERVER_PORT);
-const SocketAddress kTurnTcpIntAddr("99.99.99.4", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnUdpIntAddr("99.99.99.3", TURN_SERVER_PORT);
+const SocketAddress kTurnTcpIntAddr("99.99.99.4", TURN_SERVER_PORT);
 const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
-const SocketAddress kTurnAlternateIntAddr("99.99.99.6",
-                                          webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnAlternateIntAddr("99.99.99.6", TURN_SERVER_PORT);
 // Port for redirecting to a TCP Web server. Should not work.
 const SocketAddress kTurnDangerousAddr("99.99.99.7", 81);
 // Port 53 (the DNS port); should work.
@@ -102,11 +99,11 @@ const SocketAddress kTurnPort80Addr("99.99.99.7", 80);
 // Port 443 (the HTTPS port); should work.
 const SocketAddress kTurnPort443Addr("99.99.99.7", 443);
 // The default TURN server port.
-const SocketAddress kTurnIntAddr("99.99.99.7", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnIntAddr("99.99.99.7", TURN_SERVER_PORT);
 const SocketAddress kTurnIPv6IntAddr("2400:4030:2:2c00:be30:abcd:efab:cdef",
-                                     webrtc::TURN_SERVER_PORT);
+                                     TURN_SERVER_PORT);
 const SocketAddress kTurnUdpIPv6IntAddr("2400:4030:1:2c00:be30:abcd:efab:cdef",
-                                        webrtc::TURN_SERVER_PORT);
+                                        TURN_SERVER_PORT);
 const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
 const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
 
@@ -129,28 +126,18 @@ constexpr unsigned int kResolverTimeout = 10000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
 
-const webrtc::ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr,
-                                                webrtc::PROTO_UDP);
-const webrtc::ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr,
-                                                webrtc::PROTO_TCP);
-const webrtc::ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr,
-                                                webrtc::PROTO_TLS);
-const webrtc::ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr,
-                                                    webrtc::PROTO_UDP);
-const webrtc::ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr,
-                                                      webrtc::PROTO_TCP);
-const webrtc::ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr,
-                                                   webrtc::PROTO_TCP);
-const webrtc::ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr,
-                                                   webrtc::PROTO_TCP);
-const webrtc::ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr,
-                                                    webrtc::PROTO_TCP);
-const webrtc::ProtocolAddress kTurnPortInvalidHostnameProtoAddr(
-    kTurnInvalidAddr,
-    webrtc::PROTO_UDP);
-const webrtc::ProtocolAddress kTurnPortValidHostnameProtoAddr(
-    kTurnValidAddr,
-    webrtc::PROTO_UDP);
+const ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr, PROTO_UDP);
+const ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr, PROTO_TCP);
+const ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr, PROTO_TLS);
+const ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr, PROTO_UDP);
+const ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr, PROTO_TCP);
+const ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr, PROTO_TCP);
+const ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr, PROTO_TCP);
+const ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr, PROTO_TCP);
+const ProtocolAddress kTurnPortInvalidHostnameProtoAddr(kTurnInvalidAddr,
+                                                        PROTO_UDP);
+const ProtocolAddress kTurnPortValidHostnameProtoAddr(kTurnValidAddr,
+                                                      PROTO_UDP);
 
 #if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
 int GetFDCount() {
@@ -169,7 +156,6 @@ int GetFDCount() {
 
 }  // unnamed namespace
 
-namespace webrtc {
 
 class TurnPortTestVirtualSocketServer : public VirtualSocketServer {
  public:

@@ -8,15 +8,13 @@
 
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
-#include "chrome/browser/optimization_guide/chrome_model_quality_logs_uploader_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
-#include "components/optimization_guide/proto/features/history_query.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
+#include "components/passage_embeddings/core/passage_embeddings_types.h"
 
 namespace history_embeddings {
 
@@ -26,6 +24,7 @@ ChromeHistoryEmbeddingsService::ChromeHistoryEmbeddingsService(
     page_content_annotations::PageContentAnnotationsService*
         page_content_annotations_service,
     optimization_guide::OptimizationGuideDecider* optimization_guide_decider,
+    page_content_annotations::PageEmbeddingsService* page_embeddings_service,
     passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
     passage_embeddings::Embedder* embedder,
     std::unique_ptr<Answerer> answerer,
@@ -34,6 +33,7 @@ ChromeHistoryEmbeddingsService::ChromeHistoryEmbeddingsService(
                                history_service,
                                page_content_annotations_service,
                                optimization_guide_decider,
+                               page_embeddings_service,
                                embedder_metadata_provider,
                                embedder,
                                std::move(answerer),

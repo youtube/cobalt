@@ -20,7 +20,7 @@ import type {ContextualUpload} from 'chrome://resources/cr_components/composebox
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
-import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
+import type {OpenComposeboxEventDetail, SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import type {ClickInfo} from 'chrome://resources/js/browser_command.mojom-webui.js';
@@ -33,7 +33,6 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getTrustedScriptURL} from 'chrome://resources/js/static_types.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
-import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 
@@ -362,6 +361,8 @@ export class AppElement extends AppElementBase {
   protected accessor wasComposeboxOpened_: boolean = false;
   protected accessor showLensUploadDialog_: boolean = false;
   protected accessor showComposebox_: boolean = false;
+  protected caretAnimationsEnabled_: boolean =
+      loadTimeData.getBoolean('caretAnimationEnabled');
   protected accessor logoEnabled_: boolean =
       loadTimeData.getBoolean('logoEnabled');
   protected accessor oneGoogleBarEnabled_: boolean =
@@ -457,7 +458,6 @@ export class AppElement extends AppElementBase {
   private pendingComposeboxText_: string = '';
   private pendingComposeboxMode_: ToolMode = ToolMode.kUnspecified;
   private pendingComposeboxModel_: ModelMode = ModelMode.kUnspecified;
-  private pendingComposeboxInputState_: InputState|null = null;
   private pendingAutoRemovalToasts_:
       Array<{message: string, undo: () => void}> = [];
 
@@ -870,27 +870,23 @@ export class AppElement extends AppElementBase {
 
   protected onComposeboxInitialized_(e: CustomEvent<{
     initializeComposeboxState:
-        (text: string, files: ContextualUpload[], mode: ToolMode, model: number,
-         inputState: InputState|null) => void,
+        (text: string, files: ContextualUpload[], mode: ToolMode,
+         model: number) => void,
   }>) {
     e.detail.initializeComposeboxState(
         this.pendingComposeboxText_, this.pendingComposeboxContextFiles_,
-        this.pendingComposeboxMode_, this.pendingComposeboxModel_,
-        this.pendingComposeboxInputState_);
+        this.pendingComposeboxMode_, this.pendingComposeboxModel_);
     this.pendingComposeboxContextFiles_ = [];
     this.pendingComposeboxText_ = '';
     this.pendingComposeboxMode_ = ToolMode.kUnspecified;
     this.pendingComposeboxModel_ = ModelMode.kUnspecified;
-    this.pendingComposeboxInputState_ = null;
   }
 
-  protected openComposebox_(e: CustomEvent<{
-    searchboxText: string,
-    contextFiles: ContextualUpload[],
-    mode: ToolMode,
-    model: ModelMode,
-    inputState: InputState|null,
-  }>) {
+  protected onActionChipClick_(e: CustomEvent<OpenComposeboxEventDetail>) {
+    this.onOpenComposebox_(e);
+  }
+
+  protected onOpenComposebox_(e: CustomEvent<OpenComposeboxEventDetail>) {
     if (e.detail.searchboxText) {
       this.pendingComposeboxText_ = e.detail.searchboxText;
     }
@@ -899,7 +895,6 @@ export class AppElement extends AppElementBase {
     }
     this.pendingComposeboxMode_ = e.detail.mode;
     this.pendingComposeboxModel_ = e.detail.model;
-    this.pendingComposeboxInputState_ = e.detail.inputState;
     this.toggleComposebox_();
   }
 
@@ -933,10 +928,10 @@ export class AppElement extends AppElementBase {
       cancelable: true,
     });
 
-    this.closeComposebox_(closeComposebox);
+    this.onCloseComposebox_(closeComposebox);
   }
 
-  protected closeComposebox_(e: CustomEvent) {
+  protected onCloseComposebox_(e: CustomEvent<{composeboxText?: string}>) {
     const composeboxDialog =
         this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
     assert(composeboxDialog);
@@ -1256,7 +1251,7 @@ export class AppElement extends AppElementBase {
     }
   }
 
-  protected onMiddleSlotPromoLoaded_() {
+  protected onNtpMiddleSlotPromoLoaded_() {
     this.middleSlotPromoLoaded_ = true;
   }
 
@@ -1440,13 +1435,13 @@ export class AppElement extends AppElementBase {
     this.realboxHadSecondarySide = e.detail.value;
   }
 
-  protected onSearchboxContainerFocusIn_() {
+  protected onSearchboxContainerFocusin_() {
     if (this.ntpRealboxNextEnabled_) {
       this.containerFocused_ = true;
     }
   }
 
-  protected onSearchboxContainerFocusOut_() {
+  protected onSearchboxContainerFocusout_() {
     if (this.ntpRealboxNextEnabled_) {
       this.containerFocused_ =
           this.shadowRoot.getElementById('searchboxContainer')!.matches(
@@ -1497,6 +1492,16 @@ export class AppElement extends AppElementBase {
    * @param undoToastContext - An event that contains the undo toast message and
    *                           the undo callback function.
    */
+  protected onMostVisitedAutoRemoved_(
+      undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
+    this.showAutoRemovedToast_(undoToastContext);
+  }
+
+  protected onModulesAutoRemoved_(
+      undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
+    this.showAutoRemovedToast_(undoToastContext);
+  }
+
   protected showAutoRemovedToast_(
       undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
     this.pendingAutoRemovalToasts_.push(undoToastContext.detail);

@@ -17,7 +17,9 @@
                                      UIBlockerManagerObserver>
 @end
 
-@implementation TaskUpdaterSceneAgent
+@implementation TaskUpdaterSceneAgent {
+  BOOL _didUpdateToUIReady;
+}
 
 #pragma mark - ObservingSceneAgent
 
@@ -25,6 +27,12 @@
   [super setSceneState:sceneState];
   [self.sceneState.profileState addObserver:self];
   [self.sceneState.profileState addUIBlockerManagerObserver:self];
+
+  [NSNotificationCenter.defaultCenter
+      addObserver:self
+         selector:@selector(maybeUpdateToUIReady)
+             name:UIApplicationDidBecomeActiveNotification
+           object:nil];
 
   // Make sure that the execution stage is updated also if a scene is connected
   // after the ProfileState has reached stage ProfileInitStage::kProfileLoaded
@@ -69,9 +77,11 @@
 }
 
 - (void)sceneStateDidDisableUI:(SceneState*)sceneState {
+  [self updateToStageNone];
   [self.sceneState.profileState removeObserver:self];
   [self.sceneState removeObserver:self];
   [self.sceneState.profileState removeUIBlockerManagerObserver:self];
+  [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (void)signinDidEnd:(SceneState*)sceneState {
@@ -81,6 +91,20 @@
 }
 
 #pragma mark - Private
+
+// Resets the scene from TaskExecutionUIReady to TaskExecutionProfileLoaded
+// if the profile is still loaded.
+- (void)resetExecutionStage {
+  _didUpdateToUIReady = NO;
+  [self updateToProfileLoaded];
+}
+
+// Updates the scene to TaskExecutionStageNone.
+- (void)updateToStageNone {
+  [self.sceneState.profileState.appState.taskOrchestrator
+      updateToStage:TaskExecutionStage::TaskExecutionStageNone
+           forScene:self.sceneState.sceneSessionID];
+}
 
 // Updates the scene to TaskExecutionProfileLoaded.
 - (void)updateToProfileLoaded {
@@ -92,11 +116,17 @@
 // Updates the scene to TaskExecutionUIReady if conditions are met.
 - (void)maybeUpdateToUIReady {
   if (![self canUpdateToUIReady]) {
+    // Reset the execution stage if ui is not ready anymore.
+    if (_didUpdateToUIReady) {
+      [self resetExecutionStage];
+    }
     return;
   }
+
   [self.sceneState.profileState.appState.taskOrchestrator
       updateToStage:TaskExecutionStage::TaskExecutionUIReady
            forScene:self.sceneState.sceneSessionID];
+  _didUpdateToUIReady = YES;
 }
 
 // YES if UI is ready to handle tasks.
@@ -118,6 +148,10 @@
     return NO;
   }
   if ([self signinStatusInSyncWithPolicy]) {
+    return NO;
+  }
+  if ([[UIApplication sharedApplication] applicationState] !=
+      UIApplicationStateActive) {
     return NO;
   }
   return YES;

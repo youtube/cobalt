@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 The WebRTC Project Authors. All rights reserved.
+ *  Copyright 2015 The WebRTC Project Authors. All Rights Reserved.
  *
  *  Use of this source code is governed by a BSD-style license
  *  that can be found in the LICENSE file in the root of the source
@@ -20,6 +20,8 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "rtc_base/checks.h"
+
+namespace webrtc {
 
 namespace {
 
@@ -51,8 +53,6 @@ uint8_t WritePartialByte(uint8_t source,
 }
 
 }  // namespace
-
-namespace webrtc {
 
 BitBufferWriter::BitBufferWriter(ArrayView<uint8_t> bytes)
     : BitBufferWriter(bytes.data(), bytes.size()) {}

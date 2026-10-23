@@ -52,51 +52,47 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
 
+namespace webrtc {
+
 namespace {
 
-using webrtc::RTCError;
-using webrtc::RTCErrorType;
-using webrtc::RtpTransceiverDirection;
-using webrtc::UniqueRandomIdGenerator;
-
-webrtc::RtpExtension RtpExtensionFromCapability(
-    const webrtc::RtpHeaderExtensionCapability& capability) {
-  return webrtc::RtpExtension(capability.uri,
-                              capability.preferred_id.value_or(1),
-                              capability.preferred_encrypt);
+RtpExtension RtpExtensionFromCapability(
+    const RtpHeaderExtensionCapability& capability) {
+  return RtpExtension(capability.uri, capability.preferred_id.value_or(1),
+                      capability.preferred_encrypt);
 }
 
-webrtc::RtpHeaderExtensions RtpHeaderExtensionsFromCapabilities(
-    const std::vector<webrtc::RtpHeaderExtensionCapability>& capabilities) {
-  webrtc::RtpHeaderExtensions exts;
+RtpHeaderExtensions RtpHeaderExtensionsFromCapabilities(
+    const std::vector<RtpHeaderExtensionCapability>& capabilities) {
+  RtpHeaderExtensions exts;
   for (const auto& capability : capabilities) {
     exts.push_back(RtpExtensionFromCapability(capability));
   }
   return exts;
 }
 
-std::vector<webrtc::RtpHeaderExtensionCapability>
+std::vector<RtpHeaderExtensionCapability>
 UnstoppedRtpHeaderExtensionCapabilities(
-    std::vector<webrtc::RtpHeaderExtensionCapability> capabilities) {
+    std::vector<RtpHeaderExtensionCapability> capabilities) {
   std::erase_if(
-      capabilities, [](const webrtc::RtpHeaderExtensionCapability& capability) {
+      capabilities, [](const RtpHeaderExtensionCapability& capability) {
         return capability.direction == RtpTransceiverDirection::kStopped;
       });
   return capabilities;
 }
 
-bool IsCapabilityPresent(const webrtc::RtpHeaderExtensionCapability& capability,
-                         const webrtc::RtpHeaderExtensions& extensions) {
+bool IsCapabilityPresent(const RtpHeaderExtensionCapability& capability,
+                         const RtpHeaderExtensions& extensions) {
   return std::find_if(extensions.begin(), extensions.end(),
-                      [&capability](const webrtc::RtpExtension& extension) {
+                      [&capability](const RtpExtension& extension) {
                         return capability.uri == extension.uri;
                       }) != extensions.end();
 }
 
-webrtc::RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
-    const std::vector<webrtc::RtpHeaderExtensionCapability>& capabilities,
-    const webrtc::RtpHeaderExtensions& all_encountered_extensions) {
-  webrtc::RtpHeaderExtensions extensions;
+RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
+    const std::vector<RtpHeaderExtensionCapability>& capabilities,
+    const RtpHeaderExtensions& all_encountered_extensions) {
+  RtpHeaderExtensions extensions;
   for (const auto& capability : capabilities) {
     if (capability.direction != RtpTransceiverDirection::kStopped ||
         IsCapabilityPresent(capability, all_encountered_extensions)) {
@@ -105,12 +101,6 @@ webrtc::RtpHeaderExtensions UnstoppedOrPresentRtpHeaderExtensions(
   }
   return extensions;
 }
-
-}  // namespace
-
-namespace webrtc {
-
-namespace {
 
 bool ContainsRtxCodec(const std::vector<Codec>& codecs) {
   return absl::c_find_if(codecs, [](const Codec& c) {
@@ -708,7 +698,7 @@ MediaSessionDescriptionFactory::filtered_rtp_header_extensions(
     RtpHeaderExtensions extensions) const {
   if (!is_unified_plan_) {
     // Remove extensions only supported with unified-plan.
-    std::erase_if(extensions, [](const webrtc::RtpExtension& extension) {
+    std::erase_if(extensions, [](const RtpExtension& extension) {
       return extension.uri == RtpExtension::kMidUri ||
              extension.uri == RtpExtension::kRidUri ||
              extension.uri == RtpExtension::kRepairedRidUri;

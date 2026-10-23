@@ -98,11 +98,13 @@ struct WasmGlobal {
   bool mutability = false;       // {true} if mutable.
   ConstantExpression init = {};  // the initialization expression of the global.
   union {
-    // Index of imported mutable global.
-    uint32_t index;
-    // Offset into global memory (if not imported & mutable). Expressed in bytes
-    // for value-typed globals, and in tagged words for reference-typed globals.
-    uint32_t offset;
+    // Used for mutable imported globals. Stores the index into the instance's
+    // `imported_mutable_globals_buffers` and `imported_mutable_globals_offsets`
+    // arrays.
+    uint32_t mutable_imported_global_index;
+    // Used for non-imported or non-mutable globals: Index into the instance's
+    // `tagged_globals_buffer` or `untagged_globals_buffer`.
+    uint32_t index_in_buffer;
   };
   bool shared = false;
   bool imported = false;
@@ -819,10 +821,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
   CompilationPriorities compilation_priorities;
   InstructionFrequencies instruction_frequencies;
   CallTargets call_targets;
+  // Protects the two fields below. Always lock this mutex before
+  // `type_feedback.mutex` to avoid deadlocks.
+  mutable base::Mutex compilation_hints_mutex;
   // When --wasm-generate-compilation-hints, we do not trigger tierup, so we
   // need to know which functions would have been tiered up to mark them for
   // optimization in the generated compilation hints.
-  mutable base::Mutex marked_for_tierup_mutex;
   mutable std::unordered_set<uint32_t> marked_for_tierup;
   // When --wasm-generate-compilation-hints, we need to map feedback slots to
   // offsets in the wire bytes to generate compilation hints. The key in the map

@@ -92,7 +92,7 @@ std::unique_ptr<FrameSelector> CreateFrameSelector(
     return nullptr;
   }
   return std::make_unique<FrameSelector>(
-      scalability_mode.value_or(ScalabilityMode::kL1T1),
+      *environment, scalability_mode.value_or(ScalabilityMode::kL1T1),
       FrameSelector::Timespan{
           .lower_bound = settings.low_overhead_lower_bound(),
           .upper_bound = settings.low_overhead_upper_bound()},

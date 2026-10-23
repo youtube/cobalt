@@ -1645,6 +1645,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           i.InputSimd128Register(1).V16B(), i.InputSimd128Register(2).V16B());
       break;
     }
+    case kArm64Xar: {
+      DCHECK(CpuFeatures::IsSupported(SHA3));
+      CpuFeatureScope scope(masm(), SHA3);
+      __ Xar(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+             i.InputSimd128Register(1).V2D(), i.InputInt6(2));
+      break;
+    }
     case kArm64Sadalp: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
@@ -2233,13 +2240,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputDoubleRegister(1));
       break;
     case kArm64Float64Mod: {
-      // TODO(turbofan): implement directly.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      DCHECK_EQ(d0, i.InputDoubleRegister(0));
-      DCHECK_EQ(d1, i.InputDoubleRegister(1));
-      DCHECK_EQ(d0, i.OutputDoubleRegister());
-      // TODO(turbofan): make sure this saves all relevant registers.
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+      // TODO(marja): We can generate better code for constant inputs and for
+      // inputs which are guaranteed to be integers.
+      __ Float64Mod(d0, d0, d1);
       break;
     }
     case kArm64Float32Max: {

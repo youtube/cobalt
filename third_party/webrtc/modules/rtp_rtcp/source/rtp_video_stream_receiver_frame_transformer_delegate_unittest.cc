@@ -13,11 +13,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_headers.h"
@@ -342,7 +342,7 @@ TEST(RtpVideoStreamReceiverFrameTransformerDelegateTest,
   scoped_refptr<EncodedImageBufferInterface> buffer =
       EncodedImageBuffer::Create(1);
   ON_CALL(*mock_sender_frame, GetData)
-      .WillByDefault(Return(ArrayView<const uint8_t>(*buffer)));
+      .WillByDefault(Return(std::span<const uint8_t>(*buffer)));
 
   scoped_refptr<TransformedFrameCallback> callback;
   EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameSinkCallback)

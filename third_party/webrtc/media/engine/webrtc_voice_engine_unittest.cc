@@ -1605,7 +1605,7 @@ TEST_P(WebRtcVoiceEngineTestFake, OnPacketReceivedIdentifiesExtensions) {
   reference_packet.SetExtension<AudioLevelExtension>(
       AudioLevel(/*voice_activity=*/true, kAudioLevel));
   //  Create a packet without the extension map but with the same content.
-  RtpPacketReceived received_packet;
+  RtpPacketReceived received_packet(&extension_map);
   ASSERT_TRUE(received_packet.Parse(reference_packet.Buffer()));
 
   receive_channel_->OnPacketReceived(received_packet);
@@ -3706,6 +3706,37 @@ TEST_P(WebRtcVoiceEngineTestFake, OnReadyToSendSignalsNetworkState) {
   send_channel_->OnReadyToSend(true);
   EXPECT_EQ(kNetworkUp, call_.GetNetworkState(MediaType::AUDIO));
   EXPECT_EQ(kNetworkUp, call_.GetNetworkState(MediaType::VIDEO));
+}
+
+// Test that when an unsignaled stream is promoted to a signaled stream,
+// its ProxySink doesn't hold a dangling raw pointer if the default sink
+// is subsequently destroyed.
+TEST_P(WebRtcVoiceEngineTestFake,
+       ProxySinkSurvivesUnsignaledToSignaledPromotion) {
+  EXPECT_TRUE(SetupChannel());
+  std::unique_ptr<FakeAudioSink> fake_sink(new FakeAudioSink());
+
+  // Set the default sink.
+  receive_channel_->SetDefaultRawAudioSink(std::move(fake_sink));
+
+  // Deliver an RTP packet to create an unsignaled stream.
+  DeliverPacket(kPcmuFrame);
+  const AudioSinkInterface* proxy_sink = GetRecvStream(kSsrc1).sink();
+  EXPECT_NE(nullptr, proxy_sink);
+
+  // Promote the unsignaled stream to a signaled stream.
+  StreamParams sp = StreamParams::CreateLegacy(kSsrc1);
+  EXPECT_TRUE(receive_channel_->AddRecvStream(sp));
+
+  // The proxy sink should be removed from the stream upon promotion.
+  EXPECT_EQ(nullptr, GetRecvStream(kSsrc1).sink());
+
+  // Destroy the original sink by passing nullptr.
+  receive_channel_->SetDefaultRawAudioSink(nullptr);
+
+  // Note: calling proxy_sink->OnData would crash here if the proxy_sink
+  // would still be attached to the stream and hold a dangling pointer to
+  // default_sink_. But we've verified that it's detached, so that won't happen.
 }
 
 // Test that playout is still started after changing parameters

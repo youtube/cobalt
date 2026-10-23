@@ -29,6 +29,7 @@
 <translation id="126567311906253476">នៅពេល​ចូល​សេវាកម្ម Google ដូចជា Gmail ឬ YouTube ដោយប្រើ <ph name="USER_EMAIL" /> អ្នកអាច​ចូល Chromium ដោយ​ស្វ័យប្រវត្តិ ដោយប្រើ​គណនី​តែមួយ</translation>
 <translation id="1290883685122687410">បញ្ហា​ក្នុងការរៀបចំ៖ <ph name="METAINSTALLER_EXIT_CODE" />។ <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">រៀបចំ​កម្រងព័ត៌មាន Chromium ថ្មី​របស់អ្នក</translation>
+<translation id="132092532143527429">សាកល្បងប្រើ Gemini ក្នុង Chromium</translation>
 <translation id="1324107359134968521">Chromium ត្រូវការសិទ្ធិចូលប្រើប៊្លូធូស ដើម្បីរុករកឧបករណ៍​ប៊្លូធូស។ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ចាប់ដឹង​ភាសា</translation>
 <translation id="1330742950061766891">ប្រើ​ការកំណត់​កម្មវិធីរុករក​តាមអ៊ីនធឺណិត​ដែលបាន​ណែនាំ​ដោយ Chromium</translation>
@@ -377,7 +378,6 @@
 <translation id="5174969993834422967">ជាធម្មតា អ្នកទប់ស្កាត់​ការជូនដំណឹង។ ដើម្បីឱ្យ​គេហទំព័រនេះ​ជូនដំណឹង​ដល់អ្នក សូមចុច​រូប​តំណាងការជូនដំណឹង​នៅជ្រុងខាងស្ដាំ​នៃរបារ​ទីតាំង​របស់អ្នក។</translation>
 <translation id="5174983315706567306">មិនមានទំហំ​ថាស​គ្រប់គ្រាន់ទេ។</translation>
 <translation id="5187123684706427865">គណនី Chromium តម្រូវឱ្យមានការផ្ទៀងផ្ទាត់ឡើងវិញ</translation>
-<translation id="5219681158518957165">ប្រើ​ការកំណត់​កម្មវិធីរុករក​តាមអ៊ីនធឺណិត​ដែលបាន​ណែនាំ</translation>
 <translation id="5224391634244552924">គ្មានពាក្យសម្ងាត់ដែលបានរក្សាទុកទេ។ Chromium អាចពិនិត្យ​ពាក្យសម្ងាត់​របស់អ្នក នៅពេលអ្នក​រក្សាទុកពាក្យសម្ងាត់​ទាំងនោះ។</translation>
 <translation id="5231355151045086930">ចាកចេញពី Chromium</translation>
 <translation id="5234764350956374838">ច្រានចោល</translation>
@@ -611,6 +611,7 @@ Chromium មិនអាចសង្គ្រោះការកំណត់រ�
 <translation id="7622753900276619808">ឥឡូវនេះ អ្នកមាន​មុខងារ​កាន់តែច្រើនដែលអាចប្រើបាន​នៅក្នុង Chromium</translation>
 <translation id="7624307931717240213">យើងប្រើព័ត៌មាន ដើម្បីកែលម្អសេវាកម្មនេះ។ មើលគោលការណ៍​ឯកជនភាព និងលក្ខខណ្ឌប្រើប្រាស់។</translation>
 <translation id="7649070708921625228">ជំនួយ</translation>
+<translation id="7650134251917003571">យក​កម្មវិធី Chromium</translation>
 <translation id="7656340475565475526">ឱ្យ Chromium រុករក​សម្រាប់អ្នក</translation>
 <translation id="7658239707568436148">បដិសេធ</translation>
 <translation id="7686590090926151193">Chromium មិនមែន​ជា​កម្មវិធីរុករក​តាមអ៊ីនធឺណិត​លំនាំដើម​របស់អ្នក​ទេ</translation>

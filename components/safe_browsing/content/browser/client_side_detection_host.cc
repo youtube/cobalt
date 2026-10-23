@@ -538,10 +538,13 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
     }
 
     // If we get a suspcious verdict from RTLookupResponse, we should get a
-    // second opinion on CSD side, so we skip the allowlist. We also check the
-    // command line flag if the allowlist should be skipped.
+    // second opinion on CSD side, so we skip the allowlist. If we get an
+    // explicit request to send a report from the user, we skip the allowlist.
+    // We also check the command line flag if the allowlist should be skipped.
     if (phishing_detection_request_type_ ==
             safe_browsing::ClientSideDetectionType::FORCE_REQUEST ||
+        phishing_detection_request_type_ ==
+            safe_browsing::ClientSideDetectionType::USER_REPORT ||
         ShouldSkipCSDAllowlist()) {
       OnAllowlistCheckDone(url, phishing_reason,
                            /*match_allowlist=*/false);
@@ -667,8 +670,11 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
     }
 
     // We want to limit the number of requests, but if we're dumping features
-    // for debugging, allow us to exceed the report limit.
+    // for debugging or processing an explicit request for a report from a user,
+    // allow us to exceed the report limit.
     if (!HasDebugFeatureDirectory() && csd_service_ &&
+        phishing_detection_request_type_ !=
+            ClientSideDetectionType::USER_REPORT &&
         csd_service_->AtPhishingReportLimit()) {
       base::UmaHistogramExactLinear("SBClientPhishing.RequestTypeAtReportLimit",
                                     phishing_detection_request_type_,
@@ -777,6 +783,10 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
 };
 
 // static
+const int ClientSideDetectionHost::kMaxHighResScreenshotWidth = 4096;
+const int ClientSideDetectionHost::kMaxHighResScreenshotHeight = 2160;
+
+// static
 std::unique_ptr<ClientSideDetectionHost> ClientSideDetectionHost::Create(
     content::WebContents* tab,
     std::unique_ptr<Delegate> delegate,
@@ -875,13 +885,12 @@ void ClientSideDetectionHost::RegisterAutofillManager() {
           kObservePreexistingManagers);
 }
 
-void ClientSideDetectionHost::ReportUnsafeSite(
-    std::optional<int> screenshot_width,
-    std::optional<int> screenshot_height,
-    const std::optional<std::string>& screenshot_data) {
-  screenshot_width_ = screenshot_width;
-  screenshot_height_ = screenshot_height;
-  screenshot_data_ = screenshot_data;
+void ClientSideDetectionHost::ReportUnsafeSite(SkBitmap screenshot) {
+  if (!screenshot.drawsNothing() &&
+      screenshot.width() <= kMaxHighResScreenshotWidth &&
+      screenshot.height() <= kMaxHighResScreenshotHeight) {
+    screenshot_ = screenshot;
+  }
   MaybeStartPreClassification(ClientSideDetectionType::USER_REPORT);
 }
 
@@ -1161,20 +1170,12 @@ void ClientSideDetectionHost::MaybeFillScreenshotData(
     return;
   }
 
-  if (screenshot_width_.has_value()) {
-    request->mutable_visual_features()
-        ->mutable_high_res_screenshot()
-        ->set_width(screenshot_width_.value());
+  if (screenshot_) {
+    visual_utils::EncodeScreenshot(
+        *screenshot_,
+        request->mutable_visual_features()->mutable_high_res_screenshot());
   }
-  if (screenshot_height_.has_value()) {
-    request->mutable_visual_features()
-        ->mutable_high_res_screenshot()
-        ->set_height(screenshot_height_.value());
-  }
-  if (screenshot_data_.has_value()) {
-    request->mutable_visual_features()->mutable_high_res_screenshot()->set_data(
-        screenshot_data_.value());
-  }
+  screenshot_ = std::nullopt;
 }
 
 void ClientSideDetectionHost::KeyboardLockRequested() {
@@ -2234,10 +2235,14 @@ void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
           ? "ConditionalImageResize.Enabled"
           : "ConditionalImageResize.Control");
 
-  verdict->mutable_population()->add_finch_active_groups(
-      base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)
-          ? "ClientSideDetectionNewObservers.Enabled"
-          : "ClientSideDetectionNewObservers.Control");
+  if (base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)) {
+    verdict->mutable_population()->add_finch_active_groups(
+        "ClientSideDetectionNewObservers.Enabled." +
+        base::NumberToString(kCsdClassificationDelay.Get()));
+  } else {
+    verdict->mutable_population()->add_finch_active_groups(
+        "ClientSideDetectionNewObservers.Control");
+  }
 
   raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
   if (cache_manager) {

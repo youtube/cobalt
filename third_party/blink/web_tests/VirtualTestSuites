@@ -505,7 +505,7 @@
     "owners": ["samomekarajr@microsoft.com", "kbabbitt@microsoft.com"]
   },
   {
-    "prefix": "disable-css-line-clamp-line-breaking-ellipsis",
+    "prefix": "css-line-clamp-line-breaking-ellipsis",
     "platforms": [
       "Linux"
     ],
@@ -552,7 +552,7 @@
       "paint/invalidation/text-line-clamp-truncation.html"
     ],
     "args": [
-      "--disable-blink-features=CSSLineClampLineBreakingEllipsis"
+      "--enable-blink-features=CSSLineClamp,CSSLineClampLineBreakingEllipsis"
     ],
     "owners": [
       "abotella@igalia.com"
@@ -686,6 +686,20 @@
     ]
   },
   {
+    "prefix": "webmcp",
+    "platforms": ["Linux"],
+    "bases": [
+      "inspector-protocol/webmcp"
+    ],
+    "args": [
+      "--enable-features=DevToolsWebMCPSupport"
+    ],
+    "expires": "Sep 28, 2026",
+    "owners": [
+      "pfaffe@google.com"
+    ]
+  },
+  {
     "prefix": "devtools-improved-network-error",
     "platforms": [
       "Linux"
@@ -747,20 +761,7 @@
       "external/wpt/css/css-overflow/line-clamp",
       "external/wpt/css/css-overflow/parsing",
       "external/wpt/css/css-overflow/inheritance.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-001.tentative.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-002.tentative.html",
-      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-003.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-001.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-002.tentative.html",
-      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-003.tentative.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-001.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-002.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-first-003.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-001.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-002.html",
-      "external/wpt/css/css-inline/baseline-source/baseline-source-last-003.html",
       "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-001.html",
-      "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-002.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
@@ -770,17 +771,7 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-006.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-007.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
-      "external/wpt/css/css-ui/text-overflow-string-001.html",
-      "external/wpt/css/css-ui/text-overflow-string-002.html",
-      "external/wpt/css/css-ui/text-overflow-string-003.html",
-      "external/wpt/css/css-ui/text-overflow-string-004.html",
-      "external/wpt/css/css-ui/text-overflow-string-005.html",
-      "external/wpt/css/css-ui/text-overflow-string-006.html",
-      "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
-      "fast/deprecated-flexbox/line-clamp-crash.html",
-      "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
-      "fast/overflow",
-      "paint/invalidation/text-line-clamp-truncation.html"
+      "fast/overflow"
     ],
     "args": [
       "--disable-blink-features=CSSLineClamp"
@@ -926,7 +917,8 @@
       "Linux"
     ],
     "bases": [
-      "http/tests/inspector-protocol/prefetch/prefetch-ua-override.js"
+      "http/tests/inspector-protocol/prefetch/prefetch-ua-override.js",
+      "http/tests/inspector-protocol/prefetch/prefetch-ua-no-ch-override.js"
     ],
     "exclusive_tests": "ALL",
     "args": [
@@ -986,6 +978,16 @@
     "args": [
       "--disable-features=EventTimingReportingInStrictOrderOnly"
     ],
+    "expires": "Dec 1, 2026"
+  },
+  {
+    "prefix": "event-timing-navigation-events",
+    "owners": ["mmocny@chromium.org"],
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "wpt_internal/event-timing/navigation"
+    ],
+    "args": ["--enable-blink-features=NavigationEventTiming"],
     "expires": "Dec 1, 2026"
   },
   {
@@ -2534,7 +2536,7 @@
       "http/tests/inspector-protocol/issues/port-mismatch-exclusion.js",
       "http/tests/inspector-protocol/network/blocked-cookie-port-mismatch.js"
     ],
-    "expires": "Mar 1, 2026",
+    "expires": "Nov 1, 2026",
     "exclusive_tests": "ALL",
     "args": [
       "--enable-features=EnablePortBoundCookies"
@@ -2691,12 +2693,12 @@
       "http/tests/inspector-protocol/prerender/prefetch-events-for-ahead-of-prerender.js"
     ],
     "args": [
-      "--enable-features=Prerender2FallbackPrefetchSpecRules:kPrerender2FallbackPrefetchSchedulerPolicy/Burst"
+      "--enable-features=Prerender2FallbackPrefetchSpecRules:kPrerender2FallbackPrefetchSchedulerPolicy/NotUse"
     ],
     "owners": [
       "kenoss@chromium.org"
     ],
-    "expires": "Nov 30, 2025"
+    "expires": "Jan 1, 2027"
   },
   {
     "prefix": "presentation",
@@ -2949,7 +2951,7 @@
       "http/tests/inspector-protocol/issues/scheme-mismatch-exclusion.js",
       "http/tests/inspector-protocol/network/blocked-cookie-scheme-mismatch.js"
     ],
-    "expires": "Mar 1, 2026",
+    "expires": "Nov 1, 2026",
     "exclusive_tests": "ALL",
     "args": [
       "--enable-features=EnableSchemeBoundCookies"
@@ -5171,6 +5173,25 @@
       "--webauthn-remote-desktop-support"
     ],
     "expires": "never"
+  },
+  {
+    "prefix": "webcrypto-pqc",
+    "owners": [
+      "hchao@chromium.org",
+      "chrome-secure-web-and-net@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/WebCryptoAPI/"
+    ],
+    "args": [
+      "--enable-features=WebCryptoPQC"
+    ],
+    "expires": "May 2, 2026"
   },
   "This individual test must be run separately from others, because it makes a",
   "huge memory allocation that often causes OOM if other tests have run in the",

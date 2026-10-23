@@ -11,9 +11,10 @@
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 
 #include <cstdint>
+#include <iterator>
+#include <span>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/rtp_parameters.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/corruption_detection_extension.h"
@@ -78,13 +79,13 @@ RtpHeaderExtensionMap::RtpHeaderExtensionMap(bool extmap_allow_mixed)
 }
 
 RtpHeaderExtensionMap::RtpHeaderExtensionMap(
-    ArrayView<const RtpExtension> extensions)
+    std::span<const RtpExtension> extensions)
     : RtpHeaderExtensionMap(false) {
   for (const RtpExtension& extension : extensions)
     RegisterByUri(extension.id, extension.uri);
 }
 
-void RtpHeaderExtensionMap::Reset(ArrayView<const RtpExtension> extensions) {
+void RtpHeaderExtensionMap::Reset(std::span<const RtpExtension> extensions) {
   for (auto& id : ids_)
     id = kInvalidId;
   for (const RtpExtension& extension : extensions)

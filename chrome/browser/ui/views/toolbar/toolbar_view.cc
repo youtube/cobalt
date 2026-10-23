@@ -22,6 +22,8 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/actor/ui/actor_ui_metrics.h"
+#include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/command_updater.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -48,6 +50,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
@@ -95,8 +98,10 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_divider.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_glic_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
+#include "chrome/browser/ui/views/toolbar/webui_back_forward_control.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
@@ -309,8 +314,8 @@ ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
 
   if (display_mode_ == DisplayMode::kNormal) {
     if (base::FeatureList::IsEnabled(features::kGlassToolbar)) {
-      auto background = std::make_unique<LiveToolbarBackground>(browser_);
-      background->SetView(this);
+      auto background =
+          std::make_unique<LiveToolbarBackground>(browser_view_, this);
       SetBackground(std::move(background));
     }
 
@@ -435,14 +440,14 @@ void ToolbarView::Init() {
 #endif
 
   // Always add children in order from left to right, for accessibility.
-
-  back_ = AddChildView(std::make_unique<BackForwardButton>(
-      BackForwardButton::Direction::kBack,
-      base::BindRepeating(callback, browser_, IDC_BACK), browser_));
-
-  forward_ = AddChildView(std::make_unique<BackForwardButton>(
-      BackForwardButton::Direction::kForward,
-      base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
+  if (!features::IsWebUIBackForwardButtonEnabled()) {
+    back_ = AddChildView(std::make_unique<BackForwardButton>(
+        BackForwardButton::Direction::kBack,
+        base::BindRepeating(callback, browser_, IDC_BACK), browser_));
+    forward_ = AddChildView(std::make_unique<BackForwardButton>(
+        BackForwardButton::Direction::kForward,
+        base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
+  }
 
   if (features::IsWebUIToolbarEnabled()) {
     toolbar_webview_ = AddChildView(std::make_unique<WebUIToolbarWebView>(
@@ -540,6 +545,15 @@ void ToolbarView::Init() {
   if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile())) {
     auto* vertical_tab_strip_state_controller =
         tabs::VerticalTabStripStateController::From(browser_view_->browser());
+    if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+        features::kGlicActorUiTaskIcon.Get()) {
+      glic_actor_button_container_ =
+          AddChildView(CreateGlicActorButtonContainer());
+      glic_actor_task_icon_ =
+          glic_actor_button_container_->AddChildView(CreateGlicActorTaskIcon());
+      glic_actor_button_container_->SetVisible(false);
+    }
+
     glic_button_ = AddChildView(CreateGlicButton());
     if (vertical_tab_strip_state_controller) {
       vertical_tab_subscription_ =
@@ -619,7 +633,7 @@ void ToolbarView::Init() {
       base::BindRepeating(&ToolbarView::OnShowForwardButtonChanged,
                           base::Unretained(this)));
 
-  forward_->SetVisible(show_forward_button_.GetValue());
+  SetForwardButtonVisibility(show_forward_button_.GetValue());
 
   show_home_button_.Init(
       prefs::kShowHomeButton, prefs,
@@ -646,6 +660,45 @@ void ToolbarView::OnVerticalTabStripModeChanged(
     tabs::VerticalTabStripStateController* controller) {
   should_display_vertical_tabs_ = controller->ShouldDisplayVerticalTabs();
   UpdateGlicButtonVisibility();
+}
+
+std::unique_ptr<GlicAndActorButtonsContainer>
+ToolbarView::CreateGlicActorButtonContainer() {
+  auto glic_actor_button_container =
+      std::make_unique<GlicAndActorButtonsContainer>();
+
+  // Should be hidden until a task starts.
+  glic_actor_button_container->SetVisible(false);
+
+  return glic_actor_button_container;
+}
+
+std::unique_ptr<glic::ToolbarGlicActorTaskIcon>
+ToolbarView::CreateGlicActorTaskIcon() {
+  std::unique_ptr<glic::ToolbarGlicActorTaskIcon> glic_actor_task_icon =
+      std::make_unique<glic::ToolbarGlicActorTaskIcon>(
+          browser_view_->browser(),
+          base::BindRepeating(&ToolbarView::OnGlicActorTaskIconClicked,
+                              base::Unretained(this)));
+
+  glic_actor_task_icon->SetProperty(views::kCrossAxisAlignmentKey,
+                                    views::LayoutAlignment::kCenter);
+
+  return glic_actor_task_icon;
+}
+
+void ToolbarView::OnGlicActorTaskIconClicked() {
+  Profile* const profile = browser_view_->GetProfile();
+  auto* icon_manager =
+      tabs::GlicActorTaskIconManagerFactory::GetForProfile(profile);
+  CHECK(icon_manager);
+
+  ActorTaskListBubbleController* controller =
+      ActorTaskListBubbleController::From(browser_view_->browser());
+  controller->ShowBubble(glic_actor_task_icon_);
+
+  auto current_task_nudge_state = icon_manager->GetCurrentActorTaskNudgeState();
+  actor::ui::LogGlobalTaskIndicatorClick(current_task_nudge_state);
 }
 
 std::unique_ptr<glic::ToolbarGlicButton> ToolbarView::CreateGlicButton() {
@@ -976,6 +1029,13 @@ ToolbarView::GetContentSettingBubbleModelDelegate() {
 
 void ToolbarView::EnabledStateChangedForCommand(int id, bool enabled) {
   DCHECK(display_mode_ == DisplayMode::kNormal);
+
+  if ((id == IDC_BACK || id == IDC_FORWARD) &&
+      features::IsWebUIBackForwardButtonEnabled()) {
+    toolbar_webview_->SetBackForwardEnabled(id, enabled);
+    return;
+  }
+
   const std::array<views::Button*, 5> kButtons{back_, forward_, reload_, home_,
                                                avatar_};
   auto it = std::ranges::find_if(
@@ -1017,7 +1077,7 @@ gfx::Size ToolbarView::CalculatePreferredSize(
       // on some installations.
       if (layout_manager_ && location_bar_->IsVisible()) {
         const int max_height = std::max(location_bar_->PreferredSize().height(),
-                                        back_->GetPreferredSize().height()) +
+                                        GetBackForwardButtonSize().height()) +
                                layout_manager_->interior_margin().height();
         size.SetToMin({size.width(), max_height});
       }
@@ -1044,9 +1104,10 @@ gfx::Size ToolbarView::GetMinimumSize() const {
       // TODO(crbug.com/40663413): Figure out why the height reports incorrectly
       // on some installations.
       if (layout_manager_ && location_bar_->IsVisible()) {
-        const int max_height = std::max(location_bar_->MinimumSize().height(),
-                                        back_->GetMinimumSize().height()) +
-                               layout_manager_->interior_margin().height();
+        const int max_height =
+            std::max(location_bar_->MinimumSize().height(),
+                     GetBackForwardButtonSize(/*minimum_size=*/true).height()) +
+            layout_manager_->interior_margin().height();
         size.SetToMin({size.width(), max_height});
       }
       // Overflow button must be part of minimum size calculation.
@@ -1264,7 +1325,12 @@ void ToolbarView::LayoutCommon() {
   const bool extend_buttons_to_edge =
       browser_->window() &&
       (browser_->window()->IsMaximized() || browser_->window()->IsFullscreen());
-  back_->SetLeadingMargin(extend_buttons_to_edge ? interior_margin.left() : 0);
+  const int margin = extend_buttons_to_edge ? interior_margin.left() : 0;
+  if (features::IsWebUIBackForwardButtonEnabled()) {
+    toolbar_webview_->SetBackButtonLeadingMargin(margin);
+  } else {
+    back_->SetLeadingMargin(margin);
+  }
   app_menu_button_->SetTrailingMargin(
       extend_buttons_to_edge ? interior_margin.right() : 0);
 
@@ -1489,7 +1555,7 @@ void ToolbarView::LoadImages() {
 }
 
 void ToolbarView::OnShowForwardButtonChanged() {
-  forward_->SetVisible(show_forward_button_.GetValue());
+  SetForwardButtonVisibility(show_forward_button_.GetValue());
   InvalidateLayout();
 }
 
@@ -1518,6 +1584,22 @@ void ToolbarView::OnTouchUiChanged() {
     LoadImages();
     PreferredSizeChanged();
   }
+}
+
+void ToolbarView::SetForwardButtonVisibility(bool visible) {
+  if (features::IsWebUIBackForwardButtonEnabled()) {
+    toolbar_webview_->SetForwardVisible(visible);
+  } else {
+    forward_->SetVisible(visible);
+  }
+}
+
+gfx::Size ToolbarView::GetBackForwardButtonSize(bool minimum_size) const {
+  if (back_) {
+    return minimum_size ? back_->GetMinimumSize() : back_->GetPreferredSize();
+  }
+  const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+  return gfx::Size(size, size);
 }
 
 BEGIN_METADATA(ToolbarView)

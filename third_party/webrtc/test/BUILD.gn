@@ -244,7 +244,6 @@ rtc_library("video_test_common") {
     ":fileutils",
     ":frame_utils",
     ":test_video_capturer",
-    "../api:array_view",
     "../api:create_frame_generator",
     "../api:fec_controller_api",
     "../api:frame_generator_api",
@@ -356,7 +355,6 @@ rtc_library("rtp_test_utils") {
   ]
 
   deps = [
-    "../api:array_view",
     "../api:rtp_parameters",
     "../modules/rtp_rtcp",
     "../modules/rtp_rtcp:rtp_rtcp_format",
@@ -381,7 +379,6 @@ rtc_library("perf_test") {
     "testsupport/perf_test_result_writer.h",
   ]
   deps = [
-    "../api:array_view",
     "../api/numerics",
     "../rtc_base:checks",
     "../rtc_base:criticalsection",
@@ -515,7 +512,6 @@ rtc_library("video_frame_writer") {
   ]
 
   deps = [
-    "../api:array_view",
     "../api:scoped_refptr",
     "../api/test/video:video_frame_writer",
     "../api/video:video_frame",
@@ -741,7 +737,6 @@ if (rtc_include_tests) {
         ":video_test_support",
         ":wait_until",
         ":y4m_frame_generator",
-        "../api:array_view",
         "../api:create_frame_generator",
         "../api:create_simulcast_test_fixture_api",
         "../api:create_time_controller",
@@ -799,6 +794,7 @@ if (rtc_include_tests) {
         "../rtc_base/synchronization:mutex",
         "../rtc_base/system:file_wrapper",
         "../system_wrappers",
+        "fuzzers:fuzz_data_helper_unittest",
         "jitter:jitter_unittests",
         "pc/e2e:e2e_unittests",
         "pc/e2e/analyzer/video:video_analyzer_unittests",
@@ -1007,7 +1003,6 @@ rtc_library("direct_transport") {
     "direct_transport.h",
   ]
   deps = [
-    "../api:array_view",
     "../api:rtp_headers",
     "../api:rtp_parameters",
     "../api:sequence_checker",
@@ -1083,10 +1078,7 @@ rtc_library("null_transport") {
     "null_transport.cc",
     "null_transport.h",
   ]
-  deps = [
-    "../api:array_view",
-    "../api:transport_api",
-  ]
+  deps = [ "../api:transport_api" ]
 }
 
 rtc_library("encoder_settings") {
@@ -1152,7 +1144,6 @@ rtc_library("mock_transport") {
   ]
   deps = [
     ":test_support",
-    "../api:array_view",
     "../api:transport_api",
   ]
 }
@@ -1185,7 +1176,6 @@ rtc_library("video_frame_matcher") {
   ]
   deps = [
     ":test_support",
-    "../api:array_view",
     "../api:scoped_refptr",
     "../api/video:video_frame",
     "../rtc_base:checks",
@@ -1280,7 +1270,6 @@ rtc_library("audio_codec_mocks") {
 
   deps = [
     ":test_support",
-    "../api:array_view",
     "../api:make_ref_counted",
     "../api:scoped_refptr",
     "../api/audio_codecs:audio_codecs_api",
@@ -1302,7 +1291,6 @@ if (!build_with_chromium) {
       "testsupport/copy_to_file_audio_capturer.h",
     ]
     deps = [
-      "../api:array_view",
       "../common_audio",
       "../modules/audio_device:test_audio_device_module",
       "../rtc_base:buffer",
@@ -1358,7 +1346,6 @@ if (!build_with_chromium) {
       ":video_test_common",
       ":video_test_constants",
       "..//test/network:simulated_network",
-      "../api:array_view",
       "../api:create_frame_generator",
       "../api:fec_controller_api",
       "../api:field_trials",
@@ -1509,7 +1496,6 @@ rtc_library("video_codec_tester") {
   deps = [
     ":video_frame_writer",
     ":video_test_support",
-    "../api:array_view",
     "../api:create_frame_generator",
     "../api:field_trials_view",
     "../api:frame_generator_api",

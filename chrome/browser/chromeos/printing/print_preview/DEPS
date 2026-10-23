@@ -13,7 +13,6 @@ include_rules = [
   # refactor chromeos codes in //chrome to break these dependencies; see
   # b/332804822. Whenever possible, avoid adding new //chrome dependencies to
   # this list.
-  "+chrome/browser/ash/crosapi",
   "+chrome/browser/ash/printing/print_preview",
   "+chrome/browser/printing",
   "+chrome/browser/ui/browser_commands.h",
@@ -22,3 +21,12 @@ include_rules = [
   "+chrome/common",
   "+chrome/test",
 ]
+
+specific_include_rules = {
+  "print_view_manager_cros_browsertest\\.cc": [
+    "+ash/webui/print_preview_cros/url_constants.h",
+    "+chrome/browser/ash/browser_delegate/browser_controller.h",
+    "+chrome/browser/ash/browser_delegate/browser_delegate.h",
+    "+chrome/browser/ui/webui/ash/system_web_dialog/system_web_dialog_delegate.h",
+  ],
+}

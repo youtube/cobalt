@@ -257,6 +257,8 @@ source_set("web_applications") {
     "model/localized_text.h",
     "model/migration_behavior.cc",
     "model/migration_behavior.h",
+    "model/migration_source.cc",
+    "model/migration_source.h",
     "model/pending_migration_info.cc",
     "model/pending_migration_info.h",
     "model/web_app_comparison.cc",
@@ -1005,6 +1007,7 @@ source_set("web_applications_unit_tests") {
     "isolated_web_apps/policy/isolated_web_app_external_install_options_unittest.cc",
     "isolated_web_apps/policy/isolated_web_app_installer_unittest.cc",
     "isolated_web_apps/policy/isolated_web_app_policy_manager_unittest.cc",
+    "isolated_web_apps/runtime_data/iwa_entitlements_unittest.cc",
     "isolated_web_apps/signed_web_bundle_metadata_unittest.cc",
     "isolated_web_apps/test/isolated_web_app_test.cc",
     "isolated_web_apps/test/isolated_web_app_test.h",
@@ -1225,6 +1228,7 @@ source_set("web_applications_browser_tests") {
     "commands/fetch_manifest_and_update_command_browsertest.cc",
     "commands/install_from_info_command_browsertest.cc",
     "commands/install_from_sync_command_browsertest.cc",
+    "commands/install_migrate_to_app_command_browsertest.cc",
     "commands/launch_web_app_command_browsertest.cc",
     "commands/manifest_silent_update_command_browsertest.cc",
     "commands/navigate_and_trigger_install_dialog_command_browsertest.cc",
@@ -1304,6 +1308,10 @@ source_set("web_applications_browser_tests") {
     sources += [
       "os_integration/web_app_file_handler_registration_linux_browsertest.cc",
     ]
+  }
+
+  if (is_win || is_linux || is_mac) {
+    sources += [ "os_integration/shortcut_sub_manager_browsertest.cc" ]
   }
 
   if (is_mac) {

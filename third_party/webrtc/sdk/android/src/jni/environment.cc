@@ -27,6 +27,10 @@ void JNI_Environment_Free(JNIEnv* /*env*/, jlong webrtcEnv) {
   delete reinterpret_cast<Environment*>(webrtcEnv);
 }
 
+jlong JNI_Environment_CurrentTimeNanos(JNIEnv* env, jlong webrtcEnv) {
+  return reinterpret_cast<Environment*>(webrtcEnv)->clock().CurrentTime().ns();
+}
+
 jlong JNI_Environment_Create(JNIEnv* env,
                              const jni_zero::JavaRef<jstring>& fieldTrials) {
   std::unique_ptr<FieldTrialsView> field_trials;

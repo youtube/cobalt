@@ -6,6 +6,37 @@
 
 namespace mojo {
 
+namespace {
+
+using RedirectBehavior = network::ConnectionAllowlist::RedirectBehavior;
+using WebRtcBehavior = network::ConnectionAllowlist::WebRtcBehavior;
+
+RedirectBehavior MojomToNativeRedirectBehavior(
+    network::mojom::RedirectBehavior mojom_behavior) {
+  switch (mojom_behavior) {
+    case network::mojom::RedirectBehavior::kAllow:
+      return RedirectBehavior::kAllow;
+    case network::mojom::RedirectBehavior::kBlock:
+      return RedirectBehavior::kBlock;
+    default:
+      NOTREACHED();
+  }
+}
+
+WebRtcBehavior MojomToNativeWebRtcBehavior(
+    network::mojom::WebRtcBehavior mojom_behavior) {
+  switch (mojom_behavior) {
+    case network::mojom::WebRtcBehavior::kAllow:
+      return WebRtcBehavior::kAllow;
+    case network::mojom::WebRtcBehavior::kBlock:
+      return WebRtcBehavior::kBlock;
+    default:
+      NOTREACHED();
+  }
+}
+
+}  // namespace
+
 // static
 bool StructTraits<network::mojom::ConnectionAllowlistDataView,
                   network::ConnectionAllowlist>::
@@ -16,6 +47,11 @@ bool StructTraits<network::mojom::ConnectionAllowlistDataView,
       !data.ReadIssues(&out->issues)) {
     return false;
   }
+
+  out->redirect_behavior =
+      MojomToNativeRedirectBehavior(data.redirect_behavior());
+  out->webrtc_behavior = MojomToNativeWebRtcBehavior(data.webrtc_behavior());
+
   return true;
 }
 

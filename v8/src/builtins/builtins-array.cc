@@ -368,6 +368,7 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.fill
 BUILTIN(ArrayPrototypeFill) {
   HandleScope scope(isolate);
 
@@ -499,6 +500,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.push
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
@@ -545,7 +547,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPushVararg(
       args.smi_value_at(nargs - SuperSpreadArgs::kArglistLengthOffsetFromEnd);
   int stack_arg_count = nargs - SuperSpreadArgs::kNumExtraArgs;
 
-  CHECK_GE(arglist->length(), args_length);
+  CHECK_GE(arglist->length().value(), static_cast<uint32_t>(args_length));
 
   uint32_t total_args = stack_arg_count + args_length;
   auto element_provider = [&](uint32_t i) -> DirectHandle<Object> {
@@ -619,6 +621,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
 
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.pop
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
@@ -736,6 +739,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
 }
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-array.prototype.shift
 BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
 
@@ -768,6 +772,7 @@ BUILTIN(ArrayShift) {
   return GenericArrayShift(isolate, receiver, length);
 }
 
+// https://tc39.es/ecma262/#sec-array.prototype.unshift
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
   DCHECK(IsJSArray(*args.receiver()));

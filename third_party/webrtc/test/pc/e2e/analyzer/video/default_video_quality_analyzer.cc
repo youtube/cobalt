@@ -17,13 +17,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/rtp_packet_info.h"
 #include "api/test/metrics/metric.h"
@@ -150,7 +150,7 @@ DefaultVideoQualityAnalyzer::~DefaultVideoQualityAnalyzer() {
 }
 
 void DefaultVideoQualityAnalyzer::Start(std::string test_case_name,
-                                        ArrayView<const std::string> peer_names,
+                                        std::span<const std::string> peer_names,
                                         int max_threads_count) {
   test_label_ = std::move(test_case_name);
   frames_comparator_.Start(max_threads_count);

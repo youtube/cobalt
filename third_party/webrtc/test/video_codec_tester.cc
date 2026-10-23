@@ -23,6 +23,7 @@
 #include <numeric>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -31,7 +32,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
@@ -587,7 +587,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
 
       Frame superframe = subframes.back();
       for (const Frame& frame :
-           ArrayView<Frame>(subframes).subspan(0, subframes.size() - 1)) {
+           std::span<Frame>(subframes).subspan(0, subframes.size() - 1)) {
         superframe.decoded |= frame.decoded;
         superframe.encoded |= frame.encoded;
         superframe.frame_size += frame.frame_size;

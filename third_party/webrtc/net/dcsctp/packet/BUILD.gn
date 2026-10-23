@@ -47,7 +47,9 @@ rtc_source_set("data") {
 rtc_library("crc32c") {
   deps = [
     "../../../api:array_view",
-    "//third_party/crc32c",
+    "//third_party/abseil-cpp/absl/crc:crc32c",
+    "//third_party/abseil-cpp/absl/numeric:bits",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
   sources = [
     "crc32c.cc",

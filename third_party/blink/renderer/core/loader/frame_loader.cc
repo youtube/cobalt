@@ -238,11 +238,13 @@ void FrameLoader::Trace(Visitor* visitor) const {
   visitor->Trace(document_loader_);
 }
 
-void FrameLoader::Init(const DocumentToken& document_token,
-                       std::unique_ptr<PolicyContainer> policy_container,
-                       const StorageKey& storage_key,
-                       ukm::SourceId document_ukm_source_id,
-                       const KURL& creator_base_url) {
+void FrameLoader::Init(
+    const DocumentToken& document_token,
+    std::unique_ptr<PolicyContainer> policy_container,
+    const StorageKey& storage_key,
+    ukm::SourceId document_ukm_source_id,
+    const KURL& creator_base_url,
+    std::unique_ptr<base::UnguessableToken> sandbox_origin_token) {
   DCHECK(policy_container);
   ScriptForbiddenScope forbid_scripts;
 
@@ -257,6 +259,15 @@ void FrameLoader::Init(const DocumentToken& document_token,
   navigation_params->frame_policy =
       frame_->Owner() ? frame_->Owner()->GetFramePolicy() : FramePolicy();
   navigation_params->document_ukm_source_id = document_ukm_source_id;
+  if (base::FeatureList::IsEnabled(
+          blink::features::kUseSandboxTokenForOriginDerivation)) {
+    if ((policy_container->GetPolicies().sandbox_flags &
+         network::mojom::blink::WebSandboxFlags::kOrigin) !=
+        network::mojom::blink::WebSandboxFlags::kNone) {
+      CHECK(sandbox_origin_token);
+      navigation_params->sandbox_origin_token = std::move(sandbox_origin_token);
+    }
+  }
 
   DocumentLoader* new_document_loader = MakeGarbageCollected<DocumentLoader>(
       frame_, kWebNavigationTypeOther, std::move(navigation_params),
@@ -1561,7 +1572,7 @@ bool FrameLoader::ShouldPerformFragmentNavigation(bool is_form_submission,
   // We don't do this if we are submitting a form with method other than "GET",
   // explicitly reloading, currently displaying a frameset, or if the URL does
   // not have a fragment.
-  return EqualIgnoringASCIICase(http_method, http_names::kGET) &&
+  return EqualIgnoringAsciiCase(http_method, http_names::kGET) &&
          !IsReloadLoadType(load_type) && !IsBackForwardOrRestore(load_type) &&
          url.HasFragmentIdentifier() &&
          // For provisional LocalFrame, there is no real document loaded and

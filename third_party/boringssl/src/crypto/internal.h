@@ -620,67 +620,74 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 
 // Locks.
 
+// A Mutex is a read/write lock. It can be constant-initialized, but has a
+// destructor. To allocate a global one, use StaticMutex, which skips the
+// destructor.
+class OPENSSL_EXPORT StaticMutex {
+ public:
+  constexpr StaticMutex() = default;
+  StaticMutex(const StaticMutex &) = delete;
+  StaticMutex &operator=(const StaticMutex &) = delete;
+
+  // LockRead locks the mutex such that other threads may also have a read lock,
+  // but none may have a write lock.
+  void LockRead();
+  // UnlockRead releases a read lock.
+  void UnlockRead();
+
+  // LockWrite locks the mutex such that no other thread has any type of lock on
+  // it.
+  void LockWrite();
+  // UnlockWrite releases a write lock.
+  void UnlockWrite();
+
+protected:
 #if !defined(OPENSSL_THREADS)
-typedef struct crypto_mutex_st {
-  char padding;  // Empty structs have different sizes in C and C++.
-} CRYPTO_MUTEX;
-#define CRYPTO_MUTEX_INIT {0}
+  // Nothing.
 #elif defined(OPENSSL_WINDOWS_THREADS)
-typedef SRWLOCK CRYPTO_MUTEX;
-#define CRYPTO_MUTEX_INIT SRWLOCK_INIT
+  SRWLOCK lock_ = SRWLOCK_INIT;
 #elif defined(OPENSSL_PTHREADS)
-typedef pthread_rwlock_t CRYPTO_MUTEX;
-#define CRYPTO_MUTEX_INIT PTHREAD_RWLOCK_INITIALIZER
+  pthread_rwlock_t lock_ = PTHREAD_RWLOCK_INITIALIZER;
 #else
 #error "Unknown threading library"
 #endif
+};
 
-// CRYPTO_MUTEX_init initialises |lock|. If |lock| is a static variable, use a
-// |CRYPTO_MUTEX_INIT|.
-OPENSSL_EXPORT void CRYPTO_MUTEX_init(CRYPTO_MUTEX *lock);
-
-// CRYPTO_MUTEX_lock_read locks |lock| such that other threads may also have a
-// read lock, but none may have a write lock.
-OPENSSL_EXPORT void CRYPTO_MUTEX_lock_read(CRYPTO_MUTEX *lock);
-
-// CRYPTO_MUTEX_lock_write locks |lock| such that no other thread has any type
-// of lock on it.
-OPENSSL_EXPORT void CRYPTO_MUTEX_lock_write(CRYPTO_MUTEX *lock);
-
-// CRYPTO_MUTEX_unlock_read unlocks |lock| for reading.
-OPENSSL_EXPORT void CRYPTO_MUTEX_unlock_read(CRYPTO_MUTEX *lock);
-
-// CRYPTO_MUTEX_unlock_write unlocks |lock| for writing.
-OPENSSL_EXPORT void CRYPTO_MUTEX_unlock_write(CRYPTO_MUTEX *lock);
-
-// CRYPTO_MUTEX_cleanup releases all resources held by |lock|.
-OPENSSL_EXPORT void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX *lock);
+class OPENSSL_EXPORT Mutex  : public StaticMutex {
+ public:
+  constexpr Mutex() = default;
+  ~Mutex();
+};
 
 namespace internal {
 
-// MutexLockBase is a RAII helper for CRYPTO_MUTEX locking.
-template <void (*LockFunc)(CRYPTO_MUTEX *), void (*ReleaseFunc)(CRYPTO_MUTEX *)>
+// MutexLockBase is a RAII helper for Mutex locking.
+template <void (StaticMutex::*LockMethod)(),
+          void (StaticMutex::*ReleaseMethod)()>
 class MutexLockBase {
  public:
-  explicit MutexLockBase(CRYPTO_MUTEX *mu) : mu_(mu) {
+  explicit MutexLockBase(StaticMutex *mu) : mu_(mu) {
     assert(mu_ != nullptr);
-    LockFunc(mu_);
+    (mu_->*LockMethod)();
   }
-  ~MutexLockBase() { ReleaseFunc(mu_); }
-  MutexLockBase(const MutexLockBase<LockFunc, ReleaseFunc> &) = delete;
-  MutexLockBase &operator=(const MutexLockBase<LockFunc, ReleaseFunc> &) =
-      delete;
+  ~MutexLockBase() { (mu_->*ReleaseMethod)(); }
+  MutexLockBase(const MutexLockBase &) = delete;
+  MutexLockBase &operator=(const MutexLockBase &) = delete;
 
  private:
-  CRYPTO_MUTEX *const mu_;
+  StaticMutex *const mu_;
 };
 
 }  // namespace internal
 
 using MutexWriteLock =
-    internal::MutexLockBase<CRYPTO_MUTEX_lock_write, CRYPTO_MUTEX_unlock_write>;
+    internal::MutexLockBase<&StaticMutex::LockWrite, &StaticMutex::UnlockWrite>;
 using MutexReadLock =
-    internal::MutexLockBase<CRYPTO_MUTEX_lock_read, CRYPTO_MUTEX_unlock_read>;
+    internal::MutexLockBase<&StaticMutex::LockRead, &StaticMutex::UnlockRead>;
+using MutexWriteUnlock =
+    internal::MutexLockBase<&StaticMutex::UnlockWrite, &StaticMutex::LockWrite>;
+using MutexReadUnlock =
+    internal::MutexLockBase<&StaticMutex::UnlockRead, &StaticMutex::LockRead>;
 
 
 // Thread local storage.
@@ -733,33 +740,32 @@ struct crypto_ex_data_st {
 
 BSSL_NAMESPACE_BEGIN
 
-typedef struct crypto_ex_data_func_st CRYPTO_EX_DATA_FUNCS;
+struct ExDataFuncs;
 
-// CRYPTO_EX_DATA_CLASS tracks the ex_indices registered for a type which
+// ExDataClass tracks the ex_indices registered for a type which
 // supports ex_data. It should defined as a static global within the module
 // which defines that type.
-typedef struct {
-  CRYPTO_MUTEX lock;
-  // funcs is a linked list of |CRYPTO_EX_DATA_FUNCS| structures. It may be
-  // traversed without serialization only up to |num_funcs|. last points to the
-  // final entry of |funcs|, or NULL if empty.
-  CRYPTO_EX_DATA_FUNCS *funcs, *last;
+struct ExDataClass {
+  explicit constexpr ExDataClass(bool with_app_data = false)
+      : num_reserved(with_app_data ? 1 : 0) {}
+
+  StaticMutex lock;
+  // funcs is a linked list of |ExDataFuncs| structures. It may be traversed
+  // without serialization only up to |num_funcs|. last points to the final
+  // entry of |funcs|, or nullptr if empty.
+  ExDataFuncs *funcs = nullptr, *last = nullptr;
   // num_funcs is the number of entries in |funcs|.
-  Atomic<uint32_t> num_funcs;
+  Atomic<uint32_t> num_funcs = 0;
   // num_reserved is one if the ex_data index zero is reserved for legacy
   // |TYPE_get_app_data| functions.
-  uint8_t num_reserved;
-} CRYPTO_EX_DATA_CLASS;
-
-#define CRYPTO_EX_DATA_CLASS_INIT {CRYPTO_MUTEX_INIT, nullptr, nullptr, {}, 0}
-#define CRYPTO_EX_DATA_CLASS_INIT_WITH_APP_DATA \
-  {CRYPTO_MUTEX_INIT, nullptr, nullptr, {}, 1}
+  uint8_t num_reserved = 0;
+};
 
 // CRYPTO_get_ex_new_index_ex allocates a new index for |ex_data_class|. Each
 // class of object should provide a wrapper function that uses the correct
-// |CRYPTO_EX_DATA_CLASS|. It returns the new index on success and -1 on error.
+// |ExDataClass|. It returns the new index on success and -1 on error.
 OPENSSL_EXPORT int CRYPTO_get_ex_new_index_ex(
-    CRYPTO_EX_DATA_CLASS *ex_data_class, long argl, void *argp,
+    ExDataClass *ex_data_class, long argl, void *argp,
     CRYPTO_EX_free *free_func);
 
 // CRYPTO_set_ex_data sets an extra data pointer on a given object. Each class
@@ -775,7 +781,7 @@ OPENSSL_EXPORT void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int index);
 OPENSSL_EXPORT void CRYPTO_new_ex_data(CRYPTO_EX_DATA *ad);
 
 // CRYPTO_free_ex_data frees |ad|, which is an object of the given class.
-OPENSSL_EXPORT void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
+OPENSSL_EXPORT void CRYPTO_free_ex_data(ExDataClass *ex_data_class,
                                         CRYPTO_EX_DATA *ad);
 
 

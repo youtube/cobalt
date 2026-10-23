@@ -23,9 +23,11 @@
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
 
+namespace webrtc {
+
 namespace {
 
-float Power(webrtc::ArrayView<const float> input) {
+float Power(ArrayView<const float> input) {
   if (input.empty()) {
     return 0.f;
   }
@@ -41,8 +43,6 @@ constexpr float kAlpha = 0.001f;
 constexpr size_t kAggregationBufferSize = 10 * 100;
 
 }  // namespace
-
-namespace webrtc {
 
 std::atomic<int> ResidualEchoDetector::instance_count_(0);
 

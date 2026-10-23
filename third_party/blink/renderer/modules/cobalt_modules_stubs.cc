@@ -146,6 +146,7 @@ STUB_V8_WRAPPER(V8MLTensor)
 STUB_V8_WRAPPER(V8MLContext)
 
 // AI V8 Wrappers
+STUB_V8_WRAPPER(V8Classifier)
 STUB_V8_WRAPPER(V8CreateMonitor)
 STUB_V8_WRAPPER(V8LanguageModel)
 STUB_V8_WRAPPER(V8LanguageModelParams)

@@ -18,13 +18,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -349,7 +349,7 @@ void VideoReceiveStream2::SignalNetworkState(NetworkState state) {
   rtp_video_stream_receiver_.SignalNetworkState(state);
 }
 
-bool VideoReceiveStream2::DeliverRtcp(ArrayView<const uint8_t> packet) {
+bool VideoReceiveStream2::DeliverRtcp(std::span<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   return rtp_video_stream_receiver_.DeliverRtcp(packet);
 }

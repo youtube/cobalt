@@ -13,8 +13,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/video/video_codec_type.h"
 #include "rtc_base/checks.h"
 
@@ -23,7 +23,7 @@ namespace webrtc {
 std::optional<uint32_t> GenericQpParser::Parse(
     VideoCodecType codec_type,
     size_t spatial_idx,
-    ArrayView<const uint8_t> frame_data,
+    std::span<const uint8_t> frame_data,
     int operating_point) {
   if (codec_type != kVideoCodecAV1) {
     return non_av1_parsers_.Parse(codec_type, spatial_idx, frame_data.data(),

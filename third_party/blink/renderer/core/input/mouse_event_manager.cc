@@ -262,7 +262,7 @@ MouseEventManager::DispatchMouseEvent(
         HTMLDialogElement::HandleDialogLightDismissForClick(
             *pointer_down_target, *pointer_up_target);
       }
-      EventTiming event_timing(frame_, *event, target);
+      UIEventTiming event_timing(frame_, *event, target);
       if (should_dispatch) {
         input_event_result = event_handling_util::ToWebInputEventResult(
             target->DispatchEvent(*event));
@@ -278,7 +278,7 @@ MouseEventManager::DispatchMouseEvent(
           mouse_event.FromTouch() ? MouseEvent::kFromTouch
                                   : MouseEvent::kRealOrIndistinguishable,
           mouse_event.menu_source_type);
-      EventTiming event_timing(frame_, *event, target);
+      UIEventTiming event_timing(frame_, *event, target);
       if (should_dispatch) {
         input_event_result = event_handling_util::ToWebInputEventResult(
             target->DispatchEvent(*event));
@@ -385,8 +385,13 @@ void MouseEventManager::RecomputeMouseHoverState() {
   if (!view)
     return;
 
-  if (!frame_->GetPage() || !frame_->GetPage()->GetFocusController().IsActive())
+  const bool should_page_receive_mouse_hover =
+      frame_->GetPage() &&
+      (RuntimeEnabledFeatures::SyntheticMouseHoverOverInactivePageEnabled() ||
+       frame_->GetPage()->GetFocusController().IsActive());
+  if (!should_page_receive_mouse_hover) {
     return;
+  }
 
   // Don't dispatch a synthetic mouse move event if the mouse cursor is not
   // visible to the user.

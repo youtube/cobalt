@@ -2837,39 +2837,52 @@ void Context::getTexParameterivRobust(TextureType targetPacked,
     }
 }
 
-void Context::getTexLevelParameteriv(TextureTarget target, GLint level, GLenum pname, GLint *params)
+void Context::getTexLevelParameteriv(TextureTarget targetPacked,
+                                     GLint level,
+                                     TextureImageParameter pnamePacked,
+                                     GLint *params)
 {
-    Texture *texture = getTextureByTarget(target);
-    QueryTexLevelParameteriv(texture, target, level, pname, params);
+    Texture *texture = getTextureByTarget(targetPacked);
+    QueryTexLevelParameteriv(texture, targetPacked, level, pnamePacked, params);
 }
 
-void Context::getTexLevelParameterivRobust(TextureTarget target,
+void Context::getTexLevelParameterivRobust(TextureTarget targetPacked,
                                            GLint level,
-                                           GLenum pname,
+                                           TextureImageParameter pnamePacked,
                                            GLsizei paramCount,
                                            GLsizei *length,
                                            GLint *params)
 {
-    UNIMPLEMENTED();
+    getTexLevelParameteriv(targetPacked, level, pnamePacked, params);
+
+    if (length != nullptr)
+    {
+        *length = 1;
+    }
 }
 
-void Context::getTexLevelParameterfv(TextureTarget target,
+void Context::getTexLevelParameterfv(TextureTarget targetPacked,
                                      GLint level,
-                                     GLenum pname,
+                                     TextureImageParameter pnamePacked,
                                      GLfloat *params)
 {
-    Texture *texture = getTextureByTarget(target);
-    QueryTexLevelParameterfv(texture, target, level, pname, params);
+    Texture *texture = getTextureByTarget(targetPacked);
+    QueryTexLevelParameterfv(texture, targetPacked, level, pnamePacked, params);
 }
 
-void Context::getTexLevelParameterfvRobust(TextureTarget target,
+void Context::getTexLevelParameterfvRobust(TextureTarget targetPacked,
                                            GLint level,
-                                           GLenum pname,
+                                           TextureImageParameter pnamePacked,
                                            GLsizei paramCount,
                                            GLsizei *length,
                                            GLfloat *params)
 {
-    UNIMPLEMENTED();
+    getTexLevelParameterfv(targetPacked, level, pnamePacked, params);
+
+    if (length != nullptr)
+    {
+        *length = 1;
+    }
 }
 
 void Context::texParameterf(TextureType targetPacked, GLenum pname, GLfloat param)
@@ -9136,8 +9149,13 @@ void Context::endPixelLocalStorage(GLsizei n, const GLenum storeops[])
 
 void Context::endPixelLocalStorageImplicit()
 {
+    // Ends the currently active pixel local storage session with GL_STORE_OP_STORE on all planes.
     GLsizei n = mState.getPixelLocalStorageActivePlanes();
-    ASSERT(n != 0);
+    if (n == 0)
+    {
+        // This command may be called when PLS is not active.
+        return;
+    }
     angle::FixedVector<GLenum, IMPLEMENTATION_MAX_PIXEL_LOCAL_STORAGE_PLANES> storeops(
         n, GL_STORE_OP_STORE_ANGLE);
     endPixelLocalStorage(n, storeops.data());
@@ -9189,6 +9207,11 @@ void Context::getFramebufferPixelLocalStorageParameteriv(GLint plane, GLenum pna
     QueryFramebufferPixelLocalStorageParameteriv(this, plane, pname, nullptr, params);
 }
 
+void Context::getFramebufferPixelLocalStorageParameteruiv(GLint plane, GLenum pname, GLuint *params)
+{
+    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pname, nullptr, params);
+}
+
 void Context::getFramebufferPixelLocalStorageParameterfvRobust(GLint plane,
                                                                GLenum pname,
                                                                GLsizei paramCount,
@@ -9205,6 +9228,15 @@ void Context::getFramebufferPixelLocalStorageParameterivRobust(GLint plane,
                                                                GLint *params)
 {
     QueryFramebufferPixelLocalStorageParameteriv(this, plane, pname, length, params);
+}
+
+void Context::getFramebufferPixelLocalStorageParameteruivRobust(GLint plane,
+                                                                GLenum pname,
+                                                                GLsizei paramCount,
+                                                                GLsizei *length,
+                                                                GLuint *params)
+{
+    QueryFramebufferPixelLocalStorageParameteruiv(this, plane, pname, length, params);
 }
 
 void Context::eGLImageTargetTexStorage(GLenum target, egl::ImageID image, const GLint *attrib_list)

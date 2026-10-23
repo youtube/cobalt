@@ -380,8 +380,7 @@ void AecState::FilterDelay::Update(
     const std::optional<DelayEstimate>& external_delay,
     size_t blocks_with_proper_filter_adaptation) {
   // Update the delay based on the external delay.
-  if (external_delay &&
-      (!external_delay_ || external_delay_->delay != external_delay->delay)) {
+  if (external_delay) {
     external_delay_ = external_delay;
   }
 

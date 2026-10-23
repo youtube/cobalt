@@ -31,11 +31,13 @@
 #include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/stats/rtcstats_objects.h"
 #include "api/test/rtc_error_matchers.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_info.h"
 #include "pc/media_session.h"
+#include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
@@ -61,6 +63,8 @@ namespace webrtc {
 using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 using ::testing::Combine;
 using ::testing::ElementsAre;
+using ::testing::NotNull;
+using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
 using ::testing::Values;
 
@@ -2377,6 +2381,37 @@ TEST_F(PeerConnectionJsepTest, BundleOnlySectionDoesNotNeedRtcpMux) {
   offer->description()->contents()[1].bundle_only = true;
 
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+}
+
+TEST_F(PeerConnectionJsepTest, RtcpMuxNotNegotiated) {
+  RTCConfiguration config;
+  // Non-standard as `require` is the only standardized value but we can not
+  // remove support for non-mux.
+  config.rtcp_mux_policy =
+      PeerConnection::RtcpMuxPolicy::kRtcpMuxPolicyNegotiate;
+  auto caller = CreatePeerConnection(config);
+  auto callee = CreatePeerConnection(config);
+  caller->AddTransceiver(MediaType::AUDIO);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
+  ASSERT_THAT(offer->description()->contents(), SizeIs(1));
+  // Remove BUNDLE and rtcp-mux.
+  offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
+  offer->description()->contents()[0].media_description()->set_rtcp_mux(false);
+
+  EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
+  EXPECT_THAT(answer, NotNull());
+  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+
+  auto report = caller->GetStats();
+  ASSERT_THAT(report, NotNull());
+
+  std::vector<const RTCTransportStats*> transports =
+      report->GetStatsOfType<RTCTransportStats>();
+  EXPECT_THAT(transports, SizeIs(2));
 }
 
 // This test is a regression test for crbug.com/410960672

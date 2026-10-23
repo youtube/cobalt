@@ -28,6 +28,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> वापरून Gmail किंवा YouTube सारख्या Google सेवांमध्ये साइन इन करताना, तुम्ही तेच खाते वापरून Chromium मध्ये आपोआप साइन इन करू शकता</translation>
 <translation id="1290883685122687410">सेटअप एरर: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">तुमची नवीन Chromium प्रोफाइल सेट करा</translation>
+<translation id="132092532143527429">Chromium मधील Gemini वापरून पहा</translation>
 <translation id="1324107359134968521">ब्लूटूथ डिव्हाइस एक्सप्लोर करण्यासाठी Chromium ला 
  ब्लूटूथ चा ॲक्सेस हवा आहे. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">भाषा डिटेक्ट करा</translation>
@@ -376,7 +377,6 @@
 <translation id="5174969993834422967">तुम्ही सहसा सूचना ब्लॉक करता. या साइटला तुम्हाला सूचित करू देण्यासाठी, तुमच्या स्थान बारच्या उजव्या कोपऱ्यातील नोटिफिकेशन आयकनवर क्लिक करा.</translation>
 <translation id="5174983315706567306">डिस्कमधील जागा पुरेशी नाही.</translation>
 <translation id="5187123684706427865">Chromium खात्यासाठी री-ऑथेंटिकेशन आवश्यक आहे</translation>
-<translation id="5219681158518957165">शिफारस केलेली ब्राउझर सेटिंग्ज वापरा</translation>
 <translation id="5224391634244552924">सेव्ह केलेले पासवर्ड नाहीत. तुम्ही तुमचे पासवर्ड सेव्ह केल्यावर Chromium ते तपासू शकते.</translation>
 <translation id="5231355151045086930">Chromium मधून साइन आउट करा</translation>
 <translation id="5234764350956374838">डिसमिस करा</translation>
@@ -591,7 +591,8 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="7413153308467572558">तुम्ही सोडले होते तिथून पुढे सुरू ठेवा: तुम्ही रीस्टार्ट करता, तेव्हा प्रत्येक वेळी Chromium तुमचे टॅब रिस्टोअर करते. हे बंद करण्यासाठी, यावर जा</translation>
 <translation id="7427879960656355200">Chromium वर पासवर्ड इंपोर्ट करा</translation>
 <translation id="744815265653811511">१. खाली <ph name="BUTTON_LABEL" /> वर क्लिक करा
-2. तुमच्या Windows सेटिंग्जमध्ये <ph name="BUTTON_2" /> वर क्लिक करा झटपट अ‍ॅक्सेससाठी Chromium तुमच्या टास्कबारवर पिन करण्याकरिता Windows नोटिफिकेशनमध्ये <ph name="BUTTON_3" /> वर क्लिक करा</translation>
+२. तुमच्या Windows सेटिंग्जमध्ये <ph name="BUTTON_2" /> वर क्लिक करा
+३. झटपट अ‍ॅक्सेससाठी Chromium तुमच्या टास्कबारवर पिन करण्याकरिता Windows नोटिफिकेशनमध्ये <ph name="BUTTON_3" /> वर क्लिक करा</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium डेव्हलपर</translation>
 <translation id="7450541714075000668">मजकूर कॉपी केला</translation>
 <translation id="7451052299415159299">या साइटसाठी Chromium ला तुमचा कॅमेरा ॲक्सेस करण्याची परवानगी हवी आहे</translation>
@@ -609,6 +610,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="7622753900276619808">तुमच्याकडे आता Chromium मध्ये आणखी वैशिष्ट्ये उपलब्ध आहेत</translation>
 <translation id="7624307931717240213">आम्ही या सेवेमध्ये सुधारणा करण्यासाठी माहिती वापरतो. गोपनीयता धोरण आणि सेवा अटी पहा.</translation>
 <translation id="7649070708921625228">मदत</translation>
+<translation id="7650134251917003571">Chromium अ‍ॅप मिळवा</translation>
 <translation id="7656340475565475526">Chromium ला तुमच्यासाठी ब्राउझ करू द्या</translation>
 <translation id="7658239707568436148">रद्द करा</translation>
 <translation id="7686590090926151193">Chromium तुमचा डीफॉल्ट ब्राउझर नाही</translation>

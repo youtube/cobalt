@@ -220,13 +220,13 @@ bool ValidateGetTexLevelParameterivANGLE(const Context *context,
                                          angle::EntryPoint entryPoint,
                                          TextureTarget targetPacked,
                                          GLint level,
-                                         GLenum pname,
+                                         TextureImageParameter pnamePacked,
                                          const GLint *params);
 bool ValidateGetTexLevelParameterfvANGLE(const Context *context,
                                          angle::EntryPoint entryPoint,
                                          TextureTarget targetPacked,
                                          GLint level,
-                                         GLenum pname,
+                                         TextureImageParameter pnamePacked,
                                          const GLfloat *params);
 
 // GL_ANGLE_instanced_arrays
@@ -735,7 +735,7 @@ bool ValidateGetTexLevelParameterivRobustANGLE(const Context *context,
                                                angle::EntryPoint entryPoint,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLsizei paramCount,
                                                const GLsizei *length,
                                                const GLint *params);
@@ -743,7 +743,7 @@ bool ValidateGetTexLevelParameterfvRobustANGLE(const Context *context,
                                                angle::EntryPoint entryPoint,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLsizei paramCount,
                                                const GLsizei *length,
                                                const GLfloat *params);
@@ -782,6 +782,13 @@ bool ValidateGetFramebufferPixelLocalStorageParameterivRobustANGLE(const Context
                                                                    GLsizei paramCount,
                                                                    const GLsizei *length,
                                                                    const GLint *params);
+bool ValidateGetFramebufferPixelLocalStorageParameteruivRobustANGLE(const Context *context,
+                                                                    angle::EntryPoint entryPoint,
+                                                                    GLint plane,
+                                                                    GLenum pname,
+                                                                    GLsizei paramCount,
+                                                                    const GLsizei *length,
+                                                                    const GLuint *params);
 
 // GL_ANGLE_robust_fragment_shader_output
 
@@ -829,6 +836,8 @@ bool ValidateEndPixelLocalStorageANGLE(const Context *context,
                                        angle::EntryPoint entryPoint,
                                        GLsizei n,
                                        const GLenum *storeops);
+bool ValidateEndPixelLocalStorageImplicitANGLE(const Context *context,
+                                               angle::EntryPoint entryPoint);
 bool ValidatePixelLocalStorageBarrierANGLE(const Context *context, angle::EntryPoint entryPoint);
 bool ValidateFramebufferPixelLocalStorageInterruptANGLE(const Context *context,
                                                         angle::EntryPoint entryPoint);
@@ -844,6 +853,11 @@ bool ValidateGetFramebufferPixelLocalStorageParameterivANGLE(const Context *cont
                                                              GLint plane,
                                                              GLenum pname,
                                                              const GLint *params);
+bool ValidateGetFramebufferPixelLocalStorageParameteruivANGLE(const Context *context,
+                                                              angle::EntryPoint entryPoint,
+                                                              GLint plane,
+                                                              GLenum pname,
+                                                              const GLuint *params);
 
 // GL_ANGLE_stencil_texturing
 

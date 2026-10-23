@@ -241,6 +241,10 @@ class MediaSendChannelInterface {
   // Called whenever the list of sending SSRCs changes.
   virtual void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) = 0;
+  // Called whenever the parameters change autonomously on the worker thread.
+  // This is used for cache invalidation on the signaling thread.
+  virtual void SetParametersChangedCallback(
+      absl::AnyInvocable<void()> callback) {}
 };
 
 class MediaReceiveChannelInterface {

@@ -376,7 +376,7 @@ void AudioRtpReceiver::SetMediaChannel(
       static_cast<VoiceMediaReceiveChannelInterface*>(media_channel);
 }
 
-void AudioRtpReceiver::NotifyFirstPacketReceived() {
+void AudioRtpReceiver::NotifyFirstPacketReceived(uint32_t ssrc) {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   if (observer_) {
     observer_->OnFirstPacketReceived(media_type());
@@ -384,7 +384,8 @@ void AudioRtpReceiver::NotifyFirstPacketReceived() {
   received_first_packet_ = true;
 }
 
-void AudioRtpReceiver::NotifyFirstPacketReceivedAfterReceptiveChange() {
+void AudioRtpReceiver::NotifyFirstPacketReceivedAfterReceptiveChange(
+    uint32_t ssrc) {
   RTC_DCHECK_RUN_ON(&signaling_thread_checker_);
   if (observer_) {
     observer_->OnFirstPacketReceivedAfterReceptiveChange(media_type());

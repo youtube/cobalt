@@ -40,7 +40,6 @@ class MockIceController : public IceControllerInterface {
               GetConnections,
               (),
               (const, override));
-  MOCK_METHOD(ArrayView<const Connection*>, connections, (), (const, override));
   MOCK_METHOD(bool, HasPingableConnection, (), (const, override));
   MOCK_METHOD(PingResult, GetConnectionToPing, (Timestamp), (override));
   MOCK_METHOD(bool,

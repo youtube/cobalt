@@ -16,12 +16,12 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/test/metrics/metrics_logger.h"
@@ -51,7 +51,7 @@ class DefaultVideoQualityAnalyzer : public VideoQualityAnalyzerInterface {
   ~DefaultVideoQualityAnalyzer() override;
 
   void Start(std::string test_case_name,
-             ArrayView<const std::string> peer_names,
+             std::span<const std::string> peer_names,
              int max_threads_count) override;
   uint16_t OnFrameCaptured(absl::string_view peer_name,
                            const std::string& stream_label,

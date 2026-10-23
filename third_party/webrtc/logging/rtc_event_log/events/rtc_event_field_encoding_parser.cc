@@ -1,4 +1,3 @@
-
 /*
  *  Copyright (c) 2021 The WebRTC project authors. All Rights Reserved.
  *
@@ -27,26 +26,26 @@
 #include "rtc_base/bitstream_reader.h"
 #include "rtc_base/checks.h"
 
+namespace webrtc {
+
 namespace {
-std::optional<webrtc::FieldType> ConvertFieldType(uint64_t value) {
+std::optional<FieldType> ConvertFieldType(uint64_t value) {
   switch (value) {
-    case static_cast<uint64_t>(webrtc::FieldType::kFixed8):
-      return webrtc::FieldType::kFixed8;
-    case static_cast<uint64_t>(webrtc::FieldType::kFixed32):
-      return webrtc::FieldType::kFixed32;
-    case static_cast<uint64_t>(webrtc::FieldType::kFixed64):
-      return webrtc::FieldType::kFixed64;
-    case static_cast<uint64_t>(webrtc::FieldType::kVarInt):
-      return webrtc::FieldType::kVarInt;
-    case static_cast<uint64_t>(webrtc::FieldType::kString):
-      return webrtc::FieldType::kString;
+    case static_cast<uint64_t>(FieldType::kFixed8):
+      return FieldType::kFixed8;
+    case static_cast<uint64_t>(FieldType::kFixed32):
+      return FieldType::kFixed32;
+    case static_cast<uint64_t>(FieldType::kFixed64):
+      return FieldType::kFixed64;
+    case static_cast<uint64_t>(FieldType::kVarInt):
+      return FieldType::kVarInt;
+    case static_cast<uint64_t>(FieldType::kString):
+      return FieldType::kString;
     default:
       return std::nullopt;
   }
 }
 }  // namespace
-
-namespace webrtc {
 
 uint64_t EventParser::ReadLittleEndian(uint8_t bytes) {
   RTC_DCHECK_LE(bytes, sizeof(uint64_t));

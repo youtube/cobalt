@@ -2257,8 +2257,9 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
 
   if (object->elements() != ReadOnlyRoots(isolate).empty_fixed_array()) {
     MAYBE_RETURN(object->GetElementsAccessor()->CollectValuesOrEntries(
-                     isolate, object, values_or_entries, get_entries, &count,
-                     ENUMERABLE_STRINGS),
+                     isolate, object, values_or_entries,
+                     static_cast<uint32_t>(number_of_own_elements), get_entries,
+                     &count, ENUMERABLE_STRINGS),
                  Nothing<bool>());
   }
 
@@ -3215,8 +3216,10 @@ void MigrateFastToFast(Isolate* isolate, DirectHandle<JSObject> object,
     int grow_by = new_map->UnusedPropertyFields() + 1;
     DirectHandle<PropertyArray> old_storage(object->property_array(isolate),
                                             isolate);
+    DCHECK_GE(grow_by, 0);
     DirectHandle<PropertyArray> new_storage =
-        isolate->factory()->CopyPropertyArrayAndGrow(old_storage, grow_by);
+        isolate->factory()->CopyPropertyArrayAndGrow(
+            old_storage, static_cast<uint32_t>(grow_by));
 
     // Properly initialize newly added property.
     DirectHandle<Object> value;

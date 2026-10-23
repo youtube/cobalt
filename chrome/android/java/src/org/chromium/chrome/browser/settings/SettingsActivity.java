@@ -46,6 +46,7 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
@@ -78,6 +79,7 @@ import org.chromium.components.browser_ui.settings.PreferenceUpdateObserver;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.util.ToolbarUtils;
 import org.chromium.components.browser_ui.util.TraceEventVectorDrawableCompat;
 import org.chromium.components.browser_ui.widget.containment.ContainmentItemController;
 import org.chromium.components.browser_ui.widget.containment.ContainmentItemDecoration;
@@ -86,9 +88,11 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.UiAndroidFeatureList;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
@@ -147,6 +151,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private Profile mProfile;
     private ScrimManager mScrimManager;
     private ManagedBottomSheetController mManagedBottomSheetController;
+    private final SettableMonotonicObservableSupplier<WindowAndroid> mWindowAndroidSupplier =
+            ObservableSuppliers.createMonotonic();
+
     private final OneshotSupplierImpl<BottomSheetController> mBottomSheetControllerSupplier =
             new OneshotSupplierImpl<>();
 
@@ -227,6 +234,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 new FragmentDependencyProvider(
                         this,
                         mProfile,
+                        mWindowAndroidSupplier,
+                        getActivityResultTracker(),
                         mSnackbarManagerSupplier,
                         mBottomSheetControllerSupplier,
                         getModalDialogManagerSupplier(),
@@ -352,6 +361,14 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 new SnackbarManager(this, getContentView(), null, null, getModalDialogManager()));
 
         mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
+        mWindowAndroidSupplier.set(
+                new ActivityWindowAndroid(
+                        this,
+                        /* listenToActivityState= */ true,
+                        mIntentRequestTracker,
+                        getInsetObserver(),
+                        /* trackOcclusion= */ true));
+
         if (isContainmentEnabled()) {
             int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
             findViewById(R.id.content).setBackgroundColor(backgroundColor);
@@ -536,6 +553,13 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         updateFirstVisibleTitle,
                         getModalDialogManagerSupplier());
         if (mMultiColumnSettings != null) {
+            if (savedState != null) {
+                // Title text view gets temporarily hidden while restoring the
+                // search UI to avoid flickering. See https://crbug.com/482952320.
+                Toolbar actionBar = findViewById(R.id.action_bar);
+                assumeNonNull(ToolbarUtils.getTitleTextView(actionBar))
+                        .setVisibility(View.INVISIBLE);
+            }
             mMultiColumnSettings.setOnCreateViewRunnable(
                     () -> assumeNonNull(mSearchCoordinator).initializeSearchUi(savedState));
             mMultiColumnSettings.addObserver(mSearchCoordinator);
@@ -885,6 +909,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 mMultiColumnSettings.removeObserver(mSearchCoordinator);
             }
             mSearchCoordinator.destroy();
+        }
+
+        WindowAndroid windowAndroid = mWindowAndroidSupplier.get();
+        mWindowAndroidSupplier.destroy();
+        if (windowAndroid != null) {
+            windowAndroid.destroy();
         }
 
         if (!mStartTimeSaved && isForMainSettings()) {

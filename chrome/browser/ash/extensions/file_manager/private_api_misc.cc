@@ -327,7 +327,7 @@ FileManagerPrivateGetPreferencesFunction::Run() {
       prefs->GetBoolean(drive::prefs::kDriveFsBulkPinningEnabled);
   result.search_suggest_enabled =
       prefs->GetBoolean(prefs::kSearchSuggestEnabled);
-  result.use24hour_clock = prefs->GetBoolean(prefs::kUse24HourClock);
+  result.use24hour_clock = prefs->GetBoolean(ash::prefs::kUse24HourClock);
   result.timezone = base::UTF16ToUTF8(
       ash::system::TimezoneSettings::GetInstance()->GetCurrentTimezoneID());
   result.arc_enabled = prefs->GetBoolean(arc::prefs::kArcEnabled);
@@ -341,15 +341,15 @@ FileManagerPrivateGetPreferencesFunction::Run() {
   }
   result.folder_shortcuts = folder_shortcuts;
   result.office_file_moved_one_drive =
-      prefs->GetTime(prefs::kOfficeFileMovedToOneDrive)
+      prefs->GetTime(ash::prefs::kOfficeFileMovedToOneDrive)
           .InMillisecondsFSinceUnixEpoch();
   result.office_file_moved_google_drive =
-      prefs->GetTime(prefs::kOfficeFileMovedToGoogleDrive)
+      prefs->GetTime(ash::prefs::kOfficeFileMovedToGoogleDrive)
           .InMillisecondsFSinceUnixEpoch();
   result.local_user_files_allowed =
       policy::local_user_files::LocalUserFilesAllowed();
-  result.default_location =
-      GetDefaultLocation(prefs->GetString(prefs::kFilesAppDefaultLocation));
+  result.default_location = GetDefaultLocation(
+      prefs->GetString(ash::prefs::kFilesAppDefaultLocation));
   result.sky_vault_migration_destination = GetSkyVaultMigrationDestination();
   result.sky_vault_migration_start_time =
       GetSkyVaultMigrationStartTime(profile);

@@ -21,5 +21,11 @@ source_set("utility") {
   deps = [
     "//base",
     "//content/public/utility",
+
+    # content_client.h (pulled in via content_utility_client.h) includes
+    # url/origin.h, which on Android includes the generated
+    # url/url_jni_headers/Origin_shared_jni.h. Depend on //url so that
+    # generated JNI header is produced before this target compiles.
+    "//url",
   ]
 }

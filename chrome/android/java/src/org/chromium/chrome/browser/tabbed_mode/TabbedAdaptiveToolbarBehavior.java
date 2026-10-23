@@ -54,6 +54,7 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
     private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final MonotonicObservableSupplier<@StripVisibilityState Integer>
             mTabStripVisibilitySupplier;
+    private final Runnable mToggleGlicCallback;
 
     public TabbedAdaptiveToolbarBehavior(
             Context context,
@@ -66,7 +67,8 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
             Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonController,
             Supplier<TabModelSelector> tabModelSelectorSupplier,
             Supplier<ModalDialogManager> modalDialogManagerSupplier,
-            MonotonicObservableSupplier<@StripVisibilityState Integer> tabStripVisibilitySupplier) {
+            MonotonicObservableSupplier<@StripVisibilityState Integer> tabStripVisibilitySupplier,
+            Runnable toggleGlicCallback) {
         mContext = context;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mTabCreatorManagerSupplier = tabCreatorManagerSupplier;
@@ -78,6 +80,7 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mTabStripVisibilitySupplier = tabStripVisibilitySupplier;
+        mToggleGlicCallback = toggleGlicCallback;
     }
 
     @Override
@@ -111,10 +114,6 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
                         AiAssistantService.getInstance(),
                         trackerSupplier);
         controller.addButtonVariant(AdaptiveToolbarButtonVariant.PAGE_SUMMARY, pageSummary);
-        if (AdaptiveToolbarFeatures.isGlicActionEnabled()) {
-            var glicButton = new GlicToolbarButtonController(mContext, mActivityTabProvider);
-            controller.addButtonVariant(AdaptiveToolbarButtonVariant.GLIC, glicButton);
-        }
         if (AdaptiveToolbarFeatures.isTabGroupingPageActionEnabled()) {
             var tabGrouping =
                     new GroupSuggestionsButtonDataProvider(
@@ -126,11 +125,22 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
             controller.addButtonVariant(AdaptiveToolbarButtonVariant.TAB_GROUPING, tabGrouping);
         }
 
+        if (AdaptiveToolbarFeatures.isGlicActionEnabled()) {
+            controller.addButtonVariant(
+                    AdaptiveToolbarButtonVariant.GLIC,
+                    new GlicToolbarButtonController(
+                            mContext, mActivityTabProvider, mToggleGlicCallback));
+        }
+
         mRegisterVoiceSearchRunnable.run();
     }
 
     @Override
     public int resultFilter(List<Integer> segmentationResults) {
+        if (AdaptiveToolbarFeatures.isGlicActionEnabled()
+                && segmentationResults.contains(AdaptiveToolbarButtonVariant.GLIC)) {
+            return AdaptiveToolbarButtonVariant.GLIC;
+        }
         return AdaptiveToolbarBehavior.defaultResultFilter(mContext, segmentationResults);
     }
 

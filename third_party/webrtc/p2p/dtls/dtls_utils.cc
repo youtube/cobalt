@@ -21,14 +21,14 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/crc32.h"
 
+namespace webrtc {
+
 namespace {
 // https://datatracker.ietf.org/doc/html/rfc5246#appendix-A.1
 const uint8_t kDtlsChangeCipherSpecRecord = 20;
 const uint8_t kDtlsHandshakeRecord = 22;
 
 }  // namespace
-
-namespace webrtc {
 
 bool IsDtlsPacket(ArrayView<const uint8_t> payload) {
   const uint8_t* u = payload.data();

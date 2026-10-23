@@ -659,6 +659,7 @@ rtc_library("rtc_audio_video") {
     "../call:rtp_interfaces",
     "../call:video_receive_stream_api",
     "../call:video_send_stream_api",
+    "../common_video",
     "../common_video:frame_counts",
     "../modules/async_audio_processing",
     "../modules/audio_mixer:audio_mixer_impl",

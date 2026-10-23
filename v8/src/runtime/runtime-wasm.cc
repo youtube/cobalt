@@ -717,12 +717,12 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
           wasm::declared_function_index(trusted_data->module(), func_index);
       trusted_data->tiering_budget_array()[array_index].store(
           v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
-    } else if (v8_flags.wasm_generate_compilation_hints ||
-               v8_flags.trace_wasm_generate_compilation_hints) {
+    } else if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
+                           v8_flags.trace_wasm_generate_compilation_hints)) {
       // In this case, we do not tierup functions. However we have to remember
       // that we marked them for tierup.
       base::MutexGuard marked_for_tierup_mutex_guard(
-          &trusted_data->module()->marked_for_tierup_mutex);
+          &trusted_data->module()->compilation_hints_mutex);
       trusted_data->module()->marked_for_tierup.emplace(func_index);
       // We call this function when the tiering budget runs out, so reset that
       // budget to appropriately delay the next call.
@@ -1344,6 +1344,18 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
+  // For now JSPI does not use the WasmStackObject, and it is only set here
+  // because it is expected by WasmFX.
+  // TODO(thibaudm): We could consider using this object for JSPI too as an
+  // indirection between the WasmSuspenderObjects and the StackMemory. This
+  // would have roughly the same benefits as for WasmFX:
+  // - We would only need to allocate and manage a single EPT entry per
+  // StackMemory,
+  // - It would be easier to track ownership of the StackMemory and ensure that
+  // there is no UAF. In particular the StackMemory could track its (unique) EPT
+  // entry via {EPT::ManagedResource} and zap it when the resource is freed.
+  target_stack->set_stack_obj(
+      *isolate->factory()->NewWasmStackObject(target_stack.get()));
 
   // Update the suspender state.
   suspender->set_parent(isolate->isolate_data()->active_suspender());

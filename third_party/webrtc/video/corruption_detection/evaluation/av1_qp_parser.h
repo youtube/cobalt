@@ -13,8 +13,8 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 
-#include "api/array_view.h"
 #include "third_party/libgav1/src/src/buffer_pool.h"
 #include "third_party/libgav1/src/src/decoder_state.h"
 #include "third_party/libgav1/src/src/obu_parser.h"
@@ -44,7 +44,7 @@ class Av1QpParser {
                      /*release_frame_buffer=*/nullptr,
                      /*callback_private_data=*/nullptr) {}
 
-  std::optional<uint32_t> Parse(ArrayView<const uint8_t> frame_data,
+  std::optional<uint32_t> Parse(std::span<const uint8_t> frame_data,
                                 int operating_point = 0);
 
  private:

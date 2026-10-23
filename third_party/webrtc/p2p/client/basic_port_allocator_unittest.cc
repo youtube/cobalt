@@ -132,26 +132,26 @@ static const char kTurnPassword[] = "test";
 // Add some margin of error for slow bots.
 static const int kStunTimeoutMs = webrtc::STUN_TOTAL_TIMEOUT;
 
+namespace webrtc {
+
 namespace {
 
 void CheckStunKeepaliveIntervalOfAllReadyPorts(
-    const webrtc::PortAllocatorSession* allocator_session,
+    const PortAllocatorSession* allocator_session,
     int expected) {
   auto ready_ports = allocator_session->ReadyPorts();
   for (const auto* port : ready_ports) {
     if (port->Type() == IceCandidateType::kSrflx ||
         (port->Type() == IceCandidateType::kHost &&
-         port->GetProtocol() == webrtc::PROTO_UDP)) {
-      EXPECT_EQ(
-          static_cast<const webrtc::UDPPort*>(port)->stun_keepalive_delay(),
-          webrtc::TimeDelta::Millis(expected));
+         port->GetProtocol() == PROTO_UDP)) {
+      EXPECT_EQ(static_cast<const UDPPort*>(port)->stun_keepalive_delay(),
+                TimeDelta::Millis(expected));
     }
   }
 }
 
 }  // namespace
 
-namespace webrtc {
 
 class BasicPortAllocatorTestBase : public ::testing::Test {
  public:

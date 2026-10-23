@@ -15,10 +15,10 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -83,7 +83,7 @@ class CallTest : public ::testing::Test, public RtpPacketSinkInterface {
 
   void RegisterRtpExtension(const RtpExtension& extension);
   // Returns header extensions that can be parsed by the transport.
-  ArrayView<const RtpExtension> GetRegisteredExtensions() {
+  std::span<const RtpExtension> GetRegisteredExtensions() {
     return rtp_extensions_;
   }
 

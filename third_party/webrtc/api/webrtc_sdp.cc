@@ -2437,11 +2437,26 @@ void UpdateFromWildcardCodecs(MediaContentDescription* desc) {
   for (auto& codec : codecs) {
     AddFeedbackParameters(wildcard_codec->feedback_params, &codec);
   }
-  // Special treatment for transport-wide feedback params.
-  if (wildcard_codec->feedback_params.Has({"ack", "ccfb"})) {
+  desc->set_codecs(codecs);
+}
+
+// Update settings that are only valid if media-section-wide, but
+// are represented as per-codecs settings.
+// Note that this is done after UpdateFromWildcardCodecs, so settings
+// that are set with wildcard will also be picked up here.
+void UpdateFromMediaSectionWideSettings(MediaContentDescription* desc) {
+  if (desc->codecs().empty()) {
+    return;
+  }
+  bool all_codecs_have_ack_ccfb = true;
+  for (const auto& codec : desc->codecs()) {
+    if (!codec.feedback_params.Has({"ack", "ccfb"})) {
+      all_codecs_have_ack_ccfb = false;
+    }
+  }
+  if (all_codecs_have_ack_ccfb) {
     desc->set_rtcp_fb_ack_ccfb(true);
   }
-  desc->set_codecs(codecs);
 }
 
 void AddAudioAttribute(const std::string& name,
@@ -2862,6 +2877,7 @@ bool ParseContent(absl::string_view message,
   }
 
   UpdateFromWildcardCodecs(media_desc);
+  UpdateFromMediaSectionWideSettings(media_desc);
   // Codec has not been populated correctly unless the name has been set. This
   // can happen if an SDP has an fmtp or rtcp-fb with a payload type but doesn't
   // have a corresponding "rtpmap" line. This should lead to a parse error.

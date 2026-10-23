@@ -66,6 +66,8 @@
     }                                                                    \
   } while (0)
 
+namespace webrtc {
+
 namespace {
 
 constexpr int kMaxAbsQpDeltaValue = 51;
@@ -74,8 +76,6 @@ constexpr int kMaxQpValue = 51;
 constexpr int kMaxRefIdxActive = 15;
 
 }  // namespace
-
-namespace webrtc {
 
 H265BitstreamParser::H265BitstreamParser() = default;
 H265BitstreamParser::~H265BitstreamParser() = default;

@@ -69,6 +69,8 @@
 #include "test/run_loop.h"
 #include "test/wait_until.h"
 
+namespace webrtc {
+
 namespace {
 
 constexpr char kStreamId1[] = "local_stream_1";
@@ -81,15 +83,13 @@ constexpr uint32_t kAudioSsrc2 = 101;
 constexpr uint32_t kVideoSsrcSimulcast = 102;
 constexpr uint32_t kVideoSimulcastLayerCount = 2;
 
-class MockSetStreamsObserver
-    : public webrtc::RtpSenderBase::SetStreamsObserver {
+class MockSetStreamsObserver : public RtpSenderBase::SetStreamsObserver {
  public:
   MOCK_METHOD(void, OnSetStreams, (), (override));
 };
 
 }  // namespace
 
-namespace webrtc {
 
 using ::testing::ContainerEq;
 using RidList = std::vector<std::string>;

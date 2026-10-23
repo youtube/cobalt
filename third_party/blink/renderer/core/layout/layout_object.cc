@@ -2298,7 +2298,7 @@ DOMNodeId LayoutObject::OwnerNodeId(bool is_internal_content) const {
         if (auto* svg_element = DynamicTo<Element>(obj->GetNode())) {
           const AtomicString& role =
               svg_element->FastGetAttribute(html_names::kRoleAttr);
-          if (EqualIgnoringASCIICase(role, "img")) {
+          if (EqualIgnoringAsciiCase(role, "img")) {
             return svg_element->GetDomNodeId();
           }
         }
@@ -4166,7 +4166,8 @@ void LayoutObject::SetNeedsPaintPropertyUpdate() {
   // reparenting in PaintPropertyTreeBuilder. Without this, we can end up with
   // cycles if only *some* of the related objects are dirtied.
   if (IsOverscrollContainer()) {
-    LayoutObject* container = IsOverscrollAreaParent() ? Parent() : this;
+    LayoutObject* container =
+        IsOverscrollAreaParent() ? ContainingBlock() : this;
     if (container) {
       Element* container_element = DynamicTo<Element>(container->GetNode());
       CHECK(container_element);
@@ -4592,7 +4593,7 @@ void LayoutObject::ImageNotifyFinished(ImageResourceContent* image) {
   if (LocalFrameView* frame_view = GetFrameView())
     frame_view->GetPaintTimingDetector().NotifyImageFinished(*this, image);
 
-  if (!image->ErrorOccurred() && image->IsAdResource()) {
+  if (!image->ErrorOccurred() && image->GetAdProvenance()) {
     if (auto* element = DynamicTo<Element>(GetNode())) {
       // Skip setting the ad status for `HTMLFrameOwnerElement`, as frame owners
       // manage their ad status separately (i.e., requires content frame

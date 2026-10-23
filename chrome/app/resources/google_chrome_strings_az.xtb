@@ -70,6 +70,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="1698376642261615901">Google Chrome saytları və tətbiqləri ildırım sürətilə açan veb brauzerdir. Sürətlidir, stabildir və istifadə üçün rahatdır. Google Chrome daxilindəki virusdan və fişinqdən qorunma bacarığı ilə internetdə özünüzü tam təhlükəsiz hiss edin.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome bir saata yenidən başlayacaq}other{Chrome # saata yenidən başlayacaq}}</translation>
 <translation id="1722488837206509557">Bu, əlçatan cihazlardan seçim etmək və oradakı kontenti göstərmək imkanı verəcək.</translation>
+<translation id="177180974022074201">Chrome-da Gemini ilə sınayın</translation>
 <translation id="1786003790898721085"><ph name="TARGET_DEVICE_NAME" /> cihazınızda Chrome'a daxil olduğunuza əmin olun və sonra yenidən göndərin.</translation>
 <translation id="1786044937610313874">Qısayollar Chrome-da açılır</translation>
 <translation id="178701303897325119">Bu artırma artıq dəstəklənmir. Chrome onu silməyinizi tövsiyə edir.</translation>
@@ -219,6 +220,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3226612997184048185">Chrome-da məhsul qiymətlərini izləmək və qiymət enəndə bildiriş almaq üçün əlfəcinləri Google Hesabında da saxlayın</translation>
 <translation id="3242123554343253302">Chrome profili əlavə edin</translation>
 <translation id="3245429137663807393">Chrome istifadə hesabatlarını da paylaşırsınızsa, bu hesabatlara ziyarət etdiyiniz keçidlər daxil olacaq</translation>
+<translation id="3259748324892322072">Chrome tətbiqini əldə edin</translation>
 <translation id="3286538390144397061">İndi yenidən başladın</translation>
 <translation id="3292333338048274092">Sonra Chrome-u yenidən başlatmalı olacaqsınız.</translation>
 <translation id="3324218984287646518">Bu video haqqında Google Linzadan soruşun</translation>
@@ -277,7 +279,6 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3892148308691398805">Mətni kopyalayın</translation>
 <translation id="3893985792899396936">Chrome ipucusu: Linza ilə axtarın</translation>
 <translation id="3906096710440765802">Parolları, əlfəcinləri və daha çoxunu bütün cihazlarda əldə etmək üçün Chrome-a daxil olun</translation>
-<translation id="3921132130819999051">Chrome-a sizin üçün axtarış etmək imkanı verin</translation>
 <translation id="3941890832296813527">Quraşdırma xətası: Quraşdırıcı fayl adı yanlışdır və ya dəstəklənmir.</translation>
 <translation id="395904275706073188">Qorunan səhifələri oxumaq mümkün deyil. Fərqli səhifə yoxlayın.</translation>
 <translation id="3968962723676998462">Chrome datasını hesabınızda (<ph name="ACCOUNT_EMAIL" />) istifadə etmək və yadda saxlamaq üçün parol ifadəsini daxil edin</translation>
@@ -490,7 +491,6 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">Bu tab əlavə resurslardan istifadə edir. Performansı təkmilləşdirmək üçün Chrome-a onu deaktiv etmək imkanı verin.</translation>
 <translation id="6182736845697986886">Yeniləmə serverində daxili xəta səbəbindən quraşdırma alınmadı.</translation>
-<translation id="6183773856988300112">Chrome-da Gemini tablarınızda işləmək və ona verdiyiniz tapşırıqları yerinə yetirmək üçün avtomatik axtarışdan istifadə edir. <ph name="LINK_BEGIN" />Ətraflı məlumat<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome ipucusu: Parolları yadda saxlayın</translation>
 <translation id="6192058120268468905">Chrome-dakı Hesabınız</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> Chrome-un iş prinsipini dəyişdirə biləcək artırma əlavə etdi.
@@ -526,6 +526,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6481963882741794338">Fərdiləşdirmə və digər məqsədlər üçün Chrome və digər Google xidmətlərini əlaqələndirin</translation>
 <translation id="648319183876919572">Qabaqcıl Güvənli Baxış təhlükəli veb-sayt və endirmələrə qarşı daha yaxşı qoruyur</translation>
 <translation id="6489302989675808168">Yanılı • Chrome bu artırmanın mənbəyini doğrulaya bilmir</translation>
+<translation id="6491330562720922580">Mobil cihazlarda Chrome brauzerini endirmək üçün QR kodu</translation>
 <translation id="6493527311031785448">Google Chrome cəhd edir: <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome avtomatik bağlandı</translation>
 <translation id="6506909944137591434">Chrome ətrafınızın 3D xəritəsini yaratmaq üçün kameranıza giriş icazəsi tələb edir</translation>

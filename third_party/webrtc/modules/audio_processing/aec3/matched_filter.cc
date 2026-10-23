@@ -33,6 +33,8 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
+namespace webrtc {
+
 namespace {
 
 // Subsample rate used for computing the accumulated error.
@@ -41,8 +43,8 @@ namespace {
 constexpr int kAccumulatedErrorSubSampleRate = 4;
 
 void UpdateAccumulatedError(
-    const webrtc::ArrayView<const float> instantaneous_accumulated_error,
-    const webrtc::ArrayView<float> accumulated_error,
+    const ArrayView<const float> instantaneous_accumulated_error,
+    const ArrayView<float> accumulated_error,
     float one_over_error_sum_anchor) {
   static constexpr float kSmoothConstantIncreases = 0.015f;
   for (size_t k = 0; k < instantaneous_accumulated_error.size(); ++k) {
@@ -57,7 +59,7 @@ void UpdateAccumulatedError(
   }
 }
 
-size_t ComputePreEchoLag(const webrtc::ArrayView<const float> accumulated_error,
+size_t ComputePreEchoLag(const ArrayView<const float> accumulated_error,
                          size_t lag,
                          size_t alignment_shift_winner) {
   static constexpr float kPreEchoThreshold = 0.5f;
@@ -77,7 +79,6 @@ size_t ComputePreEchoLag(const webrtc::ArrayView<const float> accumulated_error,
 
 }  // namespace
 
-namespace webrtc {
 namespace aec3 {
 
 #if defined(WEBRTC_HAS_NEON)
@@ -92,13 +93,13 @@ void MatchedFilterCoreWithAccumulatedError_NEON(
     size_t x_start_index,
     float x2_sum_threshold,
     float smoothing,
-    webrtc::ArrayView<const float> x,
-    webrtc::ArrayView<const float> y,
-    webrtc::ArrayView<float> h,
+    ArrayView<const float> x,
+    ArrayView<const float> y,
+    ArrayView<float> h,
     bool* filters_updated,
     float* error_sum,
-    webrtc::ArrayView<float> accumulated_error,
-    webrtc::ArrayView<float> scratch_memory) {
+    ArrayView<float> accumulated_error,
+    ArrayView<float> scratch_memory) {
   const int h_size = static_cast<int>(h.size());
   const int x_size = static_cast<int>(x.size());
   RTC_DCHECK_EQ(0, h_size % 4);
@@ -172,14 +173,14 @@ void MatchedFilterCoreWithAccumulatedError_NEON(
 void MatchedFilterCore_NEON(size_t x_start_index,
                             float x2_sum_threshold,
                             float smoothing,
-                            webrtc::ArrayView<const float> x,
-                            webrtc::ArrayView<const float> y,
-                            webrtc::ArrayView<float> h,
+                            ArrayView<const float> x,
+                            ArrayView<const float> y,
+                            ArrayView<float> h,
                             bool* filters_updated,
                             float* error_sum,
                             bool compute_accumulated_error,
-                            webrtc::ArrayView<float> accumulated_error,
-                            webrtc::ArrayView<float> scratch_memory) {
+                            ArrayView<float> accumulated_error,
+                            ArrayView<float> scratch_memory) {
   const int h_size = static_cast<int>(h.size());
   const int x_size = static_cast<int>(x.size());
   RTC_DCHECK_EQ(0, h_size % 4);

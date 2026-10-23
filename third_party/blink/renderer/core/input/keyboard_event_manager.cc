@@ -282,7 +282,7 @@ WebInputEventResult KeyboardEventManager::KeyEvent(
           IsEditable(*node) ||
           (text_control && !text_control->IsDisabledOrReadOnly()) ||
           (element &&
-           EqualIgnoringASCIICase(
+           EqualIgnoringAsciiCase(
                element->FastGetAttribute(html_names::kRoleAttr), "textbox"));
       if (initial_key_event.dom_key == dom_key && !is_editable)
         event_cancellable = false;
@@ -459,7 +459,7 @@ void KeyboardEventManager::DefaultKeyboardEventHandler(
     }
     if (event->keyCode() == last_scrolling_keycode_) {
       if (scrollend_event_target_ && has_pending_scrollend_on_key_up_) {
-        scrollend_event_target_->OnScrollFinished(true);
+        scrollend_event_target_->OnScrollFinished(/*enqueue_scrollend=*/true);
       }
       scrollend_event_target_.Clear();
       last_scrolling_keycode_ = VKEY_UNKNOWN;

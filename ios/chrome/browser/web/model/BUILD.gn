@@ -26,7 +26,6 @@ source_set("model") {
     "web_navigation_util.mm",
   ]
   deps = [
-    ":feature_flags",
     ":page_placeholder",
     ":tab_helper_delegates",
     "//base",
@@ -90,15 +89,19 @@ source_set("delegate") {
     ":tab_helper_delegates",
     "//base",
     "//components/content_settings/core/browser",
+    "//components/enterprise/client_certificates/core",
     "//ios/chrome/browser/content_settings/model",
     "//ios/chrome/browser/context_menu/ui_bundled:coordinator",
     "//ios/chrome/browser/dialogs/ui_bundled:dialogs_internal",
+    "//ios/chrome/browser/enterprise/client_certificates",
     "//ios/chrome/browser/enterprise/data_controls/model",
     "//ios/chrome/browser/intelligence/bwg/utils:constants",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/overlays/model",
     "//ios/chrome/browser/overlays/model/public/web_content_area",
     "//ios/chrome/browser/permissions/model:tab_helper",
+    "//ios/chrome/browser/policy/model",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/web_state_list",
@@ -168,7 +171,6 @@ source_set("unit_tests") {
   ]
   deps = [
     ":delegate",
-    ":feature_flags",
     ":model",
     ":page_placeholder",
     ":tab_helper_delegates",
@@ -232,7 +234,6 @@ source_set("web_internal") {
     "//ios/web/public/init",
   ]
   deps = [
-    ":feature_flags",
     ":model",
     "//base/allocator:buildflags",
     "//build:blink_buildflags",
@@ -348,6 +349,7 @@ source_set("web_internal") {
     "//ios/net",
     "//ios/public/provider/chrome/browser/additional_features:additional_features_api",
     "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/public/provider/chrome/browser/fullscreen:fullscreen_api",
     "//ios/public/provider/chrome/browser/url_rewriters:url_rewriters_api",
     "//ios/web/common",
     "//ios/web/common:user_agent",
@@ -380,7 +382,6 @@ source_set("unit_tests_internal") {
     "chrome_web_client_unittest.mm",
   ]
   deps = [
-    ":feature_flags",
     ":web_internal",
     "//base",
     "//base/test:test_support",
@@ -532,12 +533,4 @@ source_set("eg2_tests") {
   ]
 
   frameworks = [ "UIKit.framework" ]
-}
-
-source_set("feature_flags") {
-  sources = [
-    "features.cc",
-    "features.h",
-  ]
-  deps = [ "//base" ]
 }

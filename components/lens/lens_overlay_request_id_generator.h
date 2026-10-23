@@ -69,9 +69,18 @@ class LensOverlayRequestIdGenerator {
 
   // Updates the request id based on the given update mode and returns the
   // request id proto.
+  // TODO(crbug.com/489187358): Remove this method once all callers are migrated
+  // to the overload that uses mime type, and remove the _AND_IMAGE media types
+  // from the proto definition.
   std::unique_ptr<lens::LensOverlayRequestId> GetNextRequestId(
       RequestIdUpdateMode update_mode,
       lens::LensOverlayRequestId::MediaType media_type);
+
+  // Updates the request id based on the given update mode and returns the
+  // request id proto. Uses the mime type to determine the media type.
+  std::unique_ptr<lens::LensOverlayRequestId> GetNextRequestId(
+      RequestIdUpdateMode update_mode,
+      std::string mime_type);
 
   // Creates a new request id based on the previous request id and update mode.
   // This does not modify the generator's internal state.
@@ -87,6 +96,11 @@ class LensOverlayRequestIdGenerator {
   // Updates the context id returned in future request ids with the given
   // context id.
   void SetContextId(int64_t context_id) { context_id_ = context_id; }
+
+  // Updates the has_chrome_tab_data field in future request ids.
+  void SetHasChromeTabData(bool has_chrome_tab_data) {
+    has_chrome_tab_data_ = has_chrome_tab_data;
+  }
 
   // Sets the routing info to be included in the request id and returns the new
   // request id with this routing info.
@@ -104,6 +118,12 @@ class LensOverlayRequestIdGenerator {
   }
 
  private:
+  // Updates the internal state of the request id generator based on the given
+  // request id.
+  void UpdateInternalStateFromRequestId(
+      const lens::LensOverlayRequestId& request_id,
+      bool save_analytics_id);
+
   // Returns the request id of the current requests stored in the request id
   // generator.
   std::unique_ptr<lens::LensOverlayRequestId> GetCurrentRequestId();
@@ -127,6 +147,12 @@ class LensOverlayRequestIdGenerator {
   // The context ID to use for the request ID. This is generated once and
   // reused for all requests.
   int64_t context_id_;
+
+  // Whether the request id has Chrome tab data.
+  bool has_chrome_tab_data_;
+
+  // The mime type string.
+  std::optional<std::string> mime_type_;
 
   // The current routing info. Not guaranteed to exist if not returned from the
   // server.

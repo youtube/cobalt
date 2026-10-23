@@ -227,6 +227,7 @@ std::string ReadFileToString(const std::string& file_path) {
 }  // namespace
 
 namespace webrtc {
+
 namespace {
 
 class NullRenderer : public VideoSinkInterface<VideoFrame> {
@@ -738,6 +739,7 @@ void RtpReplay() {
 }
 
 }  // namespace
+
 }  // namespace webrtc
 
 int main(int argc, char* argv[]) {

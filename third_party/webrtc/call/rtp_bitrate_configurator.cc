@@ -17,6 +17,8 @@
 #include "api/units/data_rate.h"
 #include "rtc_base/checks.h"
 
+namespace webrtc {
+
 namespace {
 
 // Returns its smallest positive argument. If neither argument is positive,
@@ -33,7 +35,6 @@ int MinPositive(int a, int b) {
 
 }  // namespace
 
-namespace webrtc {
 RtpBitrateConfigurator::RtpBitrateConfigurator(
     const BitrateConstraints& bitrate_config)
     : bitrate_config_(bitrate_config), base_bitrate_config_(bitrate_config) {

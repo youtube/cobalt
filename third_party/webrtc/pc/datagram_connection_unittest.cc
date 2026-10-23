@@ -13,11 +13,11 @@
 #include <cstring>
 #include <memory>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -190,7 +190,7 @@ TEST_F(DatagramConnectionTest, ObserverCalledOnReceivedRtpPacket) {
   bool callback_called = false;
   EXPECT_CALL(*observer1_ptr_, OnPacketReceived(_, _))
       .WillOnce(
-          [&](ArrayView<const uint8_t> data,
+          [&](std::span<const uint8_t> data,
               const DatagramConnection::Observer::PacketMetadata& metadata) {
             EXPECT_EQ(data.size(), packet_data.size());
             EXPECT_EQ(
@@ -256,7 +256,7 @@ TEST_F(DatagramConnectionTest, RtpPacketsAreReceived) {
 
   EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
       .WillOnce(
-          [&](ArrayView<const uint8_t> received_data,
+          [&](std::span<const uint8_t> received_data,
               const DatagramConnection::Observer::PacketMetadata& metadata) {
             EXPECT_EQ(received_data.size(), data.size());
             EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()),
@@ -319,7 +319,7 @@ TEST_F(DatagramConnectionTest, SendMultipleRtpPackets) {
   EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
       .Times(data.size())
       .WillRepeatedly(
-          [&](ArrayView<const uint8_t> received_data,
+          [&](std::span<const uint8_t> received_data,
               const DatagramConnection::Observer::PacketMetadata& metadata) {
             received_packets.emplace_back(received_data.begin(),
                                           received_data.end());
@@ -395,7 +395,7 @@ TEST_F(DatagramConnectionTest, NonRtpPacketsInSRTPModeAreDTLSProtected) {
   bool callback_called = false;
   EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
       .WillOnce(
-          [&](ArrayView<const uint8_t> received_data,
+          [&](std::span<const uint8_t> received_data,
               const DatagramConnection::Observer::PacketMetadata& metadata) {
             // Check the data is decrypted correctly.
             EXPECT_EQ(received_data.size(), non_rtp_data.size());
@@ -490,7 +490,7 @@ TEST_F(DatagramConnectionTest, DirectDtlsPacketsAreReceived) {
 
   EXPECT_CALL(*observer2_ptr_, OnPacketReceived(_, _))
       .WillOnce(
-          [&](ArrayView<const uint8_t> received_data,
+          [&](std::span<const uint8_t> received_data,
               const DatagramConnection::Observer::PacketMetadata& metadata) {
             EXPECT_EQ(received_data.size(), data.size());
             EXPECT_EQ(memcmp(received_data.data(), data.data(), data.size()),

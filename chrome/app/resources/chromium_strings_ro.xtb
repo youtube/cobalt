@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Când te conectezi la Servicii Google, cum ar fi Gmail sau YouTube, cu <ph name="USER_EMAIL" />, te poți conecta automat la Chromium cu același cont</translation>
 <translation id="1290883685122687410">Eroare de configurare: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Configurează noul profil Chromium</translation>
+<translation id="132092532143527429">Încearcă cu Gemini în Chromium</translation>
 <translation id="1324107359134968521">Chromium are nevoie de acces la Bluetooth pentru a explora 
  Dispozitive Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Identifică limba</translation>
@@ -239,6 +240,7 @@
 <translation id="3509308970982693815">Închideți toate ferestrele Chromium și încercați din nou.</translation>
 <translation id="3522404737534491619">Pentru a permite accesul la fereastră, permite înregistrarea ecranului pentru Chromium din Setări de sistem</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> s-a conectat deja.  Pentru a separa navigarea, conectează-te la Chromium în propriul profil ca <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">Cod QR pentru descărcarea browserului Chromium pe dispozitive mobile</translation>
 <translation id="3561853857681580870">Pentru a permite accesul la ecran, permite înregistrarea ecranului pentru Chromium din Setări de sistem.</translation>
 <translation id="3588112919289558122">Protecția îmbunătățită dezactivează optimizarea JavaScript pentru site-urile pe care Chromium nu le recunoaște</translation>
 <translation id="3597003331831379823">Nu s-a putut rula configurarea cu privilegii de nivel superior. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -374,7 +376,6 @@
 <translation id="5174969993834422967">De obicei blochezi notificările. Ca să-i permiți acestui site să-ți trimită notificări, dă clic pe pictograma de notificare din colțul din dreapta al barei de locație.</translation>
 <translation id="5174983315706567306">Nu există suficient spațiu pe disc.</translation>
 <translation id="5187123684706427865">Este necesară reautentificarea în contul Chromium</translation>
-<translation id="5219681158518957165">Folosește setările browserului recomandate</translation>
 <translation id="5224391634244552924">Nu există parole salvate. Chromium îți poate verifica parolele dacă le salvezi.</translation>
 <translation id="5231355151045086930">Deconectează-te de la Chromium</translation>
 <translation id="5234764350956374838">Închide</translation>
@@ -608,6 +609,7 @@ Chromium nu poate recupera setările.</translation>
 <translation id="7622753900276619808">Acum ai mai multe funcții disponibile în Chromium</translation>
 <translation id="7624307931717240213">Folosim informații ca să îmbunătățim acest serviciu. Consultă Politica de confidențialitate și Termenii și condițiile.</translation>
 <translation id="7649070708921625228">Ajutor</translation>
+<translation id="7650134251917003571">Descarcă aplicația Chromium</translation>
 <translation id="7656340475565475526">Permite browserului Chromium să navigheze pentru tine</translation>
 <translation id="7658239707568436148">Anulează</translation>
 <translation id="7686590090926151193">Chromium nu este browserul prestabilit</translation>

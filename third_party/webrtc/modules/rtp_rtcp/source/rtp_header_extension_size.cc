@@ -10,13 +10,14 @@
 
 #include "modules/rtp_rtcp/source/rtp_header_extension_size.h"
 
-#include "api/array_view.h"
+#include <span>
+
 #include "api/rtp_parameters.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 
 namespace webrtc {
 
-int RtpHeaderExtensionSize(ArrayView<const RtpExtensionSize> extensions,
+int RtpHeaderExtensionSize(std::span<const RtpExtensionSize> extensions,
                            const RtpHeaderExtensionMap& registered_extensions) {
   // RFC3550 Section 5.3.1
   static constexpr int kExtensionBlockHeaderSize = 4;

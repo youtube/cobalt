@@ -34,8 +34,10 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxTabUtils;
 import org.chromium.chrome.browser.page_content_annotations.PageContentExtractionService;
 import org.chromium.chrome.browser.page_content_annotations.PageContentExtractionServiceFactory;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLoadIfNeededCaller;
+import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
@@ -58,6 +60,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -179,6 +182,15 @@ public class TabItemPickerCoordinator {
                         .requestSelectorWithoutActivity(windowId, profile);
 
         if (mTabModelSelector == null) {
+            runSuccessCallbackIfSame(false, successCallback);
+            return;
+        }
+
+        boolean isIncognito = profile.isIncognitoBranded();
+        TabGroupModelFilter filter = mTabModelSelector.getTabGroupModelFilter(isIncognito);
+        if (filter == null || filter.getTabModel().getProfile() == null) {
+            // TODO(crbug.com/490050233): Investigate why profile is becoming null in incognito
+            // mode during split screen.
             runSuccessCallbackIfSame(false, successCallback);
             return;
         }
@@ -360,18 +372,48 @@ public class TabItemPickerCoordinator {
         private final Activity mActivity;
         private final MonotonicObservableSupplier<TabListEditorController> mControllerSupplier;
         private final TabModelSelector mTabModelSelector;
+        private final TabContentManager mTabContentManager;
         private final Set<Integer> mCachedTabIds;
         private final Set<TabListEditorItemSelectionId> mInitialSelectedTabIds;
+        private final Set<Tab> mTabsBeingLoaded = new HashSet<>();
+        private final TabObserver mLoadObserver =
+                new EmptyTabObserver() {
+                    @Override
+                    public void onPageLoadFinished(Tab tab, GURL url) {
+                        // TODO(crbug.com/488046553): Consider adding a delay here for the page to
+                        // load more completely.
+                        onTabLoadFinished(tab);
+                    }
+
+                    @Override
+                    public void onPageLoadFailed(Tab tab, int errorCode) {
+                        onTabLoadFinished(tab);
+                    }
+
+                    @Override
+                    public void onCrash(Tab tab) {
+                        onTabLoadFinished(tab);
+                    }
+
+                    @Override
+                    public void onDestroyed(Tab tab) {
+                        onTabLoadFinished(tab);
+                    }
+                };
+
+        private boolean mIsDestroyed;
 
         public ItemPickerNavigationProvider(
                 Activity activity,
                 MonotonicObservableSupplier<TabListEditorController> controllerSupplier,
                 TabModelSelector tabModelSelector,
+                TabContentManager tabContentManager,
                 Set<Integer> cachedTabIds,
                 Set<TabListEditorItemSelectionId> initialSelectedTabIds) {
             mActivity = activity;
             mControllerSupplier = controllerSupplier;
             mTabModelSelector = tabModelSelector;
+            mTabContentManager = tabContentManager;
             mCachedTabIds = cachedTabIds;
             mInitialSelectedTabIds = initialSelectedTabIds;
         }
@@ -381,34 +423,88 @@ public class TabItemPickerCoordinator {
             boolean hasSelectionChanged = !Objects.equals(mInitialSelectedTabIds, selectedItems);
             mEnableDoneButtonSupplier.set(hasSelectionChanged);
 
-            if (ChromeFeatureList.sOnDemandBackgroundTabContextCapture.isEnabled()) {
-                // The maximum number of tabs that can be selected is determined by
-                // mAllowedSelectionCount, which should always be sufficiently small that there is
-                // no point caching which tabs have already been loaded. It is also safer to update
-                // each time as the OS may kill background tabs at any time.
-                for (TabListEditorItemSelectionId item : selectedItems) {
-                    assert item.isTabId();
-                    int tabId = item.getTabId();
+            if (!ChromeFeatureList.sOnDemandBackgroundTabContextCapture.isEnabled()) return;
 
-                    if (mCachedTabIds.contains(tabId)) continue;
-
-                    Tab tab = mTabModelSelector.getTabById(tabId);
-                    if (tab == null
-                            || !FuseboxTabUtils.isTabEligibleForAttachment(tab)
-                            || FuseboxTabUtils.isTabActive(tab)) {
-                        continue;
-                    }
-
-                    // If everything is working as expected the current tab should always be active
-                    // and therefore not loaded on demand, but just in case we still allow it to be
-                    // loaded here.
-                    tab.loadIfNeeded(TabLoadIfNeededCaller.FUSEBOX_ATTACHMENT);
-
-                    // TODO(crbug.com/486943788): On load complete, capture a new thumbnail and try
-                    // to extract the context. The context extraction might be left to
-                    // FuseboxAttachment, this is still under investigation.
-                }
+            // The maximum number of tabs that can be selected is determined by
+            // mAllowedSelectionCount, which should always be sufficiently small that there is
+            // no point caching which tabs have already been loaded. It is also safer to update
+            // each time as the OS may kill background tabs at any time.
+            for (TabListEditorItemSelectionId item : selectedItems) {
+                assert item.isTabId();
+                maybeTriggerTabReloadAndThumbnailFetch(item.getTabId());
             }
+        }
+
+        /**
+         * Triggers a tab reload and thumbnail fetch if the tab is not cached and is eligible.
+         *
+         * @param tabId The ID of the tab to potentially reload.
+         */
+        private void maybeTriggerTabReloadAndThumbnailFetch(int tabId) {
+            // If the tab is already cached, we don't need to do anything.
+            if (mCachedTabIds.contains(tabId)) return;
+
+            Tab tab = mTabModelSelector.getTabById(tabId);
+            if (tab == null
+                    || !FuseboxTabUtils.isTabEligibleForAttachment(tab)
+                    || FuseboxTabUtils.isTabActive(tab)) {
+                return;
+            }
+
+            // If everything is working as expected the current tab should always be active
+            // and therefore not loaded on demand, but just in case we still allow it to be
+            // loaded here.
+            if (!tab.loadIfNeeded(TabLoadIfNeededCaller.FUSEBOX_ATTACHMENT)) return;
+
+            // If the tab finished loading immediately (e.g. it was already in memory),
+            // exit immediately.
+            if (!tab.isLoading()) return;
+
+            // Avoid double-observing the same tab if it's already being loaded.
+            if (mTabsBeingLoaded.contains(tab)) return;
+
+            // Clear the thumbnail to avoid showing a stale thumbnail immediately after selection.
+            mTabContentManager.removeTabThumbnail(tab.getId(), /* forceRemoval= */ true);
+
+            mTabsBeingLoaded.add(tab);
+            tab.addObserver(mLoadObserver);
+
+            // Show a spinner while the thumbnail is being fetched/generated.
+            var controller = mControllerSupplier.get();
+            if (controller != null) {
+                controller.setThumbnailSpinnerVisibility(tab, /* isVisible= */ true);
+            }
+        }
+
+        private void onTabLoadFinished(Tab tab) {
+            if (mIsDestroyed) return;
+
+            tab.removeObserver(mLoadObserver);
+            if (!mTabsBeingLoaded.remove(tab)) return;
+
+            mTabContentManager.cacheTabThumbnailWithCallback(
+                    tab,
+                    /* returnBitmap= */ false,
+                    (unused) -> {
+                        if (mIsDestroyed) return;
+
+                        var controller = mControllerSupplier.get();
+                        if (controller != null) {
+                            controller.setThumbnailSpinnerVisibility(tab, /* isVisible= */ false);
+                        }
+                    });
+        }
+
+        /** Cleans up observers and state. */
+        public void destroy() {
+            for (Tab tab : mTabsBeingLoaded) {
+                if (tab != null) tab.removeObserver(mLoadObserver);
+            }
+            mTabsBeingLoaded.clear();
+            if (mTabContentManager != null) {
+                mTabContentManager.destroy();
+            }
+            mIsDestroyed = true;
         }
 
         @Override
@@ -478,16 +574,22 @@ public class TabItemPickerCoordinator {
     /** Creates a TabContentManager instance required by the TabListEditorCoordinator. */
     private TabContentManager createTabContentManager(
             TabModelSelector selector, BrowserControlsStateProvider browserControlsStateProvider) {
-        return new TabContentManager(
-                mActivity,
-                browserControlsStateProvider,
-                /* snapshotsEnabled= */ true,
-                selector::getTabById,
-                TabWindowManagerSingleton.getInstance());
+        TabContentManager tabContentManager =
+                new TabContentManager(
+                        mActivity,
+                        browserControlsStateProvider,
+                        /* snapshotsEnabled= */ true,
+                        selector::getTabById,
+                        TabWindowManagerSingleton.getInstance());
+        tabContentManager.initWithNative();
+        return tabContentManager;
     }
 
     /** Cleans up the TabListEditorCoordinator and releases resources. */
     public void destroy() {
+        if (mNavigationProvider != null) {
+            mNavigationProvider.destroy();
+        }
         if (mTabListEditorCoordinator != null) {
             mTabListEditorCoordinator
                     .getController()
@@ -527,6 +629,7 @@ public class TabItemPickerCoordinator {
                         mActivity,
                         controllerSupplier,
                         assumeNonNull(mTabModelSelector),
+                        tabContentManager,
                         mCachedTabIdsSet,
                         mInitialSelectedTabIds);
 

@@ -218,6 +218,32 @@ void VulkanCaps::init(const ContextOptions& contextOptions,
                 SkSL::ShaderCaps::AdvBlendEqInteraction::kAutomatic_AdvBlendEqInteraction;
     }
 
+    uint32_t queueFamilyCount = 0;
+    VULKAN_CALL(vkInterface,
+                GetPhysicalDeviceQueueFamilyProperties(physDev, &queueFamilyCount, nullptr));
+    if (queueFamilyCount > 0) {
+        skia_private::TArray<VkQueueFamilyProperties> queueProps;
+        queueProps.resize_back(queueFamilyCount);
+        VULKAN_CALL(vkInterface,
+                    GetPhysicalDeviceQueueFamilyProperties(
+                            physDev, &queueFamilyCount, queueProps.data()));
+        fQueueFamilyTimestampValidBits.reserve(queueFamilyCount);
+        for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+            fQueueFamilyTimestampValidBits.push_back(queueProps[i].timestampValidBits);
+        }
+    }
+    fTimestampPeriod = deviceProperties.fBase.properties.limits.timestampPeriod;
+
+    if (deviceProperties.fBase.properties.limits.timestampComputeAndGraphics &&
+        fTimestampPeriod > 0) {
+        fSupportedGpuStats |= GpuStatsFlags::kElapsedTime;
+    }
+
+    fOcclusionQueryPrecise = enabledFeatures.fOcclusionQueryPrecise;
+    if (fOcclusionQueryPrecise) {
+        fSupportedGpuStats |= GpuStatsFlags::kOcclusionPassSamples;
+    }
+
     // Note: ARM GPUs have always been coherent, do not add a subpass self-dependency even if the
     // application hasn't enabled this feature as it comes with a performance cost on this GPU. Use
     // of VK_EXT_rasterization_order_attachment_access is disabled on ARM due to an unexplained
@@ -299,6 +325,7 @@ VulkanCaps::EnabledFeatures VulkanCaps::getEnabledFeatures(
     if (features) {
         // Base features:
         enabled.fDualSrcBlend = features->features.dualSrcBlend;
+        enabled.fOcclusionQueryPrecise = features->features.occlusionQueryPrecise;
 
         if (physicalDeviceVersion >= VK_API_VERSION_1_3) {
             enabled.fExtendedDynamicState = true;
@@ -894,10 +921,6 @@ TextureInfo VulkanCaps::onGetDefaultTextureInfo(SkEnumBitMask<TextureUsage> usag
     return TextureInfos::MakeVulkan(info);
 }
 
-TextureFormat VulkanCaps::getFormatForColorType(SkColorType colorType) const {
-    return VkFormatToTextureFormat(this->getFormatFromColorType(colorType));
-}
-
 void VulkanCaps::initShaderCaps(const EnabledFeatures enabledFeatures, const uint32_t vendorID) {
     // TODO(skbug.com/40045541): We must force std430 array stride when using SSBOs since SPIR-V
     // generation cannot handle mixed array strides being passed into functions.
@@ -918,8 +941,6 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
     static_assert(std::size(kVkFormats) == VulkanCaps::kNumVkFormats,
                   "Size of VkFormats array must match static value in header");
 
-    std::fill_n(fColorTypeToFormatTable, kSkColorTypeCnt, VK_FORMAT_UNDEFINED);
-
     // NOTE: VkFormat's naming convention orders channels from low address to high address when
     // interpreting unpacked formats. For packed formats, the channels are ordered most significant
     // to least significant (making them opposite of the unpacked).
@@ -931,7 +952,7 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 3;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGBA_8888
@@ -940,6 +961,14 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
+            // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kBGRA_8888
+            {
+                constexpr SkColorType ct = SkColorType::kBGRA_8888_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = kRGBA_8888_SkColorType;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
             // Format: VK_FORMAT_R8G8B8A8_UNORM, Surface: kRGB_888x
@@ -999,7 +1028,7 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 3;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_B8G8R8A8_UNORM, Surface: kBGRA_8888
@@ -1064,6 +1093,15 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 ctInfo.fTransferColorType = transferColorType;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
+            // Format: VK_FORMAT_B8G8R8A8_UNORM, Surface: kRGB_888x
+            {
+                constexpr SkColorType ct = SkColorType::kRGB_888x_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = SkColorType::kBGRA_8888_SkColorType;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
+                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
+            }
         }
     }
     // Format: VK_FORMAT_R5G6B5_UNORM_PACK16
@@ -1091,12 +1129,20 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 3;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_R16G16B16A16_SFLOAT, Surface: kRGBA_F16_SkColorType
             {
                 constexpr SkColorType ct = SkColorType::kRGBA_F16_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
+            // Format: VK_FORMAT_R16G16B16A16_SFLOAT, Surface: kRGBA_F16Norm_SkColorType
+            {
+                constexpr SkColorType ct = SkColorType::kRGBA_F16Norm_SkColorType;
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
@@ -1182,7 +1228,7 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 4;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kRGBA_1010102
@@ -1191,6 +1237,14 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
+            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kBGRA_1010102
+            {
+                constexpr SkColorType ct = SkColorType::kBGRA_1010102_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = SkColorType::kRGBA_1010102_SkColorType;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
             }
             // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kRGB_101010x
@@ -1202,6 +1256,15 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
                 ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
             }
+            // Format: VK_FORMAT_A2B10G10R10_UNORM_PACK32, Surface: kBGR_101010x
+            {
+                constexpr SkColorType ct = SkColorType::kBGR_101010x_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = SkColorType::kRGB_101010x_SkColorType;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
+                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
+            }
         }
     }
     // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32
@@ -1210,7 +1273,7 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
         auto& info = this->getFormatInfoForInit(format);
         info.init(interface, *this, physDev, format);
         if (info.isTexturable(VK_IMAGE_TILING_OPTIMAL)) {
-            info.fColorTypeInfoCount = 1;
+            info.fColorTypeInfoCount = 4;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
             // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kBGRA_1010102
@@ -1220,6 +1283,32 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
+            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kRGBA_1010102
+            {
+                constexpr SkColorType ct = SkColorType::kRGBA_1010102_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = SkColorType::kBGRA_1010102_SkColorType;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
+            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kBGR_101010x
+            {
+                constexpr SkColorType ct = SkColorType::kBGR_101010x_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
+                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
+            }
+            // Format: VK_FORMAT_A2R10G10B10_UNORM_PACK32, Surface: kRGB_101010x
+            {
+                constexpr SkColorType ct = SkColorType::kRGB_101010x_SkColorType;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = kBGR_101010x_SkColorType;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
+                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
             }
         }
     }
@@ -1244,6 +1333,9 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
                 // rendering into it has it match the reported transfer color type, but we have to
                 // swap R and B when sampling as well. This only works so long as we don't present
                 // textures of this format to a screen that would not know about this swap.
+                // TODO(b/b/390473370): When data transfers can apply an RG swizzle outside of the
+                // SkColorType representation, we should instead apply the swizzle on upload and
+                // preserve the expected order for any GPU use.
                 ctInfo.fReadSwizzle = skgpu::Swizzle::BGRA();
                 ctInfo.fWriteSwizzle = skgpu::Swizzle::BGRA();
             }
@@ -1521,37 +1613,6 @@ void VulkanCaps::initFormatTable(const skgpu::VulkanInterface* interface,
             }
         }
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Map SkColorType (used for creating Surfaces) to VkFormats. The order in which the formats are
-    // passed into the setColorType function indicates the priority in selecting which format we use
-    // for a given SkColorType.
-    typedef SkColorType ct;
-
-    this->setColorType(ct::kAlpha_8_SkColorType,            { VK_FORMAT_R8_UNORM                 });
-    this->setColorType(ct::kRGB_565_SkColorType,            { VK_FORMAT_R5G6B5_UNORM_PACK16      });
-    this->setColorType(ct::kARGB_4444_SkColorType,          { VK_FORMAT_R4G4B4A4_UNORM_PACK16,
-                                                              VK_FORMAT_B4G4R4A4_UNORM_PACK16    });
-    this->setColorType(ct::kRGBA_8888_SkColorType,          { VK_FORMAT_R8G8B8A8_UNORM           });
-    this->setColorType(ct::kSRGBA_8888_SkColorType,         { VK_FORMAT_R8G8B8A8_SRGB,
-                                                              VK_FORMAT_B8G8R8A8_SRGB            });
-    this->setColorType(ct::kRGB_888x_SkColorType,           { VK_FORMAT_R8G8B8_UNORM,
-                                                              VK_FORMAT_R8G8B8A8_UNORM           });
-    this->setColorType(ct::kR8G8_unorm_SkColorType,         { VK_FORMAT_R8G8_UNORM               });
-    this->setColorType(ct::kBGRA_8888_SkColorType,          { VK_FORMAT_B8G8R8A8_UNORM           });
-    this->setColorType(ct::kRGBA_1010102_SkColorType,       { VK_FORMAT_A2B10G10R10_UNORM_PACK32 });
-    this->setColorType(ct::kBGRA_1010102_SkColorType,       { VK_FORMAT_A2R10G10B10_UNORM_PACK32 });
-    this->setColorType(ct::kRGB_101010x_SkColorType,        { VK_FORMAT_A2B10G10R10_UNORM_PACK32 });
-    this->setColorType(ct::kGray_8_SkColorType,             { VK_FORMAT_R8_UNORM                 });
-    this->setColorType(ct::kA16_float_SkColorType,          { VK_FORMAT_R16_SFLOAT               });
-    this->setColorType(ct::kRGBA_F16_SkColorType,           { VK_FORMAT_R16G16B16A16_SFLOAT      });
-    this->setColorType(ct::kRGB_F16F16F16x_SkColorType,     { VK_FORMAT_R16G16B16A16_SFLOAT      });
-    this->setColorType(ct::kA16_unorm_SkColorType,          { VK_FORMAT_R16_UNORM                });
-    this->setColorType(ct::kR16_unorm_SkColorType,          { VK_FORMAT_R16_UNORM                });
-    this->setColorType(ct::kR16G16_unorm_SkColorType,       { VK_FORMAT_R16G16_UNORM             });
-    this->setColorType(ct::kR16G16B16A16_unorm_SkColorType, { VK_FORMAT_R16G16B16A16_UNORM       });
-    this->setColorType(ct::kR16G16_float_SkColorType,       { VK_FORMAT_R16G16_SFLOAT            });
-    this->setColorType(ct::kRGBA_10x6_SkColorType,          { VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16 });
 }
 
 void VulkanCaps::initDepthStencilFormatTable(const skgpu::VulkanInterface* interface,
@@ -1815,24 +1876,6 @@ bool VulkanCaps::FormatInfo::isEfficientWithHostImageCopy(VkImageTiling imageTil
     }
 
     return false;
-}
-
-void VulkanCaps::setColorType(SkColorType colorType, std::initializer_list<VkFormat> formats) {
-    int idx = static_cast<int>(colorType);
-    for (auto it = formats.begin(); it != formats.end(); ++it) {
-        const auto& info = this->getFormatInfo(*it);
-        for (int i = 0; i < info.fColorTypeInfoCount; ++i) {
-            if (info.fColorTypeInfos[i].fColorType == colorType) {
-                fColorTypeToFormatTable[idx] = *it;
-                return;
-            }
-        }
-    }
-}
-
-VkFormat VulkanCaps::getFormatFromColorType(SkColorType colorType) const {
-    int idx = static_cast<int>(colorType);
-    return fColorTypeToFormatTable[idx];
 }
 
 VulkanCaps::FormatInfo& VulkanCaps::getFormatInfoForInit(VkFormat format) {

@@ -2380,6 +2380,7 @@ if (rtc_include_tests) {
         "../test:create_test_field_trials",
         "../test:fileutils",
         "../test:rtc_expect_death",
+        "../test:run_loop",
         "../test:test_support",
         "../test:wait_until",
         "memory:fifo_buffer",

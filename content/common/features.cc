@@ -674,11 +674,6 @@ BASE_FEATURE(kServiceWorkerWindowClientInitiator,
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Feature to skip a redundant NotifyNavigationStateChanged call during
-// RendererDidNavigate.
-BASE_FEATURE(kSkipRedundantNavigationStateNotification,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, skips registration of RendererCancellationThrottle and instead
 // keeps navigation cancellation behavior by reusing the requester
 // NavigationClient.
@@ -699,11 +694,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kTextInputClient,
                    "ipc_timeout",
                    base::Milliseconds(1500));
+
+BASE_FEATURE(kTextInputClientUseNestedLoop, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
-                   kTextInputClientUseNestedLoop,
-                   &kTextInputClient,
-                   "use_nested_loop",
-                   false);
+                   kTextInputClientNestedLoopEventMask,
+                   &kTextInputClientUseNestedLoop,
+                   "enable_event_mask",
+                   true);
 #endif
 
 // Allows swipe left/right from touchpad change browser navigation. Currently

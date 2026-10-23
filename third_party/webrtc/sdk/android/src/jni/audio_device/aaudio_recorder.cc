@@ -11,8 +11,8 @@
 #include "sdk/android/src/jni/audio_device/aaudio_recorder.h"
 
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -190,8 +190,8 @@ aaudio_data_callback_result_t AAudioRecorder::OnDataCallback(
   // Copy recorded audio in `audio_data` to the WebRTC sink using the
   // FineAudioBuffer object.
   fine_audio_buffer_->DeliverRecordedData(
-      webrtc::MakeArrayView(static_cast<const int16_t*>(audio_data),
-                            aaudio_.samples_per_frame() * num_frames),
+      std::span(static_cast<const int16_t*>(audio_data),
+                aaudio_.samples_per_frame() * num_frames),
       static_cast<int>(latency_millis_ + 0.5));
 
   return AAUDIO_CALLBACK_RESULT_CONTINUE;

@@ -50,7 +50,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.Str
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnKeyboardFocusHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabLoadTrackerCallback;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.ui.resources.ResourceManager;
 
 /** Tests for {@link TabStripSceneLayer}. */
@@ -604,7 +604,7 @@ public class TabStripSceneLayerTest {
                 .updateGlicButton(
                         eq(1L),
                         anyInt(),
-                        anyInt(),
+                        anyFloat(),
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
@@ -619,6 +619,7 @@ public class TabStripSceneLayerTest {
                                 MaterialColors.getColor(
                                         mContext, R.attr.colorPrimary, /* defaultValue= */ 0)),
                         anyInt(),
+                        anyFloat(),
                         anyFloat(),
                         anyFloat());
     }

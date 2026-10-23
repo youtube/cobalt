@@ -266,9 +266,6 @@ const char kDisableThreadedCompositing[]    = "disable-threaded-compositing";
 // Disable V8 idle tasks.
 const char kDisableV8IdleTasks[]            = "disable-v8-idle-tasks";
 
-// Disables WebGL rendering into a scanout buffer for overlay support.
-const char kDisableWebGLImageChromium[]     = "disable-webgl-image-chromium";
-
 // Don't enforce the same-origin policy; meant for website testing only.
 // This switch has no effect unless --user-data-dir (as defined by the content
 // embedder) is also present.
@@ -430,9 +427,6 @@ const char kEnableWebGLDeveloperExtensions[] =
 
 // Enables WebGL extensions not yet approved by the community.
 const char kEnableWebGLDraftExtensions[] = "enable-webgl-draft-extensions";
-
-// Enables WebGL rendering into a scanout buffer for overlay support.
-const char kEnableWebGLImageChromium[] = "enable-webgl-image-chromium";
 
 // Define an alias root directory which is replaced with the replacement string
 // in file URLs. The format is "/alias=/replacement", which would turn

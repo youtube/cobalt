@@ -3085,7 +3085,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.StoreLatency" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-10-12">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3096,7 +3096,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.UpdateEventCount" units="count"
-    expires_after="2026-04-12">
+    expires_after="2026-10-12">
   <owner>victortan@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -3106,7 +3106,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.UpdateSize" units="count"
-    expires_after="2026-04-12">
+    expires_after="2026-10-12">
   <owner>victortan@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -3151,7 +3151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.InstallResult" enum="ComponentManagerError"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>wanghaifan@google.com</owner>
   <owner>cros-demo-mode-eng@google.com</owner>
   <owner>src/components/component_updater/OWNERS</owner>
@@ -3671,7 +3671,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Connection.Result" enum="BooleanSuccess"
-    expires_after="2026-05-30">
+    expires_after="2026-08-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -4354,7 +4354,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.TrustSafetySentiment.TriggerOccurred"
-    enum="TrustSafetySentimentFeatureArea" expires_after="2026-06-28">
+    enum="TrustSafetySentimentFeatureArea" expires_after="2026-08-30">
   <owner>sauski@google.com</owner>
   <owner>chrome-hats-eng@google.com</owner>
   <summary>
@@ -4393,7 +4393,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FetchKeepAlive.RequestOutliveDuration" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>mych@chromium.org</owner>
   <owner>chrome-bfcache@google.com</owner>
   <summary>
@@ -4433,7 +4433,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="FetchKeepAlive.Requests2.{RequestState}.IsContextDetached.{Process}"
-    enum="Boolean" expires_after="2026-06-28">
+    enum="Boolean" expires_after="2026-08-30">
   <owner>mych@chromium.org</owner>
   <owner>chrome-bfcache@google.com</owner>
   <summary>
@@ -4548,7 +4548,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstPartySets.Database.InitStatus"
-    enum="FirstPartySetsDatabaseInitStatus" expires_after="2026-06-28">
+    enum="FirstPartySetsDatabaseInitStatus" expires_after="2026-08-30">
   <owner>shuuran@google.com</owner>
   <owner>kaustubhag@google.com</owner>
   <summary>
@@ -4687,7 +4687,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstRun.Sentinel.Created" enum="FirstRunSentinelResult"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -4830,7 +4830,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gamepad.KnownGamepadConnectedWithId"
-    enum="GamepadVendorProduct" expires_after="2026-06-28">
+    enum="GamepadVendorProduct" expires_after="2026-08-30">
   <owner>mattreynolds@chromium.org</owner>
   <owner>deviceapi-team@google.com</owner>
   <summary>
@@ -5001,7 +5001,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImportantFile.FileReplaceResult{ImportantFileClients}"
-    enum="ImportantFileReplaceResult" expires_after="2026-06-28">
+    enum="ImportantFileReplaceResult" expires_after="2026-08-30">
   <owner>etienneb@chromium.org</owner>
   <owner>joenotcharles@google.com</owner>
   <summary>
@@ -5025,7 +5025,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ImportantFile.FileReplaceRetryCount2{ImportantFileClients}"
-    units="attempt count" expires_after="2026-06-28">
+    units="attempt count" expires_after="2026-08-30">
   <owner>etienneb@chromium.org</owner>
   <owner>joenotcharles@google.com</owner>
   <summary>
@@ -5502,7 +5502,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MPArch.ChildProcessLaunchSubsequent" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>pasko@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -5551,7 +5551,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NQE.Duration.{MethodName}" units="ms"
-    expires_after="2026-06-25">
+    expires_after="2026-08-30">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -6591,7 +6591,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.WebUI.LoadCompletedTime" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -6797,7 +6797,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReportingAndNEL.UnresponsiveRenderer.CrashReportOutcome"
-    enum="CrashRepHandlingOutcome" expires_after="2026-06-28">
+    enum="CrashRepHandlingOutcome" expires_after="2026-08-30">
   <owner>iclelland@chromium.org</owner>
   <owner>issackjohn@microsoft.com</owner>
   <owner>src/net/reporting/OWNERS</owner>
@@ -7366,7 +7366,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SiteIsolatedCodeCache.DataSize" units="bytes"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>olivierli@chromium.org</owner>
   <owner>leszeks@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -8296,41 +8296,10 @@ should be kept until we use this API.  -->
   </summary>
 </histogram>
 
-<histogram name="UpdateClient.Component.UpdateCheckResult"
-    enum="UpdateClientUpdateCheckResult" expires_after="2026-03-29">
-  <owner>noahrose@google.com</owner>
-  <owner>sorin@chromium.org</owner>
-  <owner>waffles@chromium.org</owner>
-  <summary>
-    The result of a component update check. Recorded once per component per
-    update check.
-  </summary>
-</histogram>
-
-<histogram name="UpdateClient.Component.Updated" enum="Boolean"
-    expires_after="2026-08-02">
-  <owner>noahrose@google.com</owner>
-  <owner>sorin@chromium.org</owner>
-  <owner>waffles@chromium.org</owner>
-  <summary>Records when the update client has updated a component.</summary>
-</histogram>
-
-<histogram name="UpdateClient.CrxDownloader.DownloadCompleteSuccess"
-    enum="Boolean" expires_after="2026-07-25">
-  <owner>noahrose@google.com</owner>
-  <owner>sorin@chromium.org</owner>
-  <owner>waffles@chromium.org</owner>
-  <summary>
-    Whether a download completed with an error or not. Recorded once for every
-    completed download.
-  </summary>
-</histogram>
-
 <histogram name="UpdateClient.DownloadTime2{AppID}" units="ms"
     expires_after="2026-08-09">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
-  <owner>waffles@chromium.org</owner>
   <summary>
     Measures the time it takes to complete a download for {AppID}. Counted only
     for successful downloads.
@@ -8343,10 +8312,9 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.UnzipTime{AppID}" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-30">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
-  <owner>waffles@chromium.org</owner>
   <summary>
     Measures the time it takes to unzip a component for {AppID}. Counted only
     for successful unzips.
@@ -8671,7 +8639,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebContentsObserver.{Method}{FrameType}" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>cduvall@chromium.org</owner>
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>

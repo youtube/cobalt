@@ -26,11 +26,11 @@ namespace blink {
 namespace {
 
 bool IsValidName(const String& name) {
-  if (!name.IsLowerASCII()) {
+  if (!name.ContainsNoAsciiUpper()) {
     return false;
   }
 
-  if (!name.ContainsOnlyASCIIOrEmpty()) {
+  if (!name.ContainsOnlyAsciiOrEmpty()) {
     return false;
   }
 

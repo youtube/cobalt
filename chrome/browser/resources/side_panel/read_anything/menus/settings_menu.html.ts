@@ -20,6 +20,9 @@ export function getHtml(this: SettingsMenuElement) {
           data-index="${index}"
           title="${item.ariaLabel || item.title}"
           aria-label="${item.ariaLabel || item.title}"
+          aria-haspopup="${item.itemType === SettingsItemType.MENU ?
+             'menu' : 'false'}"
+          aria-expanded="${this.getAriaExpanded_(item)}"
           @pointerenter="${this.onPointerenter_}"
           @pointerleave="${this.onPointerleave_}"
           @click="${this.onMenuItemClick_}">

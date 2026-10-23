@@ -85,7 +85,6 @@ if (rtc_include_tests) {
     deps = [
       ":video_adaptation",
       "..:video_stream_encoder_interface",
-      "../../api:array_view",
       "../../api:field_trials",
       "../../api:rtp_parameters",
       "../../api:scoped_refptr",

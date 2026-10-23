@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Bokmärket har sparats i {title} i ditt konto, {email}}other{{count} bokmärken har sparats i {title} i ditt konto, {email}}}</translation>
 <translation id="1207493287814084192">15.30</translation>
 <translation id="1217294226280635614">Delad skärm</translation>
+<translation id="1218730690561976633">Aktivera eller inaktivera användarverifiering för förbättrad autofyll</translation>
 <translation id="1219674500290482172">Det går inte att ansluta till internet.</translation>
 <translation id="1223498995510244364">Sammanfatta</translation>
 <translation id="1227113644794103810">Inaktiva flikar</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Det går inte att dela. Du är inte ansluten till nätverket.</translation>
 <translation id="1668001730617725852">Öppna i en ny flikgrupp</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> till <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Utifrån organisationens policyer kan den här filen innehålla känsliga uppgifter</translation>
 <translation id="168389590065701766">Nu kan du öppna Google Lens från adressfältet och söka efter det du ser</translation>
 <translation id="1689333818294560261">Kortnamn</translation>
 <translation id="169048873465870056">Vill du ta bort fliken och radera gruppen?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">Du kan även använda de sparade lösenorden på andra enheter.</translation>
 <translation id="3177338796769255211">Logga in om du vill ha dina bokmärken med mera på alla dina enheter</translation>
 <translation id="3181954750937456830">Säker webbsökning (skyddar dig och enheten från skadliga webbplatser)</translation>
+<translation id="3183362380688692618">Ny flikgrupp …</translation>
 <translation id="3186796054637504691">Rensa historik och webbplatsdata</translation>
 <translation id="3190736958609431397">Ta bort bevakning</translation>
 <translation id="3208260410153224535">Din organisation har inaktiverat inloggning. Nya bokmärken, lösenord med mera sparas endast på den här enheten.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">Få tillgång till dina lösenord i andra appar.</translation>
 <translation id="3485558910355485767">Nytt inkognitofönster</translation>
 <translation id="3488501490964659223">Flikarna stängdes och webbinformationen rensades. Du loggades ut</translation>
+<translation id="3490396108106323715">Dela aktuell flik</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" /> om förslag på innehåll</translation>
 <translation id="349446645805573740">Välj var du vill spara <ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" /></translation>
 <translation id="3504377992102007712">Inställningar</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">Det gick inte att läsa in bilder</translation>
 <translation id="3565930036634619844">Flik. <ph name="TAB_INDEX" /> av <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Spara på ett annat sätt</translation>
+<translation id="3572503683475187385">Den aktuella fliken delas med Gemini när du startar en ny chatt. När du delar en flik med Gemini skickas flikens innehåll och webbadress till Google. <ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" />.</translation>
 <translation id="3572607909481582402">I Google-kontot</translation>
 <translation id="3575234738189584619">Sök med Lens</translation>
 <translation id="3575426792457739946">Listan innehåller alla inlästa profiler.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">Sluta söka på skärmen med Google Lens</translation>
 <translation id="3753408171347588045">Bevakar priser</translation>
 <translation id="3753618528540214374">Smaragdgrönt tema</translation>
+<translation id="3759491607478608474">Dela innehållet på den aktuella fliken med Gemini för att få mer relevanta svar</translation>
 <translation id="3762232513783804601">Byggd för iPad</translation>
 <translation id="3768725474733206671">Öppna senast stängda flik igen</translation>
 <translation id="3779810277399252432">Ingen internetanslutning.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">Fortsätt som <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Dölj efter 1 minut}other{Dölj efter {count} minuter}}</translation>
 <translation id="4652817563047461855">Se till att dina lösenord är säkra, ta reda på om de har utsatts för intrång och få råd om hur du skyddar dig online. <ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Aktivera flikdelning</translation>
 <translation id="4658335131052370646">Sparad</translation>
 <translation id="466307903888586355">Att spara filer blockeras av organisationen</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} av {count} betalningsmetod}other{{position} av {count} betalningsmetoder}}</translation>
 <translation id="5075939510584558547">Spara utan kryptering</translation>
 <translation id="5076534614343816664">Prisbevakning</translation>
+<translation id="507762438756999615">Det går inte att dela filen på grund av organisationens policyer</translation>
 <translation id="5078303485429639424">Slå på aviseringar för <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Använd det föreslagna lösenordet</translation>
 <translation id="5083464117946352670">Det gick inte att bestämma filstorleken.</translation>
@@ -1297,6 +1305,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="5718049162805123412">Du bör ändra dessa nu</translation>
 <translation id="5721040778297053709">Passa in kreditkortet i den här rutan</translation>
 <translation id="572328651809341494">Senaste flikarna</translation>
+<translation id="5724590854763964497">Som standard delas den aktuella fliken när du startar en ny chatt. När flikar delas skickas deras innehåll och webbadresser till Google men används inte för att förbättra generativa AI-modeller. Du kan ändra den här inställningen när som helst.</translation>
 <translation id="5724941645893276623">Öppna en ny flik om du vill använda internet privat</translation>
 <translation id="5728072125198221967">Länkade Google-tjänster</translation>
 <translation id="5728700505257787410">Det gick inte att logga in på ditt konto.</translation>
@@ -1964,6 +1973,8 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="8059533439631660104">Komprimera avsnittet.</translation>
 <translation id="8061584726507121204">Historik</translation>
 <translation id="8064946459644399612">Dina inställningar för sidan Ny flik har tillämpats</translation>
+<translation id="8065136076319366194">Vi rekommenderar inte att du sparar</translation>
+<translation id="8065556469005366939">Få mer relevanta svar genom att dela dina flikar</translation>
 <translation id="8069394452933076548">Välj när flikar som inte har använts nyligen ska flyttas till avsnittet för inaktiva flikar.</translation>
 <translation id="8073670137947914548">Nedladdningen är klar</translation>
 <translation id="8076492880354921740">Flikar</translation>
@@ -1985,6 +1996,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="8131740175452115882">Bekräfta</translation>
 <translation id="8132598642024322408">Nedsatt från <ph name="PREVIOUS_PRICE" /> till <ph name="PRICE" />.</translation>
 <translation id="813370552429173916">Använd ett unikt lösenord till varje webbplats eller app. Om någon får tag på ett återanvänt lösenord kan det användas till att få åtkomst till dina andra konton. Klicka här för att öppna webbplatsen och ändra dem nu.</translation>
+<translation id="8133810265969517544">Vi rekommenderar inte att du delar</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} stängd flik}other{{count} stängda flikar}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 annan}other{# andra}}</translation>
 <translation id="8150167929304790980">Fullständigt namn</translation>
@@ -2132,6 +2144,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="8660600697590740984">Sök efter kopierad bild med Lens</translation>
 <translation id="866266761389616183">Åh, nej!</translation>
 <translation id="8663764600409216912">Du använder lösenord som verkar svåra att lista ut</translation>
+<translation id="8664992138761940052">Som standard delas den aktuella fliken när du startar en ny chatt. När flikar delas skickas deras innehåll och webbadresser till Google. Du kan ändra den här inställningen när som helst.</translation>
 <translation id="8668210798914567634">Den här sidan har sparats i läslistan.</translation>
 <translation id="8672642291731179042">Översätt sidor</translation>
 <translation id="8672733398999596205">Aktivera alla</translation>
@@ -2233,6 +2246,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="8976414606286374109">Korten sparas i Google-kontot.</translation>
 <translation id="8981454092730389528">Googles aktivitetsinställningar</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, fäst webbplats</translation>
+<translation id="8990960056509724223">Det gick inte att spara filen på grund av organisationens policyer</translation>
 <translation id="8998289560386111590">Inte tillgängligt på din enhet</translation>
 <translation id="9000532564152265066">Alla flikar</translation>
 <translation id="9003677638446136377">Kontrollera igen</translation>

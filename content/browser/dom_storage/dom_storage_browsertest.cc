@@ -6,8 +6,11 @@
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/with_feature_override.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/local_storage_impl.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/public/cpp/filesystem/filesystem_proxy.h"
@@ -35,9 +38,20 @@ namespace content {
 
 // This browser test is aimed towards exercising the DOMStorage system
 // from end-to-end.
-class DOMStorageBrowserTest : public ContentBrowserTest {
+class DOMStorageBrowserTest : public base::test::WithFeatureOverride,
+                              public ContentBrowserTest {
  public:
-  DOMStorageBrowserTest() {}
+  DOMStorageBrowserTest()
+      : base::test::WithFeatureOverride(storage::kDomStorageSqlite) {
+    // Match the state of `kDomStorageSqliteInMemory` to the top level
+    // kDomStorageSqlite. That way in-memory databases (e.g. incognito) will
+    // use the backend expected by the param state.
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(storage::kDomStorageSqliteInMemory);
+    } else {
+      feature_list_.InitAndDisableFeature(storage::kDomStorageSqliteInMemory);
+    }
+  }
 
   void SimpleTest(const GURL& test_url, bool incognito) {
     // The test page will perform tests then navigate to either
@@ -82,16 +96,25 @@ class DOMStorageBrowserTest : public ContentBrowserTest {
     return static_cast<DOMStorageContextWrapper*>(
         partition()->GetDOMStorageContext());
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 static const bool kIncognito = true;
 static const bool kNotIncognito = false;
 
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, SanityCheck) {
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, SanityCheck) {
   SimpleTest(GetTestUrl("dom_storage", "sanity_check.html"), kNotIncognito);
 }
 
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, SanityCheckIncognito) {
+// TODO(crbug.com/488417166): Fix flakiness on android-x86-rel and re-enable.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanityCheckIncognito DISABLED_SanityCheckIncognito
+#else
+#define MAYBE_SanityCheckIncognito SanityCheckIncognito
+#endif
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, MAYBE_SanityCheckIncognito) {
   SimpleTest(GetTestUrl("dom_storage", "sanity_check.html"), kIncognito);
 }
 
@@ -102,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, SanityCheckIncognito) {
 #else
 #define MAYBE_DataPersists DataPersists
 #endif
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, PRE_DataPersists) {
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, PRE_DataPersists) {
   SimpleTest(GetTestUrl("dom_storage", "store_data.html"), kNotIncognito);
 
   // Browser shutdown can always race with async work on non-shutdown-blocking
@@ -120,7 +143,7 @@ IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, PRE_DataPersists) {
   loop.Run();
 }
 
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, MAYBE_DataPersists) {
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, MAYBE_DataPersists) {
   SimpleTest(GetTestUrl("dom_storage", "verify_data.html"), kNotIncognito);
 }
 
@@ -130,7 +153,7 @@ IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, MAYBE_DataPersists) {
 #else
 #define MAYBE_DeletePhysicalStorageKey DeletePhysicalStorageKey
 #endif
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, MAYBE_DeletePhysicalStorageKey) {
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, MAYBE_DeletePhysicalStorageKey) {
   EXPECT_EQ(0U, GetUsage().size());
   SimpleTest(GetTestUrl("dom_storage", "store_data.html"), kNotIncognito);
   std::vector<StorageUsageInfo> usage = GetUsage();
@@ -146,7 +169,7 @@ IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, MAYBE_DeletePhysicalStorageKey) {
 // is no disagreement between 1) site URL used for browser-side isolation
 // enforcement and 2) the origin requested by Blink.  Before this bug was fixed,
 // (1) was file://localhost/ and (2) was file:// - this led to renderer kills.
-IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, FileUrlWithHost) {
+IN_PROC_BROWSER_TEST_P(DOMStorageBrowserTest, FileUrlWithHost) {
   // Navigate to file://localhost/.../title1.html
   GURL regular_file_url = GetTestUrl(nullptr, "title1.html");
   GURL::Replacements host_replacement;
@@ -167,5 +190,13 @@ IN_PROC_BROWSER_TEST_F(DOMStorageBrowserTest, FileUrlWithHost) {
   EXPECT_EQ("bar", EvalJs(shell(), script));
 }
 #endif
+
+INSTANTIATE_TEST_SUITE_P(
+    /*no prefix*/,
+    DOMStorageBrowserTest,
+    testing::Bool(),
+    [](const testing::TestParamInfo<DOMStorageBrowserTest::ParamType>& info) {
+      return info.param ? "SQLite" : "LevelDB";
+    });
 
 }  // namespace content

@@ -8,6 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -33,6 +34,9 @@
 #include "api/scoped_refptr.h"
 #include "api/set_remote_description_observer_interface.h"
 #include "api/test/rtc_error_matchers.h"
+#include "api/units/data_rate.h"
+#include "api/video/render_resolution.h"
+#include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
@@ -45,9 +49,12 @@
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "media/base/codec.h"
+#include "media/base/media_channel.h"
 #include "media/base/stream_params.h"
+#include "media/engine/webrtc_video_engine.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection_wrapper.h"
+#include "pc/rtp_transceiver.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/integration_test_helpers.h"
@@ -1995,6 +2002,205 @@ TEST_F(PeerConnectionRtpTestUnifiedPlan,
   EXPECT_EQ("stream3", callee_streams[0]->id());
   EXPECT_EQ("stream4", callee_streams[1]->id());
   EXPECT_EQ("stream5", callee_streams[2]->id());
+}
+
+TEST_F(PeerConnectionRtpTestUnifiedPlan,
+       SendParamsCorrectWhenSendCodecChanges) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto sender = caller->AddVideoTrack("video_track");
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  // Call GetParameters() to populate the cache.
+  auto parameters1 = sender->GetParameters();
+  ASSERT_GT(parameters1.codecs.size(), 0u);
+
+  // Force renegotiation to change the negotiated codec.
+  auto transceiver = callee->pc()->GetTransceivers()[0];
+  auto capabilities =
+      caller->pc_factory()->GetRtpReceiverCapabilities(MediaType::VIDEO);
+  std::vector<RtpCodecCapability> codecs = capabilities.codecs;
+  // Remove the currently negotiated codec from the receiver preferences
+  codecs.erase(std::remove_if(codecs.begin(), codecs.end(),
+                              [&](const RtpCodecCapability& c) {
+                                return c.name == parameters1.codecs[0].name;
+                              }),
+               codecs.end());
+
+  auto error = transceiver->SetCodecPreferences(codecs);
+  EXPECT_TRUE(error.ok());
+
+  // Exchange offer/answer again. This forces WebRtcVideoSendChannel to
+  // change the send codec without notifying RtpSender!
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  // Call GetParameters(). The DCHECK evaluates cached_parameters_ against
+  // what's actually on the worker thread. Since we bypassed SetParameters,
+  // this should crash if the bug is present, or return the right values.
+  auto parameters2 = sender->GetParameters();
+  ASSERT_GT(parameters2.codecs.size(), 0u);
+  EXPECT_NE(parameters1.codecs[0].name, parameters2.codecs[0].name);
+}
+
+TEST_F(PeerConnectionRtpTestUnifiedPlan,
+       SendParamsCorrectWhenContentHintChanges) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto track = caller->CreateVideoTrack("video");
+
+  RtpTransceiverInit init;
+  init.direction = RtpTransceiverDirection::kSendRecv;
+  RtpEncodingParameters encoding;
+  encoding.active = true;
+  // Set an unsupported scalability mode so that it gets mutated
+  // by FallbackToDefaultScalabilityModeIfNotSupported later.
+  encoding.scalability_mode = "L3T3_KEY";
+  init.send_encodings.push_back(encoding);
+
+  auto transceiver = caller->AddTransceiver(track, init);
+  ASSERT_TRUE(transceiver != nullptr);
+  auto sender = transceiver->sender();
+
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  // Get initial parameters to populate the signaling thread cache.
+  auto parameters = sender->GetParameters();
+
+  // Change content hint, which triggers VideoRtpSender::OnChanged() ->
+  // SetVideoSend() -> WebRtcVideoSendStream::SetOptions() ->
+  // ReconfigureEncoder() -> FallbackToDefaultScalabilityModeIfNotSupported()
+  // on the worker thread.
+  track->set_content_hint(VideoTrackInterface::ContentHint::kDetailed);
+
+  // Calling GetParameters will fetch the new parameters from the worker thread
+  // and compare them to the signaling thread cache, triggering the DCHECK if
+  // the cache is stale.
+  auto parameters_after = sender->GetParameters();
+
+  // If the DCHECK is not fatal, we manually verify the mismatch happened.
+  EXPECT_EQ(parameters_after.encodings.size(), 1u);
+}
+
+TEST_F(PeerConnectionRtpTestUnifiedPlan,
+       CacheMismatchWhenEncoderSelectorChanges) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto track = caller->CreateVideoTrack("video");
+
+  auto transceiver = caller->AddTransceiver(track);
+  ASSERT_TRUE(transceiver != nullptr);
+  auto sender = transceiver->sender();
+
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  // Get initial parameters to populate the signaling thread cache.
+  auto parameters = sender->GetParameters();
+
+  class MockEncoderSelector
+      : public VideoEncoderFactory::EncoderSelectorInterface {
+   public:
+    void OnCurrentEncoder(const SdpVideoFormat& format) override {}
+    std::optional<SdpVideoFormat> OnAvailableBitrate(
+        const DataRate& rate) override {
+      return SdpVideoFormat("VP8");
+    }
+    std::optional<SdpVideoFormat> OnEncoderBroken() override {
+      return std::nullopt;
+    }
+    std::optional<SdpVideoFormat> OnResolutionChange(
+        const RenderResolution& resolution) override {
+      return std::nullopt;
+    }
+  };
+
+  auto encoder_selector = std::make_unique<MockEncoderSelector>();
+  auto format_to_switch_to =
+      *encoder_selector->OnAvailableBitrate(DataRate::Zero());
+
+  // Change encoder selector
+  sender->SetEncoderSelector(std::move(encoder_selector));
+
+  auto transceivers =
+      caller->GetInternalPeerConnection()->GetTransceiversInternal();
+  ASSERT_FALSE(transceivers.empty());
+  auto* transceiver_internal = transceivers[0]->internal();
+  ASSERT_TRUE(transceiver_internal != nullptr);
+
+  auto* media_channel = transceiver_internal->media_send_channel();
+  ASSERT_TRUE(media_channel != nullptr);
+
+  auto* worker_thread = caller->GetInternalPeerConnection()->worker_thread();
+  ASSERT_TRUE(worker_thread != nullptr);
+
+  worker_thread->BlockingCall([&] {
+    // Simulate VideoStreamEncoder calling RequestEncoderSwitch after getting
+    // the format from the EncoderSelector.
+    auto* switch_callback = static_cast<webrtc::EncoderSwitchRequestCallback*>(
+        static_cast<webrtc::WebRtcVideoSendChannel*>(
+            media_channel->AsVideoSendChannel()));
+    switch_callback->RequestEncoderSwitch(format_to_switch_to,
+                                          /*allow_default_fallback=*/false);
+  });
+
+  // Allow the signaling thread to process the cache invalidation task posted
+  // by RequestEncoderSwitch.
+  run_loop_.Flush();
+
+  // Calling GetParameters will fetch the new parameters from the worker thread
+  // and compare them to the signaling thread cache, triggering the DCHECK if
+  // the cache is stale.
+  auto parameters_after = sender->GetParameters();
+
+  EXPECT_EQ(parameters_after.encodings.size(), 1u);
+}
+
+TEST_F(PeerConnectionRtpTestUnifiedPlan, SendParamsCorrectWhenEncoderFallback) {
+  auto caller = CreatePeerConnection();
+  auto callee = CreatePeerConnection();
+
+  auto track = caller->CreateVideoTrack("video");
+
+  auto transceiver = caller->AddTransceiver(track);
+  ASSERT_TRUE(transceiver != nullptr);
+  auto sender = transceiver->sender();
+
+  ASSERT_TRUE(caller->ExchangeOfferAnswerWith(callee.get()));
+
+  // Get initial parameters to populate the signaling thread cache.
+  auto parameters = sender->GetParameters();
+
+  auto transceivers =
+      caller->GetInternalPeerConnection()->GetTransceiversInternal();
+  ASSERT_FALSE(transceivers.empty());
+  auto* transceiver_internal = transceivers[0]->internal();
+  ASSERT_TRUE(transceiver_internal != nullptr);
+
+  auto* media_channel = transceiver_internal->media_send_channel();
+  ASSERT_TRUE(media_channel != nullptr);
+
+  auto* worker_thread = caller->GetInternalPeerConnection()->worker_thread();
+  ASSERT_TRUE(worker_thread != nullptr);
+
+  worker_thread->BlockingCall([&] {
+    // Simulate an encoder fallback on the worker thread.
+    auto* fallback_callback =
+        static_cast<webrtc::EncoderSwitchRequestCallback*>(
+            static_cast<webrtc::WebRtcVideoSendChannel*>(
+                media_channel->AsVideoSendChannel()));
+    fallback_callback->RequestEncoderFallback();
+  });
+
+  // Allow the signaling thread to process the cache invalidation task posted
+  // by RequestEncoderFallback.
+  run_loop_.Flush();
+
+  // Call GetParameters. This triggers an internal consistency check in the
+  // `GetParameters()` implementation.
+  auto parameters_after = sender->GetParameters();
+  EXPECT_EQ(parameters_after.codecs.size(), parameters.codecs.size());
 }
 
 RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()

@@ -305,8 +305,17 @@ const base::FeatureParam<int>
 BASE_FEATURE(kSelectFutureFrameDeadline, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, SDR maximum luminance nits of then current display will be used
-// as the HDR metadata NDWL nits.
+// as the HDR metadata NDWL nits for PQ content (if none was specified). This
+// has the effect that its "opts-out" PQ content from being affected by the OS'
+// SDR white level (effectively the OS' brightness setting). This behavior is
+// preferred on Windows, to avoid flicker when entering/leaving overlays
+// (https://crbug.com/40285630) but otherwise is undesirable behavior
+// (https://crbug.com/40266959 and https://crbug.com/486121442).
+#if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kUseDisplaySDRMaxLuminanceNits, base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kUseDisplaySDRMaxLuminanceNits, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // On mac, when the RenderWidgetHostViewMac is hidden, also hide the
 // DelegatedFrameHost. Among other things, it unlocks the compositor frames,
@@ -352,7 +361,12 @@ BASE_FEATURE(kVizDirectCompositorThreadIpcNonRoot,
 // messages and, in turn, all interfaces associated with it e.g. root compositor
 // frame sink, display private - skipping the IO thread hop.
 BASE_FEATURE(kVizDirectCompositorThreadIpcFrameSinkManager,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // Switches the message pump to base::MessagePumpType::IO on the Viz thread.
 BASE_FEATURE(kVizWithIoMessagePump, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -377,6 +391,12 @@ BASE_FEATURE(kDisplaySchedulerAsClient, base::FEATURE_DISABLED_BY_DEFAULT);
 // FlingSchedulerAndroid) so it can dispatch events before the renderer
 // receives its BeginFrame.
 BASE_FEATURE(kFlingSchedulingImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables optimizations in `DirectRenderer` and `OcclusionCuller` that reuses
+// pre-existing loops to access filter data from `AggregatedRenderPassDrawQuad`.
+// This is a temporary flag to work as a kill switch for the optimization and
+// should be removed as soon as we confirm that the optimization is stable.
+BASE_FEATURE(kRpdqFilterLookupOptimizations, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Use BufferQueue for the primary plane instead of a DXGI swap chain or DComp

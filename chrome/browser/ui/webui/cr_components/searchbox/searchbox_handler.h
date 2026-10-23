@@ -69,8 +69,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   // Notifies the WebUI that the contextual input status has changed.
   void OnContextualInputStatusChanged(
       base::UnguessableToken token,
-      contextual_search::FileUploadStatus status,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      contextual_search::ContextUploadStatus status,
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // AutocompleteController::Observer:
   void OnResultChanged(AutocompleteController* controller,
@@ -93,7 +93,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                              bool shift_key) override;
   void SetPopupSelection(
       searchbox::mojom::OmniboxPopupSelectionPtr selection) override;
-  void OpenPopupSelection(searchbox::mojom::OmniboxPopupSelectionPtr selection,
+  void OpenPopupSelection(uint32_t result_sequence_id,
+                          searchbox::mojom::OmniboxPopupSelectionPtr selection,
                           WindowOpenDisposition disposition) override;
   void OnNavigationLikely(
       uint8_t line,

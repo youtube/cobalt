@@ -18,7 +18,9 @@
 #include "third_party/blink/public/common/page/content_to_visible_time_reporter.h"
 #include "ui/android/progress_bar_config.h"
 #include "ui/android/ui_android_export.h"
+#include "ui/android/ui_android_jni_headers/WindowAndroid_shared_jni.h"
 #include "ui/android/view_android.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/overlay_transform.h"
 
@@ -75,7 +77,7 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
       const base::android::JavaRef<jobject>& jwindow_android);
 
   WindowAndroid(JNIEnv* env,
-                const base::android::JavaRef<jobject>& obj,
+                const base::android::JavaRef<JWindowAndroid>& obj,
                 int display_id,
                 float scroll_factor,
                 bool window_is_wide_color_gamut);
@@ -87,7 +89,7 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
 
   void Destroy(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
+  base::android::ScopedJavaLocalRef<JWindowAndroid> GetJavaObject();
 
   void AttachCompositor(WindowAndroidCompositor* compositor);
   void DetachCompositor();
@@ -146,6 +148,15 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
   void SetModalDialogManagerForTesting(
       base::android::ScopedJavaLocalRef<jobject> java_modal_dialog_manager);
 
+  // Dispatches KeyEvent to the corresponding Java Activity.
+  // `key_event_types` is the bit flags of ui_controls::AcceleratorState.
+  bool SendKeyEventsForTesting(KeyboardCode key,
+                               int key_event_types,
+                               bool shift,
+                               bool control,
+                               bool alt,
+                               bool command);
+
   float mouse_wheel_scroll_factor() const { return mouse_wheel_scroll_factor_; }
 
   static std::unique_ptr<ScopedWindowAndroidForTesting> CreateForTesting();
@@ -201,7 +212,7 @@ class UI_ANDROID_EXPORT WindowAndroid : public ViewAndroid {
   // The ID of the display that this window belongs to.
   int display_id() const { return display_id_; }
 
-  base::android::ScopedJavaGlobalRef<jobject> java_window_;
+  base::android::ScopedJavaGlobalRef<JWindowAndroid> java_window_;
   const int display_id_;
   const bool window_is_wide_color_gamut_;
   raw_ptr<WindowAndroidCompositor> compositor_;

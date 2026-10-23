@@ -24,11 +24,12 @@
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
@@ -54,6 +55,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/theme_provider.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
@@ -68,6 +70,7 @@
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/delegating_layout_manager.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -312,7 +315,37 @@ bool VerticalTabView::OnKeyPressed(const ui::KeyEvent& event) {
                                                  GetGestureDetail(event));
     return true;
   }
-  return false;
+
+  std::optional<event_utils::ReorderDirection> reorder_direction =
+      event_utils::GetReorderCommandForKeyboardEvent(
+          event, views::LayoutOrientation::kVertical);
+  if (!reorder_direction) {
+    return false;
+  }
+
+  bool move_to_end = event.flags() & ui::EF_SHIFT_DOWN;
+  switch (*reorder_direction) {
+    case event_utils::ReorderDirection::kPrevious: {
+      if (move_to_end) {
+        collection_node_->GetController()->MoveTabFirst(GetTabInterface());
+      } else {
+        collection_node_->GetController()->ShiftTabPrevious(GetTabInterface());
+      }
+      break;
+    }
+    case event_utils::ReorderDirection::kNext: {
+      if (move_to_end) {
+        collection_node_->GetController()->MoveTabLast(GetTabInterface());
+      } else {
+        collection_node_->GetController()->ShiftTabNext(GetTabInterface());
+      }
+      break;
+    }
+  }
+
+  RequestFocus();
+
+  return true;
 }
 
 bool VerticalTabView::OnKeyReleased(const ui::KeyEvent& event) {
@@ -363,7 +396,9 @@ void VerticalTabView::OnMouseReleased(const ui::MouseEvent& event) {
   auto* controller = collection_node_->GetController();
   base::WeakPtr<VerticalTabView> self = weak_ptr_factory_.GetWeakPtr();
   if (event.IsOnlyMiddleMouseButton()) {
-    controller->CloseTab(GetTabInterface());
+    if (HitTestPoint(event.location())) {
+      controller->CloseTab(GetTabInterface());
+    }
   } else if (event.IsOnlyLeftMouseButton() &&
              !(event.IsShiftDown() || shift_pressed_on_mouse_down_) &&
              !IsSelectionModifierDown(event)) {
@@ -575,6 +610,8 @@ void VerticalTabView::OnFocus() {
     collection_node_->GetController()->TabKeyboardFocusChangedTo(
         GetTabInterface());
   }
+
+  UpdateHoverCard(this, TabSlotController::HoverCardUpdateType::kFocus);
 }
 
 void VerticalTabView::OnBlur() {
@@ -774,7 +811,7 @@ bool VerticalTabView::IsValid() const {
   return collection_node_ && !IsDragging();
 }
 
-const TabRendererData& VerticalTabView::data() const {
+const tabs::TabData& VerticalTabView::data() const {
   return tab_data_;
 }
 
@@ -785,12 +822,18 @@ views::BubbleBorder::Arrow VerticalTabView::GetAnchorPosition() const {
   return views::BubbleBorder::Arrow::LEFT_TOP;
 }
 
+const views::View* VerticalTabView::GetAnchorView() const {
+  if (split_ && !collapsed_) {
+    return parent();
+  }
+  return HoverCardAnchorTarget::GetAnchorView();
+}
+
 void VerticalTabView::ResetCollectionNode() {
   CHECK(collection_node_);
   TabHoverCardController* hover_card_controller =
       collection_node_->GetController()->GetHoverCardController();
-  if (hover_card_controller &&
-      hover_card_controller->IsHoverCardShowingForTab(this)) {
+  if (hover_card_controller && hover_card_controller->target_tab() == this) {
     hover_card_controller->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
   }
@@ -864,8 +907,8 @@ void VerticalTabView::SetSelection(bool selected) {
 }
 
 void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
-  TabRendererData new_data = TabRendererData::FromTabInterface(tab);
-  TabRendererData old_data = std::move(tab_data_);
+  tabs::TabData new_data = tabs::TabData::FromTabInterface(tab);
+  tabs::TabData old_data = std::move(tab_data_);
   tab_data_ = std::move(new_data);
 
   if (tabs::ShouldUpdateAccessibleName(old_data, tab_data_)) {
@@ -881,8 +924,7 @@ void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
 
   UpdateTitle();
 
-  alert_indicator_->TransitionToAlertState(
-      tabs::TabAlertController::GetAlertStateToShow(tab_data_.alert_state));
+  alert_indicator_->TransitionToAlertState(tab_data_.alert_state);
   alert_indicator_->UpdateEnabledForMuteToggle();
 }
 
@@ -908,7 +950,7 @@ void VerticalTabView::UpdateBorder() {
       SetBorder(views::CreateRoundedRectBorder(
           GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness),
           GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius),
-          IsFrameActive() ? kColorTabDividerFrameActive
+          IsFrameActive() ? kColorVerticalTabPinnedOutline
                           : kColorTabDividerFrameInactive));
     }
   } else if (GetBorder()) {
@@ -980,10 +1022,9 @@ void VerticalTabView::CloseButtonPressed(const ui::Event& event) {
   CHECK(alert_indicator_);
   if (!alert_indicator_->GetVisible()) {
     base::RecordAction(base::UserMetricsAction("CloseTab_NoAlertIndicator"));
-  } else if (auto alert_state = tabs::TabAlertController::GetAlertStateToShow(
-                 tab_data_.alert_state);
-             alert_state.has_value()) {
-    tabs::TabAlertController::RecordCloseTabMetrics(alert_state.value());
+  } else if (tab_data_.alert_state.has_value()) {
+    tabs::TabAlertController::RecordCloseTabMetrics(
+        tab_data_.alert_state.value());
   }
 
   if (split_) {

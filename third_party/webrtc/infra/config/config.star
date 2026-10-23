@@ -308,6 +308,7 @@ luci.bucket(
             "webrtc-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
         ]),
         acl.entry(acl.BUILDBUCKET_TRIGGERER, groups = [
+            "project-webrtc-ci-schedulers",
             # Allow Pinpoint to trigger builds for bisection
             "service-account-chromeperf",
         ]),
@@ -320,6 +321,11 @@ luci.bucket(
 
 luci.bucket(
     name = "cron",
+    acls = [
+        acl.entry(acl.BUILDBUCKET_TRIGGERER, groups = [
+            "project-webrtc-ci-schedulers",
+        ]),
+    ],
 )
 
 # Commit queue definitions:

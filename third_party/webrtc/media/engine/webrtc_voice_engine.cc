@@ -84,7 +84,7 @@
 #include "media/engine/webrtc_media_engine.h"
 #include "modules/async_audio_processing/async_audio_processing.h"
 #include "modules/audio_mixer/audio_mixer_impl.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/dscp.h"
@@ -290,7 +290,6 @@ AudioReceiveStreamInterface::Config BuildReceiveStreamConfig(
     bool enable_non_sender_rtt,
     RtcpMode rtcp_mode,
     const std::vector<std::string>& stream_ids,
-    const std::vector<RtpExtension>& /* extensions */,
     Transport* rtcp_send_transport,
     const scoped_refptr<AudioDecoderFactory>& decoder_factory,
     const std::map<int, SdpAudioFormat>& decoder_map,
@@ -1368,10 +1367,6 @@ bool WebRtcVoiceSendChannel::SetSenderParameters(
     return false;
   }
 
-  if (!ValidateRtpExtensions(params.extensions, send_rtp_extensions_)) {
-    return false;
-  }
-
   if (ExtmapAllowMixed() != params.extmap_allow_mixed) {
     SetExtmapAllowMixed(params.extmap_allow_mixed);
     for (auto& it : send_streams_) {
@@ -2185,26 +2180,11 @@ bool WebRtcVoiceReceiveChannel::SetReceiverParameters(
     return false;
   }
 
-  if (!ValidateRtpExtensions(params.extensions, recv_rtp_extensions_)) {
-    return false;
-  }
-  std::vector<RtpExtension> filtered_extensions =
-      FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForAudio,
-                          false, env_.field_trials());
-  if (recv_rtp_extensions_ != filtered_extensions) {
-    recv_rtp_extensions_.swap(filtered_extensions);
-    call_->network_thread()->PostTask(SafeTask(
-        network_thread_safety_,
-        [this, recv_rtp_extension_map =
-                   RtpHeaderExtensionMap(recv_rtp_extensions_)]() mutable {
-          RTC_DCHECK_RUN_ON(&network_thread_checker_);
-          recv_rtp_extension_map_ = std::move(recv_rtp_extension_map);
-        }));
-  }
   // RTCP mode, NACK, and receive-side RTT are not configured here because they
   // enable send functionality in the receive channels. This functionality is
   // instead configured using the SetReceiveRtcpMode, SetReceiveNackEnabled, and
   // SetReceiveNonSenderRttEnabled methods.
+  recv_params_ = params;
   return true;
 }
 
@@ -2222,7 +2202,10 @@ RtpParameters WebRtcVoiceReceiveChannel::GetRtpReceiverParameters(
   }
   rtp_params.encodings.emplace_back();
   rtp_params.encodings.back().ssrc = it->second->stream().remote_ssrc();
-  rtp_params.header_extensions = recv_rtp_extensions_;
+
+  rtp_params.header_extensions = FilterRtpExtensions(
+      recv_params_.extensions, RtpExtension::IsSupportedForAudio, false,
+      env_.field_trials());
 
   for (const Codec& codec : recv_codecs_) {
     rtp_params.codecs.push_back(codec.ToCodecParameters());
@@ -2451,8 +2434,7 @@ bool WebRtcVoiceReceiveChannel::AddRecvStream(const StreamParams& sp) {
   // Create a new channel for receiving audio data.
   auto config = BuildReceiveStreamConfig(
       ssrc, recv_nack_enabled_, enable_non_sender_rtt_, recv_rtcp_mode_,
-      sp.stream_ids(), recv_rtp_extensions_, transport(),
-      engine()->decoder_factory_, decoder_map_,
+      sp.stream_ids(), transport(), engine()->decoder_factory_, decoder_map_,
       engine()->audio_jitter_buffer_max_packets_,
       engine()->audio_jitter_buffer_fast_accelerate_,
       engine()->audio_jitter_buffer_min_delay_ms_, unsignaled_frame_decryptor_,
@@ -2603,24 +2585,6 @@ void WebRtcVoiceReceiveChannel::SetFrameDecryptor(
 void WebRtcVoiceReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
 
-  // TODO(bugs.webrtc.org/11993): This code is very similar to what
-  // WebRtcVideoChannel::OnPacketReceived does. For maintainability and
-  // consistency it would be good to move the interaction with
-  // call_->Receiver() to a common implementation and provide a callback on
-  // the worker thread for the exception case (DELIVERY_UNKNOWN_SSRC) and
-  // how retry is attempted.
-
-  // TODO(bugs.webrtc.org/7135): The mapping of extension ID (on-packet
-  // representation) to C++ class object (internal representation) is currently
-  // associated with the per-channel object (e.g. WebRtcVoiceReceiveChannel).
-  // However, this mapping is more logically associated with per-media-stream
-  // objects (like ModuleRtpRtcpImpl2), which handle specific streams flowing
-  // in one direction (usually a single SSRC).
-  // This mapping should be moved out of the media engines altogether, storing
-  // it instead at the stream level initialized by the Transport. RTP packets
-  // consumed by media channels would thus have header extensions distinguished
-  // by C++ class rather than negotiated header extension ID.
-  packet.IdentifyExtensions(recv_rtp_extension_map_);
   if (!packet.arrival_time().IsFinite()) {
     packet.set_arrival_time(env_.clock().CurrentTime());
   }
@@ -2668,9 +2632,14 @@ bool WebRtcVoiceReceiveChannel::MaybeCreateDefaultReceiveStream(
   // it up to the *latest* unsignaled stream we've seen, in order to support
   // the case where the SSRC of one unsignaled stream changes.
   if (default_sink_) {
-    for (uint32_t drop_ssrc : unsignaled_recv_ssrcs_) {
-      auto it = recv_streams_.find(drop_ssrc);
-      it->second->SetRawAudioSink(nullptr);
+    // The new ssrc has already been appended to `unsignaled_recv_ssrcs_`.
+    // If there are 2 or more streams, the stream at `size - 2` is the previous
+    // latest stream which currently possesses the default sink.
+    if (unsignaled_recv_ssrcs_.size() >= 2) {
+      // Detach the default sink from the previous latest stream.
+      uint32_t prev_ssrc =
+          unsignaled_recv_ssrcs_[unsignaled_recv_ssrcs_.size() - 2];
+      SetRawAudioSink(prev_ssrc, nullptr);
     }
     std::unique_ptr<AudioSinkInterface> proxy_sink(
         new ProxySink(default_sink_.get()));
@@ -2877,7 +2846,22 @@ bool WebRtcVoiceReceiveChannel::MaybeDeregisterUnsignaledRecvStream(
   RTC_DCHECK_RUN_ON(worker_thread_);
   auto it = absl::c_find(unsignaled_recv_ssrcs_, ssrc);
   if (it != unsignaled_recv_ssrcs_.end()) {
+    bool is_latest_unsignaled = (it == unsignaled_recv_ssrcs_.end() - 1);
     unsignaled_recv_ssrcs_.erase(it);
+    if (default_sink_) {
+      // Detach the default sink from the deregistered stream. This is needed
+      // to prevent the ProxySink from holding a dangling pointer to the
+      // default_sink_.
+      SetRawAudioSink(ssrc, nullptr);
+      if (is_latest_unsignaled && !unsignaled_recv_ssrcs_.empty()) {
+        // The deregistered stream was the latest unsignaled stream, so it held
+        // the default sink. Since it was removed, we must pass the default sink
+        // to the *new* latest unsignaled stream via a new ProxySink.
+        std::unique_ptr<AudioSinkInterface> proxy_sink(
+            new ProxySink(default_sink_.get()));
+        SetRawAudioSink(unsignaled_recv_ssrcs_.back(), std::move(proxy_sink));
+      }
+    }
     return true;
   }
   return false;

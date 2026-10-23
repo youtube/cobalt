@@ -266,23 +266,34 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // True, forgetting it otherwise.
   void FinalizeHistogram(Reference ref, bool registered);
 
+  // Results of the merging.
+  enum class MergeResult {
+    kSuccess,
+    kTypeMismatch,
+    kRangesMismatch,
+    kAddFailed,
+    kCouldNotCreate,
+  };
+
   // Merges the data in a persistent histogram with one held globally by the
   // StatisticsRecorder, updating the "logged" samples within the passed
   // object so that repeated merges are allowed. Don't call this on a "global"
   // allocator because histograms created there will already be in the SR.
-  // Returns whether the merge was successful; if false, the histogram did not
-  // have the same shape (different types or buckets), or we couldn't get a
-  // target histogram from the statistic recorder.
-  bool MergeHistogramDeltaToStatisticsRecorder(HistogramBase* histogram);
+  // `name_override` can be used to override the name of the destination
+  // histogram. If empty, it uses the original name from `histogram`.
+  MergeResult MergeHistogramDeltaToStatisticsRecorder(
+      HistogramBase* histogram,
+      std::string_view name_override);
 
   // As above but merge the "final" delta. No update of "logged" samples is
   // done which means it can operate on read-only objects. It's essential,
   // however, not to call this more than once or those final samples will
-  // get recorded again. Returns whether the merge was successful; if false, the
-  // histogram did not have the same shape (different types or buckets), or we
-  // couldn't get a target histogram from the statistic recorder.
-  bool MergeHistogramFinalDeltaToStatisticsRecorder(
-      const HistogramBase* histogram);
+  // get recorded again.
+  // `name_override` can be used to override the name of the destination
+  // histogram. If empty, it uses the original name from `histogram`.
+  MergeResult MergeHistogramFinalDeltaToStatisticsRecorder(
+      const HistogramBase* histogram,
+      std::string_view name_override);
 
   // Returns an object that manages persistent-sample-map records for a given
   // `id`. The returned object queries `sparse_histogram_data_manager_` for
@@ -347,8 +358,11 @@ class BASE_EXPORT PersistentHistogramAllocator {
   // Gets or creates an object in the global StatisticsRecorder matching
   // the `histogram` passed. Null is returned if one was not found and
   // one could not be created.
+  // `name_override` can be used to override the name of the destination
+  // histogram. If empty, it uses the original name from `histogram`.
   HistogramBase* GetOrCreateStatisticsRecorderHistogram(
-      const HistogramBase* histogram);
+      const HistogramBase* histogram,
+      std::string_view name_override);
 
   // The memory allocator that provides the actual histogram storage.
   std::unique_ptr<PersistentMemoryAllocator> memory_allocator_;

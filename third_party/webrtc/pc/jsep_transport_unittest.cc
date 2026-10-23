@@ -15,12 +15,12 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
@@ -1173,7 +1173,7 @@ class JsepTransport2HeaderExtensionTest
     memcpy(rtp_packet_data, kPcmuFrameWithExtensions, rtp_len);
     // In order to be able to run this test function multiple times we can not
     // use the same sequence number twice. Increase the sequence number by one.
-    SetBE16(ArrayView<uint8_t>(rtp_packet_buffer).subspan(2),
+    SetBE16(std::span<uint8_t>(rtp_packet_buffer).subspan(2),
             ++sequence_number_);
     CopyOnWriteBuffer rtp_packet(rtp_packet_data, rtp_len, packet_size);
 

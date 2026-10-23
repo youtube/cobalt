@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Երբ <ph name="USER_EMAIL" /> հաշվի միջոցով մուտք եք գործում Google-ի ծառայություններ, օր․՝ Gmail կամ YouTube, նույն հաշվի միջոցով կարող եք ավտոմատ մուտք գործել Chrome</translation>
 <translation id="1290883685122687410">Կարգավորման սխալ՝ <ph name="METAINSTALLER_EXIT_CODE" />։ <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Կարգավորեք Chromium-ի ձեր նոր պրոֆիլը</translation>
+<translation id="132092532143527429">Փորձել Gemini-ը Chromium-ում</translation>
 <translation id="1324107359134968521">Chromium-ին անհրաժեշտ է Bluetooth-ի հասանելիություն՝
  Bluetooth սարքեր որոնելու համար։ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Ճանաչել լեզուն</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">Փակեք Chromium-ի բոլոր պատուհանները և կրկին փորձեք:</translation>
 <translation id="3522404737534491619">Ձեր պատուհանով կիսվելու համար Համակարգի կարգավորումներում թույլատրեք էկրանի տեսագրումը Chromium-ի համար</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" />-ն արդեն մտել է հաշիվ։  Ձեր այցելությունների պատմությունն առանձին պահելու համար ձեր սեփական պրոֆիլում մուտք գործեք Chromium <ph name="USER_EMAIL_ADDRESS" /> հաշվով։</translation>
+<translation id="3531741627422851418">QR կոդ՝ Chromium դիտարկիչը շարժական սարքերում ներբեռնելու համար</translation>
 <translation id="3561853857681580870">Ձեր էկրանով կիսվելու համար Համակարգի կարգավորումներում թույլատրեք էկրանի տեսագրումը Chromium-ի համար։</translation>
 <translation id="3588112919289558122">Բարելավված պաշտպանությունն անջատում է JavaScript-ի օպտիմալացումը այն կայքերի համար, որոնք Chromium-ը չի ճանաչում</translation>
 <translation id="3597003331831379823">Չհաջողվեց գործարկել ընդլայնված արտոնություններով կարգավորումը։ <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">Դուք սովորաբար արգելափակում եք ծանուցումները։ Հասցեագոտու աջ անկյունում սեղմեք ծանուցման պատկերակը, որպեսզի թույլ տաք կայքին ծանուցել ձեզ։</translation>
 <translation id="5174983315706567306">Սկավառակում բավարար տարածք չկա։</translation>
 <translation id="5187123684706427865">Chromium հաշիվը պահանջում է վերաիսկորոշում</translation>
-<translation id="5219681158518957165">Օգտագործեք դիտարկիչի առաջարկվող կարգավորումները</translation>
 <translation id="5224391634244552924">Պահված գաղտնաբառեր չկան։ Chromium-ը կարող է ստուգել ձեր գաղտնաբառերը, երբ պահում եք դրանք։</translation>
 <translation id="5231355151045086930">Դուրս գալ Chromium-ից</translation>
 <translation id="5234764350956374838">Փակել</translation>
@@ -610,6 +611,7 @@ Chromium-ին չհաջողվեց վերականգնել ձեր կարգավոր�
 <translation id="7622753900276619808">Այժմ Chromium-ում ձեզ ավելի շատ գործառույթներ են հասանելի</translation>
 <translation id="7624307931717240213">Մենք օգտագործում ենք տեղեկությունները՝ այս ծառայությունը բարելավելու համար։ Ծանոթացեք գաղտնիության քաղաքականությանը և Օգտագործման պայմաններին։</translation>
 <translation id="7649070708921625228">Օգնություն</translation>
+<translation id="7650134251917003571">Ներբեռնել Chromium հավելվածը</translation>
 <translation id="7656340475565475526">Թույլ տվեք Chromium-ին դիտարկել ձեր փոխարեն</translation>
 <translation id="7658239707568436148">Չեղարկել</translation>
 <translation id="7686590090926151193">Chromium-ը ձեր կանխադրված դիտարկիչը չէ</translation>

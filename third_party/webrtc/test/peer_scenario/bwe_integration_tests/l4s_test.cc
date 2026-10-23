@@ -15,7 +15,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/jsep.h"
 #include "api/rtc_error.h"

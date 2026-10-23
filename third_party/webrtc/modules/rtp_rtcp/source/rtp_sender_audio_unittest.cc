@@ -12,9 +12,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -53,13 +53,13 @@ class LoopbackTransportTest : public Transport {
         kAbsoluteCaptureTimeExtensionId);
   }
 
-  bool SendRtp(ArrayView<const uint8_t> data,
+  bool SendRtp(std::span<const uint8_t> data,
                const PacketOptions& /*options*/) override {
     sent_packets_.push_back(RtpPacketReceived(&receivers_extensions_));
     EXPECT_TRUE(sent_packets_.back().Parse(data));
     return true;
   }
-  bool SendRtcp(ArrayView<const uint8_t> /* data */,
+  bool SendRtcp(std::span<const uint8_t> /* data */,
                 const PacketOptions& /* options */) override {
     return false;
   }

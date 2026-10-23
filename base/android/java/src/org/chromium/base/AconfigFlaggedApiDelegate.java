@@ -191,13 +191,15 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
-     * Calls the {@link android.view.ViewConfiguration#getTextCursorBlinkIntervalMillis()} method if
-     * an implementation is available, otherwise returns a default value.
-     *
-     * @param viewConfiguration The {@link android.view.ViewConfiguration} instance to use.
+     * Gets the system text cursor blink interval in milliseconds if available, otherwise returns a
+     * default value.
      */
-    default int getTextCursorBlinkInterval(ViewConfiguration viewConfiguration) {
+    default int getTextCursorBlinkInterval() {
         return DEFAULT_TEXT_CURSOR_BLINK_INTERVAL_MS;
+    }
+
+    default int getTextCursorBlinkInterval(ViewConfiguration viewConfiguration) {
+        return getTextCursorBlinkInterval();
     }
 
     /**
@@ -366,10 +368,10 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
-     * Returns the {@link PasswordEchoSplitSettingDelegate} if the feature to split the Android
-     * setting 'Show passwords' is enabled. the feature is enabled. Returns null otherwise.
+     * Returns the {@link PasswordEchoSettingDelegate} if the feature to split the Android setting
+     * 'Show passwords' is enabled. the feature is enabled. Returns null otherwise.
      */
-    default @Nullable PasswordEchoSplitSettingDelegate getPasswordEchoSplitSettingDelegate() {
+    default @Nullable PasswordEchoSettingDelegate getPasswordEchoSettingDelegate() {
         return null;
     }
 

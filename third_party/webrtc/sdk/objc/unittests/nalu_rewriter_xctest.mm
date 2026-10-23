@@ -8,7 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "api/array_view.h"
+#include <span>
+
 #include "common_video/h264/h264_common.h"
 #include "components/video_codec/nalu_rewriter.h"
 #include "rtc_base/gunit.h"
@@ -74,7 +75,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 
 - (void)testReadEmptyInput {
   webrtc::AnnexBBufferReader reader({});
-  webrtc::ArrayView<const uint8_t> nalu;
+  std::span<const uint8_t> nalu;
   XCTAssertEqual(0u, reader.BytesRemaining());
   XCTAssertFalse(reader.ReadNalu(nalu));
 }
@@ -82,7 +83,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 - (void)testReadSingleNalu {
   const uint8_t annex_b_test_data[] = {0x00, 0x00, 0x00, 0x01, 0xAA};
   webrtc::AnnexBBufferReader reader(annex_b_test_data);
-  webrtc::ArrayView<const uint8_t> nalu;
+  std::span<const uint8_t> nalu;
   XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
   XCTAssertTrue(reader.ReadNalu(nalu));
   XCTAssertEqual(annex_b_test_data + 4, nalu.data());
@@ -94,7 +95,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
 - (void)testReadSingleNalu3ByteHeader {
   const uint8_t annex_b_test_data[] = {0x00, 0x00, 0x01, 0xAA};
   webrtc::AnnexBBufferReader reader(annex_b_test_data);
-  webrtc::ArrayView<const uint8_t> nalu;
+  std::span<const uint8_t> nalu;
   XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
   XCTAssertTrue(reader.ReadNalu(nalu));
   XCTAssertEqual(annex_b_test_data + 3, nalu.data());
@@ -110,7 +111,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                        0x00, 0x00, 0x00, 0xFF};
   // clang-format on
   webrtc::AnnexBBufferReader reader(annex_b_test_data);
-  webrtc::ArrayView<const uint8_t> nalu;
+  std::span<const uint8_t> nalu;
   XCTAssertEqual(0u, reader.BytesRemaining());
   XCTAssertFalse(reader.ReadNalu(nalu));
 }
@@ -124,7 +125,7 @@ static const uint8_t SPS_PPS_BUFFER[] = {
                                        0x00, 0x00, 0x01, 0xAA, 0xBB};
   // clang-format on
   webrtc::AnnexBBufferReader reader(annex_b_test_data);
-  webrtc::ArrayView<const uint8_t> nalu;
+  std::span<const uint8_t> nalu;
   XCTAssertEqual(std::size(annex_b_test_data), reader.BytesRemaining());
   XCTAssertTrue(reader.ReadNalu(nalu));
   XCTAssertEqual(annex_b_test_data + 4, nalu.data());

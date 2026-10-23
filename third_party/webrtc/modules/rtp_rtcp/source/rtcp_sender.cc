@@ -15,12 +15,12 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -87,7 +87,7 @@ class RTCPSender::PacketSender {
   // Sends pending rtcp packet.
   void Send() {
     if (index_ > 0) {
-      callback_(ArrayView<const uint8_t>(buffer_, index_));
+      callback_(std::span<const uint8_t>(buffer_, index_));
       index_ = 0;
     }
   }
@@ -115,12 +115,12 @@ RTCPSender::FeedbackState::~FeedbackState() = default;
 class RTCPSender::RtcpContext {
  public:
   RtcpContext(const FeedbackState& feedback_state,
-              ArrayView<const uint16_t> nacks,
+              std::span<const uint16_t> nacks,
               Timestamp now)
       : feedback_state_(feedback_state), nacks_(nacks), now_(now) {}
 
   const FeedbackState& feedback_state_;
-  const ArrayView<const uint16_t> nacks_;
+  const std::span<const uint16_t> nacks_;
   const Timestamp now_;
 };
 
@@ -215,7 +215,7 @@ int32_t RTCPSender::SendLossNotification(const FeedbackState& feedback_state,
                                          bool decodability_flag,
                                          bool buffering_allowed) {
   int32_t error_code = -1;
-  auto callback = [&](ArrayView<const uint8_t> packet) {
+  auto callback = [&](std::span<const uint8_t> packet) {
     transport_->SendRtcp(packet, /*packet_options=*/{});
     error_code = 0;
     env_.event_log().Log(std::make_unique<RtcEventRtcpPacketOutgoing>(packet));
@@ -569,9 +569,9 @@ void RTCPSender::BuildExtendedReports(const RtcpContext& ctx,
 
 int32_t RTCPSender::SendRTCP(const FeedbackState& feedback_state,
                              RTCPPacketType packet_type,
-                             ArrayView<const uint16_t> nacks) {
+                             std::span<const uint16_t> nacks) {
   int32_t error_code = -1;
-  auto callback = [&](ArrayView<const uint8_t> packet) {
+  auto callback = [&](std::span<const uint8_t> packet) {
     if (transport_->SendRtcp(packet, /*packet_options=*/{})) {
       error_code = 0;
       env_.event_log().Log(
@@ -605,7 +605,7 @@ uint32_t RTCPSender::ComputeSsrc() const {
 std::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
     const FeedbackState& feedback_state,
     RTCPPacketType packet_type,
-    ArrayView<const uint16_t> nacks,
+    std::span<const uint16_t> nacks,
     PacketSender& sender) {
   if (method_ == RtcpMode::kOff) {
     RTC_LOG(LS_WARNING) << "Can't send RTCP if it is disabled.";
@@ -876,7 +876,7 @@ void RTCPSender::SendCombinedRtcpPacket(
     ssrc = ComputeSsrc();
   }
   RTC_DCHECK_LE(max_packet_size, IP_PACKET_SIZE);
-  auto callback = [&](ArrayView<const uint8_t> packet) {
+  auto callback = [&](std::span<const uint8_t> packet) {
     if (transport_->SendRtcp(packet, /*packet_options=*/{})) {
       env_.event_log().Log(
           std::make_unique<RtcEventRtcpPacketOutgoing>(packet));

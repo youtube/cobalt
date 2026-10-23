@@ -1491,8 +1491,8 @@ void Heap::HandleExternalMemoryInterrupt() {
         kGCCallbackFlagsForExternalMemory);
     if (incremental_marking()->IsMajorMarking() &&
         AllocationLimitOvershotByLargeMargin()) {
-      CollectAllAvailableGarbage(
-          GarbageCollectionReason::kExternalMemoryPressure);
+      CollectGarbageWithRetry(OLD_SPACE,
+                              GarbageCollectionReason::kExternalMemoryPressure);
     }
     return;
   }
@@ -2263,14 +2263,16 @@ void Heap::RestoreHeapLimit(size_t heap_limit) {
                             physical_memory());
 }
 
-void Heap::CollectGarbageWithRetry(AllocationSpace space) {
+void Heap::CollectGarbageWithRetry(AllocationSpace space,
+                                   GarbageCollectionReason gc_reason) {
   std::ignore = allocator()->RetryCustomAllocate(
       [&]() {
         // RetryCustomAllocate() already checks heap limits before calling
         // the allocate function.
         return true;
       },
-      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
+      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld,
+      gc_reason);
 }
 
 void Heap::PerformRequestedGC(LocalHeap* local_heap) {
@@ -3031,7 +3033,8 @@ void* Heap::AllocateExternalBackingStore(
     return result;
   }
   std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
+      [&]() { return result = allocate(byte_length); }, AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
   return result;
 }
 
@@ -5467,7 +5470,7 @@ size_t Heap::EmbedderSizeOfObjects() const {
   return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
 }
 
-size_t Heap::GlobalSizeOfObjects() const {
+uint64_t Heap::GlobalSizeOfObjects() const {
   return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects() +
          (v8_flags.external_memory_accounted_in_global_limit ? external_memory()
                                                              : 0);
@@ -5476,7 +5479,8 @@ size_t Heap::GlobalSizeOfObjects() const {
 size_t Heap::GlobalWastedBytes() const { return OldGenerationWastedBytes(); }
 
 size_t Heap::GlobalConsumedBytes() const {
-  return GlobalSizeOfObjects() + GlobalWastedBytes();
+  return base::saturated_cast<size_t>(GlobalSizeOfObjects() +
+                                      GlobalWastedBytes());
 }
 
 size_t Heap::OldGenerationAllocationLimitForTesting() const {
@@ -5509,20 +5513,22 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 
   const size_t old_generation_limit =
       limits()->old_generation_allocation_limit();
+  const size_t global_limit = limits()->global_allocation_limit();
+
+  // Bail out if the V8 and global sizes are still below their respective
+  // limits.
+  if (old_generation_consumed < old_generation_limit &&
+      global_consumed < global_limit) {
+    return false;
+  }
+
   const size_t old_generation_overshoot =
       old_generation_limit < old_generation_consumed
           ? old_generation_consumed - old_generation_limit
           : 0;
 
-  const size_t global_limit = limits()->global_allocation_limit();
   const size_t global_overshoot =
       global_limit < global_consumed ? global_consumed - global_limit : 0;
-
-  // Bail out if the V8 and global sizes are still below their respective
-  // limits.
-  if (old_generation_overshoot == 0 && global_overshoot == 0) {
-    return false;
-  }
 
   return old_generation_overshoot >=
              limits()->old_generation_overshoot_margin() ||
@@ -7144,7 +7150,8 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
 #endif
 
   if (ReachedHeapLimit()) {
-    CollectGarbageWithRetry(OLD_SPACE);
+    CollectGarbageWithRetry(OLD_SPACE,
+                            GarbageCollectionReason::kExternalMemoryPressure);
   } else if (total_after > external_memory_limit_for_interrupt()) {
     HandleExternalMemoryInterrupt();
   }

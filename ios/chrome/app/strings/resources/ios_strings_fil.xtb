@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Na-save ang bookmark sa "{title}" sa iyong account, {email}}one{Na-save ang {count} bookmark sa "{title}" sa iyong account, {email}}other{Na-save ang {count} na bookmark sa "{title}" sa iyong account, {email}}}</translation>
 <translation id="1207493287814084192">5:30 PM</translation>
 <translation id="1217294226280635614">Split view</translation>
+<translation id="1218730690561976633">I-toggle ang pag-verify ng user para sa pinahusay na autofill</translation>
 <translation id="1219674500290482172">Hindi makakonekta sa Internet.</translation>
 <translation id="1223498995510244364">Ibuod</translation>
 <translation id="1227113644794103810">Mga hindi aktibong tab</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Nabigo ang pagbabahagi dahil hindi ka nakakonekta sa network.</translation>
 <translation id="1668001730617725852">Buksan sa Bagong Grupo ng Tab</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> na isasalin sa <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Batay sa mga patakaran ng iyong organisasyon, posibleng naglalaman ng sensitibong impormasyon ang file na ito</translation>
 <translation id="168389590065701766">Puwede mo na ngayong buksan ang Google Lens mula sa iyong address bar at hanapin ang kahit anong nakikita mo</translation>
 <translation id="1689333818294560261">Nickname</translation>
 <translation id="169048873465870056">Alisin ang tab at i-delete ang grupo?</translation>
@@ -525,6 +527,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 site (higit pa sa mga naka-sync na device)}one{# site (higit pa sa mga naka-sync na device)}other{# na site (higit pa sa mga naka-sync na device)}}</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2876369937070532032">Ipadala ang mga URL ng ilang page na binibisita mo sa Google kapag nanganganib ang iyong seguridad</translation>
+<translation id="2877733045396505765">Made-delete nito ang napiling impormasyong naka-save sa device na ito at sa iyong Google Account na <ph name="USER_EMAIL" />.</translation>
 <translation id="2883151425485251736">Tingnan at i-edit ang mga paksa na itinago mo mula sa iyong account</translation>
 <translation id="288655811176831528">Isara ang Tab</translation>
 <translation id="2888631381369839306">Naka-on ang mga notification sa pagsubaybay sa presyo</translation>
@@ -599,6 +602,7 @@
 <translation id="3174662312949010067">Puwede mo ring gamitin ang mga naka-save na password sa iba mo pang device.</translation>
 <translation id="3177338796769255211">Mag-sign in para makuha ang iyong mga bookmark at higit pa sa lahat ng device mo</translation>
 <translation id="3181954750937456830">Ligtas na Pag-browse (pinoprotektahan ka at ang iyong device mula sa mga mapanganib na site)</translation>
+<translation id="3183362380688692618">Bagong Grupo ng Tab...</translation>
 <translation id="3186796054637504691">I-clear ang History at Data ng Website</translation>
 <translation id="3190736958609431397">Huwag subaybayan</translation>
 <translation id="3208260410153224535">Ini-off ng iyong organisasyon ang pag-sign in. Sa device na ito lang mase-save ang mga bagong bookmark, password, at higit pa.</translation>
@@ -668,6 +672,7 @@
 <translation id="3476450923187944815">I-access ang iyong mga password sa iba pang app.</translation>
 <translation id="3485558910355485767">Bagong Incognito Window</translation>
 <translation id="3488501490964659223">Isinara ang mga tab at na-delete ang data mula sa pag-browse. Na-sign out ka</translation>
+<translation id="3490396108106323715">I-share ang kasalukuyang tab</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /> tungkol sa iminumungkahing content</translation>
 <translation id="349446645805573740">Piliin kung saan ise-save ang "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">Mga Setting</translation>
@@ -694,6 +699,7 @@
 <translation id="3565012355885596568">Hindi ma-load ang mga larawan</translation>
 <translation id="3565930036634619844">Tab. <ph name="TAB_INDEX" /> sa <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">I-save sa ibang paraan</translation>
+<translation id="3572503683475187385">Ishe-share ang kasalukuyang tab sa Gemini kapag nagsimula ka ng bagong chat. Kapag nag-share ka ng tab sa Gemini, ipapadala sa Google ang mga content at URL ng mga ito. <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Sa iyong Google Account</translation>
 <translation id="3575234738189584619">Maghanap gamit ang Lens</translation>
 <translation id="3575426792457739946">Makikita sa listahang ito ang lahat ng na-load na profile.</translation>
@@ -737,6 +743,7 @@
 <translation id="3751873026576444885">Ihinto ang paghahanap sa iyong screen gamit ang Google Lens</translation>
 <translation id="3753408171347588045">Tina-track ang mga presyo</translation>
 <translation id="3753618528540214374">Viridian na tema</translation>
+<translation id="3759491607478608474">I-share ang content ng kasalukuyang tab sa Gemini para makakuha ng mga mas nauugnay na sagot</translation>
 <translation id="3762232513783804601">Ginawa Para sa Iyong iPad</translation>
 <translation id="3768725474733206671">Buksan Ulit ang Huling Isinarang Tab</translation>
 <translation id="3779810277399252432">Walang koneksyon sa internet.</translation>
@@ -984,6 +991,7 @@
 <translation id="4650125387981512669">Magpatuloy bilang <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{I-hide pagkalipas ng 1 minuto}one{I-hide pagkalipas ng {count} minuto}other{I-hide pagkalipas ng {count} na minuto}}</translation>
 <translation id="4652817563047461855">Tiyaking ligtas ang iyong mga password, alamin kung nakompromiso ang mga ito, at makakuha ng payo para matulungang protektahan ang sarili mo online. <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">I-on ang pag-share ng tab</translation>
 <translation id="4658335131052370646">I-save</translation>
 <translation id="466307903888586355">Na-block ng iyong organisasyon ang pag-save ng mga file</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1120,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} sa {count} paraan ng pagbabayad}one{{position} sa {count} paraan ng pagbabayad}other{{position} sa {count} na paraan ng pagbabayad}}</translation>
 <translation id="5075939510584558547">I-save nang walang pag-encrypt</translation>
 <translation id="5076534614343816664">Pagsubaybay sa presyo</translation>
+<translation id="507762438756999615">Hindi mashe-share ang file dahil sa mga patakaran ng iyong organisasyon</translation>
 <translation id="5078303485429639424">I-on ang mga notification para sa <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Gamitin ang iminumungkahing password</translation>
 <translation id="5083464117946352670">Hindi matukoy ang file size.</translation>
@@ -1297,6 +1306,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="5718049162805123412">Dapat mong palitan ang mga ito ngayon mismo</translation>
 <translation id="5721040778297053709">Iposisyon ang credit card sa frame na ito</translation>
 <translation id="572328651809341494">Mga kamakailang tab</translation>
+<translation id="5724590854763964497">Bilang default, ishe-share ang kasalukuyan mong tab kapag nagsimula ka ng bagong chat. Kapag na-share ang mga tab, ipapadala sa Google ang mga content at URL ng mga ito pero hindi ito gagamitin para magpahusay ng mga generative AI model. Puwede mong baguhin ang setting na ito anumang oras.</translation>
 <translation id="5724941645893276623">Para pribadong mag-browse sa web, magdagdag ng bagong tab</translation>
 <translation id="5728072125198221967">Mga naka-link na serbisyo ng Google</translation>
 <translation id="5728700505257787410">Paumanhin, may problema sa pag-sign in sa iyong account.</translation>
@@ -1869,6 +1879,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="775755486779745798">I-autofill ang buwan ng pag-expire ng <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">Violet na tema</translation>
 <translation id="7759809451544302770">Opsyonal</translation>
+<translation id="7763878244904387570">Made-delete nito ang napiling impormasyong naka-save sa device na ito.</translation>
 <translation id="7765158879357617694">Ilipat</translation>
 <translation id="7772032839648071052">Kumpirmahin ang passphrase</translation>
 <translation id="7772948288262733182">Maligayang pagbabalik</translation>
@@ -1964,6 +1975,8 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8059533439631660104">Kino-collapse ang seksyon.</translation>
 <translation id="8061584726507121204">History</translation>
 <translation id="8064946459644399612">Na-apply ang iyong mga preference sa page na Bagong Tab</translation>
+<translation id="8065136076319366194">Hindi inirerekomenda ang pag-save</translation>
+<translation id="8065556469005366939">Makakuha ng mga mas nauugnay na sagot sa pamamagitan ng pag-share ng iyong mga tab</translation>
 <translation id="8069394452933076548">Piliin kung kailan ililipat ang mga tab na hindi ginamit kamakailan sa seksyon ng hindi aktibong tab.</translation>
 <translation id="8073670137947914548">Tapos na ang pag-download</translation>
 <translation id="8076492880354921740">Mga Tab</translation>
@@ -1985,6 +1998,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8131740175452115882">Kumpirmahin</translation>
 <translation id="8132598642024322408"><ph name="PRICE" /> na lang ngayon ang dating <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Gumamit ng natatanging password para sa bawat site o app. Kung may makakatuklas ng password na ginamit ulit, posibleng gamitin ito para i-access ang iyong iba pang account. I-click para buksan ang website at baguhin ang mga ito ngayon.</translation>
+<translation id="8133810265969517544">Hindi inirerekomenda ang pag-share</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} nakasarang tab}one{{count} nakasarang tab}other{{count} na nakasarang tab}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 iba pa}one{# iba pa}other{# na iba pa}}</translation>
 <translation id="8150167929304790980">Buong pangalan</translation>
@@ -2132,6 +2146,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8660600697590740984">Larawang kinopya gamit ang Lens</translation>
 <translation id="866266761389616183">Ay, naku!</translation>
 <translation id="8663764600409216912">Gumagamit ka ng mga password na mukhang mahirap hulaan</translation>
+<translation id="8664992138761940052">Bilang default, ishe-share ang kasalukuyan mong tab kapag nagsimula ka ng bagong chat. Kapag na-share ang mga tab, ipapadala sa Google ang mga content at URL ng mga ito. Puwede mong baguhin ang setting na ito anumang oras.</translation>
 <translation id="8668210798914567634">Na-save na ang page na ito sa iyong Listahan ng Babasahin.</translation>
 <translation id="8672642291731179042">Isalin ang mga page</translation>
 <translation id="8672733398999596205">I-enable Lahat</translation>
@@ -2234,6 +2249,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="8976414606286374109">Naka-save ang mga card sa iyong Google Account.</translation>
 <translation id="8981454092730389528">Mga Kontrol ng Aktibidad ng Google</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, naka-pin na site</translation>
+<translation id="8990960056509724223">Hindi ma-save ang file dahil sa mga patakaran ng iyong organisasyon</translation>
 <translation id="8998289560386111590">Hindi available sa iyong device</translation>
 <translation id="9000532564152265066">Lahat ng Tab</translation>
 <translation id="9003677638446136377">Suriing muli</translation>

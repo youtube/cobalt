@@ -62,5 +62,6 @@ rtc_library("validate_rtp_packetizer") {
     "..:fuzz_data_helper",
     "../../../modules/rtp_rtcp",
     "../../../modules/rtp_rtcp:rtp_rtcp_format",
+    "../../../rtc_base:checks",
   ]
 }

@@ -76,6 +76,7 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="1698376642261615901">Web-orriak eta aplikazioak ziztu bizian abiarazten dituen web-arakatzailea da Google Chrome. Bizkorra, egonkorra eta erabilerraza da. Sarea segurtasun osoz arakatu ahal izango duzu, Google Chrome-k malwarearen eta phishingaren aurkako babesa barneratuta baitu.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Ordubete barru exekutatuko da Chrome berriro}other{# ordu barru exekutatuko da Chrome berriro}}</translation>
 <translation id="1722488837206509557">Erabilgarri dauden gailuen artean hautatu ahal izango duzu, eta haietan edukia bistaratu.</translation>
+<translation id="177180974022074201">Probatu Chrome-ko Gemini-rekin</translation>
 <translation id="1786003790898721085">Ziurtatu Chrome-ko saioa hasita daukazula <ph name="TARGET_DEVICE_NAME" /> gailuan eta saiatu berriro bidaltzen.</translation>
 <translation id="1786044937610313874">Lasterbideak Chrome-n irekitzen dira</translation>
 <translation id="178701303897325119">Luzapena ez da onartzen jada. Kentzea gomendatzen dizu Chrome-k.</translation>
@@ -225,6 +226,7 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="3226612997184048185">Era berean, laster-markak Google-ko kontuan gordetzen badituzu, Chrome-n produktuen prezioen jarraipena egin ahal izango duzu, eta prezioak jaisten direnean jakinarazpenak jaso</translation>
 <translation id="3242123554343253302">Gehitu Chrome-ko profil bat</translation>
 <translation id="3245429137663807393">Chrome-ren erabilera-txostenak ere partekatzen badituzu, bisitatzen dituzun URLak agertuko dira txosten horietan</translation>
+<translation id="3259748324892322072">Lortu Chrome aplikazioa</translation>
 <translation id="3286538390144397061">Berrabiarazi orain</translation>
 <translation id="3292333338048274092">Chrome berrabiarazi beharko duzu ondoren.</translation>
 <translation id="3324218984287646518">Egin bideo honi buruzko galdera bat Google Lens-i</translation>
@@ -282,7 +284,6 @@ Eginbide batzuk agian dira erabilgarri egongo eta hobespenei egindako aldaketak 
 <translation id="3892148308691398805">Kopiatu testua</translation>
 <translation id="3893985792899396936">Chrome-ri buruzko aholkua: bilatu Lens bidez</translation>
 <translation id="3906096710440765802">Pasahitzak, laster-markak eta abar gailu guztietan eskura izateko, hasi saioa Chrome-n</translation>
-<translation id="3921132130819999051">Eman zure izenean arakatzeko baimena Chrome-ri</translation>
 <translation id="3941890832296813527">Instalazio-errorea: instalatzailearen fitxategi-izenak ez du balio edo ez da onartzen.</translation>
 <translation id="395904275706073188">Babestutako orriak ezin dira irakurri. Probatu beste orri batekin.</translation>
 <translation id="3968962723676998462">Chrome-ko datuak zure kontuan (<ph name="ACCOUNT_EMAIL" />) erabiltzeko eta gordetzeko, idatzi pasaesaldia</translation>
@@ -497,7 +498,6 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">Fitxa honek baliabide gehiago erabiltzen ditu. Errendimendua hobetzeko, eman fitxa inaktibo ezartzeko baimena Chrome-ri.</translation>
 <translation id="6182736845697986886">Instalazioak huts egin du, eguneratze-zerbitzariak barneko errore bat izan duelako.</translation>
-<translation id="6183773856988300112">Chrome-ko Gemini-k arakatze automatikoa erabiltzen du fitxetan lan egiteko eta ematen dizkiozun zereginak osatzeko. <ph name="LINK_BEGIN" />Lortu informazio gehiago<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome-rako aholkua: gorde pasahitzak</translation>
 <translation id="6192058120268468905">Zure kontua Chrome-n</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> bazkideak Chrome-ren funtzionamenduari agian eragingo dion luzapen bat gehitu du.
@@ -533,6 +533,7 @@ Google Chrome-k ezin ditu berreskuratu zure ezarpenak.</translation>
 <translation id="6481963882741794338">Lotu Chrome eta Google-ren beste zerbitzuak pertsonalizaziorako eta bestelako helburuetarako</translation>
 <translation id="648319183876919572">Arakatze seguru hobetuak are gehiago babesten zaitu webgune eta deskarga arriskutsuen aurka</translation>
 <translation id="6489302989675808168">Aktibatuta • Chrome-k ezin du egiaztatu luzapena nondik datorren</translation>
+<translation id="6491330562720922580">Chrome arakatzailea gailu mugikorretan deskargatzeko QR kodea</translation>
 <translation id="6493527311031785448">Google Chrome-k <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome automatikoki itxi da</translation>
 <translation id="6506909944137591434">Chrome-k kamera erabiltzeko baimena behar du zure inguruaren 3D-ko mapa bat sortzeko</translation>

@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_sender.h"
@@ -180,7 +180,7 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
   // Receiver functions
   // **************************************************************************
 
-  virtual void IncomingRtcpPacket(ArrayView<const uint8_t> incoming_packet) = 0;
+  virtual void IncomingRtcpPacket(std::span<const uint8_t> incoming_packet) = 0;
 
   virtual void SetRemoteSSRC(uint32_t ssrc) = 0;
 
@@ -340,16 +340,16 @@ class RtpRtcpInterface : public RtcpFeedbackSenderInterface {
   virtual std::vector<std::unique_ptr<RtpPacketToSend>> FetchFecPackets() = 0;
 
   virtual void OnAbortedRetransmissions(
-      ArrayView<const uint16_t> sequence_numbers) = 0;
+      std::span<const uint16_t> sequence_numbers) = 0;
 
   virtual void OnPacketsAcknowledged(
-      ArrayView<const uint16_t> sequence_numbers) = 0;
+      std::span<const uint16_t> sequence_numbers) = 0;
 
   virtual std::vector<std::unique_ptr<RtpPacketToSend>> GeneratePadding(
       size_t target_size_bytes) = 0;
 
   virtual std::vector<RtpSequenceNumberMap::Info> GetSentRtpPacketInfos(
-      ArrayView<const uint16_t> sequence_numbers) const = 0;
+      std::span<const uint16_t> sequence_numbers) const = 0;
 
   // Returns an expected per packet overhead representing the main RTP header,
   // any CSRCs, and the registered header extensions that are expected on all

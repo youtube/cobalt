@@ -11,8 +11,8 @@
 #include "sdk/android/src/jni/audio_device/aaudio_player.h"
 
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "modules/audio_device/fine_audio_buffer.h"
 #include "rtc_base/checks.h"
@@ -207,8 +207,8 @@ aaudio_data_callback_result_t AAudioPlayer::OnDataCallback(void* audio_data,
     memset(audio_data, 0, num_bytes);
   } else {
     fine_audio_buffer_->GetPlayoutData(
-        webrtc::MakeArrayView(static_cast<int16_t*>(audio_data),
-                              aaudio_.samples_per_frame() * num_frames),
+        std::span(static_cast<int16_t*>(audio_data),
+                  aaudio_.samples_per_frame() * num_frames),
         static_cast<int>(latency_millis_ + 0.5));
   }
 

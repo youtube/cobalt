@@ -1547,8 +1547,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsWeakReferenceToObject(TNode<MaybeObject> maybe_object,
                                        TNode<Object> object);
 
-  TNode<HeapObjectReference> MakeWeak(TNode<HeapObject> value);
-  TNode<MaybeObject> ClearedValue();
+  TNode<Weak<HeapObject>> MakeWeak(TNode<HeapObject> value);
+  TNode<ClearedWeakValue> ClearedValue();
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<Smi> index,
                              int additional_offset);
@@ -4860,6 +4860,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
              IntPtrConstant(MemoryChunk::FlagsOffset())));
     return WordEqual(WordAnd(flags, IntPtrConstant(mask)), IntPtrConstant(0));
   }
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  // Mirror C++ StringHasher::SeedArrayIndexValue and UnseedArrayIndexValue.
+  TNode<Uint32T> SeedArrayIndexValue(TNode<Uint32T> value);
+  TNode<Uint32T> UnseedArrayIndexValue(TNode<Uint32T> value);
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
  private:
   friend class CodeStubArguments;

@@ -11,7 +11,6 @@ import re
 
 from grit import constants
 from grit import exception
-from grit import lazy_re
 from grit import pseudo
 from grit import pseudolocales
 from grit import tclib
@@ -317,7 +316,7 @@ class MessageClique:
   CONSTANT_TRANSLATION = tclib.Translation(text='TTTTTT')
 
   # A pattern to match messages that are empty or whitespace only.
-  WHITESPACE_MESSAGE = lazy_re.compile(r'^\s*$')
+  WHITESPACE_MESSAGE = re.compile(r'^\s*$')
 
   def __init__(self, uber_clique, message, translateable=True,
                custom_type=None):
@@ -407,15 +406,14 @@ class MessageClique:
     if lang == constants.CONSTANT_LANGUAGE:
       return self.CONSTANT_TRANSLATION
 
-    for (msglang, msggender) in self.clique:
-      if lang == msglang and gender == msggender:
-        return self.clique[(msglang, msggender)]
+    # First try: exact match for the requested language and gender.
+    if match := self.clique.get((lang, gender)):
+      return match
 
-    # gender translations are expected to be sparse, so if we didn't find a
-    # match, fall back to the source gender
-    for (msglang, msggender) in self.clique:
-      if lang == msglang and MessageClique.source_gender == msggender:
-        return self.clique[(msglang, msggender)]
+    # Second try: fallback to the default source gender if a specific gender
+    # translation is missing (as gender translations are expected to be sparse).
+    if fallback_match := self.clique.get((lang, MessageClique.source_gender)):
+      return fallback_match
 
     if pseudo_if_no_match:
       if lang == constants.PSEUDOLOCALE_LONG_STRINGS:

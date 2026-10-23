@@ -130,9 +130,11 @@ call it using the `DEPRECATED_`-prefixed name don't get the warning.
 [DEPRECATED]: https://en.cppreference.com/w/cpp/language/attributes/deprecated
 [ABSL_DEPRECATE_AND_INLINE]: https://source.chromium.org/chromium/chromium/src/+/main:third_party/abseil-cpp/absl/base/macros.h?q=ABSL_DEPRECATE_AND_INLINE
 
-### ArrayView
+### std::span
 
-When passing an array of values to a function, use `ArrayView`
+std::span is allowed and encouraged in WebRTC.
+
+When passing an array of values to a function, use `std::span`
 whenever possible—that is, whenever you're not passing ownership of
 the array, and don't allow the callee to change the array size.
 
@@ -140,14 +142,20 @@ For example,
 
 | instead of                          | use                  |
 |-------------------------------------|----------------------|
-| `const std::vector<T>&`             | `ArrayView<const T>` |
-| `const T* ptr, size_t num_elements` | `ArrayView<const T>` |
-| `T* ptr, size_t num_elements`       | `ArrayView<T>`       |
+| `const std::vector<T>&`             | `std::span<const T>` |
+| `const T* ptr, size_t num_elements` | `std::span<const T>` |
+| `T* ptr, size_t num_elements`       | `std::span<T>`       |
 
-See the [source code for `ArrayView`][ArrayView] for more detailed
-docs.
+See the [cpp reference][span] for more detailed docs.
 
-[ArrayView]: https://webrtc.googlesource.com/src/+/refs/heads/main/api/array_view.h
+std::span represents the same concept as base::span in Chromium and absl::Span
+in Abseil. WebRTC can't use base::span from Chromium, and prefers std::span over absl::Span.
+
+<!-- TODO: bugs.webrtc.org/439801349 - Delete this note after 2027-03-04 -->
+In the past WebRTC used own ArrayView type to represent a span, however that
+type has been migrated to std::span.
+
+[span]: https://en.cppreference.com/w/cpp/container/span.html
 
 ### Strings
 

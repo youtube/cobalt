@@ -579,10 +579,12 @@
                                      GLsizei paramCount, GLsizei *length, GLfloat *params);        \
     void getMultisamplefvRobust(GLenum pname, GLuint index, GLsizei paramCount, GLsizei *length,   \
                                 GLfloat *val);                                                     \
-    void getTexLevelParameterivRobust(TextureTarget targetPacked, GLint level, GLenum pname,       \
-                                      GLsizei paramCount, GLsizei *length, GLint *params);         \
-    void getTexLevelParameterfvRobust(TextureTarget targetPacked, GLint level, GLenum pname,       \
-                                      GLsizei paramCount, GLsizei *length, GLfloat *params);       \
+    void getTexLevelParameterivRobust(TextureTarget targetPacked, GLint level,                     \
+                                      TextureImageParameter pnamePacked, GLsizei paramCount,       \
+                                      GLsizei *length, GLint *params);                             \
+    void getTexLevelParameterfvRobust(TextureTarget targetPacked, GLint level,                     \
+                                      TextureImageParameter pnamePacked, GLsizei paramCount,       \
+                                      GLsizei *length, GLfloat *params);                           \
     void getQueryObjectivRobust(QueryID idPacked, QueryObjectParameter pnamePacked,                \
                                 GLsizei paramCount, GLsizei *length, GLint *params);               \
     void getQueryObjecti64vRobust(QueryID idPacked, QueryObjectParameter pnamePacked,              \
@@ -593,6 +595,8 @@
         GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLfloat *params);          \
     void getFramebufferPixelLocalStorageParameterivRobust(                                         \
         GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLint *params);            \
+    void getFramebufferPixelLocalStorageParameteruivRobust(                                        \
+        GLint plane, GLenum pname, GLsizei paramCount, GLsizei *length, GLuint *params);           \
     /* GL_ANGLE_robust_fragment_shader_output */                                                   \
     /* GL_ANGLE_robust_resource_initialization */                                                  \
     /* GL_ANGLE_semaphore_fuchsia */                                                               \
@@ -609,11 +613,13 @@
     void framebufferPixelLocalClearValueuiv(GLint plane, const GLuint *value);                     \
     void beginPixelLocalStorage(GLsizei n, const GLenum *loadops);                                 \
     void endPixelLocalStorage(GLsizei n, const GLenum *storeops);                                  \
+    void endPixelLocalStorageImplicit();                                                           \
     void pixelLocalStorageBarrier();                                                               \
     void framebufferPixelLocalStorageInterrupt();                                                  \
     void framebufferPixelLocalStorageRestore();                                                    \
     void getFramebufferPixelLocalStorageParameterfv(GLint plane, GLenum pname, GLfloat *params);   \
     void getFramebufferPixelLocalStorageParameteriv(GLint plane, GLenum pname, GLint *params);     \
+    void getFramebufferPixelLocalStorageParameteruiv(GLint plane, GLenum pname, GLuint *params);   \
     /* GL_ANGLE_shader_pixel_local_storage_coherent */                                             \
     /* GL_ANGLE_stencil_texturing */                                                               \
     /* GL_ANGLE_texture_compression_dxt3 */                                                        \

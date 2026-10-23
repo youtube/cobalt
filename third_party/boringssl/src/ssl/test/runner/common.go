@@ -367,6 +367,12 @@ const echAcceptConfirmationLength = 8
 // Temporary value; pre RFC.
 const spakeID uint16 = 0x7d96
 
+// KDF identifiers (RFC 9258)
+const (
+	kdfHKDFWithSHA256 uint16 = 0x0001
+	kdfHKDFWithSHA384 uint16 = 0x0002
+)
+
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
 	Version                    uint16                // TLS version used by the connection (e.g. VersionTLS12)
@@ -395,6 +401,7 @@ type ConnectionState struct {
 	HasApplicationSettingsOld  bool                  // whether ALPS old codepoint was negotiated
 	PeerApplicationSettingsOld []byte                // the old application settings received from the peer
 	ECHAccepted                bool                  // whether ECH was accepted on this connection
+	SelectedPSK                *Credential           // the selected PSK, if any
 }
 
 // ClientAuthType declares the policy the server will follow for
@@ -555,7 +562,11 @@ type Config struct {
 	Time func() time.Time
 
 	// Credential contains the credential to present to the other side of
-	// the connection. Server configurations must include this field.
+	// the connection. Server configurations must include this field. We only
+	// support one credential because, except for PSKs, offered credentials do
+	// not appear on the wire, and tests already know which credential to
+	// expect to use. For offering multiple PSKs, use the PSKCredentials
+	// field.
 	Credential *Credential
 
 	// RootCAs defines the set of root certificate authorities
@@ -691,12 +702,16 @@ type Config struct {
 	RequestChannelID bool
 
 	// PreSharedKey, if not nil, is the pre-shared key to use with
-	// the PSK cipher suites.
+	// TLS 1.2 PSK cipher suites.
 	PreSharedKey []byte
 
 	// PreSharedKeyIdentity, if not empty, is the identity to use
-	// with the PSK cipher suites.
+	// with TLS 1.2 PSK cipher suites.
 	PreSharedKeyIdentity string
+
+	// PSKCredentials, if not empty, is a list of TLS 1.3 PSK credentials to
+	// offer as a client.
+	PSKCredentials []*Credential
 
 	// MaxEarlyDataSize controls the maximum number of bytes that the
 	// server will accept in early data and advertise in a
@@ -1714,13 +1729,9 @@ type ProtocolBugs struct {
 	// resumption.
 	NegotiatePSKResumption bool
 
-	// AlwaysSelectPSKIdentity, if true, causes the server in TLS 1.3 to
-	// always acknowledge a session, regardless of one was offered.
-	AlwaysSelectPSKIdentity bool
-
-	// SelectPSKIdentityOnResume, if non-zero, causes the server to select
-	// the specified PSK identity index rather than the actual value.
-	SelectPSKIdentityOnResume uint16
+	// AlwaysSelectPSKIdentity, if not nil, causes the server in TLS 1.3 to
+	// select the specified PSK identity index.
+	AlwaysSelectPSKIdentity *uint16
 
 	// ExtraPSKIdentity, if true, causes the client to send an extra PSK
 	// identity.
@@ -1938,9 +1949,13 @@ type ProtocolBugs struct {
 	// rejected. See RFC 8701.
 	ExpectGREASE bool
 
-	// OmitPSKsOnSecondClientHello, if true, causes the client to omit the
+	// OmitPSKsOnSecondClientHello causes the client to delete the specified
+	// number of PSKs, from the front, on the second ClientHello.
+	OmitPSKsOnSecondClientHello int
+
+	// OmitAllPSKsOnSecondClientHello, if true, causes the client to omit the
 	// PSK extension on the second ClientHello.
-	OmitPSKsOnSecondClientHello bool
+	OmitAllPSKsOnSecondClientHello bool
 
 	// OnlyCorruptSecondPSKBinder, if true, causes the options below to
 	// only apply to the second PSK binder.
@@ -2356,6 +2371,7 @@ const (
 	CredentialTypeX509 CredentialType = iota
 	CredentialTypeDelegated
 	CredentialTypeSPAKE2PlusV1
+	CredentialTypePreSharedKey
 )
 
 // A Credential is a certificate chain and private key that a TLS endpoint may
@@ -2408,6 +2424,22 @@ type Credential struct {
 	// OverridePAKECodepoint, if non-zero, causes the runner to send the
 	// specified value instead of the actual PAKE codepoint.
 	OverridePAKECodepoint uint16
+	// The following fields are used for PSK credentials.
+	PreSharedKey []byte
+	PSKIdentity  []byte
+	PSKHash      crypto.Hash
+	PSKContext   []byte
+	// ImportTargetPSKHashes, if not empty, causes the PSK to be imported
+	// with the specified set of target PSK hashes, instead of the default
+	// set. To test unknown hashes, zero is interpreted as SHA-256 with the
+	// wrong codepoint.
+	ImportTargetPSKHashes []crypto.Hash
+	// ImportTargetPSKProtocol, if non-zero, causes the imported PSK
+	// identity use the specified value instead of the protocol.
+	ImportTargetPSKProtocol uint16
+	// AppendToImportedPSKIdentity is a byte string that is appended to the
+	// imported PSK identity.
+	AppendToImportedPSKIdentity []byte
 	// TrustAnchorID, if not empty, is the trust anchor ID for the issuer
 	// of the certificate chain.
 	TrustAnchorID []byte

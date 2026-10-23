@@ -737,6 +737,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (kind.with_trap_handler) os << ", protected";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
+  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
@@ -1442,6 +1443,8 @@ std::ostream& operator<<(
       return os << "Boolean";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrHole:
       return os << "NumberOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
@@ -1517,6 +1520,8 @@ std::ostream& operator<<(
   switch (input_assumptions) {
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt:
       return os << "BigInt";
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::

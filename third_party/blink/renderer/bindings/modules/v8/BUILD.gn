@@ -33,10 +33,16 @@ blink_modules_sources("v8") {
   }
 
   if (!use_webrtc_peer_connection) {
-    _rtc_filtered =
-        filter_exclude(sources, cobalt_bindings_exclude_patterns)
+    # RTCDiagnosticLoggingOptions lives in modules/webrtc (kept in Cobalt), not
+    # modules/peerconnection (removed), so its generated bindings must still be
+    # compiled. Drop everything the broad "*v8_rtc_*" patterns catch EXCEPT
+    # v8_rtc_diagnostic_logging_options, leaving it in place.
+    _dropped_sources = filter_exclude(
+        filter_include(sources, cobalt_bindings_exclude_patterns),
+        [ "*v8_rtc_diagnostic_logging_options.*" ])
+    _kept_sources = filter_exclude(sources, _dropped_sources)
     sources = []
-    sources = _rtc_filtered
+    sources = _kept_sources
   }
 
   if (is_cobalt) {

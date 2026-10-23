@@ -202,7 +202,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OSCrypt.FreedesktopSecretKeyProvider.{InitStatus}.ErrorDetail"
-    enum="FreedesktopSecretKeyProviderErrorDetail" expires_after="2026-06-28">
+    enum="FreedesktopSecretKeyProviderErrorDetail" expires_after="2026-08-30">
   <owner>thomasanderson@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -491,7 +491,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.EnhancedBundle.IsEnhancedSelected"
-    enum="BooleanEnabled" expires_after="2026-04-01">
+    enum="BooleanEnabled" expires_after="2026-08-01">
   <owner>awado@google.com</owner>
   <owner>chrome-safebrowsing-alerts@google.com</owner>
   <summary>
@@ -502,8 +502,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Security.EnhancedBundle.JavascriptOptimizerSetting.WasModifiedFromDefault"
+    enum="Boolean" expires_after="2026-08-01">
+  <owner>awado@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <summary>
+    Records whether the user has changed the javascript optimizer setting from
+    the default for the enhanced-security bundle. Recorded for all uma logs at
+    upload time by the BundleSettingsMetricsProvider for the main profile only.
+  </summary>
+</histogram>
+
+<histogram
     name="Security.EnhancedBundle.SafeBrowsingSetting.WasModifiedFromDefault"
-    enum="Boolean" expires_after="2026-04-01">
+    enum="Boolean" expires_after="2026-08-01">
   <owner>awado@google.com</owner>
   <owner>chrome-safebrowsing-alerts@google.com</owner>
   <summary>
@@ -577,7 +589,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.HttpsFirstMode.InterstitialReason"
-    enum="HttpsFirstModeInterstitialReason" expires_after="2026-06-28">
+    enum="HttpsFirstModeInterstitialReason" expires_after="2026-08-30">
   <owner>meacer@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
   <summary>
@@ -943,7 +955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.Sandbox.LandlockState" enum="LandlockState"
-    expires_after="2026-04-16">
+    expires_after="2027-04-16">
   <owner>akhna@google.com</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -1148,8 +1160,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Security.StandardBundle.JavascriptOptimizerSetting.WasModifiedFromDefault"
+    enum="Boolean" expires_after="2026-08-01">
+  <owner>awado@google.com</owner>
+  <owner>chrome-safebrowsing-alerts@google.com</owner>
+  <summary>
+    Records whether the user has changed the javascript optimizer setting from
+    the default for the standard bundle. Recorded for all uma logs at upload
+    time by the BundleSettingsMetricsProvider for the main profile only.
+  </summary>
+</histogram>
+
+<histogram
     name="Security.StandardBundle.SafeBrowsingSetting.WasModifiedFromDefault"
-    enum="Boolean" expires_after="2026-04-01">
+    enum="Boolean" expires_after="2026-08-01">
   <owner>awado@google.com</owner>
   <owner>chrome-safebrowsing-alerts@google.com</owner>
   <summary>

@@ -29,6 +29,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> ਨਾਲ Gmail ਜਾਂ YouTube ਵਰਗੀਆਂ Google ਸੇਵਾਵਾਂ ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰਨ ਵੇਲੇ, ਤੁਸੀਂ ਉਸੇ ਖਾਤੇ ਨਾਲ Chromium ਵਿੱਚ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਸਾਈਨ-ਇਨ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="1290883685122687410">ਸੈੱਟਅੱਪ ਵਿੱਚ ਗੜਬੜ: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">ਆਪਣੇ ਨਵੇਂ Chromium ਪ੍ਰੋਫਾਈਲ ਦਾ ਸੈੱਟਅੱਪ ਕਰੋ</translation>
+<translation id="132092532143527429">Chromium ਵਿੱਚ Gemini ਨਾਲ ਅਜ਼ਮਾਓ</translation>
 <translation id="1324107359134968521">ਬਲੂਟੁੱਥ ਡੀਵਾਈਸਾਂ ਦੀ ਪੜਚੋਲ ਕਰਨ ਲਈ Chromium ਨੂੰ ਬਲੂਟੁੱਥ ਪਹੁੰਚ 
  ਦੀ ਲੋੜ ਹੈ। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ਭਾਸ਼ਾ ਦਾ ਪਤਾ ਲਗਾਓ</translation>
@@ -377,7 +378,6 @@
 <translation id="5174969993834422967">ਆਮ ਤੌਰ 'ਤੇ ਤੁਸੀਂ ਸੂਚਨਾਵਾਂ ਨੂੰ ਬਲਾਕ ਕਰਦੇ ਹੋ। ਆਪਣੀ ਟਿਕਾਣਾ ਪੱਟੀ ਦੇ ਸੱਜੇ ਕੋਨੇ 'ਤੇ ਸੂਚਨਾ ਪ੍ਰਤੀਕ 'ਤੇ ਕਲਿੱਕ ਕਰੋ, ਤਾਂ ਜੋ ਇਹ ਸਾਈਟ ਤੁਹਾਨੂੰ ਸੂਚਿਤ ਕਰ ਸਕੇ।</translation>
 <translation id="5174983315706567306">ਡਿਸਕ ਵਿੱਚ ਜਗ੍ਹਾ ਕਾਫ਼ੀ ਨਹੀਂ ਹੈ।</translation>
 <translation id="5187123684706427865">Chromium ਖਾਤੇ ਨੂੰ ਮੁੜ-ਪ੍ਰਮਾਣੀਕਰਨ ਦੀ ਲੋੜ ਹੈ</translation>
-<translation id="5219681158518957165">ਸਿਫ਼ਾਰਸ਼ੀ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ</translation>
 <translation id="5224391634244552924">ਕੋਈ ਰੱਖਿਅਤ ਕੀਤਾ ਪਾਸਵਰਡ ਨਹੀਂ। ਤੁਹਾਡੇ ਵੱਲੋਂ ਆਪਣੇ ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰਨ 'ਤੇ Chromium ਉਹਨਾਂ ਦੀ ਜਾਂਚ ਕਰ ਸਕਦਾ ਹੈ।</translation>
 <translation id="5231355151045086930">Chromium ਤੋਂ ਸਾਈਨ-ਆਊਟ ਕਰੋ</translation>
 <translation id="5234764350956374838">ਬਰਖ਼ਾਸਤ ਕਰੋ</translation>
@@ -611,6 +611,7 @@ Chromium ਤੁਹਾਡੀਆਂ ਸੈਟਿੰਗਾਂ ਮੁੜ-ਹਾਸ�
 <translation id="7622753900276619808">ਹੁਣ ਤੁਹਾਡੇ ਲਈ Chromium ਵਿੱਚ ਹੋਰ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਪਲਬਧ ਹਨ</translation>
 <translation id="7624307931717240213">ਅਸੀਂ ਇਸ ਸੇਵਾ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ ਜਾਣਕਾਰੀ ਦੀ ਵਰਤੋਂ ਕਰਦੇ ਹਾਂ। ਪਰਦੇਦਾਰੀ ਨੀਤੀ ਅਤੇ ਸੇਵਾ ਦੇ ਨਿਯਮ ਦੇਖੋ।</translation>
 <translation id="7649070708921625228">ਸਹਾਇਤਾ</translation>
+<translation id="7650134251917003571">Chromium ਐਪ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
 <translation id="7656340475565475526">Chromium ਨੂੰ ਤੁਹਾਡੇ ਲਈ ਬ੍ਰਾਊਜ਼ ਕਰਨ ਦਿਓ</translation>
 <translation id="7658239707568436148">ਰੱਦ ਕਰੋ</translation>
 <translation id="7686590090926151193">Chromium ਤੁਹਾਡਾ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਬ੍ਰਾਊਜ਼ਰ ਨਹੀਂ ਹੈ</translation>

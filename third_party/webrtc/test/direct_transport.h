@@ -15,8 +15,8 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
@@ -57,16 +57,16 @@ class DirectTransport : public Transport {
                   std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
                   Call* send_call,
                   const std::map<uint8_t, MediaType>& payload_type_map,
-                  ArrayView<const RtpExtension> audio_extensions,
-                  ArrayView<const RtpExtension> video_extensions);
+                  std::span<const RtpExtension> audio_extensions,
+                  std::span<const RtpExtension> video_extensions);
 
   DirectTransport(const Environment& env,
                   TaskQueueBase* task_queue,
                   std::unique_ptr<SimulatedPacketReceiverInterface> pipe,
                   Call* send_call,
                   const std::map<uint8_t, MediaType>& payload_type_map,
-                  ArrayView<const RtpExtension> audio_extensions,
-                  ArrayView<const RtpExtension> video_extensions);
+                  std::span<const RtpExtension> audio_extensions,
+                  std::span<const RtpExtension> video_extensions);
 
   ~DirectTransport() override;
 
@@ -78,9 +78,9 @@ class DirectTransport : public Transport {
   using Transport::SendRtcp;
   using Transport::SendRtp;
 
-  bool SendRtp(ArrayView<const uint8_t> data,
+  bool SendRtp(std::span<const uint8_t> data,
                const PacketOptions& options) override;
-  bool SendRtcp(ArrayView<const uint8_t> data,
+  bool SendRtcp(std::span<const uint8_t> data,
                 const PacketOptions& options) override;
 
   int GetAverageDelayMs();

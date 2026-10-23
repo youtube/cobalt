@@ -392,7 +392,7 @@ Esta política sustituye a la obsoleta de <ph name="DEFAULT_WINDOW_PLACEMENT_SET
 <translation id="129206366270737897">Inhabilita cualquier método asíncrono de <ph name="FILE_SYSTEM_SYNC_ACCESS_HANDLE" />.</translation>
 <translation id="1294263471858445589">Habilita la autenticación pasiva en sesiones normales y de incógnito.</translation>
 <translation id="1295737447968372331">Habilita el dictado en la pantalla de inicio de sesión</translation>
-<translation id="1297182715641689552">Utilizar una secuencia de comandos .pac de proxy</translation>
+<translation id="1297182715641689552">Utilizar un script .pac de proxy</translation>
 <translation id="1297909092292754072">Si se define esta política, se especificará una lista de orígenes (URLs) o de patrones de nombre de host (como *.example.com) para los que no se aplicarán las restricciones de seguridad de orígenes no seguros. Los patrones solo se aceptan para nombres de host. Las URLs o los orígenes con esquemas deben ser cadenas exactas. Las organizaciones pueden especificar orígenes para aplicaciones antiguas que no pueden implementar TLS o configurar un servidor provisional para el desarrollo web interno, de manera que los desarrolladores puedan probar las funciones que necesiten contextos seguros sin tener que implementar TLS en el servidor provisional. Esta política también evita que el origen aparezca con la etiqueta "No es seguro" en la barra de direcciones.
 
 Definir la lista de URLs de esta política tiene el mismo resultado que asignar la marca de línea de comandos --unsafely-treat-insecure-origin-as-secure a una lista con las mismas URLs separadas por comas. Esta política anula tanto la marca de línea de comandos como UnsafelyTreatInsecureOriginAsSecure si está presente.
@@ -990,15 +990,6 @@ A partir de la versión 140 de <ph name="PRODUCT_NAME" />, si no se define esta 
 
 A partir de la versión 147 de <ph name="PRODUCT_NAME" />, esta política dejará de estar disponible. Los administradores de TI pueden usar <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> para controlar esta función de ahora en adelante.</translation>
 <translation id="1686952487081322272">Inhabilitar Respuestas rápidas</translation>
-<translation id="1688920969335897857">Si se define esta política, se controlará la configuración de gestión de extensiones de <ph name="PRODUCT_NAME" />, incluidas las que controlen las políticas vigentes relacionadas con las extensiones. Esta política sustituirá a todas las políticas antiguas que se hubieran definido.
-
-Esta política asociará un ID de extensión o una URL de actualización únicamente a su configuración específica. Se puede definir una configuración predeterminada para el ID especial <ph name="DEFAULT_SCOPE" />, que se aplicará a todas las extensiones para las que no se haya definido una configuración personalizada en esta política. Si se usa una URL de actualización, la configuración se aplicará a las extensiones que incluyan la misma URL de actualización en su archivo de manifiesto (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Si a la marca "override_update_url" se le asigna el valor true, la extensión se instalará y se actualizará mediante la URL de actualización que se especifique en la política <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> o en el campo "update_url" de esta política. Se ignorará la marca "override_update_url" si el valor de "update_url" es una URL de Chrome Web Store.
-
-En instancias de <ph name="MS_WIN_NAME" />, las aplicaciones y extensiones que no estén alojadas en Chrome Web Store solo se podrán instalar de manera forzada si la instancia está vinculada a un dominio de <ph name="MS_AD_NAME" /> o a <ph name="MS_AAD_NAME" />, o si se ha registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-En las instancias de <ph name="MAC_OS_NAME" />, las aplicaciones y extensiones externas a Chrome Web Store solo se podrán instalar de manera forzada si la instancia se gestiona mediante MDM, está vinculada a un dominio a través de MCX o se ha registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Nota: Esta política solo se aplica a las plataformas compatibles con extensiones.</translation>
 <translation id="1690383938831887552">Evitar que se cargue contenido Signed HTTP Exchange</translation>
 <translation id="1692325295652827195">Si se le asigna el valor True a esta política, se enviarán a Google informes de los principales eventos de instalación de aplicaciones de Android activados por la política.
 
@@ -1350,7 +1341,7 @@ Si se inhabilita, <ph name="PRODUCT_NAME" /> cerrará la pestaña después de ca
 
       Para obtener información detallada sobre los patrones de <ph name="URL_LABEL" /> válidos, consulta https://chromeenterprise.google/policies/url-patterns. Se permite el uso de caracteres comodín (<ph name="WILDCARD_VALUE" />).
 
-      Ten en cuenta que esta política bloquea JavaScript en función de si el origen del documento de nivel superior (normalmente, la URL de la página que también aparece en la barra de direcciones) coincide con alguno de los patrones. Por lo tanto, esta política no es adecuada para mitigar los ataques de la cadena de suministro web. Por ejemplo, si se proporciona el patrón "https://[*.]foo.com/", no se impedirá que una página alojada en https://example.com ejecute una secuencia de comandos cargada desde https://www.foo.com/example.js. Además, si se proporciona el patrón "https://example.com/", no se evitará que un documento de https://example.com ejecute secuencias de comandos si no es el documento de nivel superior, sino que se inserta como submarco en una página alojada en otro origen, como https://www.bar.com.</translation>
+      Ten en cuenta que esta política bloquea JavaScript en función de si el origen del documento de nivel superior (normalmente, la URL de la página que también aparece en la barra de direcciones) coincide con alguno de los patrones. Por lo tanto, esta política no es adecuada para mitigar los ataques de la cadena de suministro web. Por ejemplo, si se proporciona el patrón "https://[*.]foo.com/", no se impedirá que una página alojada en https://example.com ejecute un script cargada desde https://www.foo.com/example.js. Además, si se proporciona el patrón "https://example.com/", no se evitará que un documento de https://example.com ejecute secuencias de comandos si no es el documento de nivel superior, sino que se inserta como submarco en una página alojada en otro origen, como https://www.bar.com.</translation>
 <translation id="1942015922182679826">Habilitar la eliminación de contraseñas que no se pueden descifrar</translation>
 <translation id="1942626390957213764">Inhabilitar el centro para compartir escritorio</translation>
 <translation id="194407941132272412">Inhabilitar el aislamiento en todos los sitios web, pero permitir que el usuario lo habilite</translation>
@@ -2175,7 +2166,7 @@ Si no se define esta política, la opción predeterminada será <ph name="POLICY
 <translation id="2489558694350871332">Permitir que el dispositivo ejecute máquinas virtuales</translation>
 <translation id="2492240920793040106">Habilitar los informes sobre datos del sistema y contenido de páginas para ayudar a mejorar la función Navegación segura</translation>
 <translation id="2496180316473517155">Historial de navegación</translation>
-<translation id="2497751676088107779">Secuencia de comandos de usuario</translation>
+<translation id="2497751676088107779">Script de usuario</translation>
 <translation id="249798396824949930"> Controla si el navegador puede detectar si el nivel de cada política es obligatorio en <ph name="MAC_OS_NAME" /> o no.
 
       Si se habilita esta política o no se establece, el nivel de cada política lo determinará el nivel del perfil gestionado de <ph name="MAC_OS_NAME" />.
@@ -3048,9 +3039,9 @@ Si se establece la política <ph name="PROXY_SETTINGS_POLICY_NAME" />, se acepta
 
   * <ph name="PROXY_MODE_PROXY_SETTINGS_FIELD" />: te permite especificar el servidor proxy que usa Chrome y evita que los usuarios cambien la configuración del proxy
 
-  * <ph name="PROXY_PAC_URL_PROXY_SETTINGS_FIELD" />: una URL a un archivo .pac de proxy o una secuencia de comandos PAC codificada como una URL de datos con el tipo de MIME application/x-ns-proxy-autoconfig
+  * <ph name="PROXY_PAC_URL_PROXY_SETTINGS_FIELD" />: una URL a un archivo .pac de proxy o un script PAC codificada como una URL de datos con el tipo de MIME application/x-ns-proxy-autoconfig
 
-  * <ph name="PROXY_PAC_MANDATORY_PROXY_SETTINGS_FIELD" />: evita que la pila de red recurra a conexiones directas con una secuencia de comandos PAC no válida o no disponible
+  * <ph name="PROXY_PAC_MANDATORY_PROXY_SETTINGS_FIELD" />: evita que la pila de red recurra a conexiones directas con un script PAC no válida o no disponible
 
   * <ph name="PROXY_SERVER_PROXY_SETTINGS_FIELD" />: una URL del servidor proxy
 
@@ -3979,6 +3970,23 @@ La transferencia de datos con Takeout también debe habilitarse para que la apli
 <translation id="3712861436661566358">Implementar obligatoriamente la separación de perfiles</translation>
 <translation id="3719826155360621982">Página principal</translation>
 <translation id="3724039569609354541">Usar el comportamiento predeterminado para definir si los sitios web pueden enviar solicitudes a los puntos finales de red</translation>
+<translation id="3726715125055227414">Esta política configura <ph name="PRODUCT_OS_NAME" /> para que ordene sus algoritmos de acuerdo de claves preferidos (grupos admitidos) en TLS 1.3 de forma que se refleje una preferencia por los algoritmos que hayan sido aprobados por un régimen de cumplimiento específico al hacer solicitudes de red desde la pantalla de inicio de sesión.
+
+Si se define esta política, no se garantiza que se negocien algoritmos específicos.
+
+Esta política permite que los operadores de servidores que quieran admitir clientes con y sin requisitos de cumplimiento normativo distingan entre esos clientes y solo usen determinados algoritmos no predeterminados con mayor potencia criptográfica para aquellos que estén configurados explícitamente para preferirlos.
+
+Si se asigna el valor <ph name="CNSA2_NAME" /> a esta política, se configura <ph name="PRODUCT_OS_NAME" /> para que prefiera los métodos de intercambio de claves necesarios para cumplir los requisitos del Commercial National Security Algorithm Suite 2.0 (CNSA 2.0).
+
+Si no se define esta política o se le asigna el valor <ph name="DEFAULT_NAME" />, <ph name="PRODUCT_OS_NAME" /> se configura para que use sus métodos predeterminados de intercambio de claves.
+
+No es necesario definir esta política por motivos de seguridad. La criptografía predeterminada que usa <ph name="PRODUCT_OS_NAME" /> es lo suficientemente potente como para resistir un ataque de fuerza bruta que utilice toda la energía del Sol.
+
+Si se define esta política, <ph name="PRODUCT_OS_NAME" /> será más lento al hacer solicitudes de red desde la pantalla de inicio de sesión.
+
+Esta política solo afecta a TLS 1.3 y QUIC, no a versiones anteriores de TLS.
+
+Esta política de dispositivos es equivalente a la política de usuarios <ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" />, pero, en su lugar, se aplica al perfil de inicio de sesión en la pantalla de inicio de sesión.</translation>
 <translation id="3727476641336727380">A menos que <ph name="ALLOW_WAKE_LOCKS_POLICY_NAME" /> se haya inhabilitado, si se habilita <ph name="ALLOW_SCREEN_WAKE_LOCKS_POLICY_NAME" /> o no se le asigna ningún valor, se podrán usar los wake locks de pantalla para la gestión de energía. Las extensiones pueden solicitar wake locks de pantalla a través de la API de extensión de gestión de energía y mediante las aplicaciones de ARC.
 
       Si se inhabilita esta política, se disminuye el nivel de las solicitudes de wake lock de pantalla a solicitudes de wake lock de sistema.</translation>
@@ -4493,6 +4501,17 @@ Para obtener información detallada sobre los patrones válidos de <ph name="URL
 <translation id="4090088362777472639">El hash SHA-256 del playbook de Ansible.</translation>
 <translation id="4091040199847925434">Inhabilitar los informes sobre datos del sistema y contenido de páginas que se usan para ayudar a mejorar la función Navegación segura</translation>
 <translation id="4093058072421210667">No permitir Inserción de imágenes.</translation>
+<translation id="4096503137212127216">Esta política se puede usar para bloquear <ph name="CHROME_DEVTOOLS_NAME" /> en URLs concretas. Para obtener información sobre el formato de URL, consulta https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Los patrones de URL se compararán con la URL de cada fotograma de la página que se esté inspeccionando. El comportamiento resultante dependerá de si también se ha definido la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />.
+
+Si se define esta política y no se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, cualquier coincidencia en la URL de un frame con un patrón de esta lista de bloqueadas conllevará el bloqueo de <ph name="CHROME_DEVTOOLS_NAME" /> en toda la página. Si la URL de un marco no coincide con ningún patrón, la disponibilidad se determinará según la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Si se definen tanto esta política como la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, la lista de permitidas tendrá prioridad. Si la URL de un frame coincide con un patrón de la lista de permitidas, se podrá usar, aunque también coincida con un patrón de esta lista de bloqueadas. Si una URL coincide con un patrón de esta lista de bloqueadas (pero no con uno de la lista de permitidas), se bloqueará. Si una URL no coincide con ninguna de las dos, se usará la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> como alternativa.
+
+Si no se define esta política, la disponibilidad de <ph name="CHROME_DEVTOOLS_NAME" /> se determinará según las políticas <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> y <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Esta política está limitada a 1000 entradas.</translation>
 <translation id="4098920079809952737">Permitir imprimir con y sin gráficos de fondo</translation>
 <translation id="410061592404122032">Preguntar siempre que un sitio quiera obtener el permiso de gestión de ventanas</translation>
 <translation id="410068710490553233">Permite iniciar sesión en más cuentas de Google</translation>
@@ -5758,6 +5777,19 @@ Si se le asigna el valor <ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHORTCUTS_F
       Si no se establece esta política en las versiones hasta la M76 (incluida), <ph name="PRODUCT_NAME" /> no podrá recoger ni enviar esos registros de forma predeterminada. A partir de la versión M77, <ph name="PRODUCT_NAME" /> puede recoger y enviar esos registros de forma predeterminada de la mayoría de los perfiles afectados por políticas de empresa a nivel de usuario basadas en la nube. Desde la versión M77 hasta la M80 (incluida), <ph name="PRODUCT_NAME" /> también puede recoger y enviar esos registros de forma predeterminada de los perfiles afectados por la gestión on-premise de <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4911334289324462969">puerto 989 (puede desbloquearse hasta el 01/02/2022)</translation>
 <translation id="4917385247580444890">Buena</translation>
+<translation id="4917925819533520480">Esta política se puede usar para permitir las <ph name="CHROME_DEVTOOLS_NAME" /> en URLs específicas.
+
+Los patrones de URL se compararán con la URL de cada frame de la página que se esté inspeccionando. El comportamiento resultante dependerá de si también se ha definido la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.
+
+Si se define esta política y no se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, la URL de cada frame debe coincidir con un patrón de esta lista de permitidas para que se pueda usar <ph name="CHROME_DEVTOOLS_NAME" />. Si la URL de algún frame no coincide, DevTools se bloqueará en toda la página. Para obtener información sobre el formato de URL, consulta https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Si se definen tanto esta política como la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, esta lista de permitidas tendrá prioridad. Si la URL de un frame coincide con un patrón de esta lista de permitidas, se podrá usar, aunque también coincida con un patrón de la lista de bloqueadas. Si una URL coincide con un patrón de la lista de bloqueadas (pero no con uno de la lista de permitidas), se bloqueará. Si una URL no coincide con ninguna de las dos, se usará la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> como alternativa.
+
+Si no se define esta política, la disponibilidad de <ph name="CHROME_DEVTOOLS_NAME" /> se determinará según las políticas <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> y <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Esta política también se aplica a <ph name="CHROME_DEVTOOLS_NAME" /> que se abran para extensiones y aplicaciones web.
+
+Esta política está limitada a 1000 entradas.</translation>
 <translation id="4918150584200819898">Habilita el inicio automático de la reautenticación online.</translation>
 <translation id="4918261735182294270">Permitir que los usuarios elijan si se habilita <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4918485681633125382">Habilitar la compatibilidad con formularios XFA en documentos PDF</translation>
@@ -6627,7 +6659,7 @@ Varias políticas indican orígenes que afectan a las solicitudes al dispositivo
       Si no se asigna ningún valor, el usuario podrá elegir la imagen del avatar que le representará en la pantalla de inicio de sesión.</translation>
 <translation id="5428716437928918274">Controles de configuración de Privacy Sandbox</translation>
 <translation id="5430760800138878127">Se habilitará un nuevo comportamiento del analizador de HTML que permite más etiquetas.</translation>
-<translation id="5431392643649571773">Si se habilita, la función <ph name="PRODUCT_NAME" /> permite el uso de la caché de páginas completas. Al salir de una página, es posible que su estado (árbol de documentos, secuencia de comandos, etc.) se almacene en caché de páginas completas. Si el navegador vuelve a visitar esa página, puede restaurarse desde el almacenamiento en caché de páginas completas y mostrarse en el estado en el que estaba al almacenarse en caché la vez anterior.
+<translation id="5431392643649571773">Si se habilita, la función <ph name="PRODUCT_NAME" /> permite el uso de la caché de páginas completas. Al salir de una página, es posible que su estado (árbol de documentos, script, etc.) se almacene en caché de páginas completas. Si el navegador vuelve a visitar esa página, puede restaurarse desde el almacenamiento en caché de páginas completas y mostrarse en el estado en el que estaba al almacenarse en caché la vez anterior.
 
           Es probable que esta función provoque fallos en algunos sitios web que no esperen que se almacenen en caché. Especialmente, los sitios web que dependen de que el evento "<ph name="UNLOAD_HANDLER_NAME" />" se envíe al usuario cuando el navegador salga de la página. El evento "<ph name="UNLOAD_HANDLER_NAME" />" no se enviará si la página se guarda en el almacenamiento en caché en páginas completas.
 
@@ -8429,7 +8461,7 @@ Si no se establece esta política, se aplicará el intervalo predeterminado de 1
 
        Si se decide usar:
          * <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" />: servidores proxy fijos. Se pueden especificar otras opciones con <ph name="PROXY_SERVER_POLICY_NAME" /> y <ph name="PROXY_BYPASS_LIST_POLICY_NAME" />. Solo el servidor proxy HTTP con la mayor prioridad está disponible para las aplicaciones ARC.
-         * <ph name="PROXY_MODE_ENUM_PAC_SCRIPT" />: una secuencia de comandos .pac de proxy. Usa <ph name="PROXY_PAC_URL_POLICY_NAME" /> para establecer la URL de un archivo .pac de proxy.
+         * <ph name="PROXY_MODE_ENUM_PAC_SCRIPT" />: un script .pac de proxy. Usa <ph name="PROXY_PAC_URL_POLICY_NAME" /> para establecer la URL de un archivo .pac de proxy.
 
       Si no se asigna ningún valor a esta política, los usuarios pueden elegir los ajustes del proxy.
 
@@ -8545,34 +8577,6 @@ Los cambios de esta política solo se podrán aplicar si ARC no se está ejecuta
       Si no se establece esta política, el valor predeterminado para los usuarios gestionados por una empresa y para los no gestionados es permitir abrir la aplicación Eche.</translation>
 <translation id="6640748114867542396">No permitir que las extensiones gestionadas utilicen la API Enterprise Hardware Platform</translation>
 <translation id="6641109870010271671">Certificados TLS en los que <ph name="PRODUCT_NAME" /> debería confiar para autenticar el servidor</translation>
-<translation id="6641851832244467923">Si se define esta política, se configuran reglas que seleccionan el proxy que usa el navegador en función de la URL de destino y otras condiciones. Esta política tendrá prioridad sobre la configuración de proxy definida en la política <ph name="PROXY_SETTINGS_POLICY_NAME" />, la API de extensión <ph name="PROXY_SETTINGS_EXTENSION_API" /> o la configuración manual del usuario (si se ha definido alguna).
-
-Si no se define esta política, no se verán afectadas otras políticas de proxy ni la configuración del usuario.
-
-Cuando el navegador debe decidir qué proxy usar, las entradas de la política <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> se evalúan en secuencia hasta que una de ellas cumple todos los puntos siguientes:
-  * Coincide con al menos uno de los patrones de URL de <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
-  * No coincide con ninguno de los patrones de URL de <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />.
-  * Si se especifica <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> y es una lista que no está vacía, se cumplen todas las condiciones representadas por sus entradas.
-El valor de <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> se usará como proxy para esa coincidencia. Si no se encuentra ninguna coincidencia, la configuración de proxy cambiará a la que se haya definido en la política <ph name="PROXY_SETTINGS_POLICY_NAME" />.
-
-Los patrones de URL admitidos por <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> y <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> se indican en https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
-
-Las entradas del campo <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> corresponden a valores de cadena de archivos PAC como los siguientes:
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-También se pueden usar directamente especificadores de proxy similares a URLs para especificar el proxy. Por ejemplo:
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-La primera entrada accesible de la lista se usará como proxy. Las entradas no válidas de la lista se ignoran.
-
-El campo <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> contiene una lista de condiciones que se deben cumplir para que se use su regla de anulación y se decida qué proxy se debe utilizar. Si no se define, se usará la entrada siempre que coincida al menos un host de <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
-
-La condición <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> comprueba si el <ph name="PROXY_OVERRIDE_RULES_HOST" /> de DNS proporcionado se puede resolver en una dirección IP. Debe contener un host (por ejemplo, example.com) y, opcionalmente, un esquema o un puerto (por ejemplo, https://example.com, example.com:123 o https://example.com:123). Si se usa un esquema seguro (por ejemplo, https), la petición de DNS también puede solicitar el registro HTTPS (consulta el documento RFC 9460 para obtener más información). Si el valor de <ph name="PROXY_OVERRIDE_RULES_RESULT" /> es <ph name="PROXY_OVERRIDE_RULES_RESOLVED" />, se considera que se cumple la condición. Si, en cambio, se le asigna el valor <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, se considera que se cumple la condición si no se ha podido resolver en una dirección IP.</translation>
 <translation id="6641981670621198190">Inhabilitar compatibilidad con API de gráficos 3D</translation>
 <translation id="6646912445796087001">Habilita o inhabilita distintas funciones en el teclado en pantalla. Esta política solo tiene efecto si la política "VirtualKeyboardEnabled" está habilitada.
 
@@ -8763,7 +8767,7 @@ Si se asigna el valor False a esta política o no se define, se usará el compor
 <translation id="6788500377069760677">Habilitar el uso compartido de datos de diagnóstico con PluginVm</translation>
 <translation id="6789319144568227749">Configura la compatibilidad con encabezados de solicitud CORS sin comodín.
 
-      La versión 97 de <ph name="PRODUCT_NAME" /> introduce la compatibilidad con encabezados de solicitud CORS sin comodín. Cuando una secuencia de comandos realiza una solicitud de red de varios orígenes mediante fetch() y XMLHttpRequest con un encabezado Authorization añadido en secuencia de comandos, este encabezado debe estar permitido explícitamente por el encabezado Access-Control-Allow-Headers en la respuesta de solicitud preparatoria CORS. Con "explícitamente", nos referimos a que el carácter comodín ("*") no incluye el encabezado Authorization. Consulta <ph name="CORS_NON_WILDCARD_REQUEST_HEADERS_FEATURE_URL" /> para obtener más información.
+      La versión 97 de <ph name="PRODUCT_NAME" /> introduce la compatibilidad con encabezados de solicitud CORS sin comodín. Cuando un script realiza una solicitud de red de varios orígenes mediante fetch() y XMLHttpRequest con un encabezado Authorization añadido en script, este encabezado debe estar permitido explícitamente por el encabezado Access-Control-Allow-Headers en la respuesta de solicitud preparatoria CORS. Con "explícitamente", nos referimos a que el carácter comodín ("*") no incluye el encabezado Authorization. Consulta <ph name="CORS_NON_WILDCARD_REQUEST_HEADERS_FEATURE_URL" /> para obtener más información.
 
       Si no se establece esta política o se le asigna el valor True, <ph name="PRODUCT_NAME" /> admitirá los encabezados de solicitud CORS sin comodín y funcionará como se indica arriba.
 
@@ -10753,6 +10757,21 @@ Varias políticas indican orígenes que afectan a las solicitudes al dispositivo
 <translation id="8059352177830050556">Habilitar los informes sobre la retroiluminación del dispositivo</translation>
 <translation id="8062485064082966327">Usar un servicio de Google anónimo para proporcionar descripciones automáticas para imágenes que no tengan descripción</translation>
 <translation id="8066428282805800713">Enviar datos adicionales de hardware con ChromeOS Flex</translation>
+<translation id="8069233292746468045">Esta política configura <ph name="PRODUCT_NAME" /> para que ordene sus algoritmos de acuerdo de claves preferidos (grupos admitidos) en TLS 1.3 de forma que se refleje una preferencia por los algoritmos que hayan sido aprobados por un régimen de cumplimiento específico.
+
+Si se define esta política, no se garantiza que se negocien algoritmos específicos.
+
+Esta política permite que los operadores de servidores que quieran admitir clientes con y sin requisitos de cumplimiento normativo distingan entre esos clientes y solo usen determinados algoritmos no predeterminados con mayor potencia criptográfica para aquellos que estén configurados explícitamente para preferirlos.
+
+Si se asigna el valor <ph name="CNSA2_NAME" /> a esta política, se configura <ph name="PRODUCT_NAME" /> para que prefiera los métodos de intercambio de claves necesarios para cumplir los requisitos del Commercial National Security Algorithm Suite 2.0 (CNSA 2.0).
+
+Si no se define esta política o se le asigna el valor <ph name="DEFAULT_NAME" />, <ph name="PRODUCT_NAME" /> se configura para que use sus métodos predeterminados de intercambio de claves.
+
+No es necesario definir esta política por motivos de seguridad. La criptografía predeterminada que usa <ph name="PRODUCT_NAME" /> es lo suficientemente potente como para resistir un ataque de fuerza bruta que utilice toda la energía del Sol.
+
+Si se define esta política, <ph name="PRODUCT_NAME" /> será más lento al acceder a sitios web.
+
+Esta política solo afecta a TLS 1.3 y QUIC, no a versiones anteriores de TLS.</translation>
 <translation id="8071371098891664137">Si se utiliza <ph name="PRINTERS_BLOCKLIST" /> para la política <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" />, al establecer la política <ph name="PRINTERS_BULK_BLOCKLIST_POLICY_NAME" />, esta especifica qué impresoras no pueden utilizar los usuarios. El usuario podrá utilizar todas las impresoras, excepto aquellas con los ID indicados en la política. Los ID deben coincidir con los campos <ph name="ID_FIELD" /> o <ph name="GUID_FIELD" /> del archivo definido en la política <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" />.</translation>
 <translation id="8076539570602616846">Restringir las cuentas de Google aptas para guardar archivos PDF en Google Drive desde el visor de PDFs de <ph name="PRODUCT_NAME" /></translation>
 <translation id="8078297389450285582">Si se habilita la política o no se establece, se activa el modelo de atenuación inteligente y se puede alargar el tiempo que pasa hasta que la pantalla se atenúe. Si retrasa el tiempo, se ajustan los retrasos de apagado de pantalla, bloqueo de pantalla e inactividad para mantener las mismas distancias del retraso de atenuación de pantalla que tenía la configuración original.
@@ -11344,19 +11363,19 @@ El campo <ph name="ENTERPRISE_CONNECTOR_MINIMUM_DATA_SIZE" /> indica la cantidad
 <translation id="8479496880635054740">Inhabilitar el teclado virtual de accesibilidad en la pantalla de inicio de sesión</translation>
 <translation id="8482513475154035196">Permitir que los sitios envíen solicitudes de red a endpoints de la red local.</translation>
 <translation id="8482518340010585741">Configurar la restauración de aplicaciones al iniciar sesión</translation>
-<translation id="8483004350080020634">Elimina las partes de las URL de tipo https:// que contienen información sensible de seguridad y privacidad antes de que se transfieran a las secuencias de comandos de configuración automática de proxy que utiliza <ph name="PRODUCT_NAME" /> durante la resolución de proxy.
+<translation id="8483004350080020634">Elimina las partes de las URL de tipo https:// que contienen información sensible de seguridad y privacidad antes de que se transfieran a los scripts de configuración automática de proxy que utiliza <ph name="PRODUCT_NAME" /> durante la resolución de proxy.
 
 
-      Si se le asigna el valor "True", se habilita la función de seguridad y las URL de tipo https:// se eliminan antes de su envío a la secuencia de comandos de configuración automática de proxy. Así, la secuencia no puede ver los datos que normalmente están protegidos por un canal cifrado, como la ruta y la consulta de la URL.
+      Si se le asigna el valor "True", se habilita la función de seguridad y las URL de tipo https:// se eliminan antes de su envío al script de configuración automática de proxy. Así, la secuencia no puede ver los datos que normalmente están protegidos por un canal cifrado, como la ruta y la consulta de la URL.
 
 
-      Si se le asigna el valor "False", se inhabilita la función de seguridad y las secuencias de comandos de configuración automática de proxy pueden ver todos los componentes de las URL de tipo https://. Esto se aplica a todas las secuencias de comandos de configuración automática de proxy, independientemente de su origen, como las obtenidas con un método de transporte no seguro o a través de WPAD.
+      Si se le asigna el valor "False", se inhabilita la función de seguridad y los scripts de configuración automática de proxy pueden ver todos los componentes de las URL de tipo https://. Esto se aplica a todas los scripts de configuración automática de proxy, independientemente de su origen, como las obtenidas con un método de transporte no seguro o a través de WPAD.
 
 
       El valor "True" se asigna de forma predeterminada (función de seguridad habilitada).
 
 
-      Se recomienda asignar el valor "True". El único motivo para asignar el valor "False" es que el valor "True" provoque un problema de compatibilidad con las secuencias de comandos de configuración automática de proxy existentes.
+      Se recomienda asignar el valor "True". El único motivo para asignar el valor "False" es que el valor "True" provoque un problema de compatibilidad con los scripts de configuración automática de proxy existentes.
 
       Esta política se eliminará en M75.</translation>
 <translation id="8484375800789836289">Permitir que el navegador filtre parámetros de URL</translation>
@@ -12202,6 +12221,19 @@ Nota: Por el momento, solo se tendrá en cuenta la primera entrada. Más adelant
           Si se asigna un valor a esta política, los usuarios no podrán cambiarlo ni anularlo.
 
           Si no se define esta política, los elementos destacados se inhabilitarán al inicio, pero el usuario podrá habilitarlos en cualquier momento.</translation>
+<translation id="9037098514292099199">Si se define esta política, se controlará la configuración de gestión de extensiones de <ph name="PRODUCT_NAME" />, incluidas las que controlen las políticas vigentes relacionadas con las extensiones.
+
+Esta política asociará un ID de extensión o una URL de actualización únicamente a su configuración específica. Se puede definir una configuración predeterminada para el ID especial <ph name="DEFAULT_SCOPE" />, que se aplicará a todas las extensiones para las que no se haya definido una configuración personalizada en esta política.
+
+Esta política puede anular los ajustes por extensión de las políticas antiguas.
+
+Ten en cuenta que cualquier ajuste por ID de extensión de <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" /> o <ph name="EXTENSION_SETTINGS_POLICY_NAME" /> solo heredará "installation_mode" y "update_url" de los valores predeterminados de <ph name="DEFAULT_SCOPE" />. No heredará ninguna otra propiedad. Si se usa una URL de actualización, la configuración se aplicará a las extensiones que incluyan la misma URL de actualización en su archivo de manifiesto (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Si a la marca "override_update_url" se le asigna el valor true, la extensión se instalará y se actualizará mediante la URL de actualización que se especifique en la política <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> o en el campo "update_url" de esta política. Se ignorará la marca "override_update_url" si el valor de "update_url" es una URL de Chrome Web Store.
+
+En instancias de <ph name="MS_WIN_NAME" />, las aplicaciones y extensiones que no estén alojadas en Chrome Web Store solo se podrán instalar de manera forzada si la instancia está vinculada a un dominio de <ph name="MS_AD_NAME" /> o a <ph name="MS_AAD_NAME" />, o si se ha registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+En las instancias de <ph name="MAC_OS_NAME" />, las aplicaciones y extensiones externas a Chrome Web Store solo se podrán instalar de manera forzada si la instancia se gestiona mediante MDM, está vinculada a un dominio a través de MCX o se ha registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Nota: Esta política solo se aplica a las plataformas compatibles con extensiones.</translation>
 <translation id="9038839118379817310">Habilitar Wi‑Fi</translation>
 <translation id="9039822628127365650">Cuando se asigna un valor a esta política, permite especificar el tiempo transcurrido hasta que se cerrará automáticamente la sesión de un usuario. Se informa al usuario del tiempo restante mediante un temporizador de cuenta atrás que aparece en la bandeja del sistema.
 
@@ -12225,21 +12257,6 @@ Si no se define esta política, <ph name="PRODUCT_NAME" /> recogerá y subirá e
 <translation id="9051019223077908578">Configurar la lista de aplicaciones y extensiones instaladas en la pantalla de inicio de sesión</translation>
 <translation id="9053841574218808519">Ejecutar siempre los complementos que no estén obsoletos</translation>
 <translation id="9055866143096316150">Disminuir el nivel de las solicitudes de wake lock de pantalla a solicitudes de wake lock del sistema</translation>
-<translation id="9056262797461453462">Si se define la política <ph name="URL_BLOCKLIST_POLICY_NAME" />, se impedirá que se carguen las páginas web con URLs prohibidas. Los administradores pueden especificar una lista con patrones de URL que quieran bloquear. Si no se asigna ningún valor, no se bloqueará ninguna URL en el navegador. Se pueden definir un máximo de 1000 excepciones en <ph name="URL_ALLOWLIST_POLICY_NAME" />. Consulta cómo aplicar formato a un patrón de URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Nota: Esta política no se aplica a las URLs de JavaScript dentro de la página con datos cargados dinámicamente. Si has bloqueado example.com/abc, la página example.com podría cargarlo igualmente con XMLHTTPRequest. Además, esta política no evita que las páginas web actualicen la URL mostrada en el omnibox con una URL bloqueada usando la API History de JavaScript.
-
-Puedes bloquear las URLs javascript://* a partir de la versión 73 de <ph name="PRODUCT_NAME" />. Sin embargo, esto solo afecta al código JavaScript que se introduce en la barra de direcciones o, por ejemplo, a bookmarklets.
-
-A partir la versión 92 de <ph name="PRODUCT_NAME" />, esta política también está admitida en el modo sin interfaz gráfica.
-
-Nota: Bloquear las URLs internas chrome://* y chrome-untrusted://* podría provocar errores inesperados o dichos bloqueos pueden eludirse en algunos casos. En lugar de bloquear determinadas URLs internas, comprueba si hay políticas más específicas disponibles. Por ejemplo:
-
-- En lugar de bloquear chrome://settings/certificates, usa <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
-
-- En lugar de bloquear chrome-untrusted://crosh, usa <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.
-
-- En lugar de bloquear devtools://*, usa una de las políticas <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> o <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="9057159618445405645">Usar el comportamiento predeterminado del navegador Chrome</translation>
 <translation id="9061455386353325110">Especifica si los usuarios pueden permitir que <ph name="PRODUCT_NAME" /> use IA generativa para entender mejor los formularios y ayudarlos a rellenar más campos.
 

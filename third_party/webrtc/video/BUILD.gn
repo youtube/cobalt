@@ -78,7 +78,6 @@ rtc_library("video") {
     ":video_stream_buffer_controller",
     ":video_stream_encoder_impl",
     ":video_stream_encoder_interface",
-    "../api:array_view",
     "../api:bitrate_allocation",
     "../api:fec_controller_api",
     "../api:field_trials_view",
@@ -528,7 +527,6 @@ if (rtc_include_tests) {
       ]
       deps = [
         ":frame_dumping_decoder",
-        "../api:array_view",
         "../api:create_frame_generator",
         "../api:fec_controller_api",
         "../api:field_trials_view",
@@ -836,7 +834,6 @@ if (rtc_include_tests) {
       ":video_stream_buffer_controller",
       ":video_stream_encoder_impl",
       ":video_stream_encoder_interface",
-      "../api:array_view",
       "../api:bitrate_allocation",
       "../api:create_frame_generator",
       "../api:fake_frame_decryptor",

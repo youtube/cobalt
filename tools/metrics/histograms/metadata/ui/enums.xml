@@ -361,6 +361,7 @@ chromium-metrics-reviews@google.com.
   <int value="158" label="IDC_CONTENT_CONTEXT_ARCHIVE_GLIC"/>
   <int value="159" label="IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI"/>
   <int value="160" label="IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS"/>
+  <int value="161" label="IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -919,6 +920,7 @@ chromium-metrics-reviews@google.com.
   <int value="745470397" label="chrome://parent-access/"/>
   <int value="749881882" label="chrome://webuijserror/"/>
   <int value="754315733" label="chrome://theme/"/>
+  <int value="757366070" label="chrome://content-annotator-internals/"/>
   <int value="762064551" label="chrome://graduation/"/>
   <int value="770641362" label="chrome://shortcut-customization/"/>
   <int value="784140714" label="chrome://predictors/"/>
@@ -1145,7 +1147,7 @@ chromium-metrics-reviews@google.com.
   <int value="90" label="Show Lens overlay"/>
   <int value="91" label="Open extension settings (Safety Hub)"/>
   <int value="92" label="Show customize chrome side panel"/>
-  <int value="93" label="Show tab search declutter page"/>
+  <int value="93" label="Show tab search declutter page (Deprecated)"/>
   <int value="94" label="Open glic"/>
   <int value="95" label="Find Extensions"/>
   <int value="96" label="Show signin page"/>

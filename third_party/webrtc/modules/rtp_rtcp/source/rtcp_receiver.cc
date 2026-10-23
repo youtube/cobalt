@@ -19,12 +19,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
@@ -184,7 +184,7 @@ RTCPReceiver::RTCPReceiver(const Environment& env,
 
 RTCPReceiver::~RTCPReceiver() {}
 
-void RTCPReceiver::IncomingPacket(ArrayView<const uint8_t> packet) {
+void RTCPReceiver::IncomingPacket(std::span<const uint8_t> packet) {
   if (packet.empty()) {
     RTC_LOG(LS_WARNING) << "Incoming empty RTCP packet";
     return;
@@ -347,7 +347,7 @@ std::vector<ReportBlockData> RTCPReceiver::GetLatestReportBlockData() const {
   return result;
 }
 
-bool RTCPReceiver::ParseCompoundPacket(ArrayView<const uint8_t> packet,
+bool RTCPReceiver::ParseCompoundPacket(std::span<const uint8_t> packet,
                                        PacketInformation* packet_information) {
   MutexLock lock(&rtcp_receiver_lock_);
 

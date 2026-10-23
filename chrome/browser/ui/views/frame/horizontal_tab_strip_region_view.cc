@@ -47,6 +47,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/user_education/views/view_subregion_anchor.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/clipboard/clipboard_constants.h"
@@ -88,6 +89,21 @@ class FrameGrabHandle : public views::View {
                 kTabStripFrameGrabHandleElementId);
   }
 
+  void Layout(PassKey) override {
+    LayoutSuperclass<views::View>(this);
+
+    int x = width() * 0.4;
+    int y = height() * 0.7;
+    dialog_anchor_->MaybeUpdateAnchor(gfx::Rect(x, y, 0, 0));
+  }
+
+  void AddedToWidget() override {
+    dialog_anchor_ = std::make_unique<user_education::ViewSubregionAnchor>(
+        kTabStripFrameDialogAnchorId, *this);
+  }
+
+  void RemovedFromWidget() override { dialog_anchor_.reset(); }
+
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override {
     // Reserve some space for the frame to be grabbed by, even if the tabstrip
@@ -95,6 +111,11 @@ class FrameGrabHandle : public views::View {
     // TODO(tbergquist): Define this relative to the NTB insets again.
     return gfx::Size(42, 0);
   }
+
+ private:
+  // Anchor point for help bubbles and other dialogs that lies in an empty
+  // region of the tabstrip.
+  std::unique_ptr<user_education::ViewSubregionAnchor> dialog_anchor_;
 };
 
 BEGIN_METADATA(FrameGrabHandle)
@@ -206,8 +227,8 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
     BrowserView* browser_view)
     : profile_(browser_view->GetProfile()),
       render_tab_search_before_tab_strip_(
-          tabs::GetTabSearchPosition(browser_view->browser()) ==
-          tabs::TabSearchPosition::kLeadingHorizontalTabstrip),
+          !tabs::GetDefaultTabSearchRightAligned() ||
+          base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)),
       tab_search_position_metrics_logger_(
           std::make_unique<TabSearchPositionMetricsLogger>(
               browser_view->browser())),
@@ -232,6 +253,7 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
         AddChildView(std::make_unique<TabStripComboButton>(browser));
     combo_button_->SetProperty(views::kCrossAxisAlignmentKey,
                                views::LayoutAlignment::kCenter);
+    combo_button_->MaybeShowIPH();
   }
 
   if (base::FeatureList::IsEnabled(features::kTabGroupsFocusing)) {
@@ -600,8 +622,7 @@ std::optional<int> HorizontalTabStripRegionView::GetFocusedTabIndex() const {
   return std::nullopt;
 }
 
-const TabRendererData& HorizontalTabStripRegionView::GetTabRendererData(
-    int tab_index) {
+const tabs::TabData& HorizontalTabStripRegionView::GetTabData(int tab_index) {
   return tab_strip_->tab_at(tab_index)->data();
 }
 
@@ -718,11 +739,6 @@ void HorizontalTabStripRegionView::UpdateButtonBorders() {
 
     if (tab_search_container_->auto_tab_group_button()) {
       UpdateBorderInsetsIfNeeded(tab_search_container_->auto_tab_group_button(),
-                                 border_insets);
-    }
-
-    if (tab_search_container_->tab_declutter_button()) {
-      UpdateBorderInsetsIfNeeded(tab_search_container_->tab_declutter_button(),
                                  border_insets);
     }
   }

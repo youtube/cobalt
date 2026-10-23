@@ -126,7 +126,7 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   auto channel1 = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel1, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*channel1, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel1, SetFirstPacketReceivedCallback(_));
+  EXPECT_CALL(*channel1, SetFirstPacketReceivedCallback_n(_));
   EXPECT_CALL(*channel1, SetRtpTransport(_)).WillRepeatedly(Return(true));
   auto channel1_ptr = channel1.get();
   transceiver->SetChannel(std::move(channel1), [&](const std::string& mid) {
@@ -143,7 +143,7 @@ TEST_F(RtpTransceiverTest, CannotSetChannelOnStoppedTransceiver) {
   EXPECT_CALL(*channel2, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
 
   // Clear the current channel - required to allow SetChannel()
-  EXPECT_CALL(*channel1_ptr, SetFirstPacketReceivedCallback(_));
+  EXPECT_CALL(*channel1_ptr, SetFirstPacketReceivedCallback_n(_));
   transceiver->ClearChannel();
   ASSERT_FALSE(transceiver->HasChannel());
   // Channel can no longer be set, so this call should be a no-op.
@@ -161,7 +161,7 @@ TEST_F(RtpTransceiverTest, CanUnsetChannelOnStoppedTransceiver) {
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::VIDEO));
   EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback(_))
+  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback_n(_))
       .WillRepeatedly(testing::Return());
   EXPECT_CALL(*channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
 
@@ -195,7 +195,7 @@ TEST_F(RtpTransceiverTest, TransportNameIsUpdated) {
   auto channel = std::make_unique<NiceMock<MockChannelInterface>>();
   EXPECT_CALL(*channel, media_type()).WillRepeatedly(Return(MediaType::AUDIO));
   EXPECT_CALL(*channel, mid()).WillRepeatedly(ReturnRef(content_name));
-  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback(_))
+  EXPECT_CALL(*channel, SetFirstPacketReceivedCallback_n(_))
       .WillRepeatedly(Return());
   EXPECT_CALL(*channel, SetRtpTransport(_)).WillRepeatedly(Return(true));
 

@@ -58,7 +58,6 @@
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network/sent_packet.h"
@@ -464,9 +463,8 @@ class WebRtcVoiceReceiveChannel final
   class WebRtcAudioReceiveStream;
   std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_
       RTC_GUARDED_BY(worker_thread_);
-  std::vector<RtpExtension> recv_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
-  RtpHeaderExtensionMap recv_rtp_extension_map_
-      RTC_GUARDED_BY(network_thread_checker_);
+
+  AudioReceiverParameters recv_params_ RTC_GUARDED_BY(worker_thread_);
 
   std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_
       RTC_GUARDED_BY(worker_thread_);

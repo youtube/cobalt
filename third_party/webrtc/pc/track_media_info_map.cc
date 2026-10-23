@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "media/base/media_channel.h"
@@ -40,7 +40,7 @@ const V* FindAddressOrNull(const flat_map<K, V>& map, const K& key) {
 }
 
 flat_map<uint32_t, int> GetSenderAttachmentIds(
-    ArrayView<const TrackMediaInfoMap::RtpSenderSignalInfo> senders,
+    std::span<const TrackMediaInfoMap::RtpSenderSignalInfo> senders,
     MediaType media_type) {
   flat_map<uint32_t, int> result;
   for (const auto& sender : senders) {
@@ -53,8 +53,8 @@ flat_map<uint32_t, int> GetSenderAttachmentIds(
 }
 
 flat_map<uint32_t, int> GetReceiverAttachmentIds(
-    ArrayView<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
-    ArrayView<const RtpParameters> receiver_parameters,
+    std::span<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
+    std::span<const RtpParameters> receiver_parameters,
     MediaType media_type) {
   RTC_DCHECK_EQ(receivers.size(), receiver_parameters.size());
   flat_map<uint32_t, int> result;
@@ -73,8 +73,8 @@ flat_map<uint32_t, int> GetReceiverAttachmentIds(
 }
 
 flat_map<uint32_t, std::string> GetReceiverTrackIds(
-    ArrayView<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
-    ArrayView<const RtpParameters> receiver_parameters,
+    std::span<const TrackMediaInfoMap::RtpReceiverSignalInfo> receivers,
+    std::span<const RtpParameters> receiver_parameters,
     MediaType media_type) {
   RTC_DCHECK_EQ(receivers.size(), receiver_parameters.size());
   flat_map<uint32_t, std::string> result;
@@ -131,9 +131,9 @@ flat_map<uint32_t, const VideoSenderInfo*> GetVideoSenderInfos(
 TrackMediaInfoMap::TrackMediaInfoMap(
     std::optional<VoiceMediaInfo> voice_media_info,
     std::optional<VideoMediaInfo> video_media_info,
-    ArrayView<const RtpSenderSignalInfo> senders,
-    ArrayView<const RtpReceiverSignalInfo> receivers,
-    ArrayView<const RtpParameters> receiver_parameters)
+    std::span<const RtpSenderSignalInfo> senders,
+    std::span<const RtpReceiverSignalInfo> receivers,
+    std::span<const RtpParameters> receiver_parameters)
     : voice_media_info_(std::move(voice_media_info)),
       video_media_info_(std::move(video_media_info)),
       audio_sender_attachment_id_by_ssrc_(

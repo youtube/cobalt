@@ -13,12 +13,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
@@ -54,11 +54,11 @@ class TransformableVideoReceiverFrame
   ~TransformableVideoReceiverFrame() override = default;
 
   // Implements TransformableVideoFrameInterface.
-  ArrayView<const uint8_t> GetData() const override {
+  std::span<const uint8_t> GetData() const override {
     return *frame_->GetEncodedData();
   }
 
-  void SetData(ArrayView<const uint8_t> data) override {
+  void SetData(std::span<const uint8_t> data) override {
     frame_->SetEncodedData(
         EncodedImageBuffer::Create(data.data(), data.size()));
   }
@@ -232,7 +232,7 @@ void RtpVideoStreamReceiverFrameTransformerDelegate::ManageFrame(
     VideoFrameMetadata metadata = transformed_frame->Metadata();
     RTPVideoHeader video_header = RTPVideoHeader::FromMetadata(metadata);
     VideoSendTiming timing;
-    ArrayView<const uint8_t> data = transformed_frame->GetData();
+    std::span<const uint8_t> data = transformed_frame->GetData();
     int64_t receive_time = clock_->CurrentTime().ms();
     receiver_->ManageFrame(std::make_unique<RtpFrameObject>(
         /*first_seq_num=*/metadata.GetFrameId().value_or(0),

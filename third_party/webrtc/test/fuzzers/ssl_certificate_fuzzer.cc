@@ -17,14 +17,13 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/message_digest.h"
 #include "rtc_base/ssl_certificate.h"
+#include "test/fuzzers/fuzz_data_helper.h"
 
 namespace webrtc {
 
-void FuzzOneInput(const uint8_t* data, size_t size) {
-  std::string pem_certificate(reinterpret_cast<const char*>(data), size);
-
+void FuzzOneInput(FuzzDataHelper fuzz_data) {
   std::unique_ptr<SSLCertificate> cert =
-      SSLCertificate::FromPEMString(pem_certificate);
+      SSLCertificate::FromPEMString(fuzz_data.ReadString());
 
   if (cert == nullptr) {
     return;

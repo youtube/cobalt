@@ -36,7 +36,9 @@
   V(mutable_globals)                     \
   V(non_trapping_float_to_int)           \
   V(sign_extension_ops)                  \
-  V(jspi)
+  V(jspi)                                \
+  V(exnref)                              \
+  V(branch_hinting)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \

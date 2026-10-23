@@ -639,13 +639,20 @@ void OnListFamilyMembersResponse(
   }
 
   BOOL incognito = self.currentBrowser->type() == Browser::Type::kIncognito;
+  TabGridPage page =
+      incognito ? TabGridPageIncognitoTabs : TabGridPageRegularTabs;
   if (mode == TabGridOpeningMode::kRegular && incognito) {
     [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::NORMAL];
+    page = TabGridPageRegularTabs;
   } else if (mode == TabGridOpeningMode::kIncognito && !incognito) {
     [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::INCOGNITO];
+    page = TabGridPageIncognitoTabs;
+  } else if (mode == TabGridOpeningMode::kTabGroups) {
+    [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::NORMAL];
+    page = TabGridPageTabGroups;
   }
 
-  [self showTabSwitcher];
+  [self showTabSwitcherAtPage:page];
 }
 
 - (void)showPrivacySettingsFromViewController:
@@ -692,10 +699,10 @@ void OnListFamilyMembersResponse(
 
 - (void)openURLInNewTab:(OpenNewTabCommand*)command {
   if (command.inIncognito) {
-    IncognitoReauthSceneAgent* reauthAgent =
-        [IncognitoReauthSceneAgent agentFromScene:self.sceneState];
-    if (reauthAgent.authenticationRequired) {
+    if (self.sceneState.incognitoState.authenticationRequired) {
       __weak __typeof(self) weakSelf = self;
+      IncognitoReauthSceneAgent* reauthAgent =
+          [IncognitoReauthSceneAgent agentFromScene:self.sceneState];
       [reauthAgent
           authenticateIncognitoContentWithCompletionBlock:^(BOOL success) {
             if (success) {
@@ -1713,6 +1720,12 @@ void OnListFamilyMembersResponse(
   configuration.sceneHandler = self;
   configuration.singleSignOnService =
       GetApplicationContext()->GetSingleSignOnService();
+  if (IsDisableU18FeedbackIosEnabled()) {
+    AuthenticationService* authenticationService =
+        AuthenticationServiceFactory::GetForProfile(self.profile);
+    configuration.primaryIdentity = authenticationService->GetPrimaryIdentity(
+        signin::ConsentLevel::kSignin);
+  }
 
   NSError* error;
   ios::provider::StartUserFeedbackFlow(configuration, baseViewController,
@@ -1749,12 +1762,8 @@ void OnListFamilyMembersResponse(
 }
 
 // Shows the tab switcher UI.
-- (void)showTabSwitcher {
+- (void)showTabSwitcherAtPage:(TabGridPage)page {
   [self setActiveMode:TabGridMode::kNormal];
-  TabGridPage page = (self.currentBrowser->type() == Browser::Type::kIncognito)
-                         ? TabGridPageIncognitoTabs
-                         : TabGridPageRegularTabs;
-
   [self showTabGridPage:page];
 }
 

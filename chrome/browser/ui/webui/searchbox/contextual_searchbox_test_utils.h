@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SEARCHBOX_CONTEXTUAL_SEARCHBOX_TEST_UTILS_H_
 #define CHROME_BROWSER_UI_WEBUI_SEARCHBOX_CONTEXTUAL_SEARCHBOX_TEST_UTILS_H_
 
+#include "base/observer_list.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -16,6 +17,8 @@
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
 #include "components/lens/contextual_input.h"
+#include "components/lens/lens_overlay_mime_type.h"
+#include "components/variations/scoped_variations_ids_provider.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -78,6 +81,32 @@ class MockQueryController
     TestComposeboxQueryController::CreateSearchUrl(
         std::move(search_url_request_info), std::move(callback));
   }
+
+  void AddObserver(contextual_search::ContextualSearchContextController::
+                       FileUploadStatusObserver* obs) override {
+    observers_.AddObserver(obs);
+    TestComposeboxQueryController::AddObserver(obs);
+  }
+
+  void RemoveObserver(contextual_search::ContextualSearchContextController::
+                          FileUploadStatusObserver* obs) override {
+    observers_.RemoveObserver(obs);
+    TestComposeboxQueryController::RemoveObserver(obs);
+  }
+
+  void NotifySuccess(const base::UnguessableToken& file_token) {
+    for (auto& observer : observers_) {
+      observer.OnFileUploadStatusChanged(
+          file_token, lens::MimeType::kHtml,
+          contextual_search::ContextUploadStatus::kUploadSuccessful,
+          std::nullopt);
+    }
+  }
+
+ private:
+  base::ObserverList<contextual_search::ContextualSearchContextController::
+                         FileUploadStatusObserver>
+      observers_;
 };
 
 class TestWebContentsDelegate : public content::WebContentsDelegate {
@@ -121,6 +150,7 @@ class MockContextualSearchMetricsRecorder
               (composebox_query::mojom::ToolMode tool_mode,
                composebox_query::mojom::ModelMode model_mode),
               (override));
+  MOCK_METHOD(void, RecordZeroSuggestClick, (bool is_contextual), (override));
 
   void NotifySessionStateChangedBase(
       contextual_search::SessionState session_state) {
@@ -146,6 +176,10 @@ class MockContextualSearchMetricsRecorder
       composebox_query::mojom::ModelMode model_mode) {
     ContextualSearchMetricsRecorder::RecordModesOnSubmission(tool_mode,
                                                              model_mode);
+  }
+
+  void RecordZeroSuggestClickBase(bool is_contextual) {
+    ContextualSearchMetricsRecorder::RecordZeroSuggestClick(is_contextual);
   }
 };
 

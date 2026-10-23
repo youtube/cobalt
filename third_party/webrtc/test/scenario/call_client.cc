@@ -13,10 +13,10 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -309,14 +309,14 @@ void CallClient::UpdateBitrateConstraints(
 }
 
 void CallClient::SetAudioReceiveRtpHeaderExtensions(
-    ArrayView<RtpExtension> extensions) {
+    std::span<RtpExtension> extensions) {
   SendTask([this, &extensions]() {
     audio_extensions_ = RtpHeaderExtensionMap(extensions);
   });
 }
 
 void CallClient::SetVideoReceiveRtpHeaderExtensions(
-    ArrayView<RtpExtension> extensions) {
+    std::span<RtpExtension> extensions) {
   SendTask([this, &extensions]() {
     video_extensions_ = RtpHeaderExtensionMap(extensions);
   });

@@ -19,6 +19,7 @@
 
   // Go to the prefetched page.
   await session.evaluate(`document.getElementById('link').click()`);
+  await dp.Page.once('loadEventFired');
   let textContent = await session.evaluate(`document.body.textContent`);
 
   // Wait until header is printed.

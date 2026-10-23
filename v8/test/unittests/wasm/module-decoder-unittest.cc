@@ -284,7 +284,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     const WasmGlobal* global = &result.value()->globals.back();
 
     EXPECT_EQ(kWasmI32, global->type);
-    EXPECT_EQ(0u, global->offset);
+    EXPECT_EQ(0u, global->index_in_buffer);
     EXPECT_FALSE(global->mutability);
   }
 
@@ -307,7 +307,7 @@ TEST_F(WasmModuleVerifyTest, S128Global) {
     EXPECT_OK(result);
     const WasmGlobal* global = &result.value()->globals.back();
     EXPECT_EQ(kWasmS128, global->type);
-    EXPECT_EQ(0u, global->offset);
+    EXPECT_EQ(0u, global->index_in_buffer);
     EXPECT_FALSE(global->mutability);
   }
 }
@@ -799,13 +799,13 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     const WasmGlobal* g0 = &result.value()->globals[0];
 
     EXPECT_EQ(kWasmF32, g0->type);
-    EXPECT_EQ(0u, g0->offset);
+    EXPECT_EQ(0u, g0->index_in_buffer);
     EXPECT_FALSE(g0->mutability);
 
     const WasmGlobal* g1 = &result.value()->globals[1];
 
     EXPECT_EQ(kWasmF64, g1->type);
-    EXPECT_EQ(8u, g1->offset);
+    EXPECT_EQ(8u, g1->index_in_buffer);
     EXPECT_TRUE(g1->mutability);
   }
 
@@ -2211,7 +2211,6 @@ TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
 }
 
 TEST_F(WasmModuleVerifyTest, BranchHinting) {
-  WASM_FEATURE_SCOPE(branch_hinting);
   static const uint8_t data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
       SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, ENTRY_COUNT(1),
@@ -2233,7 +2232,6 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
 }
 
 TEST_F(WasmModuleVerifyTest, BranchHintingBad) {
-  WASM_FEATURE_SCOPE(branch_hinting);
   {
     // Section is present but has no entries.
     static const uint8_t data[] = {
@@ -2889,7 +2887,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   WASM_FEATURE_SCOPE(stringref);
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
@@ -2906,7 +2903,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   WASM_FEATURE_SCOPE(stringref);
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
@@ -2923,7 +2919,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
   WASM_FEATURE_SCOPE(stringref);
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
@@ -2944,7 +2939,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   WASM_FEATURE_SCOPE(stringref);
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
@@ -2967,7 +2961,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
 
 TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
   WASM_FEATURE_SCOPE(stringref);
-  WASM_FEATURE_SCOPE(exnref);
   WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
@@ -3172,7 +3165,7 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
   const WasmGlobal* global = &result.value()->globals.back();
 
   EXPECT_EQ(kWasmI32, global->type);
-  EXPECT_EQ(0u, global->offset);
+  EXPECT_EQ(0u, global->index_in_buffer);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_empty) {

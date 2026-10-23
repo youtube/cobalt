@@ -38,8 +38,9 @@ namespace blink {
 namespace {
 
 bool IsTypeSupportedInternal(String type) {
-  if (!type.ContainsOnlyASCIIOrEmpty())
+  if (!type.ContainsOnlyAsciiOrEmpty()) {
     return false;
+  }
 
   // Disable ICO/CUR decoding since the underlying decoder does not operate like
   // the rest of our blink::ImageDecoders. Each frame is a different sized
@@ -530,7 +531,7 @@ void ImageDecoderExternal::MaybeSatisfyPendingDecodes() {
   // Copy completed requests to a new local vector to avoid reentrancy issues
   // when resolving and rejecting the promises.
   HeapVector<Member<DecodeRequest>> completed_decodes;
-  completed_decodes.AppendRange(new_end, pending_decodes_.end());
+  completed_decodes.Append(new_end, pending_decodes_.end());
   pending_decodes_.Shrink(
       static_cast<wtf_size_t>(new_end - pending_decodes_.begin()));
 

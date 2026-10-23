@@ -207,6 +207,7 @@ import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -222,6 +223,7 @@ import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.back_forward_transition.AnimationStage;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.net.NetError;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
@@ -255,7 +257,8 @@ public class ToolbarManager
     private final IncognitoStateProvider mIncognitoStateProvider;
     private final TopUiThemeColorProvider mTopUiThemeColorProvider;
     private @Nullable final AdjustedTopUiThemeColorProvider mAdjustedTopUiThemeColorProvider;
-    private final Supplier<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
+    private final MonotonicObservableSupplier<EphemeralTabCoordinator>
+            mEphemeralTabCoordinatorSupplier;
     private AppThemeColorProvider mAppThemeColorProvider;
     private final SettableThemeColorProvider mCustomTabThemeColorProvider;
     private final TopToolbarCoordinator mToolbar;
@@ -806,7 +809,7 @@ public class ToolbarManager
             TabCreatorManager tabCreatorManager,
             Supplier<MerchantTrustSignalsCoordinator> merchantTrustSignalsCoordinatorSupplier,
             OmniboxActionDelegateImpl omniboxActionDelegate,
-            Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+            MonotonicObservableSupplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             boolean initializeWithIncognitoColors,
             @Nullable BackPressManager backPressManager,
             MonotonicObservableSupplier<ReadAloudController> readAloudControllerSupplier,
@@ -2317,6 +2320,7 @@ public class ToolbarManager
      * @param tabModelNotificationDotSupplier Supplies whether the tab switcher button should show a
      *     notification dot.
      * @param undoBarThrottle For suppressing the undo bar.
+     * @param contextMenuPopulatorFactory The {@link ContextMenuPopulatorFactory} to use.
      */
     public void initializeWithNative(
             LayoutManagerImpl layoutManager,
@@ -2326,7 +2330,9 @@ public class ToolbarManager
             @Nullable OnClickListener customTabsBackClickHandler,
             @Nullable NonNullObservableSupplier<Integer> archivedTabCountSupplier,
             NonNullObservableSupplier<TabModelDotInfo> tabModelNotificationDotSupplier,
-            @Nullable UndoBarThrottle undoBarThrottle) {
+            @Nullable UndoBarThrottle undoBarThrottle,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         TraceEvent.begin("ToolbarManager.initializeWithNative");
         assert !mInitializedWithNative;
         assert mTabModelSelectorSupplier.get() != null;
@@ -2356,7 +2362,9 @@ public class ToolbarManager
                                 mActivityTabProvider.asObservable(),
                                 mTabCreatorManager.getTabCreator(false),
                                 getBrowsingModeThemeColorProvider(),
-                                (ToolbarTablet) mToolbarLayout);
+                                (ToolbarTablet) mToolbarLayout,
+                                contextMenuPopulatorFactory,
+                                selectionDropdownMenuDelegate);
                 if (mExtensionToolbarCoordinator != null) {
                     mToolbar.setExtensionToolbarCoordinator(mExtensionToolbarCoordinator);
                 }

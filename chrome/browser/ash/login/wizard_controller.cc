@@ -152,7 +152,6 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
-#include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/cros_pre_consent_metrics_manager.h"
 #include "chrome/browser/metrics/metrics_reporting_state.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -429,7 +428,8 @@ WizardController::WizardController(
       application_locale_storage_(CHECK_DEREF(application_locale_storage)),
       shared_url_loader_factory_(std::move(shared_url_loader_factory)),
       quickstart_controller_(
-          std::make_unique<quick_start::QuickStartController>()),
+          std::make_unique<quick_start::QuickStartController>(
+              &local_state_.get())),
       screen_manager_(std::make_unique<ScreenManager>()),
       wizard_context_(wizard_context) {
   const auto has_been_skipped =

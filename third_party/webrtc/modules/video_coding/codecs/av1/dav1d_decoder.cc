@@ -82,9 +82,6 @@ class ScopedDav1dPicture : public RefCountedNonVirtual<ScopedDav1dPicture> {
 
 constexpr char kDav1dName[] = "dav1d";
 
-// Calling `dav1d_data_wrap` requires a `free_callback` to be registered.
-void NullFreeCallback(const uint8_t* /* buffer */, void* /* opaque */) {}
-
 Dav1dDecoder::Dav1dDecoder() = default;
 
 Dav1dDecoder::Dav1dDecoder(const Environment& env)
@@ -142,9 +139,25 @@ int32_t Dav1dDecoder::Decode(const EncodedImage& encoded_image,
 
   ScopedDav1dData scoped_dav1d_data;
   Dav1dData& dav1d_data = scoped_dav1d_data.Data();
-  dav1d_data_wrap(&dav1d_data, encoded_image.data(), encoded_image.size(),
-                  /*free_callback=*/&NullFreeCallback,
-                  /*user_data=*/nullptr);
+
+  // Calling GetEncodedData will create a new `scoped_refptr` and increment the
+  // ref count. By simply releasing we are now responsible for decrementing
+  // the ref count when appropriate, which is when dav1d calls the
+  // `free_callback` to indicate that the buffer is no longer needed.
+  EncodedImageBufferInterface* bitstream_buffer =
+      encoded_image.GetEncodedData().release();
+
+  // Note that the `bitstream_buffer` can have a higher capacity than what is
+  // actually being used, so `encoded_image.size()` should be used to get the
+  // actual size of the bitstream.
+  dav1d_data_wrap(
+      &dav1d_data, encoded_image.data(), encoded_image.size(),
+      /*free_callback=*/
+      [](const uint8_t* /* buffer */, void* user_data) {
+        auto* bb = static_cast<EncodedImageBufferInterface*>(user_data);
+        bb->Release();
+      },
+      /*user_data=*/bitstream_buffer);
 
   if (int decode_res = dav1d_send_data(context_, &dav1d_data)) {
     RTC_LOG(LS_WARNING)

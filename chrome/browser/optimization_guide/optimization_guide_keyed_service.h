@@ -33,6 +33,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
 #include "chrome/browser/bookmarks/android/bookmark_bridge.h"
+#include "chrome/browser/optimization_guide/android/jni_headers/OptimizationGuideBridge_shared_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace content {
@@ -76,7 +77,6 @@ class OptimizationGuideBridge;
 #endif  // BUILDFLAG(IS_ANDROID)
 }  // namespace optimization_guide
 
-class ChromeBrowserMainExtraPartsOptimizationGuide;
 class GURL;
 class OptimizationGuideLogger;
 class OptimizationGuideNavigationData;
@@ -111,7 +111,9 @@ class OptimizationGuideKeyedService
   ~OptimizationGuideKeyedService() override;
 
 #if BUILDFLAG(IS_ANDROID)
-  base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
+  base::android::ScopedJavaLocalRef<
+      optimization_guide::android::JOptimizationGuideBridge>
+  GetJavaObject();
 #endif
 
   // Constructs a ModelBrokerClient with remote fallback capability.
@@ -280,7 +282,6 @@ class OptimizationGuideKeyedService
   GetModelExecutionFeaturesController();
 
  private:
-  friend class ChromeBrowserMainExtraPartsOptimizationGuide;
   friend class ChromeBrowsingDataRemoverDelegate;
   friend class contextual_cueing::ZeroStateSuggestionsPageData;
   friend class glic::GlicPageContextEligibilityObserver;

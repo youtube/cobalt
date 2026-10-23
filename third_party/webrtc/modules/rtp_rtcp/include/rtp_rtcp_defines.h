@@ -18,11 +18,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
@@ -183,7 +183,7 @@ class NetworkLinkRtcpObserver {
   // Called on an RTCP packet with sender or receiver reports with non zero
   // report blocks. Report blocks are combined from all reports into one array.
   virtual void OnReport(Timestamp /* receive_time */,
-                        ArrayView<const ReportBlockData> /* report_blocks */) {}
+                        std::span<const ReportBlockData> /* report_blocks */) {}
   virtual void OnRttUpdate(Timestamp /* receive_time */, TimeDelta /* rtt */) {}
 };
 

@@ -29,6 +29,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="126567311906253476">Pri prijavi v Googlove storitve, kot je Gmail ali YouTube, z računom <ph name="USER_EMAIL" /> se lahko z istim računom samodejno prijavite v Chromium</translation>
 <translation id="1290883685122687410">Napaka pri nastavitvi: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Nastavitev novega profila v Chromiumu</translation>
+<translation id="132092532143527429">Preizkusite z Geminijem v Chromiumu</translation>
 <translation id="1324107359134968521">Chromium potrebuje dostop do Bluetootha za raziskovanje 
  naprav Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Zaznaj jezik</translation>
@@ -377,7 +378,6 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="5174969993834422967">Obvestila običajno blokirate. Če želite dovoliti, da vas to spletno mesto obvešča, kliknite ikono obvestila v desnem kotu vrstice z lokacijo.</translation>
 <translation id="5174983315706567306">Premalo prostora na disku.</translation>
 <translation id="5187123684706427865">Račun Chromium zahteva vnovično preverjanje pristnosti</translation>
-<translation id="5219681158518957165">Uporaba priporočenih nastavitev brskalnika</translation>
 <translation id="5224391634244552924">Ni shranjenih gesel. Chromium lahko preveri gesla, če jih shranite.</translation>
 <translation id="5231355151045086930">Odjava iz Chromiuma</translation>
 <translation id="5234764350956374838">Opusti</translation>
@@ -611,6 +611,7 @@ Chromium ne more obnoviti vaših nastavitev.</translation>
 <translation id="7622753900276619808">V Chromiumu je zdaj na voljo več funkcij</translation>
 <translation id="7624307931717240213">Podatke uporabljamo za izboljšanje te storitve. Oglejte si pravilnik o zasebnosti in pogoje storitve.</translation>
 <translation id="7649070708921625228">Pomoč</translation>
+<translation id="7650134251917003571">Prenos aplikacije Chromium</translation>
 <translation id="7656340475565475526">Naj Chromium brska za vas</translation>
 <translation id="7658239707568436148">Prekliči</translation>
 <translation id="7686590090926151193">Chromium ni privzeti brskalnik</translation>

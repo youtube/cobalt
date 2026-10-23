@@ -10,6 +10,11 @@
 #include "components/skills/public/skill.h"
 namespace skills {
 
+namespace mojom {
+enum class SkillsManagementPage;
+enum class SkillsManagementAction;
+}  // namespace mojom
+
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 
@@ -19,7 +24,8 @@ enum class SkillsDialogAction {
   kSaved = 1,
   kCancelled = 2,
   kRefined = 3,
-  kMaxValue = kRefined,
+  kDeleted = 4,
+  kMaxValue = kDeleted,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/skills/enums.xml:SkillsDialogAction)
 
@@ -39,7 +45,8 @@ enum class SkillsInvokeAction {
   kFirstParty = 0,
   kUserCreated = 1,
   kDerivedFromFirstParty = 2,
-  kMaxValue = kDerivedFromFirstParty,
+  kUnknown = 3,
+  kMaxValue = kUnknown,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/skills/enums.xml:SkillsInvokeAction)
 
@@ -157,6 +164,10 @@ void RecordSkillsRefineResult(SkillsRefineResult result);
 // This is called periodically by the SkillsMetricsProvider to capture
 // the user's status throughout the session.
 void RecordUserSkillCount(size_t skill_count);
+
+// Records user actions on the Skills management pages.
+void RecordSkillsManagementAction(skills::mojom::SkillsManagementPage page,
+                                  skills::mojom::SkillsManagementAction action);
 
 // Records the result of a first-party skill list download attempt from
 // static content server link.

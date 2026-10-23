@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/shell.h"
 #include "ash/webui/shimless_rma/shimless_rma.h"
@@ -34,6 +35,7 @@
 #include "chrome/browser/ash/login/session/session_manager_delegate_impl.h"
 #include "chrome/browser/ash/login/session/user_session_initializer.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/profiles/signin_profile_handler.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
@@ -128,7 +130,7 @@ void StartLoginOobeSession(PrefService& local_state) {
 
   // Reset reboot after update flag when login screen is shown.
   if (!ash::InstallAttributes::Get()->IsEnterpriseManaged()) {
-    local_state.ClearPref(prefs::kRebootAfterUpdate);
+    local_state.ClearPref(::prefs::kRebootAfterUpdate);
   }
 }
 
@@ -433,7 +435,7 @@ void ChromeSessionManager::Initialize(
   // If a forced powerwash was triggered and no confirmation from the user is
   // necessary, we trigger the device wipe here before the user can log in again
   // and return immediately because there is no need to show the login screen.
-  if (local_state_->GetBoolean(prefs::kForceFactoryReset)) {
+  if (local_state_->GetBoolean(ash::prefs::kForceFactoryReset)) {
     SessionManagerClient::Get()->StartDeviceWipe(base::DoNothing());
     return;
   }

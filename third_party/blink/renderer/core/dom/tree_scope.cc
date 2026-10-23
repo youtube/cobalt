@@ -483,9 +483,7 @@ void TreeScope::ClearAdoptedStyleSheets() {
   if (!HasAdoptedStyleSheets()) {
     return;
   }
-  HeapVector<Member<CSSStyleSheet>> removed;
-  removed.AppendRange(adopted_style_sheets_->begin(),
-                      adopted_style_sheets_->end());
+  HeapVector<Member<CSSStyleSheet>> removed(*adopted_style_sheets_);
   adopted_style_sheets_->clear();
   for (const auto& sheet : removed) {
     StyleSheetWasRemoved(sheet);
@@ -582,8 +580,9 @@ Node* TreeScope::FindAnchor(const String& fragment) {
 
   // 7. If decodedFragment is "top", top of the document.
   // TODO(1117212) Move the IsEmpty check to step 2.
-  if (fragment.empty() || EqualIgnoringASCIICase(name, "top"))
+  if (fragment.empty() || EqualIgnoringAsciiCase(name, "top")) {
     anchor = &GetDocument();
+  }
 
   return anchor;
 }

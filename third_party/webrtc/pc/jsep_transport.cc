@@ -13,13 +13,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/dtls_transport_interface.h"
 #include "api/ice_transport_interface.h"
@@ -433,7 +433,7 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
   } else {
     // We are not doing DTLS
     remote_fingerprint =
-        std::make_unique<SSLFingerprint>("", ArrayView<const uint8_t>());
+        std::make_unique<SSLFingerprint>("", std::span<const uint8_t>());
   }
   // Now that we have negotiated everything, push it downward.
   // Note that we cache the result so that if we have race conditions

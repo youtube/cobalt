@@ -4858,7 +4858,7 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   return api_scope.Escape(Utils::ToLocal(desc.ToObject(i_isolate)));
 }
 
-Local<Value> v8::Object::GetPrototypeV2() {
+Local<Value> v8::Object::GetPrototype() {
   auto self = Utils::OpenDirectHandle(this);
   auto i_isolate = i::Isolate::Current();
   i::PrototypeIterator iter(i_isolate, self);
@@ -4911,8 +4911,8 @@ Maybe<bool> SetPrototypeImpl(v8::Object* this_, Local<Context> context,
 
 }  // namespace
 
-Maybe<bool> v8::Object::SetPrototypeV2(Local<Context> context,
-                                       Local<Value> value) {
+Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
+                                     Local<Value> value) {
   static constexpr bool from_javascript = true;
   return SetPrototypeImpl(this, context, value, from_javascript);
 }
@@ -6492,6 +6492,28 @@ size_t v8::V8::GetSandboxReservationSizeInBytes() {
                   "v8::V8::GetSandboxReservationSizeInBytes",
                   "The sandbox must be initialized first");
   return i::Sandbox::current()->reservation_size();
+}
+
+v8::V8::SandboxMode v8::V8::GetSandboxMode() {
+  const i::Sandbox* sandbox = i::Sandbox::current();
+  Utils::ApiCheck(sandbox->is_initialized(), "v8::V8::GetSandboxMode",
+                  "The sandbox must be initialized first");
+  const bool partial = sandbox->is_partially_reserved();
+  const bool smi_inaccessible = sandbox->smi_address_range_is_inaccessible();
+
+  if (!partial && smi_inaccessible) {
+    return SandboxMode::kSecure;
+  }
+  if (partial && smi_inaccessible) {
+    return SandboxMode::kInsecurePartialReservationSmiInaccessible;
+  }
+  if (!partial && !smi_inaccessible) {
+    return SandboxMode::kInsecureFullReservationSmiAccessible;
+  }
+  if (partial && !smi_inaccessible) {
+    return SandboxMode::kInsecurePartialReservationSmiAccessible;
+  }
+  return SandboxMode::kInsecure;
 }
 
 bool v8::V8::IsSandboxConfiguredSecurely() {
@@ -9669,7 +9691,8 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemoryImpl(
 bool Isolate::RetryCustomAllocate(std::function<bool()> allocate) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
   return heap->allocator()->RetryCustomAllocate(
-      [&allocate]() { return allocate(); }, internal::AllocationType::kOld);
+      [&allocate]() { return allocate(); }, internal::AllocationType::kOld,
+      internal::GarbageCollectionReason::kAllocationFailure);
 }
 
 IsolateGroup::IsolateGroup(i::IsolateGroup*&& isolate_group)
@@ -11144,6 +11167,7 @@ String::Value::Value(v8::Isolate* v8_isolate, v8::Local<v8::Value> obj)
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
+  SBXCHECK_LT(length_, String::kMaxLength);
   str_ = i::NewArray<uint16_t>(length_ + 1);
   str->WriteV2(v8_isolate, 0, length_, str_,
                String::WriteFlags::kNullTerminate);
@@ -12427,8 +12451,8 @@ template <typename T>
 bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
-  CHECK(info.HolderV2()->IsObject());
-  CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.HolderV2())));
+  CHECK(info.Holder()->IsObject());
+  CHECK(!i::IsJSGlobalObject(*Utils::OpenDirectHandle(*info.Holder())));
 
   if (i::PropertyCallbackArguments::IsNamed(info)) {
     i::Tagged<i::Object> name =

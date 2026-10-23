@@ -2245,6 +2245,11 @@ TEST_F(BnplManagerTest, IsBnplIssuerSupported_KlarnaDisabled) {
   EXPECT_FALSE(BnplManager::IsBnplIssuerSupported(kBnplKlarnaIssuerId));
 }
 
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_IOS)
+
 TEST_F(BnplManagerTest,
        OnDidAcceptBnplSuggestion_AiBasedAmountExtractionPrefTurnedOn) {
   base::test::ScopedFeatureList scoped_feature_list;
@@ -2255,9 +2260,13 @@ TEST_F(BnplManagerTest,
 
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi());
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_CALL(GetBnplUiDelegate(), ShowProgressUi);
+#else   // Desktop only.
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowSelectBnplIssuerUi(testing::IsEmpty(), Eq(kAppLocale), _, _,
                                      /*has_seen_ai_terms=*/true));
+#endif  // BUILDFLAG(IS_ANDROID)
 
   bnpl_manager_->OnDidAcceptBnplSuggestion(
       /*final_checkout_amount=*/std::nullopt,
@@ -2285,7 +2294,11 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi())
       .Times(0);
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_CALL(GetBnplUiDelegate(), ShowProgressUi);
+#else   // Desktop only.
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   bnpl_manager_->OnDidAcceptBnplSuggestion(
       /*final_checkout_amount=*/std::nullopt,
@@ -2303,7 +2316,11 @@ TEST_F(BnplManagerTest,
       prefs::kAutofillAmountExtractionAiTermsSeen, true);
 
   InSequence s;
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_CALL(GetBnplUiDelegate(), ShowProgressUi);
+#else   // Desktop only.
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
+#endif  // BUILDFLAG(IS_ANDROID)
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi());
 
@@ -2313,20 +2330,44 @@ TEST_F(BnplManagerTest,
 }
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_TriggersExtractionIfTermsNotSeen) {
+       OnDidAcceptBnplSuggestion_SetAutofillAmountExtractionAiTermsSeen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kAutofillEnableAiBasedAmountExtraction);
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
 
-  InSequence s;
+  ASSERT_FALSE(autofill_client()
+                   .GetPersonalDataManager()
+                   .payments_data_manager()
+                   .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
-  EXPECT_CALL(*mock_amount_extraction_manager_,
-              TriggerCheckoutAmountExtractionWithAi());
-  EXPECT_CALL(GetBnplUiDelegate(), UpdateBnplIssuerDialogUi);
 
   bnpl_manager_->OnDidAcceptBnplSuggestion(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  ASSERT_TRUE(autofill_client()
+                  .GetPersonalDataManager()
+                  .payments_data_manager()
+                  .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
+}
+
+TEST_F(BnplManagerTest, OnIssuerSelected_TriggersExtractionAfterTermsNotSeen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAutofillEnableAiBasedAmountExtraction);
+  autofill_client().GetPrefs()->SetBoolean(
+      prefs::kAutofillAmountExtractionAiTermsSeen, false);
+
+  bnpl_manager_->OnDidAcceptBnplSuggestion(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  InSequence s;
+  EXPECT_CALL(*mock_amount_extraction_manager_,
+              TriggerCheckoutAmountExtractionWithAi());
+  EXPECT_CALL(GetBnplUiDelegate(), UpdateBnplIssuerDialogUi);
 
   test_api(*bnpl_manager_).OnIssuerSelected(test::GetTestUnlinkedBnplIssuer());
 
@@ -2334,77 +2375,6 @@ TEST_F(BnplManagerTest,
       std::make_pair(1'000'000, "USD"));
 }
 
-TEST_F(BnplManagerTest,
-       OnAmountExtractionReturnedFromAi_NegativeAmount_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
-      /*final_checkout_amount=*/std::nullopt,
-      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
-
-  InSequence s;
-  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi);
-  EXPECT_CALL(GetBnplUiDelegate(),
-              ShowAutofillErrorUi(
-                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-                      /*is_permanent_error=*/false)));
-
-  bnpl_manager_->OnAmountExtractionReturnedFromAi(
-      base::unexpected(AiAmountExtractionResult::Error::kNegativeAmount));
-}
-
-TEST_F(BnplManagerTest,
-       OnAmountExtractionReturnedFromAi_AmountMissing_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
-      /*final_checkout_amount=*/std::nullopt,
-      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
-
-  InSequence s;
-  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi);
-  EXPECT_CALL(GetBnplUiDelegate(),
-              ShowAutofillErrorUi(
-                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-                      /*is_permanent_error=*/false)));
-
-  bnpl_manager_->OnAmountExtractionReturnedFromAi(
-      base::unexpected(AiAmountExtractionResult::Error::kAmountMissing));
-}
-
-TEST_F(BnplManagerTest, OnAmountExtractionReturnedFromAi_Timeout_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
-      /*final_checkout_amount=*/std::nullopt,
-      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
-
-  InSequence s;
-  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi());
-  EXPECT_CALL(GetBnplUiDelegate(),
-              ShowAutofillErrorUi(
-                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-                      /*is_permanent_error=*/false)));
-
-  bnpl_manager_->OnAmountExtractionReturnedFromAi(
-      base::unexpected(AiAmountExtractionResult::Error::kTimeout));
-}
-
-TEST_F(BnplManagerTest,
-       OnAmountExtractionReturnedFromAi_NonUsdCurrency_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
-      /*final_checkout_amount=*/std::nullopt,
-      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
-
-  InSequence s;
-  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi);
-  EXPECT_CALL(
-      GetBnplUiDelegate(),
-      ShowAutofillErrorUi(
-          AutofillErrorDialogContext::WithBnplUnsupportedCurrencyError()));
-
-  bnpl_manager_->OnAmountExtractionReturnedFromAi(
-      base::unexpected(AiAmountExtractionResult::Error::kUnsupportedCurrency));
-}
-
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
-
-#if !BUILDFLAG(IS_IOS)
 // Tests that `OnIssuerSelected()` calls with a linked issuer where ToS
 // acceptance is required will call the payments network interface with the
 // request details filled out correctly.
@@ -2904,16 +2874,74 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_LogsOnlyOnce) {
 }
 
 TEST_F(BnplManagerTest,
-       OnAmountExtractionReturnedFromAi_RemoveSelectBnplIssuerOrProgressUi) {
+       OnAmountExtractionReturnedFromAi_NegativeAmount_ShowsErrorUi) {
   bnpl_manager_->OnDidAcceptBnplSuggestion(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
+  InSequence s;
   EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi)
       .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
+  EXPECT_CALL(GetBnplUiDelegate(),
+              ShowAutofillErrorUi(
+                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+                      /*is_permanent_error=*/false)));
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      base::unexpected(AiAmountExtractionResult::Error::kNegativeAmount));
+}
+
+TEST_F(BnplManagerTest,
+       OnAmountExtractionReturnedFromAi_AmountMissing_ShowsErrorUi) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  InSequence s;
+  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi)
+      .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
+  EXPECT_CALL(GetBnplUiDelegate(),
+              ShowAutofillErrorUi(
+                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+                      /*is_permanent_error=*/false)));
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      base::unexpected(AiAmountExtractionResult::Error::kAmountMissing));
+}
+
+TEST_F(BnplManagerTest, OnAmountExtractionReturnedFromAi_Timeout_ShowsErrorUi) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  InSequence s;
+  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi)
+      .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
+  EXPECT_CALL(GetBnplUiDelegate(),
+              ShowAutofillErrorUi(
+                  AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+                      /*is_permanent_error=*/false)));
 
   bnpl_manager_->OnAmountExtractionReturnedFromAi(
       base::unexpected(AiAmountExtractionResult::Error::kTimeout));
+}
+
+TEST_F(BnplManagerTest,
+       OnAmountExtractionReturnedFromAi_NonUsdCurrency_ShowsErrorUi) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  InSequence s;
+  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi)
+      .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
+  EXPECT_CALL(
+      GetBnplUiDelegate(),
+      ShowAutofillErrorUi(
+          AutofillErrorDialogContext::WithBnplUnsupportedCurrencyError()));
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      base::unexpected(AiAmountExtractionResult::Error::kUnsupportedCurrency));
 }
 
 #endif  // !BUILDFLAG(IS_IOS)

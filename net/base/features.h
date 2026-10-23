@@ -767,6 +767,9 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicOptions);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsResponseDiscardPartialQuestions);
 
+// When enabled, allows DoH upgrade even if there are local nameservers.
+NET_EXPORT BASE_DECLARE_FEATURE(kDohFallbackAllowedWithLocalNameservers);
+
 // When enabled, users can make Secure DNS in AUTOMATIC mode fallback to a
 // well-known DoH provider before using insecure DNS.
 NET_EXPORT BASE_DECLARE_FEATURE(kAddAutomaticWithDohFallbackMode);
@@ -793,6 +796,11 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kSecureDnsCanaryDomainHost);
 // of the URL if it differs from the absolute string.
 NET_EXPORT BASE_DECLARE_FEATURE(kUseNSURLDataForGURLConversion);
 #endif  // BUILDFLAG(IS_APPLE)
+
+// Enables logical HTTP cache clearing, which adds a filter to the cache
+// to immediately treat entries as invalid, while they are physically deleted
+// in the background.
+NET_EXPORT BASE_DECLARE_FEATURE(kLogicalClearHttpCache);
 
 // If enabled, SPDY sessions will be synchronously drained when the underlying
 // transport socket is detected to be disconnected in GetRemoteEndpoint().

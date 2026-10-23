@@ -27,6 +27,8 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
+
 namespace {
 // Extracted from a stock DTLS call using Wireshark.
 // Each packet (apart from the last) is truncated to
@@ -61,8 +63,8 @@ const std::vector<uint8_t> empty = {};
 
 const std::vector<uint8_t> kPayload = {0x1, 0x2, 0x3};
 
-std::vector<uint32_t> FromAckAttribute(webrtc::ArrayView<uint8_t> attr) {
-  webrtc::ByteBufferReader ack_reader(attr);
+std::vector<uint32_t> FromAckAttribute(ArrayView<uint8_t> attr) {
+  ByteBufferReader ack_reader(attr);
   std::vector<uint32_t> values;
   uint32_t value;
   while (ack_reader.ReadUInt32(&value)) {
@@ -79,28 +81,25 @@ std::vector<uint8_t> FakeDtlsPacket(uint16_t packet_number) {
   return packet;
 }
 
-std::unique_ptr<webrtc::StunByteStringAttribute> WrapInStun(
-    webrtc::IceAttributeType type,
-    absl::string_view data) {
-  return std::make_unique<webrtc::StunByteStringAttribute>(type, data);
+std::unique_ptr<StunByteStringAttribute> WrapInStun(IceAttributeType type,
+                                                    absl::string_view data) {
+  return std::make_unique<StunByteStringAttribute>(type, data);
 }
 
-std::unique_ptr<webrtc::StunByteStringAttribute> WrapInStun(
-    webrtc::IceAttributeType type,
+std::unique_ptr<StunByteStringAttribute> WrapInStun(
+    IceAttributeType type,
     const std::vector<uint8_t>& data) {
-  return std::make_unique<webrtc::StunByteStringAttribute>(type, data.data(),
-                                                           data.size());
+  return std::make_unique<StunByteStringAttribute>(type, data.data(),
+                                                   data.size());
 }
 
-std::unique_ptr<webrtc::StunByteStringAttribute> WrapInStun(
-    webrtc::IceAttributeType type,
+std::unique_ptr<StunByteStringAttribute> WrapInStun(
+    IceAttributeType type,
     const std::vector<uint32_t>& data) {
-  return std::make_unique<webrtc::StunByteStringAttribute>(type, data);
+  return std::make_unique<StunByteStringAttribute>(type, data);
 }
 
 }  // namespace
-
-namespace webrtc {
 
 using ::testing::ElementsAreArray;
 using ::testing::MockFunction;

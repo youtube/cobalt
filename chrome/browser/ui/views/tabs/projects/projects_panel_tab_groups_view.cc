@@ -28,44 +28,23 @@
 #include "ui/compositor/paint_recorder.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/button_drag_utils.h"
-#include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/flex_layout.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
 
 namespace {
 constexpr gfx::Insets kNoTabsInteriorMargins = gfx::Insets::VH(0, 8);
-
-class ProjectsPanelNewTabGroupButton : public views::LabelButton {
-  METADATA_HEADER(ProjectsPanelNewTabGroupButton, views::LabelButton)
-
- public:
-  explicit ProjectsPanelNewTabGroupButton(base::RepeatingClosure callback)
-      : views::LabelButton(
-            std::move(callback),
-            l10n_util::GetStringUTF16(IDS_CREATE_NEW_TAB_GROUP)) {
-    SetImageModel(views::Button::STATE_NORMAL,
-                  ui::ImageModel::FromVectorIcon(
-                      kCreateNewTabGroupIcon, kColorProjectsPanelButtonIcon));
-    SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    projects_panel::ConfigureInkDropForButton(this);
-  }
-  ProjectsPanelNewTabGroupButton(const ProjectsPanelNewTabGroupButton&) =
-      delete;
-  ProjectsPanelNewTabGroupButton& operator=(
-      const ProjectsPanelNewTabGroupButton&) = delete;
-  ~ProjectsPanelNewTabGroupButton() override = default;
-};
-
-BEGIN_METADATA(ProjectsPanelNewTabGroupButton)
-END_METADATA
 
 // Whether animations should be disabled.
 static bool disable_animations_for_testing_ = false;
@@ -80,18 +59,15 @@ ProjectsPanelTabGroupsView::ProjectsPanelTabGroupsView(
     ProjectsPanelTabGroupsItemView::MoreButtonPressedCallback
         more_button_callback,
     TabGroupMovedCallback tab_group_moved_callback,
-    base::RepeatingClosure create_new_tab_group_callback)
+    DragUpdatedCallback drag_updated_callback,
+    DragExitedCallback drag_exited_callback)
     : tab_group_button_callback_(std::move(tab_group_button_callback)),
       more_button_callback_(std::move(more_button_callback)),
-      tab_group_moved_callback_(std::move(tab_group_moved_callback)) {
+      tab_group_moved_callback_(std::move(tab_group_moved_callback)),
+      drag_updated_callback_(std::move(drag_updated_callback)),
+      drag_exited_callback_(std::move(drag_exited_callback)) {
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>());
   layout->SetOrientation(views::LayoutOrientation::kVertical);
-
-  create_new_tab_group_button_ =
-      AddChildView(std::make_unique<ProjectsPanelNewTabGroupButton>(
-          std::move(create_new_tab_group_callback)));
-  create_new_tab_group_button_->SetProperty(
-      views::kElementIdentifierKey, kProjectsPanelNewTabGroupButtonElementId);
 
   SetProperty(views::kElementIdentifierKey,
               kProjectsPanelTabGroupsViewElementId);
@@ -157,6 +133,8 @@ void ProjectsPanelTabGroupsView::OnDragEntered(
 
 int ProjectsPanelTabGroupsView::OnDragUpdated(
     const ui::DropTargetEvent& event) {
+  drag_updated_callback_.Run(event.location());
+
   if (!drop_info_) {
     return static_cast<int>(ui::mojom::DragOperation::kNone);
   }
@@ -178,6 +156,7 @@ int ProjectsPanelTabGroupsView::OnDragUpdated(
 }
 
 void ProjectsPanelTabGroupsView::OnDragExited() {
+  drag_exited_callback_.Run();
   drop_info_.reset();
   SchedulePaint();
 }

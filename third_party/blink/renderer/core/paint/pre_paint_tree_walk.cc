@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/pagination_state.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
+#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer_controller.h"
 #include "third_party/blink/renderer/core/layout/block_break_token.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
@@ -622,6 +623,13 @@ void PrePaintTreeWalk::WalkInternal(const LayoutObject& object,
     if (!pre_paint_info->fragment_data)
       return;
   } else if (object.IsFragmentLessBox()) {
+    // CC Clip-path animations expect paint property updates to go through to
+    // update the composited paint status. However, because this box doesn't
+    // paint, we can safely mark the animation as non-composited. This is done
+    // for correctness and should have no material impact, at least until off-
+    // -screen / non-visible animations are handled more appropriately.
+    ClipPathClipper::FallbackClipPathAnimationIfNecessary(
+        object, /* should_force_fallback = */ true);
     return;
   }
 

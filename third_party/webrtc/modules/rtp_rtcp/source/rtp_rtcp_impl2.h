@@ -16,13 +16,13 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/rtp_headers.h"
 #include "api/sequence_checker.h"
@@ -97,7 +97,7 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
   // Receiver part.
 
   // Called when we receive an RTCP packet.
-  void IncomingRtcpPacket(ArrayView<const uint8_t> incoming_packet) override;
+  void IncomingRtcpPacket(std::span<const uint8_t> incoming_packet) override;
 
   void SetRemoteSSRC(uint32_t ssrc) override;
 
@@ -191,16 +191,16 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
   std::vector<std::unique_ptr<RtpPacketToSend>> FetchFecPackets() override;
 
   void OnAbortedRetransmissions(
-      ArrayView<const uint16_t> sequence_numbers) override;
+      std::span<const uint16_t> sequence_numbers) override;
 
   void OnPacketsAcknowledged(
-      ArrayView<const uint16_t> sequence_numbers) override;
+      std::span<const uint16_t> sequence_numbers) override;
 
   std::vector<std::unique_ptr<RtpPacketToSend>> GeneratePadding(
       size_t target_size_bytes) override;
 
   std::vector<RtpSequenceNumberMap::Info> GetSentRtpPacketInfos(
-      ArrayView<const uint16_t> sequence_numbers) const override;
+      std::span<const uint16_t> sequence_numbers) const override;
 
   size_t ExpectedPerPacketOverhead() const override;
 
@@ -275,7 +275,7 @@ class ModuleRtpRtcpImpl2 final : public RtpRtcpInterface,
   void OnReceivedNack(
       const std::vector<uint16_t>& nack_sequence_numbers) override;
   void OnReceivedRtcpReportBlocks(
-      ArrayView<const ReportBlockData> report_blocks) override;
+      std::span<const ReportBlockData> report_blocks) override;
   void OnRequestSendReport() override;
 
   void SetVideoBitrateAllocation(

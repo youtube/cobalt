@@ -114,6 +114,8 @@ class SrtpTransport : public RtpTransport {
 
   std::unique_ptr<SrtpSession> send_session_;
   std::unique_ptr<SrtpSession> recv_session_;
+  // Non-muxed RTCP requires different SRTP sessions as it leads to
+  // separate DTLS handshakes.
   std::unique_ptr<SrtpSession> send_rtcp_session_;
   std::unique_ptr<SrtpSession> recv_rtcp_session_;
 

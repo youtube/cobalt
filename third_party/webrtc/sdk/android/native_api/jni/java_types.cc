@@ -17,12 +17,12 @@
 #include <cstring>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_external_classes_jni/ArrayList_jni.h"
@@ -248,7 +248,7 @@ ScopedJavaLocalRef<jstring> NativeToJavaString(
 
 ScopedJavaLocalRef<jbyteArray> NativeToJavaByteArray(
     JNIEnv* env,
-    ArrayView<int8_t> container) {
+    std::span<int8_t> container) {
   jni_zero::ScopedJavaLocalRef<jbyteArray> jarray =
       jni_zero::ScopedJavaLocalRef<jbyteArray>::Adopt(
           env, env->NewByteArray(container.size()));
@@ -261,7 +261,7 @@ ScopedJavaLocalRef<jbyteArray> NativeToJavaByteArray(
 
 ScopedJavaLocalRef<jintArray> NativeToJavaIntArray(
     JNIEnv* env,
-    ArrayView<int32_t> container) {
+    std::span<int32_t> container) {
   jni_zero::ScopedJavaLocalRef<jintArray> jarray =
       jni_zero::ScopedJavaLocalRef<jintArray>::Adopt(
           env, env->NewIntArray(container.size()));

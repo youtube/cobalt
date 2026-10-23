@@ -15,6 +15,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,7 +24,6 @@
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -538,20 +538,24 @@ RTCError RtpTransceiver::SetChannel(
         if (transport) {
           transport_name = transport->transport_name();
         }
-        channel->SetFirstPacketReceivedCallback([thread = thread_, flag = flag,
-                                                 this]() mutable {
-          thread->PostTask(
-              SafeTask(std::move(flag), [this]() { OnFirstPacketReceived(); }));
-        });
-        channel->SetFirstPacketSentCallback([thread = thread_, flag = flag,
-                                             this]() mutable {
-          thread->PostTask(
-              SafeTask(std::move(flag), [this]() { OnFirstPacketSent(); }));
-        });
-        channel->SetPacketReceivedCallback_n([this, flag = flag]() {
-          RTC_DCHECK_RUN_ON(context()->network_thread());
-          OnPacketReceived(flag);
-        });
+        channel->SetFirstPacketReceivedCallback_n(
+            [thread = thread_, flag = flag,
+             this](const RtpPacketReceived& packet) mutable {
+              thread->PostTask(
+                  SafeTask(std::move(flag), [this, ssrc = packet.Ssrc()]() {
+                    OnFirstPacketReceived(ssrc);
+                  }));
+            });
+        channel->SetFirstPacketSentCallback_n(
+            [thread = thread_, flag = flag, this]() mutable {
+              thread->PostTask(
+                  SafeTask(std::move(flag), [this]() { OnFirstPacketSent(); }));
+            });
+        channel->SetPacketReceivedCallback_n(
+            [this, flag = flag](const RtpPacketReceived& packet) {
+              RTC_DCHECK_RUN_ON(context()->network_thread());
+              OnPacketReceived(packet.Ssrc(), flag);
+            });
         return RTCError::OK();
       });
 
@@ -584,8 +588,8 @@ absl::AnyInvocable<void() &&> RtpTransceiver::GetClearChannelNetworkTask() {
   ChannelInterface* channel = channel_.get();
   return [channel, flag = network_thread_safety_] {
     flag->SetNotAlive();
-    channel->SetFirstPacketReceivedCallback(nullptr);
-    channel->SetFirstPacketSentCallback(nullptr);
+    channel->SetFirstPacketReceivedCallback_n(nullptr);
+    channel->SetFirstPacketSentCallback_n(nullptr);
     channel->SetPacketReceivedCallback_n(nullptr);
     channel->SetRtpTransport(nullptr);
   };
@@ -779,14 +783,15 @@ MediaEngineInterface* RtpTransceiver::media_engine() {
   return media_engine_ref_->media_engine();
 }
 
-void RtpTransceiver::OnFirstPacketReceived() {
+void RtpTransceiver::OnFirstPacketReceived(uint32_t ssrc) {
   for (const auto& receiver : receivers_) {
-    receiver->internal()->NotifyFirstPacketReceived();
+    receiver->internal()->NotifyFirstPacketReceived(ssrc);
   }
 }
 
 // RTC_RUN_ON(context()->network_thread())
 void RtpTransceiver::OnPacketReceived(
+    uint32_t ssrc,
     scoped_refptr<PendingTaskSafetyFlag> safety) {
   if (!receptive_n_) {
     return;
@@ -795,13 +800,13 @@ void RtpTransceiver::OnPacketReceived(
     return;
   }
   packet_notified_after_receptive_ = true;
-  thread_->PostTask(SafeTask(safety, [this]() {
+  thread_->PostTask(SafeTask(safety, [this, ssrc]() {
     RTC_DCHECK_RUN_ON(thread_);
     if (stopping() || stopped() || !receptive_) {
       return;
     }
     for (const auto& receiver : receivers_) {
-      receiver->internal()->NotifyFirstPacketReceivedAfterReceptiveChange();
+      receiver->internal()->NotifyFirstPacketReceivedAfterReceptiveChange(ssrc);
     }
   }));
 }
@@ -1015,7 +1020,7 @@ RtpTransceiver::GetStopTransceiverProcedure() {
 }
 
 RTCError RtpTransceiver::SetCodecPreferences(
-    ArrayView<RtpCodecCapability> codec_capabilities) {
+    std::span<RtpCodecCapability> codec_capabilities) {
   RTC_DCHECK(unified_plan_);
   // 3. If codecs is an empty list, set transceiver's [[PreferredCodecs]] slot
   // to codecs and abort these steps.
@@ -1177,7 +1182,7 @@ bool IsMandatoryHeaderExtension(absl::string_view uri) {
 }
 
 RTCError RtpTransceiver::SetHeaderExtensionsToNegotiate(
-    ArrayView<const RtpHeaderExtensionCapability> header_extensions) {
+    std::span<const RtpHeaderExtensionCapability> header_extensions) {
   RTC_DCHECK_RUN_ON(thread_);
   // https://w3c.github.io/webrtc-extensions/#dom-rtcrtptransceiver-setheaderextensionstonegotiate
   if (header_extensions.size() != header_extensions_to_negotiate_.size()) {
@@ -1219,19 +1224,19 @@ void RtpTransceiver::OnNegotiationUpdate(
   RTC_DCHECK(content);
   if (sdp_type == SdpType::kAnswer || sdp_type == SdpType::kPrAnswer) {
     negotiated_header_extensions_ = content->rtp_header_extensions();
-    if (env_.field_trials().IsEnabled(
+    if (!env_.field_trials().IsDisabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       header_extensions_to_negotiate_ = GetNegotiatedHeaderExtensions();
     }
   } else if (sdp_type == SdpType::kOffer) {
-    if (env_.field_trials().IsEnabled(
+    if (!env_.field_trials().IsDisabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       header_extensions_for_rollback_ = header_extensions_to_negotiate_;
       header_extensions_to_negotiate_ =
           GetOfferedAndImplementedHeaderExtensions(content);
     }
   } else if (sdp_type == SdpType::kRollback) {
-    if (env_.field_trials().IsEnabled(
+    if (!env_.field_trials().IsDisabled(
             "WebRTC-HeaderExtensionNegotiateMemory")) {
       RTC_CHECK(!header_extensions_for_rollback_.empty());
       header_extensions_to_negotiate_ = header_extensions_for_rollback_;

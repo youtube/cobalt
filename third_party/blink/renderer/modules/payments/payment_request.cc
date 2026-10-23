@@ -948,14 +948,15 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                                  DOMExceptionCode::kNotSupportedError,
                                  "The feature is not enabled."));
 #else
+  auto* execution_context = ExecutionContext::From(script_state);
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLRecord<IDLString, IDLBoolean>>>(script_state);
   ScriptPromise promise = resolver->Promise();
 
   if (!RuntimeEnabledFeatures::SecurePaymentConfirmationEnabled(
-          ExecutionContext::From(script_state)) ||
+          execution_context) ||
       !RuntimeEnabledFeatures::SecurePaymentConfirmationCapabilitiesEnabled(
-          ExecutionContext::From(script_state))) {
+          execution_context)) {
     return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
         RejectWithDOMException(script_state,
                                MakeGarbageCollected<DOMException>(
@@ -963,9 +964,8 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                                    "The feature is not enabled."));
   }
 
-  if (!ExecutionContext::From(script_state)
-           ->IsFeatureEnabled(
-               network::mojom::PermissionsPolicyFeature::kPayment)) {
+  if (!execution_context->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kPayment)) {
     return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
         RejectWithDOMException(
             script_state,
@@ -973,6 +973,10 @@ PaymentRequest::getSecurePaymentConfirmationCapabilities(
                 DOMExceptionCode::kNotAllowedError,
                 "The \"payment\" permission policy is not enabled."));
   }
+
+  UseCounter::Count(
+      execution_context,
+      WebFeature::kPaymentRequestGetSecurePaymentConfirmationCapabilities);
 
   CredentialManagerProxy::From(script_state)
       ->SecurePaymentConfirmationService()

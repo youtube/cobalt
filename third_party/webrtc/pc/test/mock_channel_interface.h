@@ -26,6 +26,7 @@
 #include "test/gmock.h"
 
 namespace webrtc {
+class RtpPacketReceived;
 
 // Mock class for BaseChannel.
 // Use this class in unit tests to avoid dependency on a specific
@@ -60,16 +61,16 @@ class MockChannelInterface : public ChannelInterface {
   MOCK_METHOD(const std::string&, mid, (), (const, override));
   MOCK_METHOD(void, Enable, (bool), (override));
   MOCK_METHOD(void,
-              SetFirstPacketReceivedCallback,
-              (absl::AnyInvocable<void() &&>),
+              SetFirstPacketReceivedCallback_n,
+              (absl::AnyInvocable<void(const RtpPacketReceived&) &&>),
               (override));
   MOCK_METHOD(void,
-              SetFirstPacketSentCallback,
+              SetFirstPacketSentCallback_n,
               (absl::AnyInvocable<void() &&>),
               (override));
   MOCK_METHOD(void,
               SetPacketReceivedCallback_n,
-              (absl::AnyInvocable<void()>),
+              (absl::AnyInvocable<void(const RtpPacketReceived&)>),
               (override));
   MOCK_METHOD(bool,
               SetLocalContent,

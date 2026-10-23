@@ -394,6 +394,12 @@ data/accessibility/aria/annotation-roles-expected-mac.txt
 data/accessibility/aria/annotation-roles-expected-uia-win.txt
 data/accessibility/aria/annotation-roles-expected-win.txt
 data/accessibility/aria/annotation-roles.html
+data/accessibility/aria/aria-accordion-expected-android-external.txt
+data/accessibility/aria/aria-accordion-expected-android.txt
+data/accessibility/aria/aria-accordion-expected-blink.txt
+data/accessibility/aria/aria-accordion-expected-mac.txt
+data/accessibility/aria/aria-accordion-expected-win.txt
+data/accessibility/aria/aria-accordion.html
 data/accessibility/aria/aria-actions-expected-auralinux.txt
 data/accessibility/aria/aria-actions-expected-blink.txt
 data/accessibility/aria/aria-actions-expected-uia-win.txt
@@ -2658,6 +2664,8 @@ data/accessibility/event/children-changed-only-on-ancestor-expected-auralinux.tx
 data/accessibility/event/children-changed-only-on-ancestor-expected-uia-win.txt
 data/accessibility/event/children-changed-only-on-ancestor-expected-win.txt
 data/accessibility/event/children-changed-only-on-ancestor.html
+data/accessibility/event/contenteditable-selection-retargeting-expected-android.txt
+data/accessibility/event/contenteditable-selection-retargeting.html
 data/accessibility/event/css-display-descendants-expected-android.txt
 data/accessibility/event/css-display-descendants-expected-win.txt
 data/accessibility/event/css-display-descendants.html
@@ -3072,6 +3080,9 @@ data/accessibility/event/same-page-link-navigation-expected-auralinux.txt
 data/accessibility/event/same-page-link-navigation-expected-uia-win.txt
 data/accessibility/event/same-page-link-navigation-expected-win.txt
 data/accessibility/event/same-page-link-navigation.html
+data/accessibility/event/scoped-content-changed-disabled-expected-android.txt
+data/accessibility/event/scoped-content-changed-enabled-expected-android.txt
+data/accessibility/event/scoped-content-changed.html
 data/accessibility/event/scroll-horizontal-scroll-percent-change-expected-android.txt
 data/accessibility/event/scroll-horizontal-scroll-percent-change-expected-uia-win.txt
 data/accessibility/event/scroll-horizontal-scroll-percent-change-expected-win.txt
@@ -3458,6 +3469,8 @@ data/accessibility/html/br-expected-fuchsia.txt
 data/accessibility/html/br-expected-mac.txt
 data/accessibility/html/br-expected-uia-win.txt
 data/accessibility/html/br-expected-win.txt
+data/accessibility/html/br-statictext-expected-mac.txt
+data/accessibility/html/br-statictext.html
 data/accessibility/html/br-with-child-expected-blink.txt
 data/accessibility/html/br-with-child.html
 data/accessibility/html/br.html
@@ -5149,6 +5162,8 @@ data/accessibility/html/node-changed-crash-in-editable-text-expected-fuchsia.txt
 data/accessibility/html/node-changed-crash-in-editable-text-expected-mac.txt
 data/accessibility/html/node-changed-crash-in-editable-text-expected-uia-win.txt
 data/accessibility/html/node-changed-crash-in-editable-text-expected-win.txt
+data/accessibility/html/non-text-selection-expected-android-external.txt
+data/accessibility/html/non-text-selection.html
 data/accessibility/html/noscript-expected-android.txt
 data/accessibility/html/noscript-expected-auralinux.txt
 data/accessibility/html/noscript-expected-fuchsia.txt
@@ -7143,13 +7158,10 @@ data/devtools/worker_imported_classic.js
 data/devtools/worker_imported_module.js
 data/devtools/zoom.html
 data/direct_sockets/open.html
-data/direct_sockets/open.html.mock-http-headers
 data/direct_sockets/open.js
 data/direct_sockets/tcp.html
-data/direct_sockets/tcp.html.mock-http-headers
 data/direct_sockets/tcp.js
 data/direct_sockets/udp.html
-data/direct_sockets/udp.html.mock-http-headers
 data/direct_sockets/udp.js
 data/div_with_touch_action_auto.html
 data/div_with_touch_action_none.html

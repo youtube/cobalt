@@ -75,7 +75,7 @@ public abstract class CobaltBrowserTestActivity extends NativeBrowserTestActivit
     mShellManager = new ShellManager(this);
     IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid =
-        ActivityWindowAndroid.create(
+        new ActivityWindowAndroid(
             this,
             /* listenToActivityState= */ true,
             intentRequestTracker,

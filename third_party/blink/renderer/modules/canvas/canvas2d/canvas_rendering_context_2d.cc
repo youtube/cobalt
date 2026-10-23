@@ -174,21 +174,21 @@ CanvasRenderingContext* CanvasRenderingContext2D::Factory::Create(
       MakeGarbageCollected<CanvasRenderingContext2D>(
           static_cast<HTMLCanvasElement*>(host), attrs);
   DCHECK(rendering_context);
-  UseCounter::CountWebDXFeature(execution_context, WebDXFeature::kCanvas2D);
+  UseCounter::CountWebDXFeature(execution_context, WebDXFeature::kCanvas_2d);
   if (attrs.alpha) {
     UseCounter::CountWebDXFeature(execution_context,
-                                  WebDXFeature::kCanvas2DAlpha);
+                                  WebDXFeature::kCanvas_2dAlpha);
   }
   if (attrs.desynchronized) {
     UseCounter::Count(execution_context,
                       WebFeature::kHTMLCanvasElementLowLatency_2D);
     UseCounter::CountWebDXFeature(execution_context,
-                                  WebDXFeature::kCanvas2DDesynchronized);
+                                  WebDXFeature::kCanvas_2dDesynchronized);
   }
   if (attrs.will_read_frequently ==
       CanvasContextCreationAttributesCore::WillReadFrequently::kTrue) {
     UseCounter::CountWebDXFeature(execution_context,
-                                  WebDXFeature::kCanvas2DWillreadfrequently);
+                                  WebDXFeature::kCanvas_2dWillreadfrequently);
   }
   if (attrs.color_space != PredefinedColorSpace::kSRGB) {
     UseCounter::Count(execution_context, WebFeature::kCanvasUseColorSpace);
@@ -1316,50 +1316,45 @@ std::unique_ptr<CanvasResourceProvider>
 CanvasRenderingContext2D::CreateCanvasResourceProvider() {
   CHECK(!GetResourceProvider());
 
-  base::WeakPtr<CanvasResourceDispatcher> dispatcher =
-      canvas()->GetOrCreateResourceDispatcher()
-          ? canvas()->GetOrCreateResourceDispatcher()->GetWeakPtr()
-          : nullptr;
-
   std::unique_ptr<CanvasResourceProvider> provider;
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
-  const bool use_gpu_raster = canvas()->ShouldTryToUseGpuRaster() &&
-                              canvas()->ShouldAccelerate2dContext();
+
   const bool is_gpu_compositing_enabled =
       SharedGpuContext::IsGpuCompositingEnabled();
-  if (is_gpu_compositing_enabled) {
-    // We can try to create a SharedImage provider if either (a) we are using
-    // GPU raster or (b) we are using CPU raster and native
-    // mappable buffers are supported, in which case the created SharedImage
-    // could be mapped onto the CPU for software raster writes and then read by
-    // the display compositor.
-    if (use_gpu_raster ||
-        SharedGpuContext::NativeMappableSharedImagesSupportedForCanvas2D()) {
-      gpu::SharedImageUsageSet shared_image_usage_flags =
-          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+  const bool use_gpu_raster = canvas()->ShouldTryToUseGpuRaster() &&
+                              canvas()->ShouldAccelerate2dContext();
 
-      // Determine whether this SharedImage can be configured for low-latency
-      // or placement in overlays.
-      bool low_latency_supported =
-          use_gpu_raster && canvas()->LowLatencyEnabled() &&
-          SharedGpuContext::LowLatencyUsageSupportedForCanvas2D();
+  // If using GPU compositing, try to create a SharedImage-backed provider if
+  // either (a) using GPU raster or (b) using CPU raster and want to use
+  // mappable SharedImage for Canvas2D.
+  if (is_gpu_compositing_enabled &&
+      (use_gpu_raster ||
+       SharedGpuContext::UseMappableSharedImagesForCanvas2D())) {
+    RasterMode raster_mode =
+        use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU;
+    gpu::SharedImageUsageSet shared_image_usage_flags =
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+
+    // Configure this SharedImage for scanout and concurrent read/write as
+    // appropriate.
+    bool low_latency_supported =
+        canvas()->LowLatencyEnabled() &&
+        SharedGpuContext::LowLatencyUsageSupportedForCanvas2D(raster_mode);
+    if (low_latency_supported || SharedGpuContext::UseOverlaysForCanvas2D()) {
+      shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
       if (low_latency_supported) {
         shared_image_usage_flags |=
-            gpu::SHARED_IMAGE_USAGE_SCANOUT |
             gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
-      } else if (SharedGpuContext::OverlaysSupportedForCanvas2D()) {
-        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
       }
-
-      provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
-          canvas()->Size(), format, alpha_type, color_space,
-          SharedGpuContext::ContextProviderWrapper(),
-          use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU,
-          shared_image_usage_flags, canvas());
     }
-  } else {  // SW compositing
+
+    provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
+        canvas()->Size(), format, alpha_type, color_space,
+        SharedGpuContext::ContextProviderWrapper(), raster_mode,
+        shared_image_usage_flags, canvas());
+  } else if (!is_gpu_compositing_enabled) {
     // Create a CanvasResourceProvider that uses a SharedImage backed by a
     // shared-memory buffer that can be written by canvas SW raster and read by
     // the SW compositor.

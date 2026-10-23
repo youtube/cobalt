@@ -260,7 +260,7 @@ class ViewTransitionStyleTracker
 
   bool NeedsSnapshotForCapture() const;
 
-  // Determines if there is an element with view-transition-scope: auto between
+  // Determines if there is an element with view-transition-scope: all between
   // the child's node and the root node (non-inclusive). The check needs to be
   // more exhaustive than checking paint layers since v-t-s can be on elements
   // that do not create a paint layer, as well as elements with
@@ -515,6 +515,12 @@ class ViewTransitionStyleTracker
   Vector<AtomicString> view_transition_names_;
 
   bool in_get_computed_style_scope_ = false;
+
+  // Whether or not to automatically apply overflow: clip to nested group
+  // children. Determined by inspecting the overflow property of the scoped
+  // element if a scoped-view-transitions. Unless overflow is set to visible,
+  // automatically apply overflow: clip to the group-children.
+  bool apply_overflow_clip_ = false;
 };
 
 }  // namespace blink

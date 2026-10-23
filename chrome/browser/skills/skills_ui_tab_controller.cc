@@ -162,6 +162,16 @@ void SkillsUiTabController::OnSkillSaved(const std::string& skill_id) {
   }
 }
 
+void SkillsUiTabController::OnSkillDeleted() {
+  if (auto* window_interface = tab_->GetBrowserWindowInterface()) {
+    // Delegate the global toast action to the Window Controller.
+    auto* window_controller = SkillsUiWindowController::From(window_interface);
+    if (window_controller) {
+      window_controller->OnSkillDeleted();
+    }
+  }
+}
+
 bool SkillsUiTabController::IsShowing() const {
   return dialog_widget_ != nullptr;
 }
@@ -248,8 +258,12 @@ void SkillsUiTabController::NotifySkillToInvokeChanged() {
     case sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY:
       RecordSkillsInvokeAction(SkillsInvokeAction::kDerivedFromFirstParty);
       break;
-    default:
-      NOTREACHED();
+    // This is an edge case. It occurs when there is an update that introduces
+    // a new SkillSource, but the user is using an older version of Chrome that
+    // isn't updated to support the new SkillSource.
+    case sync_pb::SkillSource::SKILL_SOURCE_UNKNOWN:
+      RecordSkillsInvokeAction(SkillsInvokeAction::kUnknown);
+      break;
   }
 
   auto mojo_skill = glic::mojom::Skill::New();

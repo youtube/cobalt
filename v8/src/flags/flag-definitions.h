@@ -1748,6 +1748,10 @@ DEFINE_BOOL(wasm_simd_opt, false, "enable optimizations for Webassembly SIMD")
 DEFINE_IMPLICATION(future, wasm_simd_opt)
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable extra optimizations for Webassembly SIMD")
+DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_deinterleave_loads,
+                            "enable deinterleaving loads for Webassembly SIMD")
+DEFINE_IMPLICATION(experimental_wasm_simd_opt, wasm_simd_opt)
+DEFINE_IMPLICATION(experimental_wasm_deinterleave_loads, wasm_simd_opt)
 #endif  // V8_TARGET_ARCH_ARM64
 
 DEFINE_BOOL(turbolev, false,
@@ -2926,6 +2930,7 @@ DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
 DEFINE_BOOL(test_small_max_function_context_stub_size, false,
             "enable testing the function context size overflow path "
             "by making the maximum size smaller")
+DEFINE_WEAK_IMPLICATION(future, fast_api_indexof)
 DEFINE_BOOL(fast_api_indexof, false, "enable using indexOf Api callbacks")
 
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
@@ -3546,6 +3551,9 @@ DEFINE_BOOL_READONLY(expose_memory_corruption_api, false,
                      "Exposes the memory corruption API. Set automatically by "
                      "--sandbox-testing and --sandbox-fuzzing.")
 #endif
+
+DEFINE_EXPERIMENTAL_FEATURE(sandbox_prohibit_insecure_mode,
+                            "Prohibits an insecure sandbox setup.")
 
 #if defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 // FreezeFlags relies on mprotect() method, which does not work by default on

@@ -597,6 +597,8 @@ OmniboxContextMenuController::CommandIdToEnum(int command_id) const {
       return OmniboxContextMenuController::ContextType::kImageGen;
     case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
       return OmniboxContextMenuController::ContextType::kDeepResearch;
+    case IDC_OMNIBOX_CONTEXT_CANVAS:
+      return OmniboxContextMenuController::ContextType::kCanvas;
     default:
       // There is no command id for tabs due to there being multiple
       // tabs that would have the same command id.
@@ -834,8 +836,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         omnibox_popup_ui ? omnibox_popup_ui->composebox_handler() : nullptr;
 
     bool use_input_state_model =
-        base::FeatureList::IsEnabled(omnibox::kAimUsePecApi) &&
-        composebox_handler;
+        base::FeatureList::IsEnabled(omnibox::kAimUsePecApi);
 
     bool is_file_upload_command = id == IDC_OMNIBOX_CONTEXT_ADD_IMAGE ||
                                   id == IDC_OMNIBOX_CONTEXT_ADD_FILE;
@@ -871,20 +872,22 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/GetSearchboxToolMode(it->second));
-        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
-                                   /*via_context_menu=*/true);
         base::UmaHistogramEnumeration(sliced_prefix,
                                       CommandIdToEnum(it->first));
+        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
+                                   /*via_context_menu=*/true);
         return;
       }
 
       if (auto it = model_for_command_id_.find(id);
           it != model_for_command_id_.end()) {
-        composebox_handler->SetActiveModelMode(it->second);
-        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
-                                   /*via_context_menu=*/true);
+        if (composebox_handler) {
+          composebox_handler->SetActiveModelMode(it->second);
+        }
         base::UmaHistogramEnumeration(sliced_prefix,
                                       CommandIdToEnum(it->first));
+        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
+                                   /*via_context_menu=*/true);
         return;
       }
     }
@@ -909,25 +912,25 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kCreateImage);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
-        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kDeepSearch);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
-        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_CANVAS:
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kCanvas);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
-        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       default:
         NOTREACHED();
@@ -1007,8 +1010,10 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
     return false;
   }
 
-  const omnibox::ToolMode aim_tool_mode =
-      omnibox_popup_ui->composebox_handler()->GetInputState().active_tool;
+  const omnibox::ToolMode aim_tool_mode = omnibox_popup_ui->composebox_handler()
+                                              ->input_state_model()
+                                              ->GetInputState()
+                                              .active_tool;
 
   auto* session_handle = omnibox_popup_ui->GetOrCreateContextualSessionHandle();
   std::vector<contextual_search::FileInfo> file_infos;
@@ -1046,6 +1051,7 @@ bool OmniboxContextMenuController::IsCommandIdEnabledHelper(
   if (file_upload_count > 0) {
     switch (command_id) {
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
+      case IDC_OMNIBOX_CONTEXT_CANVAS:
         return false;
       case IDC_OMNIBOX_CONTEXT_CREATE_IMAGES: {
         const bool create_images_enabled =

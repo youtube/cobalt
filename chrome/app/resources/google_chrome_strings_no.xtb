@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome er en nettleser som kjører nettsider og programmer i ekspressfart. Den er rask, stabil og enkel å bruke. Google Chrome har innebygd beskyttelse mot skadelig programvare og svindelforsøk (nettfisking), slik at du kan føle deg tryggere når du surfer på nettet.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome startes på nytt om én time}other{Chrome startes på nytt om # timer}}</translation>
 <translation id="1722488837206509557">Dette gjør at du kan velge blant tilgjengelige enheter og vise innhold på dem.</translation>
+<translation id="177180974022074201">Prøv med Gemini i Chrome</translation>
 <translation id="1786003790898721085">Sørg for at du er logget på Chrome på <ph name="TARGET_DEVICE_NAME" />, og prøv å sende på nytt.</translation>
 <translation id="1786044937610313874">Snarveier åpnes i Chrome</translation>
 <translation id="178701303897325119">Denne utvidelsen støttes ikke lenger. Chrome anbefaler at du fjerner den i stedet.</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">Hvis du også lagrer bokmerkene i Google-kontoen din, kan du spore produktpriser i Chrome og bli varslet om avslag</translation>
 <translation id="3242123554343253302">Legg til en Chrome-profil</translation>
 <translation id="3245429137663807393">Hvis du også deler Chrome-bruksrapporter, inneholder disse rapportene nettadressene du besøker</translation>
+<translation id="3259748324892322072">Skaff deg Chrome-appen</translation>
 <translation id="3286538390144397061">Start på nytt nå</translation>
 <translation id="3292333338048274092">Deretter må du starte Chrome på nytt.</translation>
 <translation id="3324218984287646518">Spør Google Lens om denne videoen</translation>
@@ -279,7 +281,6 @@
 <translation id="3892148308691398805">Kopier teksten</translation>
 <translation id="3893985792899396936">Chrome-tips: Søk med Lens</translation>
 <translation id="3906096710440765802">Logg på Chrome for å hente passordene og bokmerkene dine og mer på alle enheter</translation>
-<translation id="3921132130819999051">La Chrome surfe for deg</translation>
 <translation id="3941890832296813527">Installasjonsfeil: Navnet på installasjonsprogrammet er ugyldig eller støttes ikke.</translation>
 <translation id="395904275706073188">Beskyttede sider kan ikke leses. Prøv en annen side.</translation>
 <translation id="3968962723676998462">Skriv inn passordfrasen din for å bruke og lagre Chrome-data i kontoen din, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -490,7 +491,6 @@
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> – betaversjon av Google Chrome</translation>
 <translation id="6180522807229584611">Denne fanen bruker ekstra ressurser. For å få bedre ytelse kan du la Chrome gjøre den inaktiv.</translation>
 <translation id="6182736845697986886">Installasjonen mislyktes på grunn av en intern feil i oppdateringstjeneren.</translation>
-<translation id="6183773856988300112">Gemini i Chrome bruker automatisk surfing for å jobbe i fanene dine og fullføre oppgaver du gir den. <ph name="LINK_BEGIN" />Finn ut mer<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome-tips: Lagre passord</translation>
 <translation id="6192058120268468905">Kontoen din i Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> har lagt til en utvidelse som kan endre måten Chrome fungerer på.
@@ -526,6 +526,7 @@
 <translation id="6481963882741794338">Knytt sammen Chrome og andre Google-tjenester for personlig tilpasning og andre formål</translation>
 <translation id="648319183876919572">Safe Browsing med økt beskyttelse gjør mer for å beskytte deg mot farlige nettsteder og nedlastinger</translation>
 <translation id="6489302989675808168">På • Chrome kan ikke bekrefte hvor denne utvidelsen kommer fra</translation>
+<translation id="6491330562720922580">QR-kode for å laste ned Chrome-nettleseren på mobilenheter</translation>
 <translation id="6493527311031785448">Google Chrome prøver å <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome ble lukket automatisk</translation>
 <translation id="6506909944137591434">Chrome trenger kameratillatelse for å lage et 3D-kart av omgivelsene dine</translation>

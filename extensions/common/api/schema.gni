@@ -31,7 +31,7 @@ extensions_api_schema_files_ = [
   "system_network.webidl",
   "test.json",
   "types.json",
-  "user_scripts.idl",
+  "user_scripts.webidl",
   "web_request.json",
 ]
 
@@ -83,9 +83,9 @@ if (enable_extensions) {
     "mime_handler_view_guest_internal.json",
     "mojo_private.webidl",
     "networking_private.webidl",
-    "printer_provider_internal.idl",
+    "printer_provider_internal.webidl",
     "printer_provider.webidl",
-    "scripts_internal.idl",
+    "scripts_internal.webidl",
     "socket.idl",
     "sockets_tcp_server.idl",
     "sockets_tcp.idl",
@@ -113,7 +113,7 @@ if (enable_extensions) {
 if (enable_desktop_android_extensions) {
   extensions_types_only_schema_files_ += [
     "clipboard.webidl",
-    "scripts_internal.idl",
+    "scripts_internal.webidl",
     "usb.webidl",
     "virtual_keyboard_private.json",
     "virtual_keyboard.webidl",

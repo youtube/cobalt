@@ -11,10 +11,10 @@
 #include "test/pc/e2e/analyzer/video/example_video_quality_analyzer.h"
 
 #include <cstdint>
+#include <span>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_frame.h"
 #include "rtc_base/checks.h"
@@ -27,7 +27,7 @@ ExampleVideoQualityAnalyzer::ExampleVideoQualityAnalyzer() = default;
 ExampleVideoQualityAnalyzer::~ExampleVideoQualityAnalyzer() = default;
 
 void ExampleVideoQualityAnalyzer::Start(std::string test_case_name,
-                                        ArrayView<const std::string> peer_names,
+                                        std::span<const std::string> peer_names,
                                         int max_threads_count) {}
 
 uint16_t ExampleVideoQualityAnalyzer::OnFrameCaptured(

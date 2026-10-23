@@ -16,12 +16,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -102,7 +102,7 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
               GetRtpPayloadStates,
               (),
               (const, override));
-  MOCK_METHOD(void, DeliverRtcp, (ArrayView<const uint8_t>), (override));
+  MOCK_METHOD(void, DeliverRtcp, (std::span<const uint8_t>), (override));
   MOCK_METHOD(void,
               OnBitrateAllocationUpdated,
               (const VideoBitrateAllocation&),
@@ -123,10 +123,10 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
   MOCK_METHOD(uint32_t, GetPayloadBitrateBps, (), (const, override));
   MOCK_METHOD(uint32_t, GetProtectionBitrateBps, (), (const, override));
   MOCK_METHOD(void, SetEncodingData, (size_t, size_t, size_t), (override));
-  MOCK_METHOD(void, SetCsrcs, (ArrayView<const uint32_t> csrcs), (override));
+  MOCK_METHOD(void, SetCsrcs, (std::span<const uint32_t> csrcs), (override));
   MOCK_METHOD(std::vector<RtpSequenceNumberMap::Info>,
               GetSentRtpPacketInfos,
-              (uint32_t ssrc, ArrayView<const uint16_t> sequence_numbers),
+              (uint32_t ssrc, std::span<const uint16_t> sequence_numbers),
               (const, override));
 
   MOCK_METHOD(void, SetFecAllowed, (bool fec_allowed), (override));

@@ -5,6 +5,7 @@
 #include "components/on_device_translation/service_controller.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/feature_list.h"
 #include "base/files/file_enumerator.h"
@@ -14,6 +15,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/task/thread_pool.h"
@@ -31,33 +33,20 @@
 #include "components/on_device_translation/public/mojom/on_device_translation_service.mojom.h"
 #include "components/on_device_translation/public/mojom/translator.mojom.h"
 #include "components/on_device_translation/public/pref_names.h"
-#include "components/on_device_translation/service_controller_manager.h"
+#include "components/on_device_translation/translation_manager_util.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/browser/service_process_host_passkeys.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/mojom/on_device_translation/translation_manager.mojom-shared.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/strings/utf_string_conversions.h"
 #endif  // BUILDFLAG(IS_WIN)
 
-using blink::mojom::CanCreateTranslatorResult;
-
 namespace on_device_translation {
-
-// The information of a language pack.
-struct OnDeviceTranslationServiceController::LanguagePackInfo {
-  std::string language1;
-  std::string language2;
-  base::FilePath package_path;
-};
-
 namespace {
 
-using blink::mojom::CreateTranslatorError;
 using mojom::CreateTranslatorResult;
 using mojom::FileOperationProxy;
 using mojom::OnDeviceTranslationLanguagePackage;
@@ -65,14 +54,30 @@ using mojom::OnDeviceTranslationLanguagePackagePtr;
 using mojom::OnDeviceTranslationServiceConfig;
 using mojom::OnDeviceTranslationServiceConfigPtr;
 
-const char kTranslateKitPackagePaths[] = "translate-kit-packages";
-
 // Prefix for the display name of the on-device translation service. The origin
 // is appended to the prefix.
 const char kOnDeviceTranslationServiceDisplayNamePrefix[] =
     "On-device Translation Service: ";
 
-std::string ToString(base::FilePath path) {
+// TODO(crbug.com/419848973): This is a workaround until the "he" language code
+// is fully supported.
+std::string SwitchLanguageCodeToIwIfHe(std::string_view language_code) {
+  auto split = base::SplitStringOnce(language_code, "-");
+  if (!split || split->first != "he") {
+    return std::string(language_code);
+  }
+
+  return base::StrCat({"iw-", split->second});
+}
+
+std::optional<std::string> GetBestFitLanguageCode(
+    std::string_view language_code) {
+  std::string best_fit = SwitchLanguageCodeToIwIfHe(language_code);
+  return LookupMatchingLocaleByBestFit(kSupportedLanguageCodes,
+                                       std::move(best_fit));
+}
+
+std::string ToString(const base::FilePath& path) {
 #if BUILDFLAG(IS_WIN)
   // TODO(crbug.com/362123222): Get rid of conditional decoding.
   return path.AsUTF8Unsafe();
@@ -82,21 +87,9 @@ std::string ToString(base::FilePath path) {
 }
 
 std::vector<base::FilePath> GetLanguagePackInfo(
-    const std::optional<
-        std::vector<OnDeviceTranslationServiceController::LanguagePackInfo>>&
-        lang_pack_info,
     std::vector<mojom::OnDeviceTranslationLanguagePackagePtr>& packages) {
   CHECK(packages.empty());
   std::vector<base::FilePath> package_pathes;
-  if (lang_pack_info) {
-    for (const auto& package : *lang_pack_info) {
-      packages.push_back(mojom::OnDeviceTranslationLanguagePackage::New(
-          package.language1, package.language2));
-      package_pathes.push_back(package.package_path);
-    }
-    return package_pathes;
-  }
-
   for (const auto& it : kLanguagePackComponentConfigMap) {
     auto file_path =
         OnDeviceTranslationInstaller::GetInstance()->GetLanguagePackPath(
@@ -110,49 +103,6 @@ std::vector<base::FilePath> GetLanguagePackInfo(
   }
 
   return package_pathes;
-}
-
-std::optional<
-    std::vector<OnDeviceTranslationServiceController::LanguagePackInfo>>
-GetLanguagePackInfoFromCommandLine() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (!command_line->HasSwitch(kTranslateKitPackagePaths)) {
-    return std::nullopt;
-  }
-  const auto packages_string =
-      command_line->GetSwitchValueNative(kTranslateKitPackagePaths);
-  std::vector<base::CommandLine::StringType> splitted_strings =
-      base::SplitString(packages_string,
-#if BUILDFLAG(IS_WIN)
-                        L",",
-#else   // !BUILDFLAG(IS_WIN)
-                        ",",
-#endif  // BUILDFLAG(IS_WIN)
-                        base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (splitted_strings.size() % 3 != 0) {
-    LOG(ERROR) << "Invalid --" << kTranslateKitPackagePaths << " flag.";
-    return std::nullopt;
-  }
-
-  std::vector<OnDeviceTranslationServiceController::LanguagePackInfo> packages;
-  auto it = splitted_strings.begin();
-  while (it != splitted_strings.end()) {
-    if (!base::IsStringASCII(*it) || !base::IsStringASCII(*(it + 1))) {
-      LOG(ERROR) << "Invalid --" << kTranslateKitPackagePaths << " flag.";
-      return std::nullopt;
-    }
-    OnDeviceTranslationServiceController::LanguagePackInfo package;
-#if BUILDFLAG(IS_WIN)
-    package.language1 = base::WideToUTF8(*(it++));
-    package.language2 = base::WideToUTF8(*(it++));
-#else  // !BUILDFLAG(IS_WIN)
-    package.language1 = *(it++);
-    package.language2 = *(it++);
-#endif
-    package.package_path = base::FilePath(*(it++));
-    packages.push_back(std::move(package));
-  }
-  return packages;
 }
 
 LanguagePackRequirements GetLanguagePackRequirements(
@@ -181,21 +131,27 @@ LanguagePackRequirements GetLanguagePackRequirements(
 }
 
 // Converts on_device_translation::mojom::CreateTranslatorResult to
-// blink::mojom::CreateTranslatorError.
-CreateTranslatorError ToCreateTranslatorError(CreateTranslatorResult result) {
+// OnDeviceTranslationController::CreateTranslatorError.
+OnDeviceTranslationController::CreateTranslatorError ToCreateTranslatorError(
+    CreateTranslatorResult result) {
   switch (result) {
     case CreateTranslatorResult::kSuccess:
       NOTREACHED();
     case CreateTranslatorResult::kErrorInvalidBinary:
-      return CreateTranslatorError::kInvalidBinary;
+      return OnDeviceTranslationController::CreateTranslatorError::
+          kInvalidBinary;
     case CreateTranslatorResult::kErrorInvalidFunctionPointer:
-      return CreateTranslatorError::kInvalidFunctionPointer;
+      return OnDeviceTranslationController::CreateTranslatorError::
+          kInvalidFunctionPointer;
     case CreateTranslatorResult::kErrorFailedToInitialize:
-      return CreateTranslatorError::kFailedToInitialize;
+      return OnDeviceTranslationController::CreateTranslatorError::
+          kFailedToInitialize;
     case CreateTranslatorResult::kErrorFailedToCreateTranslator:
-      return CreateTranslatorError::kFailedToCreateTranslator;
+      return OnDeviceTranslationController::CreateTranslatorError::
+          kFailedToCreateTranslator;
     case CreateTranslatorResult::kErrorInvalidVersion:
-      return CreateTranslatorError::kInvalidVersion;
+      return OnDeviceTranslationController::CreateTranslatorError::
+          kInvalidVersion;
   }
 }
 
@@ -216,19 +172,14 @@ OnDeviceTranslationServiceController::PendingTask::operator=(PendingTask&&) =
 
 OnDeviceTranslationServiceController::OnDeviceTranslationServiceController(
     PrefService* local_state,
-    ServiceControllerManager* manager,
-    const url::Origin& origin)
-    : manager_(manager),
-      origin_(origin),
+    std::string service_display_name_suffix)
+    : service_display_name_suffix_(service_display_name_suffix),
       service_idle_timeout_(kTranslationAPIServiceIdleTimeout.Get()),
-      file_operation_proxy_(nullptr, base::OnTaskRunnerDeleter(nullptr)),
-      language_packs_from_command_line_(GetLanguagePackInfoFromCommandLine()) {
+      file_operation_proxy_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
   OnDeviceTranslationInstaller::GetInstance()->AddObserver(this);
 }
 
 OnDeviceTranslationServiceController::~OnDeviceTranslationServiceController() {
-  manager_->OnServiceControllerDeleted(
-      origin_, base::PassKey<OnDeviceTranslationServiceController>());
   OnDeviceTranslationInstaller::GetInstance()->RemoveObserver(this);
 }
 
@@ -238,32 +189,35 @@ void OnDeviceTranslationServiceController::CreateTranslator(
     base::OnceCallback<
         void(base::expected<mojo::PendingRemote<mojom::Translator>,
                             CreateTranslatorError>)> callback) {
-  LanguagePackRequirements language_pack_requirements;
+  std::optional<std::string> best_fit_source_language =
+      GetBestFitLanguageCode(source_lang);
+  std::optional<std::string> best_fit_target_language =
+      GetBestFitLanguageCode(target_lang);
+  if (!best_fit_source_language.has_value() ||
+      !best_fit_target_language.has_value()) {
+    std::move(callback).Run(
+        base::unexpected(CreateTranslatorError::kNotSupportedLanguage));
+    return;
+  }
 
-  // If the language packs are set by the command line, we don't need to check
-  // the installed language packs.
-  if (!language_packs_from_command_line_.has_value()) {
-    language_pack_requirements =
-        GetLanguagePackRequirements(source_lang, target_lang);
-    std::vector<LanguagePackKey> to_be_registered_packs =
-        language_pack_requirements.to_be_registered_packs;
-    if (!to_be_registered_packs.empty()) {
-      for (const auto& language_pack : to_be_registered_packs) {
-        RecordLanguagePairUma(
-            "Translate.OnDeviceTranslation.Download.LanguagePair",
-            GetSourceLanguageCode(language_pack),
-            GetTargetLanguageCode(language_pack));
-        // Register the language pack component.
-        ComponentManager::GetInstance()
-            .RegisterTranslateKitLanguagePackComponent(language_pack);
-      }
+  LanguagePackRequirements language_pack_requirements =
+      GetLanguagePackRequirements(source_lang, target_lang);
+  std::vector<LanguagePackKey> to_be_registered_packs =
+      language_pack_requirements.to_be_registered_packs;
+  if (!to_be_registered_packs.empty()) {
+    for (const auto& language_pack : to_be_registered_packs) {
+      RecordLanguagePairUma(
+          "Translate.OnDeviceTranslation.Download.LanguagePair",
+          GetSourceLanguageCode(language_pack),
+          GetTargetLanguageCode(language_pack));
+      // Register the language pack component.
+      ComponentManager::GetInstance().RegisterTranslateKitLanguagePackComponent(
+          language_pack);
     }
   }
 
-  if (!ComponentManager::HasTranslateKitLibraryPathFromCommandLine()) {
-    // Registers the TranslateKit component.
-    ComponentManager::GetInstance().RegisterTranslateKitComponent();
-  }
+  // Registers the TranslateKit component.
+  ComponentManager::GetInstance().RegisterTranslateKitComponent();
 
   // If there is no TranslateKit or there are required language packs that are
   // not installed, we will wait until they are installed to create the
@@ -282,11 +236,12 @@ void OnDeviceTranslationServiceController::CreateTranslator(
         language_pack_requirements.required_packs,
         base::BindOnce(
             &OnDeviceTranslationServiceController::CreateTranslatorImpl,
-            base::Unretained(this), source_lang, target_lang,
-            std::move(callback)));
+            base::Unretained(this), *best_fit_source_language,
+            *best_fit_target_language, std::move(callback)));
     return;
   }
-  CreateTranslatorImpl(source_lang, target_lang, std::move(callback));
+  CreateTranslatorImpl(*best_fit_source_language, *best_fit_target_language,
+                       std::move(callback));
 }
 
 void OnDeviceTranslationServiceController::CreateTranslatorImpl(
@@ -330,53 +285,25 @@ void OnDeviceTranslationServiceController::CreateTranslatorImpl(
 }
 
 void OnDeviceTranslationServiceController::CanTranslate(
-    const std::string& source_lang,
-    const std::string& target_lang,
-    base::OnceCallback<void(CanCreateTranslatorResult)> callback) {
-  if (!language_packs_from_command_line_.has_value()) {
-    // If the language packs are not set by the command line, returns the result
-    // of CanTranslateImpl().
-    std::move(callback).Run(CanTranslateImpl(source_lang, target_lang));
-    return;
-  }
-  // Otherwise, checks the availability of the library and ask the on device
-  // translation service.
-  if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
-    // Note: Strictly saying, returning AfterDownloadLibraryNotReady is not
-    // correct. It might happen that the language packs are missing. But it is
-    // OK because this only impacts people loading packs from the commandline.
-    std::move(callback).Run(
-        CanCreateTranslatorResult::kAfterDownloadLibraryNotReady);
+    const std::string& source_lang_arg,
+    const std::string& target_lang_arg,
+    CanTranslateCallback callback) {
+  std::optional<std::string> best_fit_source_language =
+      GetBestFitLanguageCode(source_lang_arg);
+  std::optional<std::string> best_fit_target_language =
+      GetBestFitLanguageCode(target_lang_arg);
+  if (!best_fit_source_language.has_value() ||
+      !best_fit_target_language.has_value()) {
+    std::move(callback).Run(CanTranslateResult::kNoNotSupportedLanguage);
     return;
   }
 
-  if (!MaybeStartService()) {
-    // If the service can't be started, returns
-    // `kNoExceedsServiceCountLimitation`.
-    std::move(callback).Run(
-        CanCreateTranslatorResult::kNoExceedsServiceCountLimitation);
-    return;
-  }
-
-  auto callbacks = base::SplitOnceCallback(std::move(callback));
-  CHECK(service_remote_);
-  service_remote_->CanTranslate(
-      source_lang, target_lang,
-      mojo::WrapCallbackWithDropHandler(
-          base::BindOnce(
-              [](base::OnceCallback<void(CanCreateTranslatorResult)> callback,
-                 bool result) {
-                std::move(callback).Run(
-                    result
-                        ? CanCreateTranslatorResult::kReadily
-                        : CanCreateTranslatorResult::kNoNotSupportedLanguage);
-              },
-              std::move(callbacks.first)),
-          base::BindOnce(std::move(callbacks.second),
-                         CanCreateTranslatorResult::kNoServiceCrashed)));
+  std::string source_lang = std::move(*best_fit_source_language);
+  std::string target_lang = std::move(*best_fit_target_language);
+  std::move(callback).Run(CanTranslateImpl(source_lang, target_lang));
 }
 
-CanCreateTranslatorResult
+OnDeviceTranslationController::CanTranslateResult
 OnDeviceTranslationServiceController::CanTranslateImpl(
     const std::string& source_lang,
     const std::string& target_lang) {
@@ -385,35 +312,28 @@ OnDeviceTranslationServiceController::CanTranslateImpl(
   LanguagePackRequirements language_pack_requirements =
       GetLanguagePackRequirements(source_lang, target_lang);
 
-  if (!service_remote_ && !manager_->CanStartNewService()) {
-    // If the service can't be started, returns
-    // `kNoExceedsServiceCountLimitation`.
-    return CanCreateTranslatorResult::kNoExceedsServiceCountLimitation;
-  }
-
   if (language_pack_requirements.required_packs.empty()) {
     // Empty `required_packs` means that the transltion for the specified
     // language pair is not supported.
-    return CanCreateTranslatorResult::kNoNotSupportedLanguage;
+    return CanTranslateResult::kNoNotSupportedLanguage;
   }
 
   if (language_pack_requirements.required_not_installed_packs.empty()) {
     // All required language packages are installed.
     if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
       // The TranslateKit library is not ready.
-      return CanCreateTranslatorResult::kAfterDownloadLibraryNotReady;
+      return CanTranslateResult::kAfterDownloadLibraryNotReady;
     }
     // Both the TranslateKit library and the language packs are ready.
-    return CanCreateTranslatorResult::kReadily;
+    return CanTranslateResult::kReadily;
   }
 
   if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
     // Both the TranslateKit library and the language packs are not ready.
-    return CanCreateTranslatorResult::
-        kAfterDownloadLibraryAndLanguagePackNotReady;
+    return CanTranslateResult::kAfterDownloadLibraryAndLanguagePackNotReady;
   }
   // The required language packs are not ready.
-  return CanCreateTranslatorResult::kAfterDownloadLanguagePackNotReady;
+  return CanTranslateResult::kAfterDownloadLanguagePackNotReady;
 }
 
 void OnDeviceTranslationServiceController::OnLanguagePackInstalled(
@@ -458,14 +378,14 @@ void OnDeviceTranslationServiceController::MaybeRunPendingTasks() {
     }
   }
 }
+// Returns true if the service is running.
+bool OnDeviceTranslationServiceController::IsServiceRunning() const {
+  return !!service_remote_;
+}
 
 bool OnDeviceTranslationServiceController::MaybeStartService() {
   if (service_remote_) {
     return true;
-  }
-
-  if (!manager_->CanStartNewService()) {
-    return false;
   }
 
   auto receiver = service_remote_.BindNewPipeAndPassReceiver();
@@ -489,7 +409,7 @@ bool OnDeviceTranslationServiceController::MaybeStartService() {
       content::ServiceProcessHost::Options()
           .WithDisplayName(
               base::StrCat({kOnDeviceTranslationServiceDisplayNamePrefix,
-                            origin_.Serialize()}))
+                            service_display_name_suffix_}))
           .WithExtraCommandLineSwitches(extra_switches)
 #if BUILDFLAG(IS_WIN)
           .WithPreloadedLibraries(
@@ -500,7 +420,7 @@ bool OnDeviceTranslationServiceController::MaybeStartService() {
 
   auto config = OnDeviceTranslationServiceConfig::New();
   std::vector<base::FilePath> package_pathes =
-      GetLanguagePackInfo(language_packs_from_command_line_, config->packages);
+      GetLanguagePackInfo(config->packages);
   mojo::PendingReceiver<FileOperationProxy> proxy_receiver =
       config->file_operation_proxy.InitWithNewPipeAndPassReceiver();
   service_remote_->SetServiceConfig(std::move(config));

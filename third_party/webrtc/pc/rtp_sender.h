@@ -239,6 +239,14 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   void SetObserver(RtpSenderObserverInterface* observer) override;
 
  protected:
+  void InvalidateCache() {
+    RTC_DCHECK_RUN_ON(signaling_thread_);
+    cached_parameters_.reset();
+  }
+
+  // Called by the media channel when parameters change autonomously on the
+  // worker thread (e.g., encoder fallback).
+  void OnParametersChanged();
   // If `set_streams_observer` is not null, it is invoked when SetStreams()
   // is called. `set_streams_observer` is not owned by this object. If not
   // null, it must be valid at least until this sender becomes stopped.

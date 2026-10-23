@@ -73,6 +73,7 @@
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
 #include "common_video/frame_counts.h"
+#include "common_video/include/quality_limitation_reason.h"
 #include "media/base/codec.h"
 #include "media/base/codec_comparators.h"
 #include "media/base/media_channel.h"
@@ -86,7 +87,6 @@
 #include "media/engine/webrtc_media_engine.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/video_coding/svc/scalability_mode_util.h"
@@ -1074,8 +1074,7 @@ std::vector<VideoCodecSettings> WebRtcVideoSendChannel::SelectSendVideoCodecs(
 bool WebRtcVideoSendChannel::GetChangedSenderParameters(
     const VideoSenderParameters& params,
     ChangedSenderParameters* changed_params) const {
-  if (!ValidateCodecFormats(params.codecs) ||
-      !ValidateRtpExtensions(params.extensions, send_rtp_extensions_)) {
+  if (!ValidateCodecFormats(params.codecs)) {
     return false;
   }
 
@@ -1257,7 +1256,9 @@ void WebRtcVideoSendChannel::RequestEncoderFallback() {
   params.negotiated_codecs = negotiated_codecs_;
   params.negotiated_codecs->erase(params.negotiated_codecs->begin());
   params.send_codec = params.negotiated_codecs->front();
-  ApplyChangedParams(params);
+  if (ApplyChangedParams(params) && parameters_changed_callback_) {
+    parameters_changed_callback_();
+  }
 }
 
 void WebRtcVideoSendChannel::RequestEncoderSwitch(const SdpVideoFormat& format,
@@ -1287,7 +1288,9 @@ void WebRtcVideoSendChannel::RequestEncoderSwitch(const SdpVideoFormat& format,
 
       ChangedSenderParameters params;
       params.send_codec = new_codec_setting;
-      ApplyChangedParams(params);
+      if (ApplyChangedParams(params) && parameters_changed_callback_) {
+        parameters_changed_callback_();
+      }
       return;
     }
   }
@@ -2727,6 +2730,15 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
     call_->DestroyVideoSendStream(stream_);
     stream_ = call_->CreateVideoSendStream(std::move(config),
                                            parameters_.encoder_config.Copy());
+
+    // A new stream is created without any scaling or limitations, so these
+    // flags don't apply until the new stream experiences an adaptation event.
+    stats.bw_limited_resolution = false;
+    stats.bw_limited_framerate = false;
+    stats.cpu_limited_resolution = false;
+    stats.cpu_limited_framerate = false;
+    stats.quality_limitation_reason = QualityLimitationReason::kNone;
+
     stream_->SetStats(stats);
   } else {
     stream_ = call_->CreateVideoSendStream(std::move(config),
@@ -2838,12 +2850,15 @@ RtpParameters WebRtcVideoReceiveChannel::GetRtpReceiverParameters(
     return RtpParameters();
   }
   rtp_params = it->second->GetRtpParameters();
-  rtp_params.header_extensions = recv_rtp_extensions_;
 
   // Add codecs, which any stream is prepared to receive.
   for (const Codec& codec : recv_params_.codecs) {
     rtp_params.codecs.push_back(codec.ToCodecParameters());
   }
+
+  rtp_params.header_extensions = FilterRtpExtensions(
+      recv_params_.extensions, RtpExtension::IsSupportedForVideo, false,
+      env_.field_trials());
 
   return rtp_params;
 }
@@ -2871,8 +2886,7 @@ RtpParameters WebRtcVideoReceiveChannel::GetDefaultRtpReceiveParameters()
 bool WebRtcVideoReceiveChannel::GetChangedReceiverParameters(
     const VideoReceiverParameters& params,
     ChangedReceiverParameters* changed_params) const {
-  if (!ValidateCodecFormats(params.codecs) ||
-      !ValidateRtpExtensions(params.extensions, recv_rtp_extensions_)) {
+  if (!ValidateCodecFormats(params.codecs)) {
     return false;
   }
 
@@ -2908,15 +2922,6 @@ bool WebRtcVideoReceiveChannel::GetChangedReceiverParameters(
         std::optional<std::vector<VideoCodecSettings>>(mapped_codecs);
   }
 
-  // Handle RTP header extensions.
-  std::vector<RtpExtension> filtered_extensions =
-      FilterRtpExtensions(params.extensions, RtpExtension::IsSupportedForVideo,
-                          false, env_.field_trials());
-  if (filtered_extensions != recv_rtp_extensions_) {
-    changed_params->rtp_header_extensions =
-        std::optional<std::vector<RtpExtension>>(filtered_extensions);
-  }
-
   int flexfec_payload_type = mapped_codecs.front().flexfec_payload_type;
   if (flexfec_payload_type != recv_flexfec_payload_type_) {
     changed_params->flexfec_payload_type = flexfec_payload_type;
@@ -2944,16 +2949,6 @@ bool WebRtcVideoReceiveChannel::SetReceiverParameters(
                       << recv_flexfec_payload_type_ << " to "
                       << *changed_params.flexfec_payload_type;
     recv_flexfec_payload_type_ = *changed_params.flexfec_payload_type;
-  }
-  if (changed_params.rtp_header_extensions) {
-    recv_rtp_extensions_ = *changed_params.rtp_header_extensions;
-    call_->network_thread()->PostTask(SafeTask(
-        network_thread_safety_,
-        [this, recv_rtp_extension_map =
-                   RtpHeaderExtensionMap(recv_rtp_extensions_)]() mutable {
-          RTC_DCHECK_RUN_ON(&network_thread_checker_);
-          recv_rtp_extension_map_ = std::move(recv_rtp_extension_map);
-        }));
   }
   if (changed_params.codec_settings) {
     RTC_DLOG(LS_INFO) << "Changing recv codecs from "
@@ -3225,17 +3220,6 @@ void WebRtcVideoReceiveChannel::OnPacketReceived(RtpPacketReceived packet) {
   // depending on configuration set at object initialization.
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
 
-  // TODO(bugs.webrtc.org/7135): The mapping of extension ID (on-packet
-  // representation) to C++ class object (internal representation) is currently
-  // associated with the per-channel object (e.g. WebRtcVideoReceiveChannel).
-  // However, this mapping is more logically associated with per-media-stream
-  // objects (like ModuleRtpRtcpImpl2), which handle specific streams flowing
-  // in one direction (usually a single SSRC).
-  // This mapping should be moved out of the media engines altogether, storing
-  // it instead at the stream level initialized by the Transport. RTP packets
-  // consumed by media channels would thus have header extensions distinguished
-  // by C++ class rather than negotiated header extension ID.
-  packet.IdentifyExtensions(recv_rtp_extension_map_);
   packet.set_payload_type_frequency(kVideoPayloadTypeFrequency);
   if (!packet.arrival_time().IsFinite()) {
     packet.set_arrival_time(env_.clock().CurrentTime());

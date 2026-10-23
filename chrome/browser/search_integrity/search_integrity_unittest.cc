@@ -75,7 +75,7 @@ class SearchIntegrityTest : public testing::Test {
   std::unique_ptr<SearchIntegrity> search_integrity_;
 };
 
-TEST_F(SearchIntegrityTest, CheckCustomSearchEngines_ExtractsReferralId) {
+TEST_F(SearchIntegrityTest, CheckCustomSearchEngines_ExtractsReferralParam) {
   TemplateURL* turl =
       AddSearchEngine(u"Referral Engine", "http://custom.com?fr=test_ref");
   SetDefaultSearchProvider(turl);
@@ -83,7 +83,18 @@ TEST_F(SearchIntegrityTest, CheckCustomSearchEngines_ExtractsReferralId) {
   SearchIntegrityReport report = CheckSearchEnginesReport();
 
   EXPECT_TRUE(report.has_custom_option);
-  EXPECT_EQ(report.referral_id, "test_ref");
+  EXPECT_EQ(report.referral_param_found, SearchReferralParam::kFr);
+}
+
+TEST_F(SearchIntegrityTest, CheckCustomSearchEngines_ExtractsNoReferralParam) {
+  TemplateURL* turl =
+      AddSearchEngine(u"No Referral Engine", "http://custom.com");
+  SetDefaultSearchProvider(turl);
+  TriggerAllowlistInitialized();
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+
+  EXPECT_TRUE(report.has_custom_option);
+  EXPECT_FALSE(report.referral_param_found.has_value());
 }
 
 TEST_F(SearchIntegrityTest, CheckDefaultSearchEngine_DefaultIsCustom) {
@@ -186,6 +197,45 @@ TEST_F(SearchIntegrityTest, CheckMatchingPolicyEngine_TokenMismatch) {
   EXPECT_FALSE(report.is_default_custom_with_matching_policy_engine);
 }
 
+TEST_F(SearchIntegrityTest, IsNameMatch_StopWordsAreIgnored) {
+  TemplateURL* custom_engine =
+      AddSearchEngine(u"My Search", "http://custom.example.com");
+  AddSearchEngine(u"Your Search", "http://policy.example.com",
+                  /*created_by_policy=*/true);
+  SetDefaultSearchProvider(custom_engine);
+
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+
+  EXPECT_TRUE(report.is_default_custom);
+  EXPECT_FALSE(report.is_default_custom_with_matching_policy_engine);
+}
+
+TEST_F(SearchIntegrityTest, IsNameMatch_ShortWordsAreIgnored) {
+  TemplateURL* custom_engine =
+      AddSearchEngine(u"A B", "http://custom.example.com");
+  AddSearchEngine(u"C A", "http://policy.example.com",
+                  /*created_by_policy=*/true);
+  SetDefaultSearchProvider(custom_engine);
+
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+
+  EXPECT_TRUE(report.is_default_custom);
+  EXPECT_FALSE(report.is_default_custom_with_matching_policy_engine);
+}
+
+TEST_F(SearchIntegrityTest, IsNameMatch_ValidWordsMatch) {
+  TemplateURL* custom_engine =
+      AddSearchEngine(u"My Alpha Search", "http://custom.example.com");
+  AddSearchEngine(u"Your Alpha Engine", "http://policy.example.com",
+                  /*created_by_policy=*/true);
+  SetDefaultSearchProvider(custom_engine);
+
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+
+  EXPECT_TRUE(report.is_default_custom);
+  EXPECT_TRUE(report.is_default_custom_with_matching_policy_engine);
+}
+
 TEST_F(SearchIntegrityTest, Histograms_LoggedCorrectly) {
   base::HistogramTester histogram_tester;
 
@@ -203,6 +253,8 @@ TEST_F(SearchIntegrityTest, Histograms_LoggedCorrectly) {
       "Search.Integrity.IsDefaultSearchEngineCustom", true, 1);
   histogram_tester.ExpectUniqueSample(
       "Search.Integrity.IsDefaultCustomWithMatchingPolicyEngine", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Search.Integrity.Referral.ParameterFound", SearchReferralParam::kFr, 1);
 }
 
 TEST_F(SearchIntegrityTest, CheckDefaultSearchEngine_DefaultIsStarterPack) {

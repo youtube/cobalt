@@ -888,6 +888,8 @@ class Heap final {
       Tagged<Object> bytecode);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
+  V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
@@ -989,7 +991,8 @@ class Heap final {
   // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
-  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(AllocationSpace space);
+  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
+      AllocationSpace space, GarbageCollectionReason gc_reason);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
@@ -1441,7 +1444,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
+  V8_EXPORT_PRIVATE uint64_t GlobalSizeOfObjects() const;
 
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;

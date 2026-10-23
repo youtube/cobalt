@@ -156,7 +156,7 @@ void ClearOtherStabilityMetricsPmaFiles(
               &allocator);
           while (auto histogram = histogram_iter.GetNext()) {
             allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
-                histogram.get());
+                histogram.get(), /*name_override=*/"");
           }
         }
       }

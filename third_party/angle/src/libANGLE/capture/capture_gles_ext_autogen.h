@@ -221,13 +221,13 @@ angle::CallCapture CaptureGetTexLevelParameterivANGLE(const State &glState,
                                                       bool isCallValid,
                                                       TextureTarget targetPacked,
                                                       GLint level,
-                                                      GLenum pname,
+                                                      TextureImageParameter pnamePacked,
                                                       GLint *params);
 angle::CallCapture CaptureGetTexLevelParameterfvANGLE(const State &glState,
                                                       bool isCallValid,
                                                       TextureTarget targetPacked,
                                                       GLint level,
-                                                      GLenum pname,
+                                                      TextureImageParameter pnamePacked,
                                                       GLfloat *params);
 
 // GL_ANGLE_instanced_arrays
@@ -733,7 +733,7 @@ angle::CallCapture CaptureGetTexLevelParameterivRobustANGLE(const State &glState
                                                             bool isCallValid,
                                                             TextureTarget targetPacked,
                                                             GLint level,
-                                                            GLenum pname,
+                                                            TextureImageParameter pnamePacked,
                                                             GLsizei paramCount,
                                                             GLsizei *length,
                                                             GLint *params);
@@ -741,7 +741,7 @@ angle::CallCapture CaptureGetTexLevelParameterfvRobustANGLE(const State &glState
                                                             bool isCallValid,
                                                             TextureTarget targetPacked,
                                                             GLint level,
-                                                            GLenum pname,
+                                                            TextureImageParameter pnamePacked,
                                                             GLsizei paramCount,
                                                             GLsizei *length,
                                                             GLfloat *params);
@@ -782,6 +782,14 @@ angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE(
     GLsizei paramCount,
     GLsizei *length,
     GLint *params);
+angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE(
+    const State &glState,
+    bool isCallValid,
+    GLint plane,
+    GLenum pname,
+    GLsizei paramCount,
+    GLsizei *length,
+    GLuint *params);
 
 // GL_ANGLE_robust_fragment_shader_output
 
@@ -829,6 +837,7 @@ angle::CallCapture CaptureEndPixelLocalStorageANGLE(const State &glState,
                                                     bool isCallValid,
                                                     GLsizei n,
                                                     const GLenum *storeops);
+angle::CallCapture CaptureEndPixelLocalStorageImplicitANGLE(const State &glState, bool isCallValid);
 angle::CallCapture CapturePixelLocalStorageBarrierANGLE(const State &glState, bool isCallValid);
 angle::CallCapture CaptureFramebufferPixelLocalStorageInterruptANGLE(const State &glState,
                                                                      bool isCallValid);
@@ -844,6 +853,11 @@ angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameterivANGLE(const 
                                                                           GLint plane,
                                                                           GLenum pname,
                                                                           GLint *params);
+angle::CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivANGLE(const State &glState,
+                                                                           bool isCallValid,
+                                                                           GLint plane,
+                                                                           GLenum pname,
+                                                                           GLuint *params);
 
 // GL_ANGLE_stencil_texturing
 
@@ -3084,13 +3098,13 @@ void CaptureGetRenderbufferImageANGLE_pixels(const State &glState,
 void CaptureGetTexLevelParameterivANGLE_params(const State &glState,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLint *params,
                                                angle::ParamCapture *paramCapture);
 void CaptureGetTexLevelParameterfvANGLE_params(const State &glState,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLfloat *params,
                                                angle::ParamCapture *paramCapture);
 void CaptureDrawElementsInstancedANGLE_indices(const State &glState,
@@ -3830,7 +3844,7 @@ void CaptureGetMultisamplefvRobustANGLE_val(const State &glState,
 void CaptureGetTexLevelParameterivRobustANGLE_length(const State &glState,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLint *params,
@@ -3838,7 +3852,7 @@ void CaptureGetTexLevelParameterivRobustANGLE_length(const State &glState,
 void CaptureGetTexLevelParameterivRobustANGLE_params(const State &glState,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLint *params,
@@ -3846,7 +3860,7 @@ void CaptureGetTexLevelParameterivRobustANGLE_params(const State &glState,
 void CaptureGetTexLevelParameterfvRobustANGLE_length(const State &glState,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLfloat *params,
@@ -3854,7 +3868,7 @@ void CaptureGetTexLevelParameterfvRobustANGLE_length(const State &glState,
 void CaptureGetTexLevelParameterfvRobustANGLE_params(const State &glState,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLfloat *params,
@@ -3933,6 +3947,22 @@ void CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE_params(
     GLsizei *length,
     GLint *params,
     angle::ParamCapture *paramCapture);
+void CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_length(
+    const State &glState,
+    GLint plane,
+    GLenum pname,
+    GLsizei paramCount,
+    GLsizei *length,
+    GLuint *params,
+    angle::ParamCapture *paramCapture);
+void CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_params(
+    const State &glState,
+    GLint plane,
+    GLenum pname,
+    GLsizei paramCount,
+    GLsizei *length,
+    GLuint *params,
+    angle::ParamCapture *paramCapture);
 void CaptureFramebufferPixelLocalClearValuefvANGLE_value(const State &glState,
                                                          GLint plane,
                                                          const GLfloat *value,
@@ -3964,6 +3994,12 @@ void CaptureGetFramebufferPixelLocalStorageParameterivANGLE_params(
     GLint plane,
     GLenum pname,
     GLint *params,
+    angle::ParamCapture *paramCapture);
+void CaptureGetFramebufferPixelLocalStorageParameteruivANGLE_params(
+    const State &glState,
+    GLint plane,
+    GLenum pname,
+    GLuint *params,
     angle::ParamCapture *paramCapture);
 void CaptureGetMultisamplefvANGLE_val(const State &glState,
                                       GLenum pname,

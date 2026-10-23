@@ -61,7 +61,7 @@ class ArrayHeaderBase<Super, true> : public Super {
   // callsites without missing any implicit casts.
   inline SafeHeapObjectSize ulength() const;
 
-  inline int length() const;
+  inline SafeHeapObjectSize length() const;
   inline SafeHeapObjectSize length(AcquireLoadTag tag) const;
   inline void set_length(uint32_t value);
   inline void set_length(uint32_t value, ReleaseStoreTag tag);
@@ -180,12 +180,10 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
 
   inline int AllocatedSize() const;
   // TODO(375937549): Convert to use uint32_t.
-  static inline constexpr int SizeFor(int capacity) {
+  static constexpr int SizeFor(int capacity) {
     return sizeof(Header) + capacity * kElementSize;
   }
-  static inline constexpr int OffsetOfElementAt(int index) {
-    return SizeFor(index);
-  }
+  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
   // Gives access to raw memory which stores the array's data.
   inline SlotType RawFieldOfFirstElement() const;
@@ -427,10 +425,10 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
 
   inline int AllocatedSize() const;
   // TODO(375937549): Convert to use uint32_t.
-  static inline constexpr int SizeFor(int length) {
+  static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(OffsetOfElementAt(length));
   }
-  static inline constexpr int OffsetOfElementAt(int index) {
+  static constexpr int OffsetOfElementAt(int index) {
     return sizeof(Header) + index * kElementSize;
   }
 
@@ -611,7 +609,7 @@ V8_OBJECT class TrustedWeakFixedArray
 
 class ProtectedWeakFixedArrayShape final : public AllStatic {
  public:
-  using ElementT = Union<MaybeWeak<TrustedObject>, Smi>;
+  using ElementT = UnionOf<MaybeWeak<TrustedObject>, Smi>;
   using CompressionScheme = TrustedSpaceCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kProtectedWeakFixedArrayMap;
@@ -741,7 +739,7 @@ class WeakArrayList
   class Iterator;
 
  private:
-  static int OffsetOfElementAt(int index) {
+  static constexpr int OffsetOfElementAt(int index) {
     return kHeaderSize + index * kTaggedSize;
   }
 
@@ -925,6 +923,7 @@ class FixedIntegerArrayBase : public Base {
     return sizeof(typename Base::Header) + index * sizeof(T);
   }
 
+  // TODO(375937549): Convert to uint32_t.
   inline int length() const;
 
  protected:
@@ -940,27 +939,17 @@ using FixedUInt32Array = FixedIntegerArrayBase<uint32_t, ByteArray>;
 using FixedInt64Array = FixedIntegerArrayBase<int64_t, ByteArray>;
 using FixedUInt64Array = FixedIntegerArrayBase<uint64_t, ByteArray>;
 
-// Use with care! Raw addresses on the heap are not safe in combination with
-// the sandbox. However, this can for example be used to store sandboxed
-// pointers, which is safe.
 V8_OBJECT
-template <typename Base>
-class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
-  using Underlying = FixedIntegerArrayBase<Address, Base>;
+class TrustedFixedAddressArray
+    : public FixedIntegerArrayBase<Address, TrustedByteArray> {
+  using Underlying = FixedIntegerArrayBase<Address, TrustedByteArray>;
 
  public:
-  // Get/set a sandboxed pointer from this array.
-  inline Address get_sandboxed_pointer(int index) const;
-  inline void set_sandboxed_pointer(int index, Address value);
-
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
   template <typename... MoreArgs>
-  static inline DirectHandle<FixedAddressArrayBase> New(
+  static inline DirectHandle<TrustedFixedAddressArray> New(
       Isolate* isolate, int length, MoreArgs&&... more_args);
 } V8_OBJECT_END;
-
-using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
-using TrustedFixedAddressArray = FixedAddressArrayBase<TrustedByteArray>;
 
 V8_OBJECT
 template <class T, class Super>
@@ -994,6 +983,7 @@ class PodArrayBase : public Super {
 
   void set(int index, const T& value) { copy_in(index, &value, 1); }
 
+  // TODO(375937549): Convert to uint32_t.
   inline int length() const;
 } V8_OBJECT_END;
 

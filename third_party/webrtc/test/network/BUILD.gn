@@ -29,7 +29,6 @@ rtc_library("emulated_network") {
   deps = [
     ":simulated_network",
     "..:create_test_environment",
-    "../../api:array_view",
     "../../api:async_dns_resolver",
     "../../api:field_trials_view",
     "../../api:network_emulation_manager_api",

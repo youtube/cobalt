@@ -17,12 +17,12 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/rtp_headers.h"
@@ -140,7 +140,7 @@ class RTCPSender final {
 
   int32_t SendRTCP(const FeedbackState& feedback_state,
                    RTCPPacketType packetType,
-                   ArrayView<const uint16_t> nacks = {})
+                   std::span<const uint16_t> nacks = {})
       RTC_LOCKS_EXCLUDED(mutex_rtcp_sender_);
 
   int32_t SendLossNotification(const FeedbackState& feedback_state,
@@ -183,7 +183,7 @@ class RTCPSender final {
   std::optional<int32_t> ComputeCompoundRTCPPacket(
       const FeedbackState& feedback_state,
       RTCPPacketType packet_type,
-      ArrayView<const uint16_t> nacks,
+      std::span<const uint16_t> nacks,
       PacketSender& sender) RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_rtcp_sender_);
 
   TimeDelta ComputeTimeUntilNextReport(DataRate send_bitrate)

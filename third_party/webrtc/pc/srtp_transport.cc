@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/units/timestamp.h"
 #include "call/rtp_demuxer.h"

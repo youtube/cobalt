@@ -61,7 +61,6 @@
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network/sent_packet.h"
@@ -231,6 +230,12 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) override {
     ssrc_list_changed_callback_ = std::move(callback);
+  }
+
+  void SetParametersChangedCallback(
+      absl::AnyInvocable<void()> callback) override {
+    RTC_DCHECK_RUN_ON(&thread_checker_);
+    parameters_changed_callback_ = std::move(callback);
   }
 
   // Implemented for VideoMediaChannelTest.
@@ -501,6 +506,10 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
       ssrc_list_changed_callback_;
+
+  // Callback invoked whenever the sender parameters change.
+  absl::AnyInvocable<void()> parameters_changed_callback_
+      RTC_GUARDED_BY(&thread_checker_);
 };
 
 class WebRtcVideoReceiveChannel : public MediaChannelUtil,
@@ -755,10 +764,6 @@ class WebRtcVideoReceiveChannel : public MediaChannelUtil,
 
   VideoDecoderFactory* const decoder_factory_ RTC_GUARDED_BY(thread_checker_);
   std::vector<VideoCodecSettings> recv_codecs_ RTC_GUARDED_BY(thread_checker_);
-  RtpHeaderExtensionMap recv_rtp_extension_map_
-      RTC_GUARDED_BY(network_thread_checker_);
-  std::vector<RtpExtension> recv_rtp_extensions_
-      RTC_GUARDED_BY(thread_checker_);
   // See reason for keeping track of the FlexFEC payload type separately in
   // comment in WebRtcVideoChannel::ChangedReceiverParameters.
   int recv_flexfec_payload_type_ RTC_GUARDED_BY(thread_checker_);

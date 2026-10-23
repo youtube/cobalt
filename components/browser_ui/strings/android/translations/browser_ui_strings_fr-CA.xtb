@@ -7,6 +7,7 @@
 <translation id="1070329623210597193">Les fichiers que ce site peut afficher ou modifier</translation>
 <translation id="1073417869336441572">Aidez-nous à améliorer Chrome en nous indiquant pourquoi vous avez autorisé les témoins tiers. <ph name="BEGIN_LINK" />Envoyer des commentaires<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Vous pouvez demander à voir la version pour ordinateur de bureau des sites</translation>
+<translation id="1109482864356262001">Les fonctionnalités qui nécessitent l'accès aux capteurs de mouvement ou de luminosité ne seront pas accessibles</translation>
 <translation id="1126523729897810826">Effectuez les actions suggérées ci-dessous pour tirer le meilleur parti de Chrome</translation>
 <translation id="113098737392899175">Parcourir les pages à l'aide d'un curseur de texte lorsqu'un clavier est connecté</translation>
 <translation id="1148624853678088576">Vous êtes prêt(e)!</translation>
@@ -66,7 +67,6 @@
 <translation id="1677097821151855053">Les témoins et les autres données de sites sont utilisés pour se souvenir de vous. Par exemple : pour vous connecter à votre compte ou pour personnaliser les annonces. Pour gérer les témoins pour tous les sites, reportez-vous au menu <ph name="BEGIN_LINK" />Paramètres<ph name="END_LINK" />.</translation>
 <translation id="1679305402657584804">Les sites peuvent demander d'utiliser des appareils CCP</translation>
 <translation id="1686785653877010442">Les sites envoient généralement des notifications pour vous présenter des nouvelles de dernière heure ou des messages de clavardage.</translation>
-<translation id="169515064810179024">Empêcher les sites d'accéder aux capteurs de mouvement</translation>
 <translation id="1703666494654169921">Ne pas autoriser les sites à utiliser des données ni des appareils de réalité virtuelle</translation>
 <translation id="1704230497453185209">Ne pas autoriser les sites à faire jouer des sons</translation>
 <translation id="1717218214683051432">Capteurs de mouvements</translation>
@@ -129,6 +129,7 @@
 <translation id="2241587408274973373">Cartes de la page Nouvel onglet</translation>
 <translation id="2241634353105152135">Une fois</translation>
 <translation id="2253414712144136228">Retirer l'élément suivant : <ph name="NAME_OF_LIST_ITEM" /></translation>
+<translation id="227763434929139750">Ne pas autoriser les sites à utiliser les capteurs de mouvement ou de luminosité</translation>
 <translation id="228293613124499805">La plupart des sites que vous visitez peuvent enregistrer des données sur votre appareil, souvent pour améliorer votre expérience en enregistrant vos préférences ou en fonction de vos interactions avec le site. Nous vous recommandons de conserver ce paramètre activé.</translation>
 <translation id="2289270750774289114">Demander quand un site souhaite rechercher les appareils Bluetooth à proximité (recommandé)</translation>
 <translation id="2315043854645842844">La sélection du certificat client SSL n'est pas prise en charge par le système d'exploitation.</translation>
@@ -235,7 +236,6 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="3232293466644486101">Supprimer les données de navigation…</translation>
 <translation id="3242646949159196181">Lorsque cette option est activée, les sites peuvent faire jouer du son. Lorsqu'elle est désactivée, les sites ne peuvent pas faire jouer de son.</translation>
 <translation id="3273479183583863618">Baisse de prix sur les onglets</translation>
-<translation id="3277252321222022663">Autoriser les sites à accéder aux capteurs (recommandé)</translation>
 <translation id="3285500645985761267">Autoriser les sites connexes à voir votre activité dans le groupe</translation>
 <translation id="3295019059349372795">Chapitre 11 : La merveilleuse cité d'émeraude d'Oz</translation>
 <translation id="3295602654194328831">Masquer les renseignements</translation>
@@ -300,6 +300,7 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="3922092564198021702">Sur votre téléphone, ouvrez Paramètres.</translation>
 <translation id="3924858949939391676">Afficher les liens une fois le mode Lecture activé</translation>
 <translation id="3933121352599513978">Réduire les requêtes indésirables (recommandé)</translation>
+<translation id="393417216277380082">Capteurs de mouvement et de luminosité</translation>
 <translation id="3934905113567851655">Pincez l'écran pour effectuer un redimensionnement</translation>
 <translation id="3955321697524543127">Ne pas autoriser les sites à se connecter à des appareils USB</translation>
 <translation id="3965467402665811906">Les sites peuvent demander d'utiliser les informations qu'ils ont enregistrées à votre sujet</translation>
@@ -371,7 +372,7 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="4672315773691449562">Toucher l'appli Navigateur, puis Chrome</translation>
 <translation id="4676059169848868271">Pour permettre à <ph name="APP_NAME" /> d'utiliser le suivi des mains, activez également le suivi des mains dans les <ph name="BEGIN_LINK" />paramètres système<ph name="END_LINK" />.</translation>
 <translation id="4688045258817337666">Gérer vos cartes</translation>
-<translation id="4751476147751820511">Capteurs de mouvement ou de luminosité</translation>
+<translation id="4722332387043141878">Les sites utilisent généralement les capteurs de mouvement et de luminosité de votre appareil pour proposer des fonctionnalités comme la réalité virtuelle ou le suivi des activités physiques</translation>
 <translation id="4755971844837804407">Lorsque cette option est activée, les sites peuvent vous montrer n'importe quelle annonce. Lorsqu'elle est désactivée, les sites ne peuvent pas vous montrer d'annonces intrusives ni trompeuses.</translation>
 <translation id="4779083564647765204">Zoom</translation>
 <translation id="4807122856660838973">Activer la navigation sécurisée</translation>
@@ -398,7 +399,6 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="5001526427543320409">Témoins tiers</translation>
 <translation id="5007392906805964215">Examiner</translation>
 <translation id="5039804452771397117">Autoriser</translation>
-<translation id="5048398596102334565">Autoriser les sites à accéder à vos capteurs de mouvements (recommandé)</translation>
 <translation id="5048841907079026162">Gérer vos données de navigation</translation>
 <translation id="5050380848339752099">Ce site est sur le point de partager des renseignements avec une application à l'extérieur du mode de navigation privée.</translation>
 <translation id="5063480226653192405">Utilisation</translation>
@@ -517,6 +517,7 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="6196640612572343990">Bloquer les témoins de tiers</translation>
 <translation id="6205314730813004066">Confidentialité des annonces</translation>
 <translation id="6207207788774442484">Supprimer les données et réinitialiser les autorisations</translation>
+<translation id="6211409961905616543">Les sites peuvent utiliser les capteurs de mouvement et de luminosité</translation>
 <translation id="6218508144653756827">Thème fuchsia</translation>
 <translation id="6231752747840485235">Désinstaller « <ph name="APP_NAME" /> »?</translation>
 <translation id="6234351944623978659">Touchez Appli de navigation &gt; Chrome.</translation>
@@ -686,7 +687,6 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="8088603949666785339">Plus d'options dans le <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Afficher les onglets dans votre liste d'applis</translation>
 <translation id="8116925261070264013">Désactivés</translation>
-<translation id="8117244575099414087">Lorsque cette option est activée, les sites peuvent utiliser les capteurs de votre appareil. Lorsqu'elle est désactivée, les sites ne peuvent pas utiliser de capteurs.</translation>
 <translation id="813082847718468539">Afficher l'information sur le site</translation>
 <translation id="8131740175452115882">Confirmer</translation>
 <translation id="8148160259207090265">Ce paramètre reste activé tant que la protection avancée est activée dans les paramètres Android.</translation>
@@ -762,7 +762,7 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="8801657293260363985">V8 est le moteur JavaScript et WebAssembly de Chrome utilisé pour améliorer les performances du site</translation>
 <translation id="8803526663383843427">Lorsque activée</translation>
 <translation id="8805385115381080995">La navigation est plus rapide, car il est moins probable qu'un site vérifie que vous êtes bien une personne réelle</translation>
-<translation id="8816026460808729765">Empêcher les sites d'accéder aux capteurs</translation>
+<translation id="881644524232657178">Lorsque cette option est activée, les sites peuvent utiliser les capteurs de mouvement et de luminosité de votre appareil. Lorsqu'elle est désactivée, les sites ne peuvent pas utiliser de capteurs.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Essayez d'autoriser temporairement les témoins tiers, ce qui signifie que la navigation est moins protégée, mais que les fonctionnalités des sites sont plus susceptibles de fonctionner comme prévu.</translation>
 <translation id="8889294078294184559">Pendant que vous continuez à les parcourir, les sites peuvent vérifier la probabilité que vous soyez une personne réelle par le biais de Chrome et d'un site que vous avez visité précédemment</translation>

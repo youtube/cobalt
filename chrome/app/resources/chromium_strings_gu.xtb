@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Gmail કે YouTube જેવી Googleની સેવાઓમાં <ph name="USER_EMAIL" /> વડે સાઇન ઇન કરતી વખતે, તમે એ જ એકાઉન્ટ વડે Chromiumમાં ઑટોમૅટિક રીતે સાઇન ઇન કરી શકો છો</translation>
 <translation id="1290883685122687410">સેટઅપ કરવામાં ભૂલ: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">તમારી નવી Chromium પ્રોફાઇલ સેટઅપ કરો</translation>
+<translation id="132092532143527429">Gemini in Chromium વડે અજમાવી જુઓ</translation>
 <translation id="1324107359134968521">બ્લૂટૂથ ડિવાઇસ વિશે શોધખોળ કરવા Chromiumને બ્લૂટૂથના 
  ઍક્સેસની જરૂર છે. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ભાષા શોધો</translation>
@@ -377,7 +378,6 @@
 <translation id="5174969993834422967">તમે સામાન્ય રીતે નોટિફિકેશનને બ્લૉક કરો છો. આ સાઇટ તમને સૂચિત કરી શકે તે માટે, તમારા લોકેશન બારના જમણા ખૂણે દેખાતા નોટિફિકેશનના આઇકન પર ક્લિક કરો.</translation>
 <translation id="5174983315706567306">પર્યાપ્ત ડિસ્ક સ્પેસ નથી.</translation>
 <translation id="5187123684706427865">Chromium એકાઉન્ટને પુન:પ્રમાણીકરણની જરૂર છે</translation>
-<translation id="5219681158518957165">સુઝાવ આપેલા બ્રાઉઝર સેટિંગનો ઉપયોગ કરો</translation>
 <translation id="5224391634244552924">કોઈ સાચવેલા પાસવર્ડ નથી. જ્યારે તમે તમારા પાસવર્ડ સાચવો ત્યારે Chromium તેને ચેક કરી શકે છે.</translation>
 <translation id="5231355151045086930">Chromiumમાંથી સાઇન આઉટ કરો</translation>
 <translation id="5234764350956374838">કાઢી નાખો</translation>
@@ -611,6 +611,7 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="7622753900276619808">Chromiumમાં હવે તમારા માટે વધુ સુવિધાઓ ઉપલબ્ધ છે</translation>
 <translation id="7624307931717240213">અમે આ સેવામાં સુધારણા કરવા માટે માહિતીનો ઉપયોગ કરીએ છીએ. પ્રાઇવસી પૉલિસી અને સેવાની શરતો જુઓ.</translation>
 <translation id="7649070708921625228">સહાય</translation>
+<translation id="7650134251917003571">Chromium ઍપ મેળવો</translation>
 <translation id="7656340475565475526">તમારા માટે Chromiumને બ્રાઉઝ કરવા દો</translation>
 <translation id="7658239707568436148">રદ કરો</translation>
 <translation id="7686590090926151193">Chromium તમારું ડિફૉલ્ટ બ્રાઉઝર નથી</translation>

@@ -55,6 +55,13 @@ BASE_DECLARE_FEATURE(kContextualTasksSendFullVersionListEnabled);
 // contextual tasks URL and redirect to aim URL.
 BASE_DECLARE_FEATURE(kContextualTasksUrlRedirectToAimUrl);
 
+// Enables use of TabListInterface::InsertWebContentsAt in
+// ContextualTasksUiService.
+BASE_DECLARE_FEATURE(kContextualTasksInsertWebContentsAt);
+
+// If enabled, animates the caret.
+BASE_DECLARE_FEATURE(kContextualTasksAnimatedCaret);
+
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
   kNoEntryPoint,
@@ -243,6 +250,9 @@ extern bool ShouldEnableCookieSync();
 // Returns whether the input plate can be locked and unlocked by a message
 // from AIM.
 extern bool ShouldEnableLockAndUnlockInputCapability();
+
+// Returns whether the file hint is enabled in the composebox.
+extern bool GetEnableFileHint();
 
 // Returns the UI option to expand contextual tasks side panel to tab.
 extern ExpandButtonOption GetExpandButtonOption();

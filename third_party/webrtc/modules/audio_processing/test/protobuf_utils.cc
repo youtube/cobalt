@@ -19,6 +19,8 @@
 #include "rtc_base/protobuf_utils.h"
 #include "rtc_base/system/arch.h"
 
+namespace webrtc {
+
 namespace {
 // Allocates new memory in the memory owned by the unique_ptr to fit the raw
 // message and returns the number of bytes read when having a string stream as
@@ -40,8 +42,6 @@ size_t ReadMessageBytesFromString(std::stringstream* input,
   return size_read == size ? size : 0;
 }
 }  // namespace
-
-namespace webrtc {
 
 size_t ReadMessageBytesFromFile(FILE* file, std::unique_ptr<uint8_t[]>* bytes) {
 // The "wire format" for the size is little-endian. Assume we're running on

@@ -5,11 +5,16 @@
 // A helper to validate the rules of IR.  This is useful particularly to be run after
 // transformations, to ensure they generate valid IR.
 //
+// Validations implemented:
+//   - Every ID must be present in the respective map: validate_all_ids_are_present()
+//   - Every variable must be defined somewhere, either in global block or in a block:
+//     validate_all_variables_are_declared_in_scope()
+//   - Every accessed variable must be declared in an accessible block:
+//     validate_all_variables_are_declared_in_scope()
+//   - Every accessed register must be declared in an accessible block:
+//     validate_all_registers_are_declared_in_scope()
+
 // TODO(http://anglebug.com/349994211): to validate:
-//
-//   - Every ID must be present in the respective map.
-//   - Every variable must be defined somewhere, either in global block or in a block.
-//   - Every accessed variable must be declared in an accessible block.
 //   - Branches must have the appropriate targets set (merge, trueblock for if, etc).
 //   - No branches inside a block, every block ends in branch. (i.e. no dead code)
 //   - For merge blocks that have an input, the branch instruction of blocks that jump to it have an
@@ -56,11 +61,131 @@
 use crate::debug;
 use crate::ir::*;
 use crate::traverser;
+use std::collections::HashSet;
 use std::fmt;
 
 pub fn validate(ir: &IR) {
     let validator = Validator::new(ir);
     validator.validate();
+}
+
+#[derive(Copy, Clone, PartialEq)]
+enum TypedIdValidationCategory {
+    // check id does not exceed max constant_id, max register_id, max variable_id
+    IdInBound,
+    // check variabld_id is declared in the current accessible scope
+    VariableDeclared,
+    // check register_id is declared in the current accessible scope
+    RegisterDeclared,
+}
+
+struct DeclaredVarTracker {
+    declared_vars_in_current_scope: Vec<HashSet<u32>>,
+}
+
+impl DeclaredVarTracker {
+    fn new() -> DeclaredVarTracker {
+        DeclaredVarTracker { declared_vars_in_current_scope: Vec::new() }
+    }
+
+    fn set_global_declared_vars(&mut self, ir_meta_global_vars: &Vec<VariableId>) {
+        // global_vars should be the first hash set to be added into the
+        // declared_vars_in_current_scope
+        debug_assert!(self.declared_vars_in_current_scope.is_empty());
+        let mut global_vars = HashSet::new();
+        for global_var in ir_meta_global_vars {
+            global_vars.insert(global_var.id);
+        }
+        self.declared_vars_in_current_scope.push(global_vars);
+    }
+
+    // Some variables are declared in the function parameters.
+    // For example:
+    // void my_function(int function_param_var)
+    // {
+    //   // do something with function_param_var
+    // }
+    // function_param_var is declared in the function parameter
+    fn add_function_param_vars_upon_enter_function(
+        &mut self,
+        function_parameters: &Vec<FunctionParam>,
+    ) {
+        // global_vars should be the only hash set in declared_vars_in_current_scope before we add
+        // current function param variables
+        debug_assert!(self.declared_vars_in_current_scope.len() == 1);
+        let mut function_param_vars = HashSet::new();
+        for function_param in function_parameters {
+            function_param_vars.insert(function_param.variable_id.id);
+        }
+        self.declared_vars_in_current_scope.push(function_param_vars);
+    }
+
+    fn remove_function_param_vars_upon_exit_function(&mut self) {
+        self.declared_vars_in_current_scope.pop().unwrap();
+        // global_vars should be the only hash set in declared_vars_in_current_scope after we pop
+        // current function param variables
+        debug_assert!(self.declared_vars_in_current_scope.len() == 1);
+    }
+
+    fn add_current_scope_declared_vars_upon_enter_scope(
+        &mut self,
+        parent_declared_vars: &Vec<VariableId>,
+    ) {
+        let mut parent_declared_var_map = HashSet::new();
+
+        for parent_var in parent_declared_vars {
+            parent_declared_var_map.insert(parent_var.id);
+        }
+
+        self.declared_vars_in_current_scope.push(parent_declared_var_map);
+    }
+
+    fn remove_current_scope_declared_vars_upon_exit_scope(&mut self) {
+        self.declared_vars_in_current_scope.pop().unwrap();
+    }
+
+    fn is_variable_declared(&self, variable_id: VariableId) -> bool {
+        for declared_var_map in &self.declared_vars_in_current_scope {
+            if declared_var_map.contains(&variable_id.id) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+struct DeclaredRegisterTracker {
+    declared_registers_in_current_scope: Vec<HashSet<RegisterId>>,
+}
+
+impl DeclaredRegisterTracker {
+    fn new() -> DeclaredRegisterTracker {
+        DeclaredRegisterTracker { declared_registers_in_current_scope: Vec::new() }
+    }
+
+    fn add_scope(&mut self) {
+        self.declared_registers_in_current_scope.push(HashSet::new());
+    }
+
+    fn remove_scope(&mut self) {
+        self.declared_registers_in_current_scope.pop().unwrap();
+    }
+
+    fn declare_register(&mut self, register_id: RegisterId) {
+        // first check we have not declared this register yet
+        debug_assert!(!self.is_declared(register_id));
+        // add the register to the declaration map
+        self.declared_registers_in_current_scope.last_mut().unwrap().insert(register_id);
+    }
+
+    fn is_declared(&self, register_id: RegisterId) -> bool {
+        for declared_registers in self.declared_registers_in_current_scope.iter().rev() {
+            if declared_registers.contains(&register_id) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 // Validator takes a reference of IR object, and its' lifetime is the same as the lifetime of IR
@@ -88,6 +213,8 @@ impl<'a> Validator<'a> {
     // ANGLE IR validation entry point
     fn validate(&self) {
         self.validate_all_ids_are_present();
+        self.validate_all_variables_are_declared_in_scope();
+        self.validate_all_registers_are_declared_in_scope();
     }
 
     fn validate_all_ids_are_present(&self) {
@@ -230,7 +357,12 @@ impl<'a> Validator<'a> {
         // validate instructions
         for instruction in &block.instructions {
             let (opcode, result) = instruction.get_op_and_result(&self.ir.meta);
-            self.validate_instruction_op_code_typed_id_parameters(opcode);
+            self.validate_instruction_op_code_typed_id_parameters(
+                opcode,
+                TypedIdValidationCategory::IdInBound,
+                None,
+                None,
+            );
             if let Some(instruction_result) = result {
                 self.validate_opcode_instruction_result_has_valid_ids(opcode, &instruction_result);
             }
@@ -238,7 +370,13 @@ impl<'a> Validator<'a> {
     }
 
     // Validate OpCode parameters
-    fn validate_instruction_op_code_typed_id_parameters(&self, op_code: &OpCode) {
+    fn validate_instruction_op_code_typed_id_parameters(
+        &self,
+        op_code: &OpCode,
+        category: TypedIdValidationCategory,
+        declared_variables: Option<&DeclaredVarTracker>,
+        declared_registers: Option<&DeclaredRegisterTracker>,
+    ) {
         match op_code {
             // OpCode that does not take any parameters: do nothing
             OpCode::MergeInput
@@ -259,7 +397,13 @@ impl<'a> Validator<'a> {
             | OpCode::ConstructArray(params)
             | OpCode::BuiltIn(_, params) => {
                 for param in params {
-                    self.validate_typed_id_params(op_code, param);
+                    self.validate_typed_id_params(
+                        op_code,
+                        param,
+                        category,
+                        declared_variables,
+                        declared_registers,
+                    );
                 }
             }
             // OpCode that takes in TypedId params, verify TypedId
@@ -281,7 +425,13 @@ impl<'a> Validator<'a> {
             | OpCode::Load(id)
             | OpCode::Alias(id)
             | OpCode::Unary(_, id) => {
-                self.validate_typed_id_params(op_code, id);
+                self.validate_typed_id_params(
+                    op_code,
+                    id,
+                    category,
+                    declared_variables,
+                    declared_registers,
+                );
             }
             // OpCode that takes two TypedId, verify both TypedId
             OpCode::ExtractVectorComponentDynamic(lhs, rhs)
@@ -292,61 +442,187 @@ impl<'a> Validator<'a> {
             | OpCode::AccessArrayElement(lhs, rhs)
             | OpCode::Store(lhs, rhs)
             | OpCode::Binary(_, lhs, rhs) => {
-                self.validate_typed_id_params(op_code, lhs);
-                self.validate_typed_id_params(op_code, rhs);
+                self.validate_typed_id_params(
+                    op_code,
+                    lhs,
+                    category,
+                    declared_variables,
+                    declared_registers,
+                );
+                self.validate_typed_id_params(
+                    op_code,
+                    rhs,
+                    category,
+                    declared_variables,
+                    declared_registers,
+                );
             }
             // OpCode that takes Another OpCode (texture_op) as Parameter
             OpCode::Texture(texture_op, sampler, coord) => {
-                self.validate_typed_id_params(texture_op, sampler);
-                self.validate_typed_id_params(texture_op, coord);
+                self.validate_typed_id_params(
+                    texture_op,
+                    sampler,
+                    category,
+                    declared_variables,
+                    declared_registers,
+                );
+                self.validate_typed_id_params(
+                    texture_op,
+                    coord,
+                    category,
+                    declared_variables,
+                    declared_registers,
+                );
                 match texture_op {
                     TextureOpCode::Implicit { is_proj: _, offset }
                     | TextureOpCode::Gather { offset } => {
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                     TextureOpCode::Compare { compare } => {
-                        self.validate_typed_id_params(texture_op, compare);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            compare,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                     }
                     TextureOpCode::Lod { is_proj: _, lod, offset } => {
-                        self.validate_typed_id_params(texture_op, lod);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            lod,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
 
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                     TextureOpCode::CompareLod { compare, lod } => {
-                        self.validate_typed_id_params(texture_op, compare);
-                        self.validate_typed_id_params(texture_op, lod);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            compare,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
+                        self.validate_typed_id_params(
+                            texture_op,
+                            lod,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                     }
                     TextureOpCode::Bias { is_proj: _, bias, offset } => {
-                        self.validate_typed_id_params(texture_op, bias);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            bias,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                     TextureOpCode::CompareBias { compare, bias } => {
-                        self.validate_typed_id_params(texture_op, compare);
-                        self.validate_typed_id_params(texture_op, bias);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            compare,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
+                        self.validate_typed_id_params(
+                            texture_op,
+                            bias,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                     }
                     TextureOpCode::Grad { is_proj: _, dx, dy, offset } => {
-                        self.validate_typed_id_params(texture_op, dx);
-                        self.validate_typed_id_params(texture_op, dy);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            dx,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
+                        self.validate_typed_id_params(
+                            texture_op,
+                            dy,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                     TextureOpCode::GatherComponent { component, offset } => {
-                        self.validate_typed_id_params(texture_op, component);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            component,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                     TextureOpCode::GatherRef { refz, offset } => {
-                        self.validate_typed_id_params(texture_op, refz);
+                        self.validate_typed_id_params(
+                            texture_op,
+                            refz,
+                            category,
+                            declared_variables,
+                            declared_registers,
+                        );
                         if let Some(valid_offset) = offset {
-                            self.validate_typed_id_params(texture_op, valid_offset);
+                            self.validate_typed_id_params(
+                                texture_op,
+                                valid_offset,
+                                category,
+                                declared_variables,
+                                declared_registers,
+                            );
                         }
                     }
                 }
@@ -394,33 +670,88 @@ impl<'a> Validator<'a> {
 
     // Helper function to check OpCode instruction TypedId parameters contain valid id and
     // type_id members
-    fn validate_typed_id_params(&self, op_code: &dyn fmt::Debug, typed_id: &TypedId) {
+    fn validate_typed_id_params(
+        &self,
+        op_code: &dyn fmt::Debug,
+        typed_id: &TypedId,
+        category: TypedIdValidationCategory,
+        declared_variables: Option<&DeclaredVarTracker>,
+        declared_registers: Option<&DeclaredRegisterTracker>,
+    ) {
         // validate id
         match typed_id.id {
             Id::Register(register_id) => {
-                if register_id.id >= self.max_register_count {
-                    self.on_error(format_args!(
-                        "invalid {:?} instruction: invalid register id {}",
-                        op_code, register_id.id
-                    ));
+                match category {
+                    TypedIdValidationCategory::IdInBound => {
+                        if register_id.id >= self.max_register_count {
+                            self.on_error(format_args!(
+                                "invalid {:?} instruction: invalid register id {}",
+                                op_code, register_id.id
+                            ));
+                        }
+                    }
+
+                    TypedIdValidationCategory::VariableDeclared => {
+                        // Do nothing
+                    }
+                    TypedIdValidationCategory::RegisterDeclared => {
+                        let declared_register_tracker = declared_registers.expect(
+                            "Expecting valid DeclaredRegisterTracker provided for \
+                             RegisterDeclared category",
+                        );
+                        if !declared_register_tracker.is_declared(register_id) {
+                            self.on_error(format_args!(
+                                "invalid {:?} instruction: undeclared register id {}",
+                                op_code, register_id.id
+                            ));
+                        }
+                    }
                 }
             }
             Id::Constant(constant_id) => {
-                if constant_id.id >= self.max_constant_count {
-                    self.on_error(format_args!(
-                        "invalid {:?} instruction: invalid constant id {}",
-                        op_code, constant_id.id
-                    ));
+                match category {
+                    TypedIdValidationCategory::IdInBound => {
+                        if constant_id.id >= self.max_constant_count {
+                            self.on_error(format_args!(
+                                "invalid {:?} instruction: invalid constant id {}",
+                                op_code, constant_id.id
+                            ));
+                        }
+                    }
+
+                    TypedIdValidationCategory::VariableDeclared => {
+                        // Do nothing
+                    }
+                    TypedIdValidationCategory::RegisterDeclared => {
+                        // Do nothing
+                    }
                 }
             }
-            Id::Variable(variable_id) => {
-                if variable_id.id >= self.max_variable_count {
-                    self.on_error(format_args!(
-                        "invalid {:?} instruction: invalid variable id {}",
-                        op_code, variable_id.id
-                    ));
+            Id::Variable(variable_id) => match category {
+                TypedIdValidationCategory::IdInBound => {
+                    if variable_id.id >= self.max_variable_count {
+                        self.on_error(format_args!(
+                            "invalid {:?} instruction: invalid variable id {}",
+                            op_code, variable_id.id
+                        ));
+                    }
                 }
-            }
+
+                TypedIdValidationCategory::VariableDeclared => {
+                    let declared_variables_tracker = declared_variables.expect(
+                        "Expecting valid DeclaredVarTracker provided for VariableDeclared category",
+                    );
+                    if !declared_variables_tracker.is_variable_declared(variable_id) {
+                        self.on_error(format_args!(
+                            "invalid {:?} instruction: undeclared variable id {}",
+                            op_code, variable_id.id
+                        ));
+                    }
+                }
+                TypedIdValidationCategory::RegisterDeclared => {
+                    // Do nothing
+                }
+            },
         }
         // validate typed_id
         if typed_id.type_id.id >= self.max_type_count {
@@ -436,5 +767,110 @@ impl<'a> Validator<'a> {
         println!("Internal error: Invalid ANGLE IR! {}", validation_error_msg);
         debug::dump(self.ir);
         panic!();
+    }
+
+    fn validate_all_variables_are_declared_in_scope(&self) {
+        let mut vars_declared_map = DeclaredVarTracker::new();
+        vars_declared_map.set_global_declared_vars(self.ir.meta.all_global_variables());
+
+        for (function_entry_index, entry) in self.ir.function_entries.iter().enumerate() {
+            if entry.is_none() {
+                // Skip over functions that have been dead-code eliminated.
+                continue;
+            }
+            let function_signature = &self.ir.meta.all_functions()[function_entry_index];
+            vars_declared_map
+                .add_function_param_vars_upon_enter_function(&function_signature.params);
+            self.validate_all_variables_in_a_block_are_declared_in_scope(
+                &mut vars_declared_map,
+                entry.as_ref().unwrap(),
+            );
+            vars_declared_map.remove_function_param_vars_upon_exit_function();
+        }
+    }
+
+    fn validate_all_variables_in_a_block_are_declared_in_scope(
+        &self,
+        vars_declared_map: &mut DeclaredVarTracker,
+        block: &Block,
+    ) {
+        // push the block variable to vars_declared
+        vars_declared_map.add_current_scope_declared_vars_upon_enter_scope(&block.variables);
+
+        // Validate variable used in each instructions
+        for instruction in &block.instructions {
+            let (opcode, _result) = instruction.get_op_and_result(&self.ir.meta);
+            self.validate_instruction_op_code_typed_id_parameters(
+                opcode,
+                TypedIdValidationCategory::VariableDeclared,
+                Some(vars_declared_map),
+                None,
+            );
+        }
+
+        // Check sub blocks, excluding merge_block
+        block.for_each_sub_block(vars_declared_map, &|vars_declared_map, sub_block| {
+            self.validate_all_variables_in_a_block_are_declared_in_scope(
+                vars_declared_map,
+                sub_block,
+            )
+        });
+
+        // Continue check merge_block
+        if let Some(valid_merge_block) = &block.merge_block {
+            self.validate_all_variables_in_a_block_are_declared_in_scope(
+                vars_declared_map,
+                valid_merge_block,
+            );
+        }
+
+        // pop the block variable from vars_declared_map
+        vars_declared_map.remove_current_scope_declared_vars_upon_exit_scope();
+    }
+
+    fn validate_all_registers_are_declared_in_scope(&self) {
+        let mut registers_declared_map = DeclaredRegisterTracker::new();
+        for entry in &self.ir.function_entries {
+            if entry.is_none() {
+                // Skip over functions that have been dead-code eliminated.
+                continue;
+            }
+            self.validate_block_registers(entry.as_ref().unwrap(), &mut registers_declared_map);
+        }
+    }
+
+    fn validate_block_registers(
+        &self,
+        block: &Block,
+        registers_declared_map: &mut DeclaredRegisterTracker,
+    ) {
+        registers_declared_map.add_scope();
+
+        block.input.inspect(|input| {
+            registers_declared_map.declare_register(input.id);
+        });
+
+        for instruction in &block.instructions {
+            let (opcode, result) = instruction.get_op_and_result(&self.ir.meta);
+            self.validate_instruction_op_code_typed_id_parameters(
+                opcode,
+                TypedIdValidationCategory::RegisterDeclared,
+                None,
+                Some(registers_declared_map),
+            );
+            result.inspect(|result| {
+                registers_declared_map.declare_register(result.id);
+            });
+        }
+
+        block.for_each_sub_block(registers_declared_map, &|registers_declared_map, sub_block| {
+            self.validate_block_registers(sub_block, registers_declared_map);
+        });
+
+        block.merge_block.as_ref().inspect(|merge_block| {
+            self.validate_block_registers(merge_block, registers_declared_map);
+        });
+
+        registers_declared_map.remove_scope();
     }
 }

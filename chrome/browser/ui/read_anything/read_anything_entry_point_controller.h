@@ -22,6 +22,7 @@ class ReadAnythingEntryPointController {
   ~ReadAnythingEntryPointController();
 
   // Toggles Reading Mode on or off.
+  // This and other methods below can handle null `bwi`.
   static void InvokePageAction(BrowserWindowInterface* bwi,
                                const actions::ActionInvocationContext& context);
 
@@ -59,6 +60,8 @@ class ReadAnythingEntryPointController {
   static void CheckIfShouldSuggestReadingMode(
       BrowserWindowInterface* bwi,
       base::OnceCallback<void(bool)> result_callback);
+
+  static base::AutoReset<size_t> SetMinPdfTextLengthForTesting(size_t length);
 
  private:
   static void ToggleUI(BrowserWindowInterface* bwi,

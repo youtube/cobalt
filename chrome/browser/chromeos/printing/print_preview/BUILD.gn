@@ -4,24 +4,10 @@
 
 assert(is_chromeos)
 
-source_set("interfaces") {
-  sources = [
-    "print_preview_cros_client.h",
-    "print_preview_cros_delegate.h",
-  ]
-
-  public_deps = [
-    "//base",
-    "//components/printing/common:mojo_interfaces",
-  ]
-}
-
 static_library("print_preview") {
   sources = [
     "print_preview_ui_wrapper.cc",
     "print_preview_ui_wrapper.h",
-    "print_preview_webcontents_manager.cc",
-    "print_preview_webcontents_manager.h",
     "print_view_manager_common.cc",
     "print_view_manager_common.h",
     "print_view_manager_cros.cc",
@@ -33,8 +19,6 @@ static_library("print_preview") {
     "printing_init_cros.cc",
     "printing_init_cros.h",
   ]
-
-  public_deps = [ ":interfaces" ]
 
   deps = [
     "//base",
@@ -90,20 +74,23 @@ source_set("browser_tests") {
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [ "print_preview_webcontents_manager_browsertest.cc" ]
+  sources = [ "print_view_manager_cros_browsertest.cc" ]
 
   deps = [
     ":print_preview",
+    "//ash/webui/print_preview_cros:url_constants",
     "//base",
     "//base/test:test_support",
-    "//chrome/browser/chromeos/printing/print_preview/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser/ash/browser_delegate",
+    "//chrome/browser/ash/printing/print_preview",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/webui/ash/system_web_dialog",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support_ui",
+    "//components/printing/common:mojo_interfaces",
     "//content/public/browser",
     "//content/test:test_support",
-    "//mojo/public/cpp/bindings",
-    "//testing/gmock",
     "//testing/gtest",
     "//ui/base",
     "//url",

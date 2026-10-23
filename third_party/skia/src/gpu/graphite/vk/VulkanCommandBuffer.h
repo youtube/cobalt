@@ -32,6 +32,10 @@ public:
 
     bool setNewCommandBufferResources() override;
 
+    bool startStatsQuery(GpuStatsFlags) override;
+    void endStatsQuery(GpuStatsFlags) override;
+    std::optional<GpuStats> gpuStats() override;
+
     bool submit(VkQueue, const SubmitInfo&);
 
     bool isFinished();
@@ -231,6 +235,10 @@ private:
     size_t fBoundIndirectBufferOffset = 0;
 
     std::array<float, 4> fCachedBlendConstant;
+
+    bool fHasStatsQuery = false;
+    VkQueryPool fTimestampQueryPool = VK_NULL_HANDLE;
+    VkQueryPool fOcclusionQueryPool = VK_NULL_HANDLE;
 };
 
 } // namespace skgpu::graphite

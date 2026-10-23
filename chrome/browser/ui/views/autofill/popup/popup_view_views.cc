@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_bnpl_footnote_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_loading_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_no_suggestions_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_factory_utils.h"
@@ -1200,6 +1201,10 @@ void PopupViewViews::CreateSuggestionViews() {
     if (suggestions[current_line_number].type == SuggestionType::kSeparator) {
       rows_.push_back(footer_container_->AddChildView(
           std::make_unique<PopupSeparatorView>(kInterItemsPadding)));
+    } else if (suggestions[current_line_number].type ==
+               SuggestionType::kBnplFootnote) {
+      rows_.push_back(footer_container_->AddChildView(
+          std::make_unique<PopupBnplFootnoteView>(controller())));
     } else {
       rows_.push_back(footer_container_->AddChildView(CreatePopupRowView(
           controller(), /*a11y_selection_delegate=*/*this,
@@ -1343,6 +1348,15 @@ bool PopupViewViews::DoUpdateBoundsAndRedrawPopup(bool prefer_prev_arrow_side) {
                                              controller_->GetWebContents())) {
     controller_->Hide(SuggestionHidingReason::kOverlappingWithAnotherPrompt);
     return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillPopupCheckHtmlFormPopupOverlap)) {
+    if (BoundsOverlapWithHtmlFormPopup(popup_bounds,
+                                       controller_->GetWebContents())) {
+      controller_->Hide(SuggestionHidingReason::kOverlappingWithAnotherPrompt);
+      return false;
+    }
   }
 
   // The pip surface is given the most preference while rendering. So, the

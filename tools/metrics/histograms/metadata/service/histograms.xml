@@ -331,7 +331,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.Database.DestroyDatabaseResult"
-    enum="ServiceWorkerDatabaseStatus" expires_after="2026-06-28">
+    enum="ServiceWorkerDatabaseStatus" expires_after="2026-08-30">
   <owner>yyanagisawa@google.com</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -351,14 +351,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.Database.ReadResult"
-    enum="ServiceWorkerDatabaseStatus" expires_after="2026-06-28">
+    enum="ServiceWorkerDatabaseStatus" expires_after="2026-08-30">
   <owner>yyanagisawa@google.com</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>Records result of read operations in ServiceWorkerDatabase.</summary>
 </histogram>
 
 <histogram name="ServiceWorker.Database.WriteResult"
-    enum="ServiceWorkerDatabaseStatus" expires_after="2026-06-28">
+    enum="ServiceWorkerDatabaseStatus" expires_after="2026-08-30">
   <owner>yyanagisawa@google.com</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -810,7 +810,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.LoadTiming.MainFrame.MainResource.FetchHandlerStartToFetchHandlerEnd{EmbeddedWorkerInitialStatus}"
-    units="ms" expires_after="2026-06-28">
+    units="ms" expires_after="2026-08-30">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -887,7 +887,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.LoadTiming.MainFrame.MainResource.ForwardServiceWorkerToWorkerReady2{EmbeddedWorkerInitialStatus}{NavigationType}"
-    units="ms" expires_after="2026-06-28">
+    units="ms" expires_after="2026-08-30">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1502,7 +1502,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.RouterEvaluator.RuleCount" units="count"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -2008,16 +2008,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="ServiceWorker.SyntheticResponse.IsHeaderConsistent"
-    enum="Boolean" expires_after="2026-07-19">
+<histogram name="ServiceWorker.SyntheticResponse.HasSearchPrefetchCache"
+    enum="Boolean" expires_after="2026-07-05">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
-    Records whether the committed response headers are consistent with the
-    headers from the network.
+    Records whether the search prefetch cache is found.
 
-    This is recorded in navigation, when the browser receives the response from
-    the network, while committed the navigation with locally stored headers.
+    This is recorded when the synthetic response is considered being handled,
+    but before actually starting it.
   </summary>
 </histogram>
 
@@ -2032,6 +2031,43 @@ chromium-metrics-reviews@google.com.
     the network, and there is no stored header locally yet for the synthetic
     response.
   </summary>
+</histogram>
+
+<histogram name="ServiceWorker.SyntheticResponse.IsSharedProducerPipeValid"
+    enum="Boolean" expires_after="2026-07-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Records whether the shared producer pipe is valid when handling an
+    intercepted network response.
+
+    This is recorded in navigation, when the browser receives the response from
+    the network, while committed the navigation with locally stored headers and
+    when the network service delegation mode is enabled. If this is true, the
+    data pipe producer handle provided to the network service is still valid.
+  </summary>
+</histogram>
+
+<histogram
+    name="ServiceWorker.SyntheticResponse.IsValidBodyStreamProvided.{Status}"
+    enum="Boolean" expires_after="2026-07-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Records whether a valid response body handle is provided from URLLoader.
+
+    This is recorded in navigation, when the browser receives the response from
+    the network, while committed the navigation with locally stored headers. If
+    this is true, the URLLoader provided a valid response body handle.
+  </summary>
+  <token key="Status">
+    <variant name="NotReady"
+        summary="Required data pipes are not created yet, or there is no
+                 local response header."/>
+    <variant name="Ready"
+        summary="Required data pipes are all created, and there is a local
+                 response header."/>
+  </token>
 </histogram>
 
 <histogram name="ServiceWorker.SyntheticResponse.ReceiveResponseToComplete"
@@ -2093,6 +2129,18 @@ chromium-metrics-reviews@google.com.
     should have a sha256 cehcksum hash string in the database, and that will be
     updated when there is a change in ServiceWorker scripts, or the field is
     empty.
+  </summary>
+</histogram>
+
+<histogram name="ServiceWorker.URLLoaderFactoryInterceptorCountForMainResource"
+    units="count" expires_after="2027-03-06">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Records the number of interceptors involved in the URLLoaderFactory creation
+    for the main resource request in ServiceWorkerClient. This is recorded when
+    a navigation request is initiated by the service worker (e.g., navigation
+    preload, synthetic response).
   </summary>
 </histogram>
 
@@ -2306,7 +2354,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorkerCache.ErrorStorageType"
-    enum="CacheStorageErrorStorageType" expires_after="2026-06-28">
+    enum="CacheStorageErrorStorageType" expires_after="2026-08-30">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>

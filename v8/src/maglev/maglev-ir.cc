@@ -250,16 +250,16 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
   }
 }
 
-void Phi::SetUseRequires31BitValue() {
-  if (uses_require_31_bit_value()) return;
-  set_uses_require_31_bit_value();
+void Phi::SetUseRequiresSmi() {
+  if (uses_require_smi()) return;
+  set_uses_require_smi();
   auto inputs =
       is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
   for (uint32_t i = 0; i < inputs; ++i) {
     ValueNode* input_node = input(i).node();
     DCHECK(input_node);
     if (auto phi = input_node->TryCast<Phi>()) {
-      phi->SetUseRequires31BitValue();
+      phi->SetUseRequiresSmi();
     }
   }
 }
@@ -2291,7 +2291,7 @@ void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
     __ bind(&done_map_load);
   }
 
-  int length = homomorphic_array().length();
+  uint32_t length = homomorphic_array().length().value();
   // The length is always a power of 2.
   DCHECK(base::bits::IsPowerOfTwo(length));
 
@@ -8530,7 +8530,23 @@ void CheckMaglevType::PrintParams(std::ostream& os) const {
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
-  os << "(" << index_ << ")";
+  os << "(" << index_ << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreSmiContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreInt32ContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreFloat64ContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadTaggedField::PrintParams(std::ostream& os) const {
@@ -8555,11 +8571,13 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
 }
 
 void LoadContextSlotNoCells::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadContextSlot::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadFloat64::PrintParams(std::ostream& os) const {
@@ -8594,7 +8612,8 @@ void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
-  os << ")";
+  os << ", " << (maybe_assigned() == kNotAssigned ? "constant" : "mutable")
+     << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
@@ -8621,7 +8640,8 @@ void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
-  os << ", maybe_smi:" << value_can_be_smi();
+  os << ", " << (maybe_assigned() == kNotAssigned ? "constant" : "mutable")
+     << ", maybe_smi:" << value_can_be_smi();
   os << ")";
 }
 
@@ -8859,7 +8879,6 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
   static_assert(kUninitializedSlotValue == nullptr);
   memset(slots_.data(), 0, slot_count * sizeof(slots_[0]));
 }
-
 compiler::MapRef VirtualObject::map_from_slot(
     compiler::JSHeapBroker* broker) const {
   ValueNode* value = get(HeapObject::kMapOffset);

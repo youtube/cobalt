@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/frame_transformer_interface.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
@@ -58,7 +58,7 @@ class MockRTPVideoFrameSenderInterface : public RTPVideoFrameSenderInterface {
                VideoCodecType codec_type,
                uint32_t rtp_timestamp,
                Timestamp capture_time,
-               ArrayView<const uint8_t> payload,
+               std::span<const uint8_t> payload,
                size_t encoder_output_size,
                RTPVideoHeader video_header,
                TimeDelta expected_retransmission_time,

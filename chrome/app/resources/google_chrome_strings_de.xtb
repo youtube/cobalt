@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome ist ein Webbrowser, der Webseiten und Apps in Sekundenschnelle lädt und dabei äußerst stabil und nutzerfreundlich ist. Dank des integrierten Malware- und Phishing-Schutzes kannst du bedenkenlos im Internet surfen.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome wird in einer Stunde neu gestartet}other{Chrome wird in # Stunden neu gestartet}}</translation>
 <translation id="1722488837206509557">So kannst du aus verfügbaren Geräten auswählen und Inhalte darauf anzeigen lassen.</translation>
+<translation id="177180974022074201">Mit Gemini in Chrome ausprobieren</translation>
 <translation id="1786003790898721085">Du musst auf deinem Gerät (<ph name="TARGET_DEVICE_NAME" />) in Chrome angemeldet sein. Versuche es dann noch einmal.</translation>
 <translation id="1786044937610313874">Verknüpfungen werden in Chrome geöffnet</translation>
 <translation id="178701303897325119">Diese Erweiterung wird nicht mehr unterstützt. Chrome empfiehlt daher, sie zu entfernen.</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">Wenn du auch deine Lesezeichen in deinem Google-Konto speicherst, kannst du in Chrome Produktpreise im Auge behalten und dich benachrichtigen lassen, wenn der Preis sinkt</translation>
 <translation id="3242123554343253302">Chrome-Profil hinzufügen</translation>
 <translation id="3245429137663807393">Wenn du Chrome-Nutzungsberichte teilst, enthalten diese Berichte die von dir aufgerufenen URLs</translation>
+<translation id="3259748324892322072">Chrome App herunterladen</translation>
 <translation id="3286538390144397061">Jetzt neu starten</translation>
 <translation id="3292333338048274092">Du musst Chrome dann neu starten.</translation>
 <translation id="3324218984287646518">Google Lens nach Infos zu diesem Video fragen</translation>
@@ -278,7 +280,6 @@
 <translation id="3892148308691398805">Text kopieren</translation>
 <translation id="3893985792899396936">Chrome-Tipp: Mit Lens suchen</translation>
 <translation id="3906096710440765802">Melde dich in Chrome an, um Daten wie Passwörter und Lesezeichen auf allen deinen Geräten zu nutzen</translation>
-<translation id="3921132130819999051">Chrome für dich suchen lassen</translation>
 <translation id="3941890832296813527">Installationsfehler: Der Dateiname des Installationsprogramms ist ungültig oder wird nicht unterstützt.</translation>
 <translation id="395904275706073188">Geschützte Seiten können nicht gelesen werden. Versuche es mit einer anderen Seite.</translation>
 <translation id="3968962723676998462">Gib deine Passphrase ein, um Chrome-Daten in deinem Konto <ph name="ACCOUNT_EMAIL" /> zu verwenden und zu speichern</translation>
@@ -489,7 +490,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> – Google Chrome Beta</translation>
 <translation id="6180522807229584611">Dieser Tab verbraucht zusätzliche Ressourcen. Du kannst die Leistung verbessern, wenn du zulässt, dass Chrome ihn deaktiviert.</translation>
 <translation id="6182736845697986886">Die Installation ist aufgrund eines internen Fehlers des Update-Servers fehlgeschlagen.</translation>
-<translation id="6183773856988300112">Gemini in Chrome nutzt automatisches Browsen, um Aufgaben auf deinen Tabs zu erledigen. <ph name="LINK_BEGIN" />Weitere Informationen<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome-Tipp: Passwörter speichern</translation>
 <translation id="6192058120268468905">Mein Konto in Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> hat eine Erweiterung hinzugefügt, die sich möglicherweise auf die Funktionsweise von Chrome auswirkt.
@@ -525,6 +525,7 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="6481963882741794338">Chrome und andere Google-Dienste zur Personalisierung und für andere Zwecke verknüpfen</translation>
 <translation id="648319183876919572">Erweitertes Safe Browsing schützt dich besser vor gefährlichen Websites und Downloads</translation>
 <translation id="6489302989675808168">Aktiviert • Chrome kann nicht bestätigen, woher diese Erweiterung stammt</translation>
+<translation id="6491330562720922580">QR-Code zum Herunterladen von Chrome auf Mobilgeräte</translation>
 <translation id="6493527311031785448">Google Chrome versucht, <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome wurde automatisch geschlossen</translation>
 <translation id="6506909944137591434">Chrome benötigt die Kameraberechtigung, um eine 3D-Karte deiner Umgebung zu erstellen</translation>

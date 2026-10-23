@@ -81,6 +81,7 @@
 #include "third_party/blink/renderer/core/layout/transform_utils.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/scrolling/sticky_position_scrolling_constraints.h"
+#include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/box_fragment_painter.h"
 #include "third_party/blink/renderer/core/paint/box_reflection_utils.h"
 #include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
@@ -629,11 +630,12 @@ PaintLayer* PaintLayer::ContainingLayer() const {
 }
 
 PaintLayer::PaintingContainerType PaintLayer::GetPaintingContainerType() const {
-  // TODO(crbug.com/40208685): Remove this condition after we make IsStacked()
-  // correct (returning false) for IsReplacedNormalFlowStacking().
-  if (IsReplacedNormalFlowStacking()) {
-    return PaintingContainerType::kParent;
+  if (!RuntimeEnabledFeatures::StackingContextIsNotStackedEnabled()) {
+    if (IsReplacedNormalFlowStackingContext()) {
+      return PaintingContainerType::kParent;
+    }
   }
+
   if (GetLayoutObject().IsStacked()) {
     return PaintingContainerType::kStackingContext;
   }
@@ -1321,7 +1323,7 @@ PaintLayer* PaintLayer::HitTestLayer(
 
   // We can only reach an SVG foreign object's PaintLayer from
   // LayoutSVGForeignObject::NodeAtFloatPoint (because
-  // IsReplacedNormalFlowStacking() true for LayoutSVGForeignObject),
+  // IsReplacedNormalFlowStackingContext() true for LayoutSVGForeignObject),
   // where the hit_test_rect has already been transformed to local coordinates.
   bool use_transform = false;
   if (!layout_object.IsSVGForeignObject() &&
@@ -1355,6 +1357,13 @@ PaintLayer* PaintLayer::HitTestLayer(
   if (!is_occlusion_test && layout_object.HasClipPath() &&
       HitTestClippedOutByClipPath(transform_container,
                                   recursion_data.location)) {
+    return nullptr;
+  }
+
+  if (layout_object.StyleRef().HasBorderShape() &&
+      layout_object.ShouldClipOverflowAlongBothAxis() &&
+      HitTestClippedOutByBorderShape(transform_container,
+                                     recursion_data.location)) {
     return nullptr;
   }
 
@@ -1522,8 +1531,12 @@ PaintLayer* PaintLayer::HitTestLayer(
                                         layer_fragments, temp_result,
                                         recursion_data.location,
                                         inside_fragment_foreground_rect) &&
-          IsHitCandidateForDepthOrder(this, false, z_offset_for_contents_ptr,
-                                      local_transform_state) &&
+          IsHitCandidateForDepthOrder(
+              this, false, z_offset_for_contents_ptr,
+              RuntimeEnabledFeatures::
+                      HitTestContainerTransformStateForPreserve3dEnabled()
+                  ? container_transform_state
+                  : local_transform_state) &&
           IsHitCandidateForStopNode(GetLayoutObject(), stop_node)) {
         if (result.GetHitTestRequest().ListBased())
           result.Append(temp_result);
@@ -1562,8 +1575,12 @@ PaintLayer* PaintLayer::HitTestLayer(
                                   recursion_data.location,
                                   HitTestPhase::kSelfBlockBackground,
                                   inside_fragment_background_rect) &&
-        IsHitCandidateForDepthOrder(this, false, z_offset_for_contents_ptr,
-                                    local_transform_state) &&
+        IsHitCandidateForDepthOrder(
+            this, false, z_offset_for_contents_ptr,
+            RuntimeEnabledFeatures::
+                    HitTestContainerTransformStateForPreserve3dEnabled()
+                ? container_transform_state
+                : local_transform_state) &&
         IsHitCandidateForStopNode(GetLayoutObject(), stop_node)) {
       if (result.GetHitTestRequest().ListBased())
         result.Append(temp_result);
@@ -1804,8 +1821,13 @@ bool PaintLayer::HitTestFragmentWithPhase(
   return true;
 }
 
-bool PaintLayer::IsReplacedNormalFlowStacking() const {
-  return GetLayoutObject().IsSVGForeignObject();
+bool PaintLayer::IsReplacedNormalFlowStackingContext() const {
+  if (!RuntimeEnabledFeatures::StackingContextIsNotStackedEnabled()) {
+    return GetLayoutObject().IsSVGForeignObject();
+  }
+
+  return GetLayoutObject().IsReplacedNormalFlowStackingContext(
+      GetLayoutObject().StyleRef());
 }
 
 PaintLayer* PaintLayer::HitTestChildren(
@@ -1847,8 +1869,12 @@ PaintLayer* PaintLayer::HitTestChildren(
   auto hit_test_child =
       [&](PaintLayer* child_layer, bool overflow_controls_only,
           const HitTestRecursionData& recursion_data) -> bool {
-    if (child_layer->IsReplacedNormalFlowStacking())
+    // Hit-testing of the whole subtree of an SVG foreignObject, including
+    // stacked children, is handled by LayoutSVGForeignObject, so don't hit
+    // test stacked children here.
+    if (child_layer->GetLayoutObject().IsSVGForeignObject()) {
       return false;
+    }
 
     bool is_scoped_transition_pseudo =
         !GetLayoutObject().IsViewTransitionRoot() &&
@@ -1997,6 +2023,39 @@ bool PaintLayer::HitTestClippedOutByClipPath(
 
   const HitTestLocation location_in_layer(hit_test_location, -origin);
   return !ClipPathClipper::HitTest(GetLayoutObject(), location_in_layer);
+}
+
+bool PaintLayer::HitTestClippedOutByBorderShape(
+    const PaintLayer& transform_container,
+    const HitTestLocation& hit_test_location) const {
+  DCHECK(GetLayoutObject().StyleRef().HasBorderShape());
+  DCHECK(GetLayoutObject().ShouldClipOverflowAlongBothAxis());
+
+  const LayoutBox* layout_box = GetLayoutBox();
+  if (!layout_box) {
+    return false;
+  }
+
+  PhysicalOffset origin = GetLayoutObject().LocalToAncestorPoint(
+      PhysicalOffset(), &transform_container.GetLayoutObject());
+  const HitTestLocation location_in_layer(hit_test_location, -origin);
+
+  // Use the border-box rect as the reference, expanding by the
+  // overflow-clip-margin if applicable so that children that overflow into
+  // the margin area remain hittable.
+  PhysicalRect border_rect = layout_box->PhysicalBorderBoxRect();
+  if (layout_box->ShouldApplyOverflowClipMargin()) {
+    border_rect.Expand(layout_box->BorderOutsetsForClipping());
+  }
+  std::optional<BorderShapeReferenceRects> border_shape_rects =
+      ComputeBorderShapeReferenceRects(border_rect, layout_box->StyleRef(),
+                                       *layout_box);
+  if (!border_shape_rects) {
+    return false;
+  }
+  const Path outer_path = BorderShapePainter::OuterPath(
+      layout_box->StyleRef(), border_shape_rects->outer);
+  return !location_in_layer.Intersects(outer_path);
 }
 
 // Checks if `hit_test_location` is clipped out by any ancestor `border-radius`

@@ -47,6 +47,7 @@ rtc_library("audio_coding") {
     "../../api/neteq:default_neteq_factory",
     "../../api/neteq:neteq_api",
     "../../api/units:timestamp",
+    "../../audio/utility:audio_frame_operations",
     "../../common_audio",
     "../../common_audio:common_audio_c",
     "../../rtc_base:buffer",
@@ -1400,6 +1401,7 @@ if (rtc_include_tests) {
 
       sources = [
         "acm2/acm_remixing_unittest.cc",
+        "acm2/acm_resampler_unittest.cc",
         "acm2/audio_coding_module_unittest.cc",
         "acm2/call_statistics_unittest.cc",
         "audio_network_adaptor/audio_network_adaptor_impl_unittest.cc",

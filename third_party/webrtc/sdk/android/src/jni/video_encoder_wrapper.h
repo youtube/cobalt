@@ -18,9 +18,9 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_frame.h"
@@ -80,7 +80,7 @@ class VideoEncoderWrapper : public VideoEncoder {
                            const JavaRef<jobject>& j_value,
                            const char* method_name);
 
-  int ParseQp(ArrayView<const uint8_t> buffer);
+  int ParseQp(std::span<const uint8_t> buffer);
 
   CodecSpecificInfo ParseCodecSpecificInfo(const EncodedImage& frame);
 

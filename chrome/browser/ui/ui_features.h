@@ -30,7 +30,7 @@ BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
 
-BASE_DECLARE_FEATURE(kDesktopGlowUp);
+BASE_DECLARE_FEATURE(kTabStripDeclutter);
 BASE_DECLARE_FEATURE(kGlassToolbar);
 
 BASE_DECLARE_FEATURE(kDetachedTabs);
@@ -56,11 +56,6 @@ BASE_DECLARE_FEATURE(kOfferPinToTaskbarInSettings);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarInfoBar);
 BASE_DECLARE_FEATURE(kPdfInfoBar);
-
-enum class PdfInfoBarTrigger { kPdfLoad = 0, kStartup = 1 };
-
-BASE_DECLARE_FEATURE_PARAM(PdfInfoBarTrigger, kPdfInfoBarTrigger);
-
 BASE_DECLARE_FEATURE(kSeparateDefaultAndPinPrompt);
 BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptRandSeed);
 BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptPinMaxCount);
@@ -229,24 +224,6 @@ BASE_DECLARE_FEATURE_PARAM(double, kTabOrganizationTriggerSensitivityThreshold);
 // predictably and frequently.
 BASE_DECLARE_FEATURE_PARAM(bool, KTabOrganizationTriggerDemoMode);
 
-BASE_DECLARE_FEATURE(kTabstripDeclutter);
-bool IsTabstripDeclutterEnabled();
-
-// Duration of inactivity after which a tab is considered stale for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
-                           kTabstripDeclutterStaleThresholdDuration);
-
-// Interval between a recomputation of stale tabs for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kTabstripDeclutterTimerInterval);
-
-// Default interval after showing a nudge to prevent another nudge from being
-// shown for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
-                           kTabstripDeclutterNudgeTimerInterval);
-
-BASE_DECLARE_FEATURE(kTabstripDedupe);
-bool IsTabstripDedupeEnabled();
-
 BASE_DECLARE_FEATURE(kTabOrganizationAppMenuItem);
 
 BASE_DECLARE_FEATURE(kTabOrganizationModelStrategy);
@@ -279,9 +256,6 @@ bool UseSidePanelFlyoverAnimation();
 
 // TODO(crbug.com/460764864): Cleanup all the enterprise badging feature flags.
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForLocalManagemenetNtpFooter);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooterWithOverThreePolicies);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
@@ -330,14 +304,11 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFileSystemAccess);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceInsights);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationDiscounts);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationManagePasswords);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillAddress);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFind);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
@@ -376,6 +347,8 @@ bool IsWebUIReloadButtonEnabled();
 bool IsWebUIHomeButtonEnabled();
 
 bool IsWebUIBackForwardButtonEnabled();
+
+bool IsWebUIPinnedToolbarActionsEnabled();
 
 bool IsWebUISplitTabsButtonEnabled();
 

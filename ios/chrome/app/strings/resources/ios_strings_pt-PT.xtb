@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Marcador guardado em "{title}" na sua conta, {email}}other{{count} marcadores guardados em "{title}" na sua conta, {email}}}</translation>
 <translation id="1207493287814084192">17:30</translation>
 <translation id="1217294226280635614">Vista dividida</translation>
+<translation id="1218730690561976633">Ativar/desativar a validação do utilizador para o preenchimento automático melhorado</translation>
 <translation id="1219674500290482172">Não é possível estabelecer ligação à Internet.</translation>
 <translation id="1223498995510244364">Resumir</translation>
 <translation id="1227113644794103810">Separadores inativos</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">A partilha falhou porque não está ligado à rede.</translation>
 <translation id="1668001730617725852">Abrir num novo grupo de separadores</translation>
 <translation id="1674504678466460478">De <ph name="SOURCE_LANGUAGE" /> para <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Com base nas políticas da sua organização, este ficheiro pode conter informações confidenciais</translation>
 <translation id="168389590065701766">Agora, pode abrir o Google Lens a partir da barra de endereço e pesquisar tudo o que vê</translation>
 <translation id="1689333818294560261">Alcunha</translation>
 <translation id="169048873465870056">Remover o separador e eliminar o grupo?</translation>
@@ -525,6 +527,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 site (mais em dispositivos sincronizados)}other{# sites (mais em dispositivos sincronizados)}}</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2876369937070532032">Quando a sua segurança está em risco, envia para a Google URLs de algumas páginas que visita.</translation>
+<translation id="2877733045396505765">Esta ação elimina as informações selecionadas guardadas neste dispositivo e na sua Conta Google (<ph name="USER_EMAIL" />).</translation>
 <translation id="2883151425485251736">Veja e edite tópicos que ocultou na sua conta</translation>
 <translation id="288655811176831528">Fechar separador</translation>
 <translation id="2888631381369839306">Notificações de acompanhamento de preço ativadas</translation>
@@ -599,6 +602,7 @@
 <translation id="3174662312949010067">Também pode utilizar palavras-passe guardadas nos outros dispositivos.</translation>
 <translation id="3177338796769255211">Inicie sessão para ter acesso aos seus marcadores e muito mais em todos os seus dispositivos</translation>
 <translation id="3181954750937456830">Navegação segura (protege o utilizador e o seu dispositivo contra sites perigosos)</translation>
+<translation id="3183362380688692618">Novo grupo de separadores…</translation>
 <translation id="3186796054637504691">Limpar histórico e dados dos sites</translation>
 <translation id="3190736958609431397">Desativar acompanhamento</translation>
 <translation id="3208260410153224535">A sua organização desativou o início de sessão. Os novos marcadores, palavras-passe e muito mais são guardados apenas neste dispositivo.</translation>
@@ -668,6 +672,7 @@
 <translation id="3476450923187944815">Aceda às suas palavras-passe noutras apps.</translation>
 <translation id="3485558910355485767">Nova janela de navegação anónima</translation>
 <translation id="3488501490964659223">Os separadores foram fechados e os dados de navegação foram eliminados. A sua sessão foi terminada</translation>
+<translation id="3490396108106323715">Partilhar separador atual</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /> acerca do conteúdo sugerido</translation>
 <translation id="349446645805573740">Escolha onde guardar "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">Definições</translation>
@@ -694,6 +699,7 @@
 <translation id="3565012355885596568">Não foi possível carregar as imagens</translation>
 <translation id="3565930036634619844">Separador <ph name="TAB_INDEX" /> de <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Guardar de outra forma</translation>
+<translation id="3572503683475187385">O separador atual é partilhado com o Gemini quando inicia um novo chat. Quando partilha um separador com o Gemini, o respetivo conteúdo e URL são enviados para a Google. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Na sua Conta Google</translation>
 <translation id="3575234738189584619">Pesquisar com o Lens</translation>
 <translation id="3575426792457739946">Esta lista contém todos os perfis carregados.</translation>
@@ -737,6 +743,7 @@
 <translation id="3751873026576444885">Parar de pesquisar no ecrã com o Google Lens</translation>
 <translation id="3753408171347588045">Monitorizar preços</translation>
 <translation id="3753618528540214374">Tema viridiano</translation>
+<translation id="3759491607478608474">Partilhe o conteúdo do separador atual com o Gemini para receber respostas mais relevantes</translation>
 <translation id="3762232513783804601">Concebido para o iPad</translation>
 <translation id="3768725474733206671">Voltar a abrir o último separador fechado</translation>
 <translation id="3779810277399252432">Sem ligação à Internet.</translation>
@@ -984,6 +991,7 @@
 <translation id="4650125387981512669">Continuar como <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Ocultar após 1 minuto}other{Ocultar após {count} minutos}}</translation>
 <translation id="4652817563047461855">Certifique-se de que as suas palavras-passe estão seguras, saiba se ficaram comprometidas e obtenha conselhos para se proteger online. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Ative a partilha de separadores</translation>
 <translation id="4658335131052370646">Guardar</translation>
 <translation id="466307903888586355">A sua organização bloqueou a ação de guardar ficheiros</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1120,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} de {count} método de pagamento}other{{position} de {count} métodos de pagamento}}</translation>
 <translation id="5075939510584558547">Guarde sem encriptação</translation>
 <translation id="5076534614343816664">Acompanhamento de preço</translation>
+<translation id="507762438756999615">Não é possível partilhar o ficheiro devido às políticas da sua organização</translation>
 <translation id="5078303485429639424">Ative as notificações de <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Usar palavra-passe sugerida</translation>
 <translation id="5083464117946352670">Não é poss. deter. tam. fich.</translation>
@@ -1297,6 +1306,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="5718049162805123412">Deve alterá-las agora</translation>
 <translation id="5721040778297053709">Posicione o cartão de crédito nesta moldura</translation>
 <translation id="572328651809341494">Separadores recentes</translation>
+<translation id="5724590854763964497">Por predefinição, o separador atual é partilhado quando inicia um novo chat. Quando os separadores são partilhados, os respetivos conteúdos e URLs são enviados para a Google, mas não são usados para melhorar os modelos de IA generativa. Pode alterar esta definição em qualquer altura.</translation>
 <translation id="5724941645893276623">Para navegar na Web em privado, adicione um novo separador.</translation>
 <translation id="5728072125198221967">Serviços Google associados</translation>
 <translation id="5728700505257787410">Lamentamos, mas houve um problema ao iniciar sessão na sua conta.</translation>
@@ -1869,6 +1879,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="775755486779745798">Preencher automaticamente o mês de validade <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">Tema violeta</translation>
 <translation id="7759809451544302770">Opcional</translation>
+<translation id="7763878244904387570">Esta ação elimina as informações selecionadas guardadas neste dispositivo.</translation>
 <translation id="7765158879357617694">Mover</translation>
 <translation id="7772032839648071052">Confirmar frase de acesso</translation>
 <translation id="7772948288262733182">Damos-lhe as boas-vindas de volta</translation>
@@ -1964,6 +1975,8 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="8059533439631660104">Reduz a secção.</translation>
 <translation id="8061584726507121204">Histórico</translation>
 <translation id="8064946459644399612">Preferências da página Novo separador aplicadas</translation>
+<translation id="8065136076319366194">Não é recomendado guardar</translation>
+<translation id="8065556469005366939">Partilhe os seus separadores para receber respostas mais relevantes</translation>
 <translation id="8069394452933076548">Escolha quando os separadores que não foram usados recentemente são movidos para a secção de separadores inativos.</translation>
 <translation id="8073670137947914548">Transferência concluída</translation>
 <translation id="8076492880354921740">Separadores</translation>
@@ -1985,6 +1998,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="8131740175452115882">Confirmar</translation>
 <translation id="8132598642024322408">Agora a <ph name="PRICE" />, anteriormente a <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Use uma palavra-passe exclusiva para cada site ou app. Se alguém descobrir uma palavra-passe reutilizada, pode ser usada para aceder às suas outras contas. Clique para abrir o Website e altere-a agora.</translation>
+<translation id="8133810265969517544">Não é recomendado partilhar</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} separador fechado}other{{count} separadores fechados}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 outro}other{# outros}}</translation>
 <translation id="8150167929304790980">Nome completo</translation>
@@ -2132,6 +2146,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="8660600697590740984">Imagem copiada do Lens</translation>
 <translation id="866266761389616183">Ah, bolas!</translation>
 <translation id="8663764600409216912">Está a usar palavras-passe que parecem ser difíceis de adivinhar</translation>
+<translation id="8664992138761940052">Por predefinição, o separador atual é partilhado quando inicia um novo chat. Quando os separadores são partilhados, os respetivos conteúdos e URLs são enviados para a Google. Pode alterar esta definição em qualquer altura.</translation>
 <translation id="8668210798914567634">Esta página foi guardada na sua lista de leitura.</translation>
 <translation id="8672642291731179042">Traduzir páginas</translation>
 <translation id="8672733398999596205">Ativar tudo</translation>
@@ -2233,6 +2248,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="8976414606286374109">Os cartões são guardados na sua Conta Google.</translation>
 <translation id="8981454092730389528">Controlos da atividade Google</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, site fixado</translation>
+<translation id="8990960056509724223">Não foi possível guardar o ficheiro devido às políticas da sua organização</translation>
 <translation id="8998289560386111590">Não disponível no seu dispositivo</translation>
 <translation id="9000532564152265066">Todos os separadores</translation>
 <translation id="9003677638446136377">Rever novamente</translation>

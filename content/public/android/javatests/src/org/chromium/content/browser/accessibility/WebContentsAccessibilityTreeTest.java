@@ -259,6 +259,12 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
+    public void test_ariaAccordion() {
+        performAriaTest("aria-accordion.html");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaAlertdialog() {
         performAriaTest("aria-alertdialog.html");
     }
@@ -2416,6 +2422,12 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_nestedlist() {
         performHtmlTest("nestedlist.html");
+    }
+
+    @Test
+    @SmallTest
+    public void test_nonTextSelection() {
+        performHtmlTest("non-text-selection.html");
     }
 
     @Test

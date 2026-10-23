@@ -48,11 +48,11 @@
     EXPECT_GE(f, 0) << "Error Calling API"; \
   } while (0)
 
+namespace webrtc {
+
 namespace {
 const size_t kVariableSize = std::numeric_limits<size_t>::max();
 }  // namespace
-
-namespace webrtc {
 
 // Class for simulating packet handling.
 TestPack::TestPack()
