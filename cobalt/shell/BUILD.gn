@@ -213,6 +213,8 @@ static_library("cobalt_shell_lib") {
     ":cobalt_shell_switches",
   ]
   sources = [
+    "browser/cobalt_permission_manager.cc",
+    "browser/cobalt_permission_manager.h",
     "browser/h5vcc_scheme_url_loader_factory.cc",
     "browser/h5vcc_scheme_url_loader_factory.h",
     "browser/picture_in_picture/picture_in_picture_window_manager.cc",
