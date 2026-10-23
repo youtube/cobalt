@@ -39,8 +39,8 @@ enum class SplashScreenFetchedState {
   // The built-in resource, without reading the cache, as
   // kEnableCachedSplashFile is disabled. Unlike kOkBuiltIn, this isn't a
   // cache miss.
-  kSkippedCachedAssetsDisabled = 6,
-  kMaxValue = kSkippedCachedAssetsDisabled,
+  kSkippedCachedAssets = 6,
+  kMaxValue = kSkippedCachedAssets,
 };
 
 // H5vccSchemeURLLoaderFactory is a URLLoaderFactory implementation that handles

@@ -492,7 +492,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
       /*cache_name=*/"default", /*query_param=*/"", /*content=*/"aaabbbccc",
       /*expected_content=*/"BUILTIN_SPLASH",
       /*expected_uma_state=*/
-      SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+      SplashScreenFetchedState::kSkippedCachedAssets);
 }
 
 // The "fallback" query param still chooses the built-in resource.
@@ -503,7 +503,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryCacheDisabledBrowserTest,
       /*query_param=*/"?cache=other&fallback=splash_480.webm",
       /*content=*/"aaabbbccc", /*expected_content=*/"BUILTIN_SPLASH_480",
       /*expected_uma_state=*/
-      SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+      SplashScreenFetchedState::kSkippedCachedAssets);
 }
 
 }  // namespace content

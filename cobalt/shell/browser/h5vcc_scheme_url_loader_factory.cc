@@ -251,7 +251,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         // query param may have chosen, e.g., the 480p video.
         LOG(INFO) << "Cached splash assets are disabled. Using built-in "
                   << resource_key << ".";
-        SendResponse(SplashScreenFetchedState::kSkippedCachedAssetsDisabled);
+        SendResponse(SplashScreenFetchedState::kSkippedCachedAssets);
         return;
       }
       ReadSplashCache(key);
