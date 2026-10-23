@@ -12,13 +12,11 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 
-#if BUILDFLAG(IS_COBALT)
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 #include <concepts>
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
-#else   // BUILDFLAG(IS_COBALT)
-#include <concepts>
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -26,15 +24,13 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
+#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #if BUILDFLAG(IS_COBALT)
-#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #define JNI_ZERO_ENABLE_COMPAT_API 1
-#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
-#else   // BUILDFLAG(IS_COBALT)
-#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#else
 #define JNI_ZERO_ENABLE_COMPAT_API 0
-#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #endif  // BUILDFLAG(IS_COBALT)
+#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
 
 namespace jni_zero {
 
@@ -68,17 +64,13 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalFrame {
 };
 
 // Forward declare the generic java reference template class.
-#if BUILDFLAG(IS_COBALT)
 template <typename T = jobject>
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 class JavaRef;
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T = jobject>
-  requires internal::IsJobject<T>
-class JavaRef;
-#endif  // BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
@@ -209,17 +201,13 @@ class JavaObjectArrayReader;
 // Generic base class for ScopedJavaLocalRef and ScopedJavaGlobalRef. Useful
 // for allowing functions to accept a reference without having to mandate
 // whether it is a local or global type.
-#if BUILDFLAG(IS_COBALT)
 template <typename T>
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
   requires internal::IsJobject<T>
-#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 class JavaRef : public JavaRef<jobject> {
-#else   // BUILDFLAG(IS_COBALT)
-template <typename T>
-  requires internal::IsJobject<T>
-class JavaRef : public JavaRef<jobject> {
-#endif  // BUILDFLAG(IS_COBALT)
  public:
   constexpr JavaRef() {}
   constexpr JavaRef(std::nullptr_t) {}
