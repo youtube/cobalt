@@ -84,7 +84,7 @@ int Player::MaxNumberOfSamplesPerWrite() {
   return kMaxNumberOfSamplesPerWrite;
 }
 
-using ::starboard::IsSDRVideo;
+using ::starboard::Is8BitSDRVideo;
 // **************************** GST/GLIB Helpers **************************** //
 
 namespace {
@@ -806,10 +806,10 @@ static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata&
   if (color_metadata.bits_per_channel < 8) {
     return;
   }
-  if (IsSDRVideo(color_metadata.bits_per_channel,
-                 color_metadata.primaries,
-                 color_metadata.transfer,
-                 color_metadata.matrix)) {
+  if (Is8BitSDRVideo(color_metadata.bits_per_channel,
+                     color_metadata.primaries,
+                     color_metadata.transfer,
+                     color_metadata.matrix)) {
     return;
   }
 
