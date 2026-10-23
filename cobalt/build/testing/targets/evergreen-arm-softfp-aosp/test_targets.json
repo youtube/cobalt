@@ -4,5 +4,11 @@
     "executable": "out/evergreen-arm-softfp-aosp_devel/nplb_loader_apk/nplb_loader-debug.apk",
     "runs_on": "device",
     "test_type": "gtest"
+  },
+  {
+    "target": "cobalt/testing/browser_tests:cobalt_browsertests_loader",
+    "executable": "out/evergreen-arm-softfp-aosp_devel/cobalt_browsertests_loader_apk/cobalt_browsertests_loader-debug.apk",
+    "runs_on": "device",
+    "test_type": "browsertest"
   }
 ]
