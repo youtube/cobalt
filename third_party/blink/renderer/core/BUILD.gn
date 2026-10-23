@@ -346,6 +346,7 @@ component("core") {
       "inspector/cobalt/main_thread_debugger_stub.cc",
       "inspector/cobalt/inspector_media_context_impl_stub.cc",
       "inspector/cobalt/worker_thread_debugger_stub.cc",
+      "inspector/ad_tagging_utils.cc",
       "inspector/console_message.cc",
       "inspector/console_message_storage.cc",
       "inspector/dev_tools_emulator.cc",
