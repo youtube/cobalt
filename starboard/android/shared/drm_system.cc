@@ -101,7 +101,7 @@ DrmSystem::~DrmSystem() {
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
     std::string_view mime_type,
-    Span<const uint8_t> initialization_data)
+    span<const uint8_t> initialization_data)
     : ticket_(ticket),
       init_data_(initialization_data.begin(), initialization_data.end()),
       mime_(mime_type) {}
@@ -120,7 +120,7 @@ MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
 void DrmSystem::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    Span<const uint8_t> initialization_data) {
+    span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
       ticket, type, initialization_data));
@@ -331,7 +331,7 @@ void DrmSystem::GenerateSessionUpdateRequest(
 }
 
 void DrmSystem::UpdateSession(int ticket,
-                              Span<const uint8_t> key,
+                              span<const uint8_t> key,
                               std::string_view session_id) {
   const auto media_drm_session_id =
       [this, &session_id]() -> std::optional<std::string> {

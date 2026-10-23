@@ -62,10 +62,10 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      Span<const uint8_t> initialization_data) override;
+      span<const uint8_t> initialization_data) override;
 
   void UpdateSession(int ticket,
-                     Span<const uint8_t> key,
+                     span<const uint8_t> key,
                      std::string_view sb_drm_session_id) override;
 
   void CloseSession(std::string_view sb_drm_session_id) override;
@@ -81,7 +81,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // this function.  Note that it is benign if this function is called in
   // parallel with a server certificate request.
   void UpdateServerCertificate(int ticket,
-                               Span<const uint8_t> certificate) override;
+                               span<const uint8_t> certificate) override;
 
   std::optional<std::string_view> GetMetrics() override { return std::nullopt; }
 

@@ -468,7 +468,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
 
     long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
-    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    // DISABLE_STARTUP_GUARD above is honored even in crash-streak safe mode, since disabling the
+    // watchdog cannot cause crashes. A custom interval can (e.g. one that is too short kills every
+    // launch), so ignore it in safe mode and use the default timeout.
+    String intervalStr =
+        JavaSwitches.shouldApplyExperimentConfigs()
+            ? switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS)
+            : null;
     if (intervalStr != null) {
       try {
         long parsedTimeout = Long.parseLong(intervalStr);
@@ -867,11 +873,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return this.mJavaSwitches;
   }
 
+  /**
+   * Returns whether the Starboard lifecycle is in use.
+   *
+   * <p>Reads only the command-line switch, which C++ sets from the USE_STARBOARD_LIFECYCLE Java
+   * switch. Do not read the Java switch key directly: in crash-streak safe mode the key is still
+   * present but no experiment switches are applied, so native starts with the default lifecycle.
+   * Driving the Starboard lifecycle from Java in that state crashes the browser on every launch.
+   * All callers run after the native library is loaded, when CommandLine is native-backed.
+   */
   @Override
   public boolean useStarboardLifeCycle() {
-    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)
-        || (CommandLine.isInitialized()
-            && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
+    return CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
   }
 
   /**
