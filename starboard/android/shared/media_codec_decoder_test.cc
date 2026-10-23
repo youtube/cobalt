@@ -240,8 +240,11 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*max_video_input_size=*/0, /*flush_delay_usec=*/0,
         /*use_dual_threads=*/true,
         MediaCodecDecoder::VideoExperimentalOptions{
-            .enable_codec_thread_improvements =
-                enable_codec_thread_improvements()});
+            /*skip_video_frames_over_60_fps=*/false,
+            /*enable_ndk_video=*/false,
+            /*enable_trivial_optimizations=*/false,
+            /*enable_codec_thread_improvements=*/
+            enable_codec_thread_improvements()});
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
     codec_ = factory_.last_created_video_codec();

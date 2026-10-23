@@ -49,7 +49,9 @@ class PosixFileWriterAll {
 using PosixFileWriteTestTypes =
     ::testing::Types<PosixFileWriter, PosixFileWriterAll>;
 
-TYPED_TEST_SUITE(PosixFileWriteTest, PosixFileWriteTestTypes);
+TYPED_TEST_SUITE(PosixFileWriteTest,
+                 PosixFileWriteTestTypes,
+                 ::testing::internal::DefaultNameGenerator);
 
 const int kBufferLength = 16 * 1024;
 
@@ -299,9 +301,9 @@ TYPED_TEST(PosixFileWriteTest, BasicWritev) {
   std::string data3 = " 123";
 
   const struct iovec iov[3] = {
-      {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
-      {.iov_base = const_cast<char*>(data2.c_str()), .iov_len = data2.size()},
-      {.iov_base = const_cast<char*>(data3.c_str()), .iov_len = data3.size()}};
+      {const_cast<char*>(data1.c_str()), data1.size()},
+      {const_cast<char*>(data2.c_str()), data2.size()},
+      {const_cast<char*>(data3.c_str()), data3.size()}};
 
   const ssize_t bytes_written = writev(file, iov, 3);
   EXPECT_NE(bytes_written, -1) << "writev() failed: " << strerror(errno);
@@ -329,9 +331,9 @@ TYPED_TEST(PosixFileWriteTest, WritevPartial) {
   std::string data3 = "Third";
 
   const struct iovec iov[3] = {
-      {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
-      {.iov_base = const_cast<char*>(data2.c_str()), .iov_len = data2.size()},
-      {.iov_base = const_cast<char*>(data3.c_str()), .iov_len = data3.size()}};
+      {const_cast<char*>(data1.c_str()), data1.size()},
+      {const_cast<char*>(data2.c_str()), data2.size()},
+      {const_cast<char*>(data3.c_str()), data3.size()}};
 
   const ssize_t bytes_written =
       writev(file, iov, 2);  // Write only the first two.

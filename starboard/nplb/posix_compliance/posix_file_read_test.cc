@@ -50,7 +50,9 @@ size_t array_size(const T (&)[n]) {
   return n;
 }
 
-TYPED_TEST_SUITE(PosixFileReadTest, PosixFileReadTestTypes);
+TYPED_TEST_SUITE(PosixFileReadTest,
+                 PosixFileReadTestTypes,
+                 ::testing::internal::DefaultNameGenerator);
 
 const int kBufferLength = 16 * 1024;
 
