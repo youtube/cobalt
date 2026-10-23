@@ -74,7 +74,7 @@ ExoPlayerBridge::ExoPlayerBridge(
         if (video_stream_info.codec == kSbMediaVideoCodecNone) {
           return 0LL;
         }
-        bool is_hdr = !starboard::IsSDRVideo(
+        bool is_hdr = !starboard::Is8BitSDRVideo(
             video_stream_info.color_metadata.bits_per_channel,
             video_stream_info.color_metadata.primaries,
             video_stream_info.color_metadata.transfer,

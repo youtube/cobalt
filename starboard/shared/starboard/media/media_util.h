@@ -121,11 +121,11 @@ bool IsSDRColor(SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,
                 SbMediaMatrixId matrix_id);
 // Returns true for 8-bit video with SDR color.
-bool IsSDRVideo(int bit_depth,
-                SbMediaPrimaryId primary_id,
-                SbMediaTransferId transfer_id,
-                SbMediaMatrixId matrix_id);
-bool IsSDRVideo(const char* mime);
+bool Is8BitSDRVideo(int bit_depth,
+                    SbMediaPrimaryId primary_id,
+                    SbMediaTransferId transfer_id,
+                    SbMediaMatrixId matrix_id);
+bool Is8BitSDRVideo(const char* mime);
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type);
 

@@ -255,10 +255,10 @@ bool IsSDRColor(SbMediaPrimaryId primary_id,
   return true;
 }
 
-bool IsSDRVideo(int bit_depth,
-                SbMediaPrimaryId primary_id,
-                SbMediaTransferId transfer_id,
-                SbMediaMatrixId matrix_id) {
+bool Is8BitSDRVideo(int bit_depth,
+                    SbMediaPrimaryId primary_id,
+                    SbMediaTransferId transfer_id,
+                    SbMediaMatrixId matrix_id) {
   SB_CHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
 
   if (bit_depth != 8) {
@@ -268,7 +268,7 @@ bool IsSDRVideo(int bit_depth,
   return IsSDRColor(primary_id, transfer_id, matrix_id);
 }
 
-bool IsSDRVideo(const char* mime) {
+bool Is8BitSDRVideo(const char* mime) {
   SB_DCHECK(mime);
 
   if (!mime) {
@@ -309,7 +309,7 @@ bool IsSDRVideo(const char* mime) {
 
   SB_DCHECK_NE(video_codec, kSbMediaVideoCodecNone);
 
-  return IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+  return Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
 }
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type) {

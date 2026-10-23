@@ -40,12 +40,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
-  const bool must_support_hdr =
-      !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
-  // 10-bit video with SDR color doesn't need an HDR display. It still needs a
-  // decoder that handles 10-bit. HasVideoDecoderFor() below checks that through
-  // the decoder's HDR profiles.
-  if (must_support_hdr && !IsSDRColor(primary_id, transfer_id, matrix_id) &&
+  // 10-bit video with SDR color doesn't need an HDR display.
+  if (!IsSDRColor(primary_id, transfer_id, matrix_id) &&
       !MediaCapabilitiesCache::GetInstance()
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
@@ -88,9 +84,14 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // requirement with the secure playback requirement.
   const bool require_secure_playback = must_support_tunnel_mode;
 
+  // 10-bit video still needs a decoder that handles 10-bit, even with SDR
+  // color. MediaCapabilitiesCache checks that through the decoder's HDR
+  // profiles.
+  const bool needs_hdr_capable_decoder =
+      !Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
   return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
-      mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
-      Size(frame_width, frame_height), bitrate, fps);
+      mime, require_secure_playback, needs_hdr_capable_decoder,
+      must_support_tunnel_mode, Size(frame_width, frame_height), bitrate, fps);
 }
 
 }  // namespace starboard

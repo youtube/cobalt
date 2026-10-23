@@ -58,7 +58,8 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       }
     }
 
-    bool is_hdr = !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+    bool is_hdr =
+        !Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
     if (video_codec == kSbMediaVideoCodecH264) {
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }

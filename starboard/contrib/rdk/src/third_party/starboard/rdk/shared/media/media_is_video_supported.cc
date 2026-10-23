@@ -75,7 +75,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
+  if (!Is8BitSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     auto format = platform::device().hdr().value_or(platform::HDRFormat{});
     if (transfer_id == kSbMediaTransferIdSmpteSt2084 && !format.hdr10 && !format.hdr10Plus) {
       return false;
