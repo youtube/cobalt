@@ -407,16 +407,24 @@ bool MediaCodecDecoder::Flush() {
   }
 
   // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
-  number_of_pending_inputs_.store(0);
-  pending_inputs_.clear();
-  input_buffer_indices_.clear();
-  dequeue_output_results_.clear();
-  pending_input_to_retry_ = std::nullopt;
+  {
+    std::unique_lock lock(mutex_, std::defer_lock);
+    if (enable_codec_thread_improvements_) {
+      // The MediaCodec callback thread may still touch the shared state, so
+      // hold |mutex_| while resetting it.
+      lock.lock();
+    }
+    number_of_pending_inputs_.store(0);
+    pending_inputs_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_input_to_retry_ = std::nullopt;
 
-  // 2.3. Add OutputFormatChanged to get current output format after Flush().
-  DequeueOutputResult dequeue_output_result = {};
-  dequeue_output_result.index = -1;
-  dequeue_output_results_.push_back(dequeue_output_result);
+    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    DequeueOutputResult dequeue_output_result = {};
+    dequeue_output_result.index = -1;
+    dequeue_output_results_.push_back(dequeue_output_result);
+  }
 
   // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
   if (flush_delay_usec_ > 0) {
