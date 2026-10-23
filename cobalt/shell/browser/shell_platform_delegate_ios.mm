@@ -742,7 +742,10 @@ struct ShellPlatformDelegate::ShellData {
 struct ShellPlatformDelegate::PlatformData {};
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() {
+  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+}
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
                                        bool is_visible) {
