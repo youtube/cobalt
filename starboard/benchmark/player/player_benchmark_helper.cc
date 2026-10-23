@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <limits>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -52,6 +51,9 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = kSbDrmSystemInvalid;
   creation_param.output_mode = output_mode;
+  // The mime strings have to outlive the SbPlayerCreate() call below.
+  std::string audio_mime;
+  std::string video_mime;
 
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -73,10 +75,8 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
       }
       audio_reader_->audio_stream_info().ConvertTo(
           &creation_param.audio_stream_info);
-      audio_mime_ = audio_reader_->audio_mime_type();
-      creation_param.audio_stream_info.mime = audio_mime_.c_str();
-      next_audio_sample_index_ = 0;
-      audio_eos_written_ = false;
+      audio_mime = audio_reader_->audio_mime_type();
+      creation_param.audio_stream_info.mime = audio_mime.c_str();
     } else {
       creation_param.audio_stream_info.codec = kSbMediaAudioCodecNone;
     }
@@ -90,10 +90,8 @@ bool SbPlayerBenchmarkHelper::InitializePlayer(const char* audio_file,
       }
       video_reader_->video_stream_info().ConvertTo(
           &creation_param.video_stream_info);
-      video_mime_ = video_reader_->video_mime_type();
-      creation_param.video_stream_info.mime = video_mime_.c_str();
-      next_video_sample_index_ = 0;
-      video_eos_written_ = false;
+      video_mime = video_reader_->video_mime_type();
+      creation_param.video_stream_info.mime = video_mime.c_str();
     } else {
       creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
     }
@@ -236,8 +234,7 @@ int SbPlayerBenchmarkHelper::PrepareSeek(int64_t seek_time_us) {
   next_audio_sample_index_ = FindAudioStartIndex(seek_time_us);
   next_video_sample_index_ = FindVideoStartIndex(seek_time_us);
 
-  ticket_ = GetNextTicket();
-  return ticket_;
+  return ++ticket_;
 }
 
 bool SbPlayerBenchmarkHelper::WaitForPlayerState(SbPlayerState state,
@@ -409,10 +406,8 @@ void SbPlayerBenchmarkHelper::DecoderStatusCallback(SbPlayer player,
   }
   if (type == kSbMediaTypeAudio) {
     helper->audio_needs_data_ = (state == kSbPlayerDecoderStateNeedsData);
-    helper->audio_ticket_ = ticket;
   } else if (type == kSbMediaTypeVideo) {
     helper->video_needs_data_ = (state == kSbPlayerDecoderStateNeedsData);
-    helper->video_ticket_ = ticket;
   }
   helper->cv_.notify_all();
 }

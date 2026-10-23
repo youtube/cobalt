@@ -59,10 +59,8 @@ class SbPlayerBenchmarkHelper {
   bool FeedData(int64_t target_media_time_us,
                 int64_t timeout_us = kDefaultTimeoutUs);
 
-  // Trigger seek on the player to the specified target time.
-  void Seek(int64_t seek_time_us);
-
   // Prepare seek by resetting DMP reader index and return the next ticket.
+  // The caller then calls SbPlayerSeek() itself, so that it can time it.
   int PrepareSeek(int64_t seek_time_us);
 
   // Wait for the player to reach a specific state for a given ticket.
@@ -73,7 +71,6 @@ class SbPlayerBenchmarkHelper {
 
   SbPlayer GetPlayer() const { return player_; }
   int GetCurrentTicket() const { return ticket_; }
-  int GetNextTicket() { return ++ticket_; }
 
   SbWindow GetWindow() { return fake_graphics_context_provider_.window(); }
   SbDecodeTargetGraphicsContextProvider* GetDecoderTargetProvider() {
@@ -115,6 +112,8 @@ class SbPlayerBenchmarkHelper {
                                   const char* message);
 
  private:
+  // Seeks the player to |seek_time_us| and prepares the readers accordingly.
+  void Seek(int64_t seek_time_us);
   void WriteSamples(SbMediaType type);
   size_t FindAudioStartIndex(int64_t target_time_us);
   size_t FindVideoStartIndex(int64_t target_time_us);
@@ -122,9 +121,6 @@ class SbPlayerBenchmarkHelper {
 
   SbPlayer player_ = kSbPlayerInvalid;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
-
-  std::string audio_mime_;
-  std::string video_mime_;
 
   std::unique_ptr<VideoDmpReader> audio_reader_;
   std::unique_ptr<VideoDmpReader> video_reader_;
@@ -148,9 +144,7 @@ class SbPlayerBenchmarkHelper {
   int player_state_ticket_ = 0;
 
   bool audio_needs_data_ = false;
-  int audio_ticket_ = 0;
   bool video_needs_data_ = false;
-  int video_ticket_ = 0;
 
   bool error_occurred_ = false;
 };
