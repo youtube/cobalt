@@ -28,9 +28,10 @@ import org.jni_zero.NativeMethods;
  * <p>Threading model:
  *
  * <ul>
- *   <li>{@code openCobaltService}, {@code closeCobaltService}, and {@link #receiveFromClient} are
- *       invoked on the browser UI thread (Android main looper) and are serialized with Activity
- *       lifecycle callbacks.
+ *   <li>{@code openCobaltService}, {@code closeCobaltService}, {@link #receiveFromClient}, and
+ *       Activity lifecycle callbacks ({@link #beforeStartOrResume}, {@link #beforeSuspend}, {@link
+ *       #afterStopped}) are serialized on the platform service thread (or the browser UI thread
+ *       when {@code CobaltPlatformServicesOffUiThread} is disabled).
  *   <li>{@link #sendToClient} may be invoked from any thread; synchronization ensures safety
  *       against concurrent {@link #onClose}.
  * </ul>
