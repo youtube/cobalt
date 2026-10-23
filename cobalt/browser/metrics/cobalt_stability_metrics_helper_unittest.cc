@@ -29,7 +29,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -349,14 +348,11 @@ TEST_F(
   histogram->Add(77);
   base::GlobalHistogramAllocator::ReleaseForTesting();
 
-#if !BUILDFLAG(IS_WIN)
-  // On POSIX, keep a read-only mapping open to inspect the underlying PMA state
-  // after ClearOtherStabilityMetricsPmaFiles unlinks the path. (Windows does
-  // not allow deleting a file with an active memory mapping.)
+  // Keep a read-only mapping open to inspect the underlying PMA state after
+  // ClearOtherStabilityMetricsPmaFiles unlinks the path.
   auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
   ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
                                          base::MemoryMappedFile::READ_ONLY));
-#endif
 
   ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
                                      current_pid);
@@ -367,7 +363,6 @@ TEST_F(
   ASSERT_TRUE(merged);
   EXPECT_EQ(merged->SnapshotSamples()->GetCount(77), 1);
 
-#if !BUILDFLAG(IS_WIN)
   // Verify the PMA header was marked MEMORY_DELETED and its unlogged samples
   // were atomically consumed via SnapshotDelta() so a second reader or
   // mid-merge crash can never re-merge the same samples.
@@ -383,7 +378,6 @@ TEST_F(
     inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(h.get());
   }
   EXPECT_EQ(merged->SnapshotSamples()->GetCount(77), 1);
-#endif
 }
 
 TEST_F(CobaltStabilityMetricsHelperTest,
@@ -446,11 +440,9 @@ TEST_F(
   histogram->Add(88);
   base::GlobalHistogramAllocator::ReleaseForTesting();
 
-#if !BUILDFLAG(IS_WIN)
   auto inspect_mapped = std::make_unique<base::MemoryMappedFile>();
   ASSERT_TRUE(inspect_mapped->Initialize(prior_file,
                                          base::MemoryMappedFile::READ_ONLY));
-#endif
 
   ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
                                      /*current_pid=*/9999);
@@ -461,14 +453,12 @@ TEST_F(
   ASSERT_TRUE(merged);
   EXPECT_EQ(merged->SnapshotSamples()->GetCount(88), 1);
 
-#if !BUILDFLAG(IS_WIN)
   // In legacy control mode, the PMA header is not mutated to MEMORY_DELETED.
   auto inspect_mem = std::make_unique<base::FilePersistentMemoryAllocator>(
       std::move(inspect_mapped), 0, 0, std::string_view(),
       base::FilePersistentMemoryAllocator::kReadOnly);
   EXPECT_NE(inspect_mem->GetMemoryState(),
             base::PersistentMemoryAllocator::MEMORY_DELETED);
-#endif
 
   histogram_tester.ExpectUniqueSample(
       "Cobalt.StabilityMetrics.PriorPmaFileAction",

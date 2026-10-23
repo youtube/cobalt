@@ -503,6 +503,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                     GlobalFeatures::GetInstance()->metrics_local_state()) {
               local_state->SetInt64(kLastLoggedProcessExitTimestampMs,
                                     recorded_timestamp_ms);
+              local_state->CommitPendingWrite();
             }
           }
         }));
