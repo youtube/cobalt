@@ -106,6 +106,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+      MediaCodecCache.allowCaching();
       mBridge.onVideoSurfaceCreated(holder.getSurface());
     }
 
@@ -120,6 +121,9 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+      // Must be called before onVideoSurfaceDestroyed(): the decoder teardown it triggers then
+      // releases the codec instead of caching it with a surface that is about to be destroyed.
+      MediaCodecCache.stopCaching();
       mBridge.onVideoSurfaceDestroyed(holder.getSurface());
     }
   }

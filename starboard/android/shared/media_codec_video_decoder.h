@@ -219,9 +219,15 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
+  // True if punch-out MediaCodecs may be cached and reused across playbacks.
+  // See |kMediaReuseVideoCodec|. Must be declared before
+  // |apply_transaction_to_frame_on_surface_cleanup_|, which depends on it.
+  const bool enable_reuse_video_codec_;
   // True if the punch-out video surface is hidden on teardown, and shown
   // together with the first frame of the next playback, instead of being
-  // cleared via EGL. See |kApplyTransactionToFrameOnSurfaceCleanup|.
+  // cleared via EGL. See |kApplyTransactionToFrameOnSurfaceCleanup|. Always
+  // true when |enable_reuse_video_codec_| is true, as a cached codec stays
+  // connected to the surface and the surface can't be cleared via EGL.
   const bool apply_transaction_to_frame_on_surface_cleanup_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So

@@ -365,9 +365,17 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      // Reusing a codec relies on hiding the video surface on teardown and
+      // showing it together with the first frame of the next playback, see
+      // |apply_transaction_to_frame_on_surface_cleanup_|.
+      enable_reuse_video_codec_(
+          output_mode_ == kSbPlayerOutputModePunchOut &&
+          android_get_device_api_level() >= 34 &&
+          pipeline_config.experimental_features.GetBool(kMediaReuseVideoCodec)),
       apply_transaction_to_frame_on_surface_cleanup_(
           output_mode_ == kSbPlayerOutputModePunchOut &&
-          ShouldApplyTransactionToFrameOnSurfaceCleanup()),
+          (enable_reuse_video_codec_ ||
+           ShouldApplyTransactionToFrameOnSurfaceCleanup())),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -435,7 +443,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", ignore_stale_rendered_frames_after_seek="
                << ToString(ignore_stale_rendered_frames_after_seek_)
                << ", apply_transaction_to_frame_on_surface_cleanup="
-               << ToString(apply_transaction_to_frame_on_surface_cleanup_);
+               << ToString(apply_transaction_to_frame_on_surface_cleanup_)
+               << ", enable_reuse_video_codec="
+               << ToString(enable_reuse_video_codec_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -918,8 +928,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           .skip_video_frames_over_60_fps = skip_video_frames_over_60_fps_,
           .enable_ndk_video = enable_ndk_video_,
           .enable_trivial_optimizations = enable_trivial_optimizations_,
-          .enable_codec_thread_improvements =
-              enable_codec_thread_improvements_});
+          .enable_codec_thread_improvements = enable_codec_thread_improvements_,
+          .enable_reuse_video_codec = enable_reuse_video_codec_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

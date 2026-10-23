@@ -832,6 +832,58 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_EQ(observer.show_with_next_frame_count(), 0);
   EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{true});
 }
+
+TEST_F(MediaCodecVideoDecoderTest,
+       ReuseVideoCodecHidesOnTeardownAndShowsOnFirstDraw) {
+  if (android_get_device_api_level() < 34) {
+    GTEST_SKIP() << "Requires API level 34+";
+  }
+  // A cached codec keeps the surface from being cleared via EGL, so reusing
+  // codecs hides and shows the surface even with the feature disabled.
+  features::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kApplyTransactionToFrameOnSurfaceCleanup);
+  TestVideoSurfaceObserver observer;
+
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                ExperimentalFeatures({{"Media.ReuseVideoCodec", int64_t{1}}}));
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+  auto platform_options = fake_factory_->last_video_platform_options();
+  ASSERT_TRUE(platform_options.has_value());
+  EXPECT_TRUE(platform_options->enable_reuse_video_codec);
+
+  decoder_->Initialize(
+      [this](VideoDecoder::Status status,
+             const scoped_refptr<VideoFrame>& frame) {
+        if (frame && !frame->is_end_of_stream()) {
+          QueueFrameForDraw(frame);
+        }
+      },
+      [this](SbPlayerError error, const std::string& msg) {
+        error_called_ = true;
+      });
+
+  fake_codec->SimulateInputBufferAvailable(0);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(10000, 1024)});
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(1, 1000));
+
+  fake_codec->SimulateOutputAvailable(0, 0, 0, 10000, 1024);
+  ASSERT_TRUE(fake_codec->WaitForOutputReleased(1, 1000));
+  EXPECT_EQ(observer.show_with_next_frame_count(), 1);
+
+  decoder_.reset();
+  EXPECT_EQ(observer.clean_up_count(), 0);
+  EXPECT_EQ(observer.visibility_changes(), std::vector<bool>{false});
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, ReuseVideoCodecIsDisabledByDefault) {
+  CreateDecoder();
+  auto platform_options = fake_factory_->last_video_platform_options();
+  ASSERT_TRUE(platform_options.has_value());
+  EXPECT_FALSE(platform_options->enable_reuse_video_codec);
+}
 #endif  // !BUILDFLAG(IS_STARBOARD)
 
 }  // namespace

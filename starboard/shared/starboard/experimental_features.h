@@ -240,6 +240,9 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaNdkVideo("Media.NdkVideo");
 inline constexpr ExperimentalFeatureKey<bool> kMediaPauseUsingAudioTrackState(
     "Media.PauseUsingAudioTrackState");
 
+inline constexpr ExperimentalFeatureKey<bool> kMediaReuseVideoCodec(
+    "Media.ReuseVideoCodec");
+
 // When set, AudioRendererPcm only resamples decoded audio when its sample rate
 // has to change.  By default decoded audio that merely needs to be converted
 // to float32 for the time stretcher is also routed through the resampler at
