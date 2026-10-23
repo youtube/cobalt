@@ -16,6 +16,10 @@ inputs:
   num_gtest_shards:
     description: Number of gtest shards run.
     required: true
+  required:
+    description: "Whether the test target is required."
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -43,6 +47,7 @@ runs:
         LOG_GLOB: ${{ inputs.log_glob }}
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
+        REQUIRED: ${{ inputs.required }}
       run: |
         set -euo pipefail
         # Check test status.
@@ -70,8 +75,12 @@ runs:
             # If both the logs and the results are missing the tests probably failed to run.
             msg="Some targets may have failed to run."
           fi
-          echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
-          exit_code=1
+          if [ "${REQUIRED}" == "false" ]; then
+            echo "::warning::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS} (non-required target, ignoring missing results)."
+          else
+            echo "::error::${msg} Found ${#result_xmls[@]} test results, ${#result_logs[@]} logs, expected ${GTEST_SHARDS}."
+            exit_code=1
+          fi
         fi
 
         if [ "${TESTS_FAILED:-0}" -gt 0 ]; then

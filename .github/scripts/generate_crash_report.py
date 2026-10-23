@@ -98,9 +98,23 @@ if __name__ == '__main__':
         'xml_path',
         type=pathlib.Path,
         help='Path to the output XML report file.')
+    parser.add_argument(
+        '--fallback-suite',
+        '--suite',
+        dest='fallback_suite',
+        type=str,
+        default=None,
+        help=('Fallback suite name to mark as crashed if no specific test crash'
+              ' is detected in log.'),
+    )
     args = parser.parse_args()
 
     crash_info = _extract_crash(args.log_path)
+    if not crash_info and args.fallback_suite and args.log_path.is_file():
+      log_tail = args.log_path.read_text(
+          encoding='utf-8', errors='replace')[-10000:]
+      crash_info = (args.fallback_suite, args.fallback_suite, log_tail)
+
     if crash_info:
       args.xml_path.parent.mkdir(parents=True, exist_ok=True)
       write_junit_xml(args.xml_path, *crash_info)
