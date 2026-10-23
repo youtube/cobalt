@@ -34,8 +34,182 @@ env:
   DEFAULT_MAX_DEFLAKE_ATTEMPTS: 3
 
 jobs:
+  shepherd-analysis:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure' || inputs.action == 'completed'
+    concurrency:
+      group: shepherd-analysis @ ${{ github.event.workflow_run.head_sha || inputs.pr_number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    env:
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      verdict: ${{ steps.extract.outputs.verdict }}
+      confidence: ${{ steps.extract.outputs.confidence }}
+      summary: ${{ steps.extract.outputs.summary }}
+      findings: ${{ steps.extract.outputs.findings }}
+      recommendation: ${{ steps.extract.outputs.recommendation }}
+    steps:
+      - name: Resolve Context
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event || 'workflow_dispatch' }}
+          HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pr_number="${PR_NUMBER_EVENT:-}"
+          head_sha="${HEAD_SHA_EVENT:-}"
+
+          # Post-submit runs (push to main/release branches) must never be
+          # attributed to an already merged PR, so skip PR resolution there.
+          if [[ "${TRIGGER_EVENT}" == "push" ]]; then
+            pr_number=""
+          elif [[ -z "${pr_number}" && -n "${head_sha}" ]]; then
+            # workflow_run.pull_requests is empty for fork PRs, and the
+            # commits/<sha>/pulls endpoint only knows about commits that exist
+            # in this repository. Resolve fork PRs via their head ref instead.
+            if [[ -n "${HEAD_REPO_OWNER:-}" && -n "${HEAD_BRANCH:-}" ]]; then
+              pr_number=$(gh api -X GET "repos/${REPO}/pulls" \
+                  -f head="${HEAD_REPO_OWNER}:${HEAD_BRANCH}" -f state=open -f per_page=100 \
+                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
+                | jq -r '[.[] | select(.state == "open")][0].number // ""')
+            fi
+            if [[ -z "${pr_number}" ]]; then
+              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number --jq '.[0].number // ""')
+            fi
+          fi
+          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
+            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          fi
+
+          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>}"
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout files
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            cobalt/devinfra/github
+
+      - name: Checkout PR files
+        if: steps.resolve.outputs.pr_number != ''
+        env:
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr diff "${PR_NUMBER}" --repo "${REPO}" --name-only | xargs -r git sparse-checkout add
+
+      - name: Run PR Shepherd Script
+        env:
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 cobalt/devinfra/github/shepherd_pr.py \
+            --repo "${REPO}" \
+            --pr "${PR_NUMBER}" \
+            --artifacts-dir artifacts \
+            --exit-zero
+
+      - name: Read Shepherd Prompt
+        id: prompt
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "content<<EOF"
+            cat cobalt/devinfra/github/shepherd/shepherd_prompt.md
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Gemini PR Shepherd Analysis
+        id: trigger_gemini_analysis
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        timeout-minutes: 10
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          github_pr_number: ${{ steps.resolve.outputs.pr_number }}
+          gemini_model: 'gemini-3.8-flash'
+          gemini_debug: true
+          upload_artifacts: true
+          settings: '{"tools":{"core":["read_file","list_directory","write_file"]}}'
+          instruction: ${{ steps.prompt.outputs.content }}
+
+      - name: Validate JSON Output
+        id: validate
+        if: always() && !cancelled()
+        shell: bash
+        run: |
+          set -euo pipefail
+          file_path="artifacts/triage_analysis.json"
+          if [[ -f "${file_path}" ]]; then
+            if jq -e 'type == "object" and has("verdict") and has("confidence") and has("summary") and has("findings_summary") and has("recommendation")' "${file_path}" >/dev/null 2>&1; then
+              echo "valid=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          fi
+          echo "valid=false" >> "${GITHUB_OUTPUT}"
+
+      - name: Extract Findings & Recommendation
+        id: extract
+        if: always() && !cancelled()
+        env:
+          IS_VALID: ${{ steps.validate.outputs.valid }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          file_path="artifacts/triage_analysis.json"
+          if [[ "${IS_VALID}" == "true" && -f "${file_path}" ]]; then
+            verdict=$(jq -r '.verdict // "failure"' "${file_path}")
+            confidence=$(jq -r '.confidence // 0' "${file_path}")
+            summary=$(jq -r '.summary // ""' "${file_path}")
+            recommendation=$(jq -c '.recommendation // {}' "${file_path}")
+
+            echo "verdict=${verdict}" >> "${GITHUB_OUTPUT}"
+            echo "confidence=${confidence}" >> "${GITHUB_OUTPUT}"
+            echo "summary=${summary}" >> "${GITHUB_OUTPUT}"
+            echo "recommendation=${recommendation}" >> "${GITHUB_OUTPUT}"
+
+            {
+              echo "findings<<EOF"
+              jq -r '.findings_summary // ""' "${file_path}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            echo "verdict=failure" >> "${GITHUB_OUTPUT}"
+            echo "confidence=0" >> "${GITHUB_OUTPUT}"
+            echo "summary=" >> "${GITHUB_OUTPUT}"
+            echo "recommendation={}" >> "${GITHUB_OUTPUT}"
+            echo "findings=" >> "${GITHUB_OUTPUT}"
+          fi
+
   status-and-deflake:
     runs-on: ubuntu-latest
+    needs: [shepherd-analysis]
+    if: always() && !cancelled()
     permissions:
       statuses: write
       actions: write
@@ -119,63 +293,79 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: .github
+          sparse-checkout: .github/config
 
-      - name: Deflake Failing Tests
+      - name: Evaluate Automated Actions and Deflake
         id: deflake
         if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOW: ${{ github.event.workflow_run.id }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || 1 }}
           DEFAULT_MAX_ATTEMPTS: ${{ env.DEFAULT_MAX_DEFLAKE_ATTEMPTS }}
+          RECOMMENDATION_JSON: ${{ needs.shepherd-analysis.outputs.recommendation }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -f .github/config/infra/deflake.json ]]; then
-            max_attempts=$(jq -r '.deflake_runs | tonumber? // empty' .github/config/infra/deflake.json)
-          fi
-          max_attempts="${max_attempts:-${DEFAULT_MAX_ATTEMPTS}}"
-
-          if [[ "${RUN_ATTEMPT}" -ge "${max_attempts}" ]]; then
-            echo "Max attempts reached (${RUN_ATTEMPT}/${max_attempts}). Skipping rerun."
+          if [[ -z "${RECOMMENDATION_JSON:-}" ]]; then
+            echo "No recommendation JSON received from shepherd-analysis. Skipping deflake."
             exit 0
           fi
 
-          current_sha=$(git ls-remote "https://github.com/${HEAD_REPO}.git" "refs/heads/${HEAD_BRANCH}" | cut -f1)
-          if [[ "${current_sha}" != "${HEAD_SHA}" ]]; then
-            echo "Branch head moved to ${current_sha} (run SHA: ${HEAD_SHA}). Skipping rerun."
+          action=$(echo "${RECOMMENDATION_JSON}" | jq -r '.action // "none"')
+          restart_failed_jobs=$(echo "${RECOMMENDATION_JSON}" | jq -r '.restart_failed_jobs // false')
+
+          config_file=".github/config/${WORKFLOW_NAME}.json"
+          max_attempts="${DEFAULT_MAX_ATTEMPTS}"
+          if [[ -f "${config_file}" ]]; then
+            max_attempts=$(jq -r --arg default "${DEFAULT_MAX_ATTEMPTS}" '.max_deflake_attempts // $default' "${config_file}")
+          fi
+
+          if (( RUN_ATTEMPT >= max_attempts )); then
+            echo "Workflow ${WORKFLOW_NAME} has reached attempt ${RUN_ATTEMPT} of ${max_attempts}. Skipping deflake."
             exit 0
           fi
 
-          failed_tests=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '[.jobs[] | select(.conclusion=="failure" and (.name | contains("_tests")))] | length')
-          if [[ "${failed_tests}" -eq 0 ]]; then
-            echo "No failing '_tests' jobs found to rerun."
-            exit 0
+          rerun_triggered="false"
+
+          if [[ "${action}" == "restart_failed_jobs" || "${restart_failed_jobs}" == "true" ]]; then
+            if [[ -n "${WORKFLOW_ID:-}" ]]; then
+              echo "Attempting to restart failed jobs for workflow ${WORKFLOW_ID} (attempt ${RUN_ATTEMPT} of ${max_attempts})..."
+              if gh run rerun "${WORKFLOW_ID}" --failed --repo "${REPO}"; then
+                rerun_triggered="true"
+                echo "Successfully requested rerun of failed jobs."
+              fi
+            fi
+          elif [[ "${action}" == "apply_labels" ]]; then
+            mapfile -t labels < <(echo "${RECOMMENDATION_JSON}" | jq -r '.labels[]?')
+            if [[ ${#labels[@]} -gt 0 && -n "${PR_NUMBER:-}" ]]; then
+              for lbl in "${labels[@]}"; do
+                echo "Applying label ${lbl} to PR #${PR_NUMBER}..."
+                gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "${lbl}" || true
+              done
+            fi
           fi
 
-          echo "Rerunning failed jobs under https://github.com/${REPO}/actions/runs/${WORKFLOW}"
-          gh run rerun --repo "${REPO}" "${WORKFLOW}" --failed
-          echo "rerun_triggered=true" >> "${GITHUB_OUTPUT}"
+          echo "rerun_triggered=${rerun_triggered}" >> "${GITHUB_OUTPUT}"
 
-      - name: Update Workflow and Overall Commit Status
-        id: update-commit-status
+      - name: Publish Commit Status
         if: (github.event.action || inputs.action) != 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ steps.resolve.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow_name }}
           WORKFLOW_ID: ${{ github.event.workflow_run.id }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RERUN_TRIGGERED: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
+          CI_SUMMARY: ${{ needs.shepherd-analysis.outputs.summary }}
         shell: bash
         run: |
           set -euo pipefail
@@ -185,23 +375,35 @@ jobs:
             desc="Retrying failed jobs"
           else
             mkdir -p shepherd_artifacts
-            gh run download "${WORKFLOW_ID}" --repo "${REPO}" -p "shepherd-report-*" -D shepherd_artifacts 2>/dev/null || true
 
-            shopt -s globstar nullglob
-            reports=(shepherd_artifacts/**/shepherd_report.json)
+            # Deduplicate reports by platform name keeping only the latest run attempt.
+            mapfile -t artifact_ids < <(gh api "repos/${REPO}/actions/runs/${WORKFLOW_ID}/artifacts" --paginate --jq '
+              [.artifacts[]? | select(.name | startswith("shepherd-report-"))]
+              | group_by(.name)
+              | map(max_by(.created_at))
+              | .[] | .id
+            ' 2>/dev/null || true)
+
+            for art_id in "${artifact_ids[@]}"; do
+              gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" > "shepherd_artifacts/${art_id}.zip" 2>/dev/null || true
+              unzip -o -q "shepherd_artifacts/${art_id}.zip" -d "shepherd_artifacts/${art_id}" 2>/dev/null || true
+            done
+
+            shopt -s nullglob
+            reports=(shepherd_artifacts/*/shepherd_report.json)
+
             if [[ ${#reports[@]} -eq 0 ]]; then
               state="failure"
               desc="Failed"
             else
               has_failures=$(jq -s '
-                if length == 0 then true
-                else
-                  any(.[];
+                group_by(.platform // .platform_name // "default")
+                | map(max_by(.run_attempt | tonumber? // 0))
+                | any(.[];
                     any(.checks | objects | .[]?; . == "failure" or . == "cancelled")
                     or
                     any((.test_failures | objects | .failing_tests // .) | objects | .[]?; (arrays | length) > 0)
                   )
-                end
               ' "${reports[@]}" 2>/dev/null || echo "true")
 
               [[ "${has_failures}" == "true" ]] && state="failure" desc="Failed" || state="success" desc="Passed"
@@ -215,7 +417,7 @@ jobs:
             -f context="CI / ${WORKFLOW_NAME}"
 
           # 1. Query current commit statuses
-          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status?per_page=100")
+          status_json=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/status" 2>/dev/null || echo "{}")
 
           # 2. Inspect CI checks to check for failures or full completion
           has_failures=$(echo "${status_json}" | jq -r '
@@ -231,34 +433,34 @@ jobs:
           # 3. Determine overall status and description
           if [[ "${has_failures}" == "true" ]]; then
             overall_state="failure"
-            overall_desc="Some checks failed"
+            overall_desc="${CI_SUMMARY:-Some checks failed}"
           elif [[ "${all_passed}" == "true" ]]; then
             overall_state="success"
-            overall_desc="All checks passed"
+            overall_desc="${CI_SUMMARY:-All checks passed}"
           else
             overall_state="pending"
             overall_desc="Checks are running"
           fi
 
-          # Always publish the overall state, including "pending", so that a
-          # deflake retry resets a previous failure verdict.
-          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
-            -f state="${overall_state}" \
-            -f description="${overall_desc}" \
-            -f context="CI / All Pass"
+          # Ensure commit status description does not exceed GitHub limit of 140 chars
+          overall_desc="${overall_desc:0:135}"
+
+          if [[ -n "${overall_state:-}" && "${overall_state}" != "pending" ]]; then
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+              -f state="${overall_state}" \
+              -f description="${overall_desc}" \
+              -f context="CI / All Pass"
+          fi
 
   comment-pr:
     runs-on: ubuntu-latest
-    needs: [status-and-deflake]
+    needs: [status-and-deflake, shepherd-analysis]
     # Run even when status-and-deflake failed so the comment reflects the
     # current statuses, but only when the run belongs to an open PR.
     if: ${{ !cancelled() && needs.status-and-deflake.outputs.pr_number != '' && needs.status-and-deflake.outputs.head_sha != '' }}
     permissions:
       statuses: read
       pull-requests: write
-    # Serialize comment updates per head SHA. This job only enters the queue
-    # after its own status update has been published, so the last job to run
-    # always observes the complete set of statuses.
     concurrency:
       group: ci-shepherd-comment @ ${{ needs.status-and-deflake.outputs.head_sha }}
       cancel-in-progress: false
@@ -269,6 +471,9 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.status-and-deflake.outputs.head_sha }}
           PR_NUMBER: ${{ needs.status-and-deflake.outputs.pr_number }}
+          VERDICT: ${{ needs.shepherd-analysis.outputs.verdict }}
+          CONFIDENCE: ${{ needs.shepherd-analysis.outputs.confidence }}
+          FINDINGS: ${{ needs.shepherd-analysis.outputs.findings }}
         shell: bash
         run: |
           set -euo pipefail
@@ -285,6 +490,18 @@ jobs:
             (if (.target_url // "") != "" then "[\(.context)](\(.target_url))" else .context end) as $ctx |
             "| \($ctx) | \($icons[.state] // "❌ FAIL") | \(.description // "") |"
           ' >> shepherd_report.md
+
+          if [[ -n "${VERDICT:-}" ]]; then
+            {
+              echo ""
+              echo "### 🤖 CI Shepherd Analysis"
+              echo ""
+              echo "- **Verdict**: ${VERDICT}"
+              echo "- **Confidence**: ${CONFIDENCE}"
+              echo ""
+              echo "${FINDINGS}"
+            } >> shepherd_report.md
+          fi
 
           header="<!-- sticky-pull-request-comment: shepherd-report -->"
           comment_body="${header}"$'\n'"$(cat shepherd_report.md)"
