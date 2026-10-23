@@ -49,6 +49,7 @@ class MediaSourceChangeTo {
       MediaSource&,
       const HeapVector<Member<SourceBuffer>>& source_buffers,
       ExceptionState&);
+  static bool canChangeTo(const String& current_type, const String& next_type);
 };
 
 }  // namespace blink

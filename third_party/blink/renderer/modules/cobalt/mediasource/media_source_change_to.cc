@@ -14,6 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/mediasource/media_source_change_to.h"
 
+#include "media/filters/chunk_demuxer.h"
 #include "third_party/blink/renderer/modules/mediasource/media_source.h"
 #include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
 
@@ -35,6 +36,13 @@ ScriptPromise<IDLUndefined> MediaSourceChangeTo::changeTo(
     const HeapVector<Member<SourceBuffer>>& source_buffers,
     ExceptionState& exception_state) {
   return media_source.changeTo(script_state, source_buffers, exception_state);
+}
+
+// static
+bool MediaSourceChangeTo::canChangeTo(const String& current_type,
+                                      const String& next_type) {
+  return ::media::ChunkDemuxer::CanChangeTo(current_type.Utf8(),
+                                            next_type.Utf8());
 }
 
 }  // namespace blink

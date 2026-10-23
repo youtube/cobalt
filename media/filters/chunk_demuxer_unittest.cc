@@ -5523,10 +5523,14 @@ class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
   // track.
   MediaTrack::Id AddVideoSource(const std::string& id,
                                 VideoCodec codec,
-                                const std::string& blocks) {
+                                const std::string& blocks,
+                                bool standby = false) {
     const bool is_vp9 = codec == VideoCodec::kVP9;
     EXPECT_EQ(demuxer_->AddId(id, is_vp9 ? kVp9MimeType : kVp8MimeType),
               ChunkDemuxer::kOk);
+    if (standby) {
+      EXPECT_TRUE(demuxer_->SetStandby(id));
+    }
     demuxer_->SetTracksWatcher(id, init_segment_received_cb_);
     demuxer_->SetParseWarningCallback(
         id,
@@ -5571,8 +5575,93 @@ class ChunkDemuxerCodecSwitchTest : public ChunkDemuxerMultiSourceBufferTest {
     SetSbMediaInterfaceForTesting(&sb_media_interface_);
   }
 
+  // Plays "audio1" and "video1", with VP8 video in [0,99), and adds a standby
+  // "video2", with |codec| video in [0,120), for ChangeTo().
+  void AddStandbyVideo2(VideoCodec codec) {
+    EXPECT_CALL(*this, DemuxerOpened());
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCallback(kDefaultDuration(), PIPELINE_OK));
+    AddSourceWithOneTrack("audio1", HAS_AUDIO);
+    AddVideoSource("video1", VideoCodec::kVP8, "0K 33K 66D33K");
+    AppendSingleStreamCluster("audio1", kAudioTrackNum, "0K 23K 46D23K");
+    AddVideoSource("video2", codec, "0K 40K 80D40K", /*standby=*/true);
+    SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  }
+
   ::testing::NiceMock<MockSbMediaInterface> sb_media_interface_;
 };
+
+TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToSameCodecDoesNotQueryStarboard) {
+  SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  EXPECT_CALL(sb_media_interface_, CanChangeType(_, _)).Times(0);
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9MimeType, kVp9MimeType));
+  // Another container or profile of the same codec.
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp9MimeType,
+                                        "video/mp4; codecs=\"vp09.00.10.08\""));
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo("audio/mp4; codecs=\"mp4a.40.2\"",
+                                        "audio/mp4; codecs=\"mp4a.40.5\""));
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToCodecChangeAsksStarboard) {
+  SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp8MimeType),
+                            ::testing::StrEq(kVp9MimeType)))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(ChunkDemuxer::CanChangeTo(kVp8MimeType, kVp9MimeType));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kVp8MimeType, kVp9MimeType));
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, CanChangeToRejectsUnusableTypes) {
+  SetSbMediaInterfaceForTesting(&sb_media_interface_);
+  EXPECT_CALL(sb_media_interface_, CanChangeType(_, _)).Times(0);
+  // Audio to video.
+  EXPECT_FALSE(
+      ChunkDemuxer::CanChangeTo("audio/webm; codecs=\"opus\"", kVp9MimeType));
+  // No codec, two codecs, an unknown codec, not a MIME type.
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo("video/webm", kVp9MimeType));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kVp9MimeType,
+                                         "video/webm; codecs=\"vp9,opus\""));
+  EXPECT_FALSE(
+      ChunkDemuxer::CanChangeTo(kVp9MimeType, "video/webm; codecs=\"xyz\""));
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo("", kVp9MimeType));
+}
+
+TEST_F(ChunkDemuxerTest, CanChangeToNeedsSwitching) {
+  ASSERT_FALSE(ChunkDemuxer::IsMultiSourceBufferSwitchingEnabled());
+  EXPECT_FALSE(ChunkDemuxer::CanChangeTo(kVp9MimeType, kVp9MimeType));
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToSupportedCodecChange) {
+  AddStandbyVideo2(VideoCodec::kVP9);
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp8MimeType),
+                            ::testing::StrEq(kVp9MimeType)))
+      .WillRepeatedly(Return(true));
+  ASSERT_TRUE(demuxer_->ChangeTo({"audio1", "video2"}));
+
+  Seek(base::TimeDelta());
+  DemuxerStream* video_stream = GetStream(DemuxerStream::VIDEO);
+  ExpectConfigChanged(DemuxerStream::VIDEO);
+  EXPECT_EQ(video_stream->video_decoder_config().codec(), VideoCodec::kVP9);
+  CheckExpectedBuffers(video_stream, "0K 40K 80K");
+}
+
+TEST_F(ChunkDemuxerCodecSwitchTest, ChangeToRejectsUnsupportedCodecChange) {
+  AddStandbyVideo2(VideoCodec::kVP9);
+  EXPECT_CALL(sb_media_interface_,
+              CanChangeType(::testing::StrEq(kVp8MimeType),
+                            ::testing::StrEq(kVp9MimeType)))
+      .WillOnce(Return(false));
+  EXPECT_MEDIA_LOG(HasSubstr("SourceBuffer switch rejected: vp8 ("));
+
+  // ChangeTo() refuses the switch, so the page can fall back, and playback
+  // carries on with "video1".
+  EXPECT_FALSE(demuxer_->ChangeTo({"audio1", "video2"}));
+  Seek(base::TimeDelta());
+  CheckExpectedBuffers(GetStream(DemuxerStream::VIDEO), "0K 33K 66K");
+}
 
 TEST_F(ChunkDemuxerCodecSwitchTest, SameCodecDoesNotQueryStarboard) {
   SelectVideo2(VideoCodec::kVP8);

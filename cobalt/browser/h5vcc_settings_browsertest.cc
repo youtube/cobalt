@@ -29,7 +29,14 @@ namespace {
 
 // Evaluates to true if the page has the MediaSource API that it uses to switch
 // between SourceBuffers.
-constexpr char kHasChangeTo[] = "'changeTo' in MediaSource.prototype";
+constexpr char kHasChangeTo[] =
+    "'changeTo' in MediaSource.prototype && 'canChangeTo' in MediaSource";
+
+// Evaluates to whether MediaSource.canChangeTo() allows a switch within a
+// codec, which doesn't need the platform's support.
+constexpr char kCanChangeToSameCodec[] =
+    "MediaSource.canChangeTo('video/webm; codecs=\"vp9\"', "
+    "'video/mp4; codecs=\"vp09.00.10.08\"')";
 
 // Loads the first of two items, buffers the second in standby SourceBuffers,
 // and switches to it with MediaSource.changeTo(). Evaluates to "OK", or throws.
@@ -208,6 +215,8 @@ IN_PROC_BROWSER_TEST_F(H5vccSettingsBrowserTest,
                             embedded_test_server()->GetURL("/title2.html")));
   EXPECT_TRUE(
       content::EvalJs(shell()->web_contents(), kHasChangeTo).ExtractBool());
+  EXPECT_TRUE(content::EvalJs(shell()->web_contents(), kCanChangeToSameCodec)
+                  .ExtractBool());
 }
 
 // With the setting on, a page can buffer the next item in standby

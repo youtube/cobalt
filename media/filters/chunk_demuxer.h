@@ -483,6 +483,15 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   static void SetEnableMultiSourceBufferSwitching(bool enable);
   static bool IsMultiSourceBufferSwitchingEnabled();
 
+  // Returns whether ChangeTo() can switch from a SourceBuffer of MIME type
+  // |current_type| to one of |next_type|, for example
+  // `video/webm; codecs="vp9"` to `video/mp4; codecs="av01.0.05M.08"`. Each
+  // type must name exactly one codec, both of the same media type. A switch
+  // within a codec is always possible; one that changes the codec is possible
+  // if SbMediaCanChangeType() allows it. Returns false if switching is off.
+  static bool CanChangeTo(const std::string& current_type,
+                          const std::string& next_type);
+
   // With multi-SourceBuffer switching, marks the SourceBuffer |id| as standby:
   // it buffers media that plays later. Its streams stay disabled, and it
   // doesn't hold back initialization, buffered ranges or seeks, until
@@ -495,8 +504,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // current ones, from the next seek. The caller then seeks to where the new
   // media starts. Returns false, and changes nothing, if switching is off, the
   // demuxer isn't initialized, an id is unknown or not initialized yet, two
-  // ids have streams of the same type, or there is no stream of that type to
-  // switch from.
+  // ids have streams of the same type, there is no stream of that type to
+  // switch from, or a switch changes a codec and SbMediaCanChangeType()
+  // rejects the change.
   [[nodiscard]] bool ChangeTo(const std::vector<std::string>& ids);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -593,6 +603,11 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Returns false, after logging why, if a pending track switch changes the
   // codec of a stream and SbMediaCanChangeType() rejects the change.
   bool CanCompleteTrackSwitches_Locked() const;
+
+  // Returns false, after logging why, if switching playback from |from| to
+  // |to| changes the codec and SbMediaCanChangeType() rejects the change.
+  bool CanSwitchStreams_Locked(ChunkDemuxerStream* from,
+                               ChunkDemuxerStream* to) const;
 
   // Returns the SelectedTrackStreams, which the pipeline reads instead of the
   // ChunkDemuxerStreams.
