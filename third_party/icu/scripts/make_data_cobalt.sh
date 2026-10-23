@@ -18,46 +18,23 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ICU_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${1:-$(mktemp -d /tmp/icu_cobalt_build_XXXXXX)}"
-NUM_CORES="${NUM_CORES:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
+OUT_FILE="${2:-${ICU_ROOT}/cobalt/icudtl.dat}"
+FILTER_FILE="${ICU_DATA_FILTER_FILE:-${ICU_ROOT}/filters/cobalt.json}"
 
 echo "==> Building Cobalt ICU data bundle"
-echo "    ICU Root:  ${ICU_ROOT}"
-echo "    Filter:    ${ICU_ROOT}/filters/cobalt.json"
+echo "    Filter:    ${FILTER_FILE}"
 echo "    Build Dir: ${BUILD_DIR}"
-echo "    Cores:     ${NUM_CORES}"
+echo "    Out File:  ${OUT_FILE}"
 
-# Ensure build directory exists and resolve to an absolute path
-mkdir -p "${BUILD_DIR}"
-BUILD_DIR="$(cd "${BUILD_DIR}" && pwd)"
-cd "${BUILD_DIR}"
+python3 "${SCRIPT_DIR}/generate_cobalt_icudata.py" \
+    --filter-file "${FILTER_FILE}" \
+    --build-dir "${BUILD_DIR}" \
+    --out-file "${OUT_FILE}"
 
-# Step 1: Configure and build host tools
-echo "==> Step 1/3: Configuring and building host ICU tools..."
-"${ICU_ROOT}/source/runConfigureICU" Linux/gcc \
-    --disable-tests --disable-samples --disable-layoutex --enable-rpath \
-    --prefix="${BUILD_DIR}" > configure_tools.log 2>&1
-make -j"${NUM_CORES}" > make_tools.log 2>&1
-
-# Step 2: Configure data build with Cobalt filter and compile
-echo "==> Step 2/3: Building filtered data for Cobalt..."
-make -C data clean > /dev/null 2>&1 || true
-
-ICU_DATA_FILTER_FILE="${ICU_ROOT}/filters/cobalt.json" \
-"${ICU_ROOT}/source/runConfigureICU" Linux/gcc \
-    --disable-tests --disable-samples --disable-layoutex --enable-rpath \
-    --prefix="${BUILD_DIR}" > configure_data.log 2>&1
-
-make -j"${NUM_CORES}" -C data > make_data.log 2>&1
-
-# Step 3: Copy generated data file to third_party/icu/cobalt/icudtl.dat
-echo "==> Step 3/3: Copying icudtl.dat to ${ICU_ROOT}/cobalt/icudtl.dat..."
-"${SCRIPT_DIR}/copy_data.sh" cobalt
-
-# Clean up if a temporary directory was used
 if [[ -z "$1" ]]; then
-  echo "==> Cleaning up temporary build directory..."
   rm -rf "${BUILD_DIR}"
 fi
 
-echo "==> Done! Cobalt ICU data successfully generated at ${ICU_ROOT}/cobalt/icudtl.dat"
-ls -lh "${ICU_ROOT}/cobalt/icudtl.dat"
+echo "==> Done! Cobalt ICU data successfully generated at ${OUT_FILE}"
+ls -lh "${OUT_FILE}"
+
