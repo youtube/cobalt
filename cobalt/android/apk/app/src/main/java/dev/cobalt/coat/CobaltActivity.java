@@ -28,8 +28,6 @@ import android.view.Display;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
-import android.view.ViewParent;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
@@ -59,6 +57,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
 import org.chromium.base.FeatureList;
@@ -94,8 +94,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
-
-  private VideoSurfaceView mVideoSurfaceView;
 
   private boolean mForceCreateNewVideoSurfaceView;
 
@@ -193,7 +191,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       args.add("--remote-allow-origins=https://chrome-devtools-frontend.appspot.com");
     }
     appendMetaDataArgs(args, getActivityMetaData());
-    args.addAll(JavaSwitches.getExtraCommandLineArgs(getJavaSwitches()));
+    JavaSwitches.apply(getJavaSwitches(), args);
     appendIntentArgs(args);
     return args;
   }
@@ -472,7 +470,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
 
     long timeout = DEFAULT_HANG_APP_CRASH_TIMEOUT_SECONDS;
-    String intervalStr = switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS);
+    // DISABLE_STARTUP_GUARD above is honored even in crash-streak safe mode, since disabling the
+    // watchdog cannot cause crashes. A custom interval can (e.g. one that is too short kills every
+    // launch), so ignore it in safe mode and use the default timeout.
+    String intervalStr =
+        JavaSwitches.shouldApplyExperimentConfigs()
+            ? switches.get(JavaSwitches.STARTUP_GUARD_INTERVAL_IN_SECONDS)
+            : null;
     if (intervalStr != null) {
       try {
         long parsedTimeout = Long.parseLong(intervalStr);
@@ -724,6 +728,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     unregisterNetworkRecoveryObserver();
   }
 
+  public void onPrimaryMainFrameNavigationStarted() {
+    mHasHiddenSplashScreen = false;
+    maybeRegisterNetworkRecoveryObserver();
+  }
+
   private void maybeRegisterNetworkRecoveryObserver() {
     if (mIsNetworkRecoveryObserverRegistered || mHasHiddenSplashScreen) {
       return;
@@ -753,7 +762,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   /**
    * Retries the startup URL load once the device is back online, if that load failed and hasn't
    * been retried yet. Called on connection-type changes and on resume; does nothing unless the
-   * network error dialog has been raised.
+   * network error dialog has been raised and the activity is resumed.
    */
   public void checkAndRetryOnNetworkOnline() {
     if (mHasHiddenSplashScreen) {
@@ -763,6 +772,14 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     StarboardBridge bridge = getStarboardBridge();
     PlatformError platformError = bridge != null ? bridge.getPlatformError() : null;
     if (platformError == null || !platformError.isRetryPending()) {
+      return;
+    }
+    // Only retry while the activity is resumed. NetworkChangeNotifier re-registers its
+    // connectivity callback as soon as ApplicationStatus sees an activity become visible, so a
+    // change that happened while the app was in the background is reported from inside
+    // super.onStart(), before the WebContents is shown; a load started there leaves the app on a
+    // blank page (b/576591970). onResume() retries instead.
+    if (ApplicationStatus.getStateForActivity(this) != ActivityState.RESUMED) {
       return;
     }
     if (!NetworkChangeNotifier.isOnline()) {
@@ -866,11 +883,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     return this.mJavaSwitches;
   }
 
+  /**
+   * Returns whether the Starboard lifecycle is in use.
+   *
+   * <p>Reads only the command-line switch, which C++ sets from the USE_STARBOARD_LIFECYCLE Java
+   * switch. Do not read the Java switch key directly: in crash-streak safe mode the key is still
+   * present but no experiment switches are applied, so native starts with the default lifecycle.
+   * Driving the Starboard lifecycle from Java in that state crashes the browser on every launch.
+   * All callers run after the native library is loaded, when CommandLine is native-backed.
+   */
   @Override
   public boolean useStarboardLifeCycle() {
-    return getJavaSwitches().containsKey(JavaSwitches.USE_STARBOARD_LIFECYCLE)
-        || (CommandLine.isInitialized()
-            && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH));
+    return CommandLine.isInitialized()
+        && CommandLine.getInstance().hasSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
   }
 
   /**
@@ -940,75 +965,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
-  }
-
-  public void resetVideoSurface() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            createNewSurfaceView();
-          }
-        });
-  }
-
-  public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    if (width == 0 || height == 0) {
-      // The SurfaceView should be covered by our UI layer in this case.
-      return;
-    }
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
-            // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
-            // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
-            if (layoutParams instanceof FrameLayout.LayoutParams frameLayoutParams) {
-              frameLayoutParams.setMargins(x, y, x + width, y + height);
-            } else {
-              Log.w(
-                  TAG,
-                  "Unexpected video surface layout params class "
-                      + layoutParams.getClass().getName());
-            }
-            layoutParams.width = width;
-            layoutParams.height = height;
-            // Even though as a NativeActivity we're not using the Android UI framework, by setting
-            // the  layout params it will force a layout to be requested. That will cause the
-            // SurfaceView to position its underlying Surface to match the screen coordinates of
-            // where the view would be in a UI layout and to set the surface transform matrix to
-            // match the view's size.
-            mVideoSurfaceView.setLayoutParams(layoutParams);
-          }
-        });
-  }
-
-  private void createNewSurfaceView() {
-    if (mIsCobaltUsingAndroidOverlay) {
-      return;
-    }
-    ViewParent parent = mVideoSurfaceView.getParent();
-    if (parent instanceof FrameLayout frameLayout) {
-      int index = frameLayout.indexOfChild(mVideoSurfaceView);
-      frameLayout.removeView(mVideoSurfaceView);
-      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
-
-      mVideoSurfaceView = new VideoSurfaceView(this);
-      frameLayout.addView(
-          mVideoSurfaceView,
-          index,
-          new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
-    } else {
-      Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
-    }
   }
 
   public void evaluateJavaScript(String jsCode) {

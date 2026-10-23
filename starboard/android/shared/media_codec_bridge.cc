@@ -41,62 +41,6 @@ using jni_zero::AttachCurrentThread;
 using jni_zero::JavaParamRef;
 using jni_zero::ScopedJavaLocalRef;
 
-// See
-// https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
-const jint COLOR_RANGE_FULL = 1;
-const jint COLOR_RANGE_LIMITED = 2;
-// Not defined in MediaFormat. Represents unspecified color ID range.
-const jint COLOR_RANGE_UNSPECIFIED = 0;
-
-const jint COLOR_STANDARD_BT2020 = 6;
-const jint COLOR_STANDARD_BT709 = 1;
-
-const jint COLOR_TRANSFER_HLG = 7;
-const jint COLOR_TRANSFER_SDR_VIDEO = 3;
-const jint COLOR_TRANSFER_ST2084 = 6;
-
-// A special value to represent that no mapping between an SbMedia* HDR
-// metadata value and Android HDR metadata value is possible.  This value
-// implies that HDR playback should not be attempted.
-const jint COLOR_VALUE_UNKNOWN = -1;
-
-jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
-  switch (primary_id) {
-    case kSbMediaPrimaryIdBt709:
-      return COLOR_STANDARD_BT709;
-    case kSbMediaPrimaryIdBt2020:
-      return COLOR_STANDARD_BT2020;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
-jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
-  switch (transfer_id) {
-    case kSbMediaTransferIdBt709:
-      return COLOR_TRANSFER_SDR_VIDEO;
-    case kSbMediaTransferIdSmpteSt2084:
-      return COLOR_TRANSFER_ST2084;
-    case kSbMediaTransferIdAribStdB67:
-      return COLOR_TRANSFER_HLG;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
-jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
-  switch (range_id) {
-    case kSbMediaRangeIdLimited:
-      return COLOR_RANGE_LIMITED;
-    case kSbMediaRangeIdFull:
-      return COLOR_RANGE_FULL;
-    case kSbMediaRangeIdUnspecified:
-      return COLOR_RANGE_UNSPECIFIED;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
 }  // namespace
 
 // static
@@ -259,7 +203,7 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 }
 
-Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
+span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -267,8 +211,7 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
-  return {span.data(), span.size()};
+  return JavaByteBufferToMutableSpan(env, byte_buffer.obj());
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -329,7 +272,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds, is_decode_only);
 }
 
-Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
+span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   SB_DCHECK_GE(index, 0);
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> byte_buffer =
@@ -337,8 +280,7 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
-  return {span.data(), span.size()};
+  return JavaByteBufferToMutableSpan(env, byte_buffer.obj());
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

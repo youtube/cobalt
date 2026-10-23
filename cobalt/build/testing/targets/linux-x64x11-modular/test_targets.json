@@ -3,7 +3,7 @@
     "TODO(b/382508397)": "Remove this when list is dynamically generated.",
     "disabled": {
       "base:base_unittests_loader": "b/418842688 - Compilation failure",
-      "cobalt:cobalt_unittests_loader": "b/453909269 - Devtools missing inputs",
+      "cobalt:cobalt_unittests_loader": "b/453909269 - libcobalt_unittests.so undefined symbol content::aggregation_service::ReadAndParsePublicKeys",
       "gpu:gpu_benchmark_loader": "b/453909269 - Devtools missing inputs",
       "gpu:gpu_perftests_loader": "b/418842688 - Compilation failure",
       "media:media_unittests_loader": "b/418842688 - Compilation failure",
@@ -32,6 +32,12 @@
   {
     "target": "cc:cc_unittests_loader",
     "executable": "out/linux-x64x11-modular_devel/cc_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "components/memory_pressure:memory_pressure_unittests_loader",
+    "executable": "out/linux-x64x11-modular_devel/memory_pressure_unittests_loader",
     "runs_on": "host",
     "test_type": "gtest"
   },

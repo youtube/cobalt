@@ -303,10 +303,11 @@ bool DrmSystemWidevine::IsDrmSystemWidevine(SbDrmSystem drm_system) {
 void DrmSystemWidevine::GenerateSessionUpdateRequest(
     int ticket,
     std::string_view type,
-    std::string_view initialization_data) {
+    span<const uint8_t> initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
-  const std::string init_str(initialization_data);
+  const std::string init_str(initialization_data.begin(),
+                             initialization_data.end());
   wv3cdm::InitDataType init_type = wv3cdm::kWebM;
   if (type == "cenc") {
     init_type = wv3cdm::kCenc;
@@ -334,10 +335,10 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
 }
 
 void DrmSystemWidevine::UpdateSession(int ticket,
-                                      std::string_view key,
+                                      span<const uint8_t> key,
                                       std::string_view sb_drm_session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_key(key);
+  const std::string str_key(key.begin(), key.end());
 
   wv3cdm::Status status;
   if (!pending_generate_session_update_requests_.empty()) {
@@ -531,10 +532,11 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   return kSuccess;
 }
 
-void DrmSystemWidevine::UpdateServerCertificate(int ticket,
-                                                std::string_view certificate) {
+void DrmSystemWidevine::UpdateServerCertificate(
+    int ticket,
+    span<const uint8_t> certificate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  const std::string str_certificate(certificate);
+  const std::string str_certificate(certificate.begin(), certificate.end());
   wv3cdm::Status status = cdm_->setServiceCertificate(str_certificate);
 
   is_server_certificate_set_ = (status == wv3cdm::kSuccess);
@@ -644,6 +646,11 @@ void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
   for (auto& key_status : key_statuses) {
     SbDrmKeyId sb_key_id;
     SB_DCHECK_LE(key_status.first.size(), sizeof(sb_key_id.identifier));
+    if (key_status.first.size() > sizeof(sb_key_id.identifier)) {
+      SB_LOG(ERROR) << "Ignoring key ID with invalid size "
+                    << key_status.first.size();
+      continue;  // Skip this key status.
+    }
     memcpy(sb_key_id.identifier, key_status.first.c_str(),
            key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());

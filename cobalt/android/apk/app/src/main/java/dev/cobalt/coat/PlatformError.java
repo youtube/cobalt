@@ -165,6 +165,10 @@ public class PlatformError
     return isShowing() || mResponse != POSITIVE;
   }
 
+  public boolean isDismissButtonDisabled() {
+    return mDisableDismissButton;
+  }
+
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
     if (mErrorType == CONNECTION_ERROR) {

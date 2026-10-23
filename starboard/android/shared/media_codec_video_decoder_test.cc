@@ -69,11 +69,10 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
         initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
-        /*drm_system=*/kSbDrmSystemInvalid,
-        kSbPlayerOutputModePunchOut,
-        /*decode_target_graphics_context_provider=*/nullptr,
-        /*surface_view=*/dummy_surface_.obj(),
-        max_video_capabilities};
+        /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
+        /*decode_target_graphics_context_provider=*/
+        &fake_graphics_context_provider_,
+        /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;
@@ -141,6 +140,12 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   int need_more_input_count_ = 0;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
+  // Punch-out decoders clean up the global video window on destruction, which
+  // requires a provider when the test activity's video surface exists.
+  SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
+      .gles_context_runner = [](SbDecodeTargetGraphicsContextProvider*,
+                                SbDecodeTargetGlesContextRunnerTarget,
+                                void*) {}};
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
       base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
                                              "dummy_surface")};

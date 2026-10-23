@@ -11,6 +11,7 @@
     "one_app_only_sandbox_loaded_content"
   ],
   "build_configs": [
+    "debug",
     "devel",
     "qa",
     "gold"

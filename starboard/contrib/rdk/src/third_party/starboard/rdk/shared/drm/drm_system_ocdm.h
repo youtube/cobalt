@@ -17,6 +17,8 @@
 #ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_DRM_DRM_SYSTEM_OCDM_H_
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_DRM_DRM_SYSTEM_OCDM_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -26,6 +28,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/common/span.h"
 #include "starboard/event.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/common/ref_counted.h"
@@ -71,15 +74,15 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<Drm
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      std::string_view initialization_data) override;
+      span<const uint8_t> initialization_data) override;
   void CloseSession(std::string_view session_id) override;
   void UpdateSession(int ticket,
-                     std::string_view key,
+                     span<const uint8_t> key,
                      std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               std::string_view certificate) override;
+                               span<const uint8_t> certificate) override;
 
   std::optional<std::string_view> GetMetrics() override;
 

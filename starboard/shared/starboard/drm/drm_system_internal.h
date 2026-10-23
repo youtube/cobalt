@@ -15,9 +15,12 @@
 #ifndef STARBOARD_SHARED_STARBOARD_DRM_DRM_SYSTEM_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_DRM_DRM_SYSTEM_INTERNAL_H_
 
+#include <stdint.h>
+
 #include <optional>
 #include <string_view>
 
+#include "starboard/common/span.h"
 #include "starboard/drm.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -31,10 +34,10 @@ struct SbDrmSystemPrivate {
   virtual void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      std::string_view initialization_data) = 0;
+      starboard::span<const uint8_t> initialization_data) = 0;
 
   virtual void UpdateSession(int ticket,
-                             std::string_view key,
+                             starboard::span<const uint8_t> key,
                              std::string_view session_id) = 0;
 
   virtual void CloseSession(std::string_view session_id) = 0;
@@ -43,8 +46,9 @@ struct SbDrmSystemPrivate {
 
   virtual bool IsServerCertificateUpdatable() = 0;
 
-  virtual void UpdateServerCertificate(int ticket,
-                                       std::string_view certificate) = 0;
+  virtual void UpdateServerCertificate(
+      int ticket,
+      starboard::span<const uint8_t> certificate) = 0;
 
   virtual std::optional<std::string_view> GetMetrics() = 0;
 };

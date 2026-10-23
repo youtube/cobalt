@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 #define STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #include <atomic>
@@ -27,6 +28,7 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
@@ -60,10 +62,10 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void GenerateSessionUpdateRequest(
       int ticket,
       std::string_view type,
-      std::string_view initialization_data) override;
+      span<const uint8_t> initialization_data) override;
 
   void UpdateSession(int ticket,
-                     std::string_view key,
+                     span<const uint8_t> key,
                      std::string_view sb_drm_session_id) override;
 
   void CloseSession(std::string_view sb_drm_session_id) override;
@@ -79,7 +81,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // this function.  Note that it is benign if this function is called in
   // parallel with a server certificate request.
   void UpdateServerCertificate(int ticket,
-                               std::string_view certificate) override;
+                               span<const uint8_t> certificate) override;
 
   std::optional<std::string_view> GetMetrics() override { return std::nullopt; }
 

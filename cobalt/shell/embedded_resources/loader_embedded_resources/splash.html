@@ -41,6 +41,13 @@
           return;
         }
 
+        // When the video starts playing: the timeout of a video counts from
+        // there, as in Shell.
+        let videoStartMs = 0;
+        videoEl.addEventListener('playing', () => {
+          videoStartMs = performance.now();
+        }, {once: true});
+
         const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
           // Stay until the timeout, if specified.
@@ -48,8 +55,9 @@
               new URLSearchParams(window.location.search).get('timeout')) || 0;
           const loadEndMs =
               performance.getEntriesByType('navigation')[0]?.loadEventEnd || 0;
+          const startMs = videoStartMs || loadEndMs;
           const remainingMs =
-              Math.max(0, timeoutMs - (performance.now() - loadEndMs));
+              Math.max(0, timeoutMs - (performance.now() - startMs));
           if (remainingMs > 0) {
             setTimeout(() => window.close(), remainingMs);
           } else {
@@ -168,6 +176,8 @@
         // are default splash screen.
         const splashTopic = (topicName === 'music') ? 'music_' : '';
 
+        // Shell asks Starboard the same (kSplashVideoType), so both agree on
+        // whether the video plays.
         if (forceImage === 'true' || !MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
           return handleStaticImageFallback(params, splashTopic, afterImageLoad);
         }

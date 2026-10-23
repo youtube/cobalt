@@ -30,10 +30,13 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,8 +48,10 @@ namespace {
 using std::deque;
 using std::string;
 using std::vector;
+using ::testing::_;
 using ::testing::Bool;
 using ::testing::Combine;
+using ::testing::NiceMock;
 using ::testing::ValuesIn;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
@@ -401,6 +406,106 @@ INSTANTIATE_TEST_SUITE_P(AdaptiveAudioDecoderTests,
                          AdaptiveAudioDecoderTest,
                          Combine(ValuesIn(GetSupportedTests()), Bool()),
                          GetAdaptiveAudioDecoderTestConfigName);
+
+class AdaptiveAudioDecoderResetTest : public ::testing::TestWithParam<bool> {
+ protected:
+  static constexpr uint8_t kHeAacConfig[] = {0x2b, 0x92, 0x08, 0x00};
+  static constexpr uint8_t kAacLcConfig[] = {0x12, 0x10};
+
+  scoped_refptr<InputBuffer> CreateAacInput(const uint8_t* config,
+                                            uint16_t config_size) {
+    static constexpr uint8_t kPayload[] = {0};
+    SbPlayerSampleInfo sample_info = {};
+    sample_info.type = kSbMediaTypeAudio;
+    sample_info.buffer = kPayload;
+    sample_info.buffer_size = sizeof(kPayload);
+    SbMediaAudioStreamInfo& info = sample_info.audio_sample_info.stream_info;
+    info.codec = kSbMediaAudioCodecAac;
+    info.mime = "audio/mp4";
+    info.number_of_channels = 2;
+    info.samples_per_second = 44100;
+    info.bits_per_sample = 16;
+    info.audio_specific_config_size = config_size;
+    info.audio_specific_config = config;
+    return new InputBuffer(StubDeallocateSampleFunc, nullptr, nullptr,
+                           sample_info);
+  }
+
+  scoped_refptr<InputBuffer> HeAacInput() {
+    return CreateAacInput(kHeAacConfig, sizeof(kHeAacConfig));
+  }
+  scoped_refptr<InputBuffer> AacLcInput() {
+    return CreateAacInput(kAacLcConfig, sizeof(kAacLcConfig));
+  }
+
+  void SetUp() override {
+    // Hands out mock decoders that consume every input, and records them so
+    // tests can set expectations. The mocks are owned by |decoder_|.
+    auto creator = [this](const AudioStreamInfo&, SbDrmSystem) {
+      auto mock = std::make_unique<NiceMock<MockAudioDecoder>>(
+          kSbMediaAudioSampleTypeFloat32, 44100);
+      ON_CALL(*mock, Decode(_, _))
+          .WillByDefault([this](const InputBuffers&,
+                                const AudioDecoder::ConsumedCB& consumed_cb) {
+            job_queue_.Schedule(consumed_cb);
+          });
+      mock_decoders_.push_back(mock.get());
+      return mock;
+    };
+    auto first_input = HeAacInput();
+    decoder_ = std::make_unique<AdaptiveAudioDecoder>(
+        &job_queue_, first_input->audio_stream_info(), kSbDrmSystemInvalid,
+        creator, /*enable_reset_audio_decoder=*/enable_reset());
+    decoder_->Initialize([] {},
+                         [](SbPlayerError, const std::string& message) {
+                           ADD_FAILURE() << message;
+                         });
+  }
+
+  bool enable_reset() const { return GetParam(); }
+
+  // Returns whether the input was consumed.
+  bool Decode(scoped_refptr<InputBuffer> input) {
+    bool consumed = false;
+    decoder_->Decode({input}, [&consumed] { consumed = true; });
+    job_queue_.RunUntilIdle();
+    return consumed;
+  }
+
+  JobQueue job_queue_;  // Must outlive |decoder_|.
+  // Not owned. An entry dangles once |decoder_| tears that decoder down, so
+  // set expectations on it before Reset() or a config change.
+  std::vector<MockAudioDecoder*> mock_decoders_;
+  std::unique_ptr<AdaptiveAudioDecoder> decoder_;
+};
+
+TEST_P(AdaptiveAudioDecoderResetTest, ConfigChangeAfterResetSwapsDecoder) {
+  ASSERT_TRUE(Decode(HeAacInput()));
+  ASSERT_EQ(mock_decoders_.size(), 1u);
+  EXPECT_CALL(*mock_decoders_[0], WriteEndOfStream()).Times(0);
+
+  decoder_->Reset();
+  EXPECT_TRUE(Decode(AacLcInput()));
+  EXPECT_EQ(mock_decoders_.size(), 2u);
+}
+
+TEST_P(AdaptiveAudioDecoderResetTest, SameConfigAfterReset) {
+  ASSERT_TRUE(Decode(HeAacInput()));
+  ASSERT_EQ(mock_decoders_.size(), 1u);
+  EXPECT_CALL(*mock_decoders_[0], WriteEndOfStream()).Times(0);
+
+  decoder_->Reset();
+  EXPECT_TRUE(Decode(HeAacInput()));
+  EXPECT_EQ(mock_decoders_.size(), enable_reset() ? 1u : 2u);
+}
+
+INSTANTIATE_TEST_SUITE_P(AdaptiveAudioDecoderResetTests,
+                         AdaptiveAudioDecoderResetTest,
+                         Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                           return info.param ? std::string("ResetEnabled")
+                                             : std::string("ResetDisabled");
+                         });
 
 }  // namespace
 

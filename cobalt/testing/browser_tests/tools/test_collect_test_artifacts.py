@@ -28,6 +28,14 @@ class TestCollectTestArtifacts(unittest.TestCase):
     result = collect_test_artifacts.get_test_runner()
     self.assertEqual(result, os.path.join('bin', 'run_cobalt_browsertests'))
 
+  @mock.patch('os.path.isfile', return_value=True)
+  def test_get_test_runner_loader(self, mock_isfile):
+    result = collect_test_artifacts.get_test_runner('out/aosp_devel')
+    self.assertEqual(result,
+                     os.path.join('bin', 'run_cobalt_browsertests_loader'))
+    mock_isfile.assert_called_once_with(
+        os.path.join('out/aosp_devel', 'bin', 'run_cobalt_browsertests_loader'))
+
   @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
   @mock.patch('os.path.isdir', return_value=True)

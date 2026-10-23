@@ -45,6 +45,16 @@ java_cpp_strings("cobalt_pref_names_java") {
   template = "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNames.java.tmpl"
 }
 
+java_cpp_strings("cobalt_androidtv_flags_java") {
+  sources = [ "//cobalt/android/androidtv_flags.h" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/AndroidTvFlags.java.tmpl"
+}
+
+java_cpp_strings("cobalt_switches_java") {
+  sources = [ "//cobalt/browser/switches.h" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/CobaltSwitches.java.tmpl"
+}
+
 java_cpp_enum("cobalt_crash_streak_thresholds_java") {
   sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
 }
@@ -64,6 +74,8 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerManager.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
@@ -73,7 +85,6 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
-    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
   ]
 
@@ -88,7 +99,11 @@ generate_jni("jni_headers") {
     sources +=
         [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java" ]
   } else {
-    sources += [ "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java" ]
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+      "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+      "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
+    ]
   }
 }
 
@@ -105,6 +120,25 @@ source_set("app_event_bridge") {
     "//base",
     "//starboard:starboard_headers_only",
     "//starboard/common",
+  ]
+}
+
+source_set("androidtv_flags") {
+  sources = [
+    "androidtv_flag_map.cc",
+    "androidtv_flag_map.h",
+    "androidtv_flags.h",
+    "v8_switches.h",
+  ]
+  deps = [
+    "//base",
+    "//cc/base",
+    "//cobalt/browser:switches",
+    "//components/network_session_configurator/common",
+    "//content/public/common",
+    "//gpu/command_buffer/service",
+    "//services/network/public/cpp:flags_and_switches",
+    "//third_party/blink/public/common",
   ]
 }
 
@@ -137,6 +171,11 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
+    "//third_party/androidx:androidx_media3_media3_common_java",
+    "//third_party/androidx:androidx_media3_media3_datasource_java",
+    "//third_party/androidx:androidx_media3_media3_decoder_java",
+    "//third_party/androidx:androidx_media3_media3_exoplayer_java",
+    "//third_party/androidx:androidx_media3_media3_extractor_java",
     "//third_party/androidx:androidx_media_media_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
@@ -156,6 +195,7 @@ android_library("cobalt_main_java") {
     ":cobalt_crash_streak_thresholds_java",
     ":cobalt_experiment_names_java",
     ":cobalt_pref_names_java",
+    ":cobalt_switches_java",
     ":java_features_srcjar",
     ":jni_headers",
     "//starboard/android/shared:java_enums",
@@ -178,7 +218,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
     "apk/app/src/main/java/dev/cobalt/coat/FontUtil.java",
     "apk/app/src/main/java/dev/cobalt/coat/KeyboardUtils.java",
-    "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/AmatiDeviceInspector.java",
@@ -190,6 +229,11 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerMediaPeriod.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerMediaSource.java",
+    "apk/app/src/main/java/dev/cobalt/media/ExoPlayerSampleStream.java",
     "apk/app/src/main/java/dev/cobalt/media/Log.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
@@ -208,7 +252,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
-    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
     "apk/app/src/main/java/dev/cobalt/util/ProcessExitReasonHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
@@ -240,10 +283,14 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
       "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
       "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+      "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
       "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
       "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
       "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
+      "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
+      "apk/app/src/main/java/dev/cobalt/util/JavaSwitchesTestHelper.java",
     ]
+    srcjar_deps += [ ":cobalt_androidtv_flags_java" ]
     deps += [
       ":cobalt_browser_java",
       "//base:process_launcher_java",
@@ -322,6 +369,7 @@ shared_library_with_jni("libchrobalt") {
     configs += [ "//build/config/compiler:thinlto_optimize_max" ]
   }
   deps = [
+    ":androidtv_flags",
     ":app_event_bridge",
     "//cobalt:cobalt_app",
     "//cobalt:common",
@@ -440,6 +488,7 @@ android_library("cobalt_testing_java") {
   deps = [
     ":cobalt_main_java",
     "//base:base_java",
+    "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
     "//testing/android/native_test:native_test_java",
     "//third_party/jni_zero:jni_zero_java",
   ]

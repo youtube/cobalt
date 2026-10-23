@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
+
+#include <stdint.h>
+
+#include "starboard/common/log.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/widevine/drm_system_widevine.h"
 #import "starboard/tvos/shared/media/application_drm_system.h"
@@ -99,6 +105,6 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->GenerateSessionUpdateRequest(
       ticket, type,
-      std::string_view(static_cast<const char*>(initialization_data),
-                       initialization_data_size));
+      starboard::make_span(static_cast<const uint8_t*>(initialization_data),
+                           static_cast<size_t>(initialization_data_size)));
 }

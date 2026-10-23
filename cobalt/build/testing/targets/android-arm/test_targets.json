@@ -27,6 +27,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "components/memory_pressure:memory_pressure_unittests",
+    "executable": "out/android-arm_devel/memory_pressure_unittests_apk/memory_pressure_unittests-debug.apk",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
     "target": "media:media_unittests",
     "executable": "out/android-arm_devel/media_unittests_apk/media_unittests-debug.apk",
     "runs_on": "device",

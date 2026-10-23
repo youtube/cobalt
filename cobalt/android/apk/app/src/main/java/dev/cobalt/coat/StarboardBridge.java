@@ -106,11 +106,22 @@ public class StarboardBridge extends BaseStarboardBridge {
 
   @Override
   protected void hideSplashScreen() {
+    PlatformError platformError = mPlatformError;
     mPlatformError = null;
+    if (platformError != null && platformError.isDismissButtonDisabled()) {
+      platformError.dismiss();
+    }
     if (mActivityHolder.get() instanceof CobaltActivity activity) {
       activity.onSplashScreenHidden();
     }
     StartupGuard.getInstance().disarm();
+  }
+
+  @Override
+  protected void onPrimaryMainFrameNavigationStarted() {
+    if (mActivityHolder.get() instanceof CobaltActivity activity) {
+      activity.onPrimaryMainFrameNavigationStarted();
+    }
   }
 
   @Override
