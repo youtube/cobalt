@@ -4,11 +4,14 @@
 
 #include "ui/gl/gpu_timing.h"
 
+#include <cmath>
 #include <utility>
 
 #include "base/containers/circular_deque.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_version_info.h"
@@ -56,6 +59,63 @@ class GPUTimingImpl : public GPUTiming {
            ? (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds()
            : cpu_time_for_testing_.Run();
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // The GL spec defines GPU timer values as nanoseconds. Some embedded drivers
+  // return a fixed-rate counter in other units for one or both of the two
+  // sources (e.g. Mali/RDK: glGetInteger64v(GL_TIMESTAMP_EXT) is a 24 MHz
+  // tick count while glQueryCounter results are nanoseconds on the same
+  // timebase). Each source is therefore calibrated against the CPU clock
+  // independently, from samples the normal timer flow already produces, and
+  // converted with its own factor. Spec-conformant drivers calibrate to
+  // exactly nanoseconds and see no change.
+  struct UnitCalibrator {
+    bool Update(int64_t gpu_raw, int64_t cpu_micro, const char* name);
+    int64_t ToMicro(uint64_t raw) const {
+      if (calibrated && micro_per_unit != 0.001) {
+        return static_cast<int64_t>(raw * micro_per_unit + 0.5);
+      }
+      return NanoToMicro(raw);
+    }
+    bool calibrated = false;
+    double micro_per_unit = 0.001;  // nanoseconds until calibrated
+    int samples = 0;
+    int64_t first_gpu = 0;
+    int64_t first_cpu = 0;
+    int64_t mid_gpu = 0;
+    int64_t mid_cpu = 0;
+  };
+  // Unit of glGetInteger64v(GL_TIMESTAMP_EXT) ("now").
+  UnitCalibrator now_units_;
+  // Unit of GL_TIMESTAMP_EXT / GL_TIME_ELAPSED_EXT query results.
+  UnitCalibrator query_units_;
+  int64_t GpuNowToMicro(uint64_t raw) { return now_units_.ToMicro(raw); }
+  int64_t GpuQueryToMicro(uint64_t raw) { return query_units_.ToMicro(raw); }
+  void CalibrateQueryUnits(int64_t raw, int64_t cpu_micro) {
+    query_units_.Update(raw, cpu_micro, "query");
+  }
+  bool rate_calibrated() const {
+    return now_units_.calibrated && query_units_.calibrated;
+  }
+  // Diagnostics while this is validated on device: first 8 results, first 8
+  // after both calibrations completed, then every 600th.
+  uint32_t diag_count_ = 0;
+  uint32_t diag_post_cal_count_ = 0;
+  bool ShouldLogDiag() {
+    const uint32_t n = diag_count_++;
+    if (n < 8 || (n % 600) == 0) {
+      return true;
+    }
+    if (rate_calibrated() && diag_post_cal_count_ < 8) {
+      ++diag_post_cal_count_;
+      return true;
+    }
+    return false;
+  }
+#else
+  int64_t GpuNowToMicro(uint64_t raw) { return NanoToMicro(raw); }
+  int64_t GpuQueryToMicro(uint64_t raw) { return NanoToMicro(raw); }
+#endif
   void SetCpuTimeForTesting(base::RepeatingCallback<int64_t(void)> cpu_time) {
     cpu_time_for_testing_ = std::move(cpu_time);
   }
@@ -232,7 +292,16 @@ class TimeElapsedTimerQuery : public TimerQuery {
   void UpdateQueryResults(GPUTimingImpl* gpu_timing) override {
     GLuint64 result_value = 0;
     glGetQueryObjectui64v(gl_query_id_, GL_QUERY_RESULT, &result_value);
-    const int64_t micro_results = NanoToMicro(result_value);
+    const int64_t micro_results = gpu_timing->GpuQueryToMicro(result_value);
+#if BUILDFLAG(IS_STARBOARD)
+    if (gpu_timing->ShouldLogDiag()) {
+      LOG(INFO) << "[GPUTimerCal] elapsed raw=" << result_value
+                << " micro=" << micro_results
+                << " begin_cpu=" << query_begin_cpu_time_
+                << " now_cpu=" << gpu_timing->GetCurrentCPUTime()
+                << " calibrated=" << gpu_timing->rate_calibrated();
+    }
+#endif
 
     // Adjust prev query end time if it is before the current max.
     const int64_t start_time =
@@ -305,10 +374,29 @@ class TimeStampTimerQuery : public TimerQuery {
 
     GLuint64 result_value = 0;
     glGetQueryObjectui64v(gl_query_id_, GL_QUERY_RESULT, &result_value);
-    const int64_t micro_results = NanoToMicro(result_value);
-
+#if BUILDFLAG(IS_STARBOARD)
+    // Result values advance at the GPU clock's rate; sampled against the CPU
+    // clock at read time this yields their unit (read latency cancels out of
+    // the rate).
+    gpu_timing->CalibrateQueryUnits(static_cast<int64_t>(result_value),
+                                    gpu_timing->GetCurrentCPUTime());
+#endif
     const int64_t offset = gpu_timing->CalculateTimerOffset();
+    const int64_t micro_results = gpu_timing->GpuQueryToMicro(result_value);
     const int64_t adjusted_result = micro_results + offset;
+#if BUILDFLAG(IS_STARBOARD)
+    if (gpu_timing->ShouldLogDiag()) {
+      GLint64 gl_now = 0;
+      glGetInteger64v(GL_TIMESTAMP_EXT, &gl_now);
+      const int64_t now_cpu = gpu_timing->GetCurrentCPUTime();
+      LOG(INFO) << "[GPUTimerCal] ts raw=" << result_value
+                << " gl_now=" << gl_now << " micro=" << micro_results
+                << " offset=" << offset << " adjusted=" << adjusted_result
+                << " now_cpu=" << now_cpu
+                << " now-adjusted_us=" << (now_cpu - adjusted_result)
+                << " calibrated=" << gpu_timing->rate_calibrated();
+    }
+#endif
     DCHECK(query_result_.get());
     query_result_->SetStartValue(adjusted_result);
     query_result_->SetEndValue(adjusted_result);
@@ -358,7 +446,10 @@ int64_t GPUTimingImpl::CalculateTimerOffset() {
       GLint64 gl_now = 0;
       glGetInteger64v(GL_TIMESTAMP_EXT, &gl_now);
       const int64_t cpu_time = GetCurrentCPUTime();
-      const int64_t micro_offset = cpu_time - NanoToMicro(gl_now);
+#if BUILDFLAG(IS_STARBOARD)
+      now_units_.Update(gl_now, cpu_time, "now");
+#endif
+      const int64_t micro_offset = cpu_time - GpuNowToMicro(gl_now);
 
       // We cannot expect these instructions to run with the accuracy
       // within 1 microsecond, instead discard differences which are less
@@ -376,6 +467,65 @@ int64_t GPUTimingImpl::CalculateTimerOffset() {
   }
   return offset_;
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+bool GPUTimingImpl::UnitCalibrator::Update(int64_t gpu_raw,
+                                           int64_t cpu_micro,
+                                           const char* name) {
+  if (calibrated) {
+    return true;
+  }
+  // Minimum CPU span and sample count before the rate is trusted. Samples
+  // arrive about once per frame, so this completes within the first ~1 s of
+  // rendering without any stall.
+  constexpr int64_t kMinSpanMicro = 1000000;
+  constexpr int kMinSamples = 10;
+  // Measured rates within this tolerance of 1 ns/unit are treated as exactly
+  // nanoseconds, i.e. spec-conformant drivers see no change at all.
+  constexpr double kNanoTolerance = 0.02;
+
+  if (samples == 0) {
+    first_gpu = gpu_raw;
+    first_cpu = cpu_micro;
+  }
+  ++samples;
+  const int64_t span_cpu = cpu_micro - first_cpu;
+  if (mid_cpu == 0 && span_cpu >= kMinSpanMicro / 2) {
+    mid_gpu = gpu_raw;
+    mid_cpu = cpu_micro;
+  }
+  if (span_cpu < kMinSpanMicro || samples < kMinSamples) {
+    return false;
+  }
+
+  const int64_t span_gpu = gpu_raw - first_gpu;
+  if (span_gpu <= 0) {
+    LOG(WARNING) << "[GPUTimerCal] GPU timer (" << name
+                 << ") did not advance over " << span_cpu
+                 << " us; keeping nanoseconds.";
+    calibrated = true;
+    return true;
+  }
+  // Units per microsecond over the whole window and over the second half, to
+  // detect a counter whose rate is not stable (e.g. DVFS-scaled cycles).
+  const double rate_full = static_cast<double>(span_gpu) / span_cpu;
+  double rate_half = rate_full;
+  if (mid_cpu != 0 && cpu_micro > mid_cpu) {
+    rate_half = static_cast<double>(gpu_raw - mid_gpu) / (cpu_micro - mid_cpu);
+  }
+  const double ns_per_unit = 1000.0 / rate_full;
+  const double instability = std::abs(rate_half / rate_full - 1.0);
+  micro_per_unit =
+      std::abs(ns_per_unit - 1.0) <= kNanoTolerance ? 0.001 : 1.0 / rate_full;
+  calibrated = true;
+  LOG(INFO) << "[GPUTimerCal] calibrated GPU timer (" << name
+            << "): " << ns_per_unit << " ns/unit (" << rate_full * 1e6
+            << " Hz) over " << span_cpu << " us, " << samples
+            << " samples, half-window deviation " << instability * 100.0 << "%"
+            << (instability > kNanoTolerance ? " (UNSTABLE)" : "");
+  return true;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 scoped_refptr<QueryResult> GPUTimingImpl::BeginElapsedTimeQuery() {
   DCHECK(timer_type_ != GPUTiming::kTimerTypeInvalid);
@@ -412,6 +562,11 @@ scoped_refptr<QueryResult> GPUTimingImpl::DoTimeStampQuery() {
   if (timestamp_bit_count_gl_ == -1) {
     timestamp_bit_count_gl_ = QueryTimestampBits();
     force_time_elapsed_query_ |= (timestamp_bit_count_gl_ == 0);
+#if BUILDFLAG(IS_STARBOARD)
+    LOG(INFO) << "[GPUTimerCal] GL_TIMESTAMP_EXT query bits="
+              << timestamp_bit_count_gl_
+              << " emulate_with_elapsed=" << force_time_elapsed_query_;
+#endif
   }
 
   if (force_time_elapsed_query_) {
