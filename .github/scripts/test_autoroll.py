@@ -62,6 +62,18 @@ Critical User Journeys (CUJs) Covered:
   Because the roll cursor remains stickied to the last full mode SHA, any older
   PRs labeled later are discovered and migrated even if newer PRs have already
   been merged. The AUTOROLL file SHA remains stickied to the last full mode SHA.
+- CUJ 14: Conflict Isolation with Subsequent Clean Commit in Label Mode
+  When an intermediate candidate PR conflicts, it is isolated onto a dedicated
+  conflict branch while subsequent clean candidate PRs continue to roll onto
+  the base roll branch.
+- CUJ 15: Incremental PR Insertion into Existing Base PR in Label Mode
+  Newly labeled PRs across runs are inserted into an existing open base PR
+  without corrupting branch state or advancing the stickied AUTOROLL cursor.
+- CUJ 16: Label Mode Conflict Resolution by Subsequent Base PR Pick
+  When a previously conflicted candidate PR's missing prerequisite is
+  subsequently labeled and cherry-picked into the base PR, autoroll re-evaluates
+  the candidate, applies it cleanly to the base PR, and cleans up the obsolete
+  local and remote conflict branches.
 
 Integration Test Guidelines:
 - All integration tests MUST verify the branch state after the SUT finishes:
@@ -212,10 +224,11 @@ class TestAutorollIntegration(unittest.TestCase):
     status = self.git('status', '--porcelain').stdout.strip()
     self.assertEqual(status, '')
 
-  def get_branch_commit_titles(self, base_ref):
-    """Returns commit titles between base_ref and HEAD in chronological order.
+  def get_branch_commit_titles(self, base_ref, head_ref='HEAD'):
+    """Returns commit titles between base_ref and head_ref in chronological
+    order.
     """
-    output = self.git('log', '--reverse', f'{base_ref}..HEAD',
+    output = self.git('log', '--reverse', f'{base_ref}..{head_ref}',
                       '--format=%s').stdout.strip()
     return output.splitlines() if output else []
 
@@ -424,8 +437,24 @@ class TestAutorollIntegration(unittest.TestCase):
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, self.start_sha)
 
+  def assert_conflict_branch(self, base, branch, pr, sha):
+    """Verifies conflict branch commit, conflict markers, and cursor."""
+    self.assertTrue(
+        self.get_branch_commit_titles(
+            base, branch)[0].startswith(f'CONFLICTED Cherry pick PR #{pr}:'))
+    self.assertIn('<<<<<<< HEAD',
+                  self.git('show', f'{branch}:conflict.txt').stdout)
+    self.assertEqual(
+        self.git('show', f'{branch}:.github/AUTOROLL').stdout.strip(), sha)
+
+  def assert_idempotent(self, branch, args):
+    """Verifies that re-running autoroll does not modify the conflict branch."""
+    tip = self.git('rev-parse', branch).stdout.strip()
+    self.assertEqual(self.run_autoroll(args)[0], 0)
+    self.assertEqual(self.git('rev-parse', branch).stdout.strip(), tip)
+
   def test_cuj5_conflict_on_first_commit_full_mode(self):
-    """CUJ 5: Conflict on first commit in full mode stages conflict."""
+    """CUJ 5: Conflict on first commit in full mode isolates conflict branch."""
     self.commit_file('conflict.txt', 'line 1\nline 2\n',
                      'Add base conflict file')
     base_sha = self.get_head_sha()
@@ -439,49 +468,37 @@ class TestAutorollIntegration(unittest.TestCase):
 
     # Main modifies line 2 differently
     self.git('checkout', 'main')
-    sha1 = self.commit_file('conflict.txt', 'line 1\nmain edit\n',
-                            'Main edit (#101)')
-    self.commit_file('other.txt', 'other\n', 'Other commit (#102)')
+    self.commit_file('conflict.txt', 'line 1\nmain edit\n', 'Main edit (#101)')
+    sha2 = self.commit_file('other.txt', 'other\n', 'Other commit (#102)')
 
     self.git('checkout', 'staging')
     self.git('checkout', '-b', 'autoroll-main-to-staging')
 
-    exit_code, stdout, _ = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        'staging',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--existing-pr-sha',
-        '',
-        '--mode',
-        'full',
-    ])
+    args = [
+        '--source-branch', 'main', '--target-branch', 'staging',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'full'
+    ]
 
+    exit_code, stdout, _ = self.run_autoroll(args)
     self.assertEqual(exit_code, 0)
-    expected_output = ('- #101\n\n'
-                       'CONFLICTED files:\n'
-                       '```\n'
-                       'conflict.txt\n'
-                       '```')
-    self.assertEqual(stdout.strip(), expected_output)
+    self.assertEqual(stdout.strip(), '- #102')
 
     # Verify branch state after SUT finishes
     self.assert_working_tree_clean()
     commit_titles = self.get_branch_commit_titles('staging')
     self.assertEqual(len(commit_titles), 1)
-    self.assertTrue(
-        commit_titles[0].startswith('CONFLICTED Cherry pick PR #101:'))
-    conflict_content = self.git('show', 'HEAD:conflict.txt').stdout
-    self.assertIn('<<<<<<< HEAD', conflict_content)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #102:'))
+    self.assertTrue(os.path.exists('other.txt'))
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
-    self.assertEqual(autoroll_content, f'CONFLICTED:{sha1}')
+    self.assertEqual(autoroll_content, sha2)
+
+    cb = 'autoroll-main-to-staging-conflict-101'
+    self.assert_conflict_branch('staging', cb, '101', base_sha)
+    self.assert_idempotent(cb, args)
 
   def test_cuj6_conflict_on_first_commit_label_mode(self):
-    """CUJ 6: Conflict on first commit in label mode behaves like full mode."""
+    """CUJ 6: Conflict on first commit in label mode isolates conflict."""
     self.commit_file('conflict.txt', 'line 1\nline 2\n',
                      'Add base conflict file')
     base_sha = self.get_head_sha()
@@ -506,47 +523,33 @@ class TestAutorollIntegration(unittest.TestCase):
         102: ['cp-27.lts'],
     })
 
-    exit_code, stdout, _ = self.run_autoroll([
-        '--source-branch',
-        'main',
-        '--target-branch',
-        '27.lts',
-        '--autoroll-file',
-        '.github/AUTOROLL',
-        '--max-commits',
-        '10',
-        '--existing-pr-sha',
-        '',
-        '--mode',
-        'label',
-        '--prs-json',
-        prs_json,
-    ])
+    args = [
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json
+    ]
 
+    exit_code, stdout, _ = self.run_autoroll(args)
     self.assertEqual(exit_code, 0)
-    expected_output = ('- #101\n\n'
-                       'CONFLICTED files:\n'
-                       '```\n'
-                       'conflict.txt\n'
-                       '```')
-    self.assertEqual(stdout.strip(), expected_output)
+    self.assertEqual(stdout.strip(), '- #102')
 
     # Verify branch state after SUT finishes
     self.assert_working_tree_clean()
     commit_titles = self.get_branch_commit_titles('27.lts')
     self.assertEqual(len(commit_titles), 1)
-    self.assertTrue(
-        commit_titles[0].startswith('CONFLICTED Cherry pick PR #101:'))
-    conflict_content = self.git('show', 'HEAD:conflict.txt').stdout
-    self.assertIn('<<<<<<< HEAD', conflict_content)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #102:'))
+    self.assertTrue(os.path.exists('other.txt'))
 
-    # In label mode, AUTOROLL marker file SHA must not be updated to candidate
-    # SHA; it must remain stickied to the last full mode SHA (base_sha).
+    # In label mode, AUTOROLL cursor on HEAD remains stickied to base_sha
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
-    self.assertEqual(autoroll_content, f'CONFLICTED:{base_sha}')
+    self.assertEqual(autoroll_content, base_sha)
+
+    cb = 'autoroll-main-to-27.lts-conflict-101'
+    self.assert_conflict_branch('27.lts', cb, '101', base_sha)
+    self.assert_idempotent(cb, args)
 
   def test_cuj7_conflict_on_subsequent_commit(self):
-    """CUJ 7: Conflict on subsequent commit executes hard reset."""
+    """CUJ 7: Conflict on subsequent commit isolates conflict branch."""
     self.commit_file('conflict.txt', 'line 1\nline 2\n',
                      'Add base conflict file')
     base_sha = self.get_head_sha()
@@ -587,7 +590,7 @@ class TestAutorollIntegration(unittest.TestCase):
     ])
 
     self.assertEqual(exit_code, 0)
-    # Output contains only the successful commit 101 (no CONFLICTED files block)
+    # Output contains only the successful commit 101
     self.assertEqual(stdout.strip(), '- #101')
     self.assertTrue(os.path.exists('clean.txt'))
 
@@ -600,6 +603,9 @@ class TestAutorollIntegration(unittest.TestCase):
       self.assertEqual(f.read(), 'line 1\n27.lts edit\n')
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, base_sha)
+
+    cb = 'autoroll-main-to-27.lts-conflict-102'
+    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102', base_sha)
 
   def test_cuj8_auto_resolvable_deleted_by_them_conflict(self):
     """CUJ 8: Auto-resolves deleted file conflict without failure."""
@@ -877,6 +883,189 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertTrue(commit_titles[0].startswith('Cherry pick PR #101:'))
     autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
     self.assertEqual(autoroll_content, self.start_sha)
+
+  def test_cuj14_label_mode_conflict_with_subsequent_clean_commit(self):
+    """CUJ 14: Conflicted commit is isolated while subsequent commit rolls."""
+    self.commit_file('conflict.txt', 'line 1\nline 2\n',
+                     'Add base conflict file')
+    base_sha = self.get_head_sha()
+
+    self.git('checkout', '-b', '27.lts', base_sha)
+    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+      f.write(f'{base_sha}\n')
+    self.git('add', '.github/AUTOROLL')
+    self.commit_file('conflict.txt', 'line 1\n27.lts edit\n', '27.lts edit')
+
+    self.git('checkout', 'main')
+    self.commit_file('clean1.txt', 'clean 1\n', 'Clean feature 1 (#101)')
+    self.commit_file('conflict.txt', 'line 1\nmain edit\n', 'Conflict (#102)')
+    self.commit_file('clean2.txt', 'clean 2\n', 'Clean feature 2 (#103)')
+
+    self.git('checkout', '27.lts')
+    self.git('checkout', '-b', 'autoroll-main-to-27.lts')
+
+    prs_json = self.create_prs_json({
+        101: ['cp-27.lts'],
+        102: ['cp-27.lts'],
+        103: ['cp-27.lts'],
+    })
+
+    args = [
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json
+    ]
+
+    exit_code, stdout, _ = self.run_autoroll(args)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '- #101\n- #103')
+    self.assertTrue(os.path.exists('clean1.txt'))
+    self.assertTrue(os.path.exists('clean2.txt'))
+
+    self.assert_working_tree_clean()
+    commit_titles = self.get_branch_commit_titles('27.lts')
+    self.assertEqual(len(commit_titles), 2)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #101:'))
+    self.assertTrue(commit_titles[1].startswith('Cherry pick PR #103:'))
+
+    cb = 'autoroll-main-to-27.lts-conflict-102'
+    self.assert_conflict_branch('autoroll-main-to-27.lts', cb, '102', base_sha)
+    self.assert_idempotent(cb, args)
+
+  def test_cuj15_label_mode_new_pr_inserted_into_existing_base_pr(self):
+    """CUJ 15: Newly labeled PR inserts into existing base PR across runs."""
+    self.init_target_branch('27.lts')
+    self.commit_file('a.txt', 'content a\n', 'Older PR (#101)')
+    self.commit_file('b.txt', 'content b\n', 'Newer PR (#102)')
+
+    # Run 1: Only PR 102 is labeled cp-27.lts
+    self.git('checkout', '27.lts')
+    self.git('checkout', '-b', 'autoroll-main-to-27.lts')
+
+    prs_json1 = self.create_prs_json({102: ['cp-27.lts']})
+    exit_code, stdout, _ = self.run_autoroll([
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json1
+    ])
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '- #102')
+
+    # Run 2: PR 101 also labeled cp-27.lts, inserting into base PR
+    prs_json2 = self.create_prs_json({
+        101: ['cp-27.lts'],
+        102: ['cp-27.lts'],
+    })
+    exit_code, stdout, _ = self.run_autoroll([
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json2
+    ])
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '- #101\n- #102')
+    self.assertTrue(os.path.exists('a.txt'))
+    self.assertTrue(os.path.exists('b.txt'))
+
+    commit_titles = self.get_branch_commit_titles('27.lts')
+    self.assertEqual(len(commit_titles), 2)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #102:'))
+    self.assertTrue(commit_titles[1].startswith('Cherry pick PR #101:'))
+
+  def test_cuj16_label_mode_conflict_resolution_by_subsequent_base_pr_pick(
+      self):
+    """CUJ 16: Conflict resolved when prerequisite PR is subsequently picked."""
+    self.commit_file('context.txt', 'line 1\n', 'Add base context file')
+    base_sha = self.get_head_sha()
+
+    self.git('checkout', '-b', '27.lts', base_sha)
+    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+      f.write(f'{base_sha}\n')
+    self.git('add', '.github/AUTOROLL')
+    self.git('commit', '-m', 'Init autoroll on 27.lts')
+
+    self.git('checkout', 'main')
+    # PR 101 adds dependency line
+    self.commit_file('context.txt', 'line 1\ndependency line\n',
+                     'Prerequisite feature (#101)')
+    # PR 102 adds feature line right after dependency line
+    self.commit_file('context.txt', 'line 1\ndependency line\nfeature line\n',
+                     'Dependent feature (#102)')
+
+    self.git('checkout', '27.lts')
+    self.git('checkout', '-b', 'autoroll-main-to-27.lts')
+
+    # Run 1: Only PR 102 is labeled cp-27.lts
+    prs_json1 = self.create_prs_json({102: ['cp-27.lts']})
+    args1 = [
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json1
+    ]
+
+    exit_code, stdout, _ = self.run_autoroll(args1)
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '')
+    self.assert_working_tree_clean()
+
+    # Verify conflict branch was created and isolated
+    cb = 'autoroll-main-to-27.lts-conflict-102'
+    local_branches = self.git('branch', '--list', cb).stdout
+    self.assertIn(cb, local_branches)
+    self.assertIn('<<<<<<< HEAD', self.git('show', f'{cb}:context.txt').stdout)
+
+    # Push conflict branch to origin to simulate remote PR creation
+    self.git('push', 'origin', cb)
+    remote_branches_before = self.git('branch', '-r', '--list',
+                                      f'origin/{cb}').stdout
+    self.assertIn(f'origin/{cb}', remote_branches_before)
+
+    # Verify idempotency while conflict is still unresolved
+    self.assert_idempotent(cb, args1)
+
+    # Run 2: Prerequisite PR 101 is now approved and labeled cp-27.lts!
+    prs_json2 = self.create_prs_json({
+        101: ['cp-27.lts'],
+        102: ['cp-27.lts'],
+    })
+    args2 = [
+        '--source-branch', 'main', '--target-branch', '27.lts',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'label', '--prs-json', prs_json2
+    ]
+
+    exit_code2, stdout2, _ = self.run_autoroll(args2)
+    self.assertEqual(exit_code2, 0)
+    self.assertEqual(stdout2.strip(), '- #101\n- #102')
+    self.assert_working_tree_clean()
+
+    # Verify both commits now exist on the base roll branch
+    commit_titles = self.get_branch_commit_titles('27.lts')
+    self.assertEqual(len(commit_titles), 2)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #101:'))
+    self.assertTrue(commit_titles[1].startswith('Cherry pick PR #102:'))
+
+    # Verify file content on HEAD is fully integrated
+    with open('context.txt', 'r', encoding='utf-8') as f:
+      content = f.read()
+    self.assertEqual(content, 'line 1\ndependency line\nfeature line\n')
+
+    # Verify local and remote conflict branches were cleaned up
+    local_branches_after = self.git('branch', '--list', cb).stdout
+    self.assertNotIn(cb, local_branches_after)
+    remote_branches_after = self.git('branch', '-r', '--list',
+                                     f'origin/{cb}').stdout
+    self.assertNotIn(f'origin/{cb}', remote_branches_after)
+
+    # Verify autoroll cursor in label mode remains stickied to base_sha
+    autoroll_content = self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip()
+    self.assertEqual(autoroll_content, base_sha)
+
+    # Run 3: Verify post-resolution idempotency
+    exit_code3, stdout3, _ = self.run_autoroll(args2)
+    self.assertEqual(exit_code3, 0)
+    self.assertEqual(stdout3.strip(), '- #101\n- #102')
+    self.assert_working_tree_clean()
+    self.assertEqual(len(self.get_branch_commit_titles('27.lts')), 2)
 
 
 if __name__ == '__main__':
