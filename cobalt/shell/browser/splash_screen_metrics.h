@@ -18,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "base/time/time.h"
@@ -47,11 +48,17 @@ class SplashScreenMetrics {
     // Shell started loading the splash screen.
     kSplashStart,
     // The splash screen finished loading. The minimum splash screen duration
-    // starts here or, for a video, when it starts playing, within 2s.
+    // starts when its content shows instead, within
+    // kSplashScreenMaxContentDelayParam (2s by default) of this: for an image,
+    // at kSplashFirstContentfulPaint, and for a video, at kSplashVideoStarted.
     kSplashLoaded,
-    // The splash screen's first visually non-empty paint. For the image splash
-    // screen, this is when the image is shown.
+    // The splash screen's first visually non-empty paint. That may be its
+    // background alone, as Blink counts a page as visually non-empty once it
+    // has finished parsing.
     kSplashFirstPaint,
+    // The splash screen's first contentful paint. For the image splash screen,
+    // this is when the image is shown.
+    kSplashFirstContentfulPaint,
     // The splash screen video started playing.
     kSplashVideoStarted,
     // The splash screen video reached its end.
@@ -109,6 +116,12 @@ class SplashScreenMetrics {
   // Marks that `event` happened now. Only the first occurrence counts.
   void MarkEvent(Event event);
 
+  // Marks that the minimum splash screen duration stopped waiting for the
+  // splash screen content to show, either because it did or because it took
+  // longer than kSplashScreenMaxContentDelayParam (`timed_out`). Recorded when
+  // switching to the main WebContents. Only the first call counts.
+  void OnContentWaitEnded(bool timed_out);
+
   // Drops the metrics of this launch, e.g., because the app was concealed.
   void Invalidate();
 
@@ -138,6 +151,8 @@ class SplashScreenMetrics {
   const bool has_splash_screen_;
   bool is_valid_;
   bool has_recorded_ = false;
+  // Whether the wait for the splash screen content timed out, once it ended.
+  std::optional<bool> content_wait_timed_out_;
   std::array<base::TimeTicks, static_cast<size_t>(Event::kMaxValue) + 1>
       event_times_;
 };

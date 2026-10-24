@@ -140,6 +140,16 @@ BASE_FEATURE_PARAM(std::string,
                    "");
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
+BASE_FEATURE(kSplashScreenContentWait,
+             "SplashScreenContentWait",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSplashScreenMaxContentDelayParam,
+                   &kSplashScreenContentWait,
+                   "max_delay",
+                   base::Seconds(2));
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",

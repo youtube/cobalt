@@ -254,6 +254,16 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
     STATE_SPLASH_SCREEN_ENDED         // End Splash Screen WebContents.
   };
 
+  // What the splash screen's minimum duration waits for before it starts.
+  enum class SplashContentWait {
+    // Nothing: it starts when its page has loaded, or has already started.
+    kNone,
+    // Its image to show, i.e., its page's first contentful paint.
+    kImagePaint,
+    // Its video to start playing.
+    kVideoFirstFrame,
+  };
+
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(
       std::unique_ptr<WebContents> web_contents,
@@ -308,6 +318,16 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Starts the splash screen's minimum duration, once, and schedules the
   // switch to the main WebContents if it has loaded.
   void StartSplashScreenTimer();
+  // Stops waiting for the splash screen's content to show, either because it
+  // did or because it took too long (`timed_out`), and starts the splash
+  // screen's minimum duration.
+  void EndSplashContentWait(bool timed_out);
+  // Called max_splash_content_delay_ after the page of the splash screen
+  // loaded, to start the splash screen if its content hasn't shown by then.
+  void OnSplashScreenContentWaitTimedOut();
+  // Called on the splash screen's first contentful paint, i.e., once its image
+  // shows, or for a video, before its first frame.
+  void OnSplashScreenFirstContentfulPaint();
   // Called when the video of the splash screen starts playing, i.e., once
   // SbPlayer has prerolled it.
   void OnSplashScreenVideoStarted();
@@ -328,11 +348,15 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Startup timing metrics of the launch. Null for windows other than the
   // first one.
   std::unique_ptr<SplashScreenMetrics> splash_screen_metrics_;
-  // Whether the splash screen's minimum duration waits for its video to start
-  // playing.
-  bool awaiting_splash_video_first_frame_ = false;
-  // Whether the page of the splash screen has loaded.
-  bool is_splash_screen_loaded_ = false;
+  // What the splash screen's minimum duration waits for, as the page of the
+  // splash screen loads before it shows anything.
+  SplashContentWait splash_content_wait_ = SplashContentWait::kNone;
+  // How long after the page of the splash screen loads its minimum duration
+  // waits for its content to show, at most. If not positive, it doesn't wait.
+  // See cobalt::features::kSplashScreenMaxContentDelayParam.
+  base::TimeDelta max_splash_content_delay_;
+  // Whether the page of the splash screen has had its first contentful paint.
+  bool has_splash_first_contentful_paint_ = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 

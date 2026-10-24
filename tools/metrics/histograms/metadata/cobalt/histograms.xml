@@ -451,6 +451,25 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.SplashScreen.ContentWaitTimedOut.{SplashMode}"
+    enum="Boolean" expires_after="never">
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records whether the minimum splash screen duration started because its
+    content didn't show within SplashScreenContentWait's max_delay (2s by
+    default) of the splash screen page loading (true), rather than because the
+    image was painted or the video started playing (false). True means the
+    content may have been cut short, or never shown. Recorded once per launch
+    that shows a splash screen and waits for its content, when switching to the
+    main WebContents, if the wait ended before that. Launches that start hidden
+    or are concealed before the switch aren't recorded.
+  </summary>
+  <token key="SplashMode">
+    <variant name="Image" summary="The splash screen showed an image."/>
+    <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.FetchedFromCache"
     enum="SplashScreenFetchedState" expires_after="never">
   <owner>tasunny@google.com</owner>
