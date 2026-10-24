@@ -110,6 +110,27 @@ extern const base::Feature kDisableSplashScreen;
 // Forces the display of a video as the splash screen.
 extern const base::Feature kForceVideoSplashScreen;
 
+// Enables reading the splash screen assets that the WebApp cached with the
+// Cache API of the splash domain (splash.webm, splash.png). When disabled, the
+// splash screen uses its built-in assets without reading the cache. Disabled by
+// default, so that Finch's crash safe mode (the empty experiment config)
+// reverts to the built-in assets if a cached asset crashes Cobalt at startup,
+// and so that Finch can turn it off as a kill switch.
+// Locally: --enable-features=EnableCachedSplashFile
+BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
+
+// Shows a video as the splash screen, played by an SbPlayer that Cobalt drives
+// directly instead of through a <video> element and Media Source Extensions in
+// the splash screen WebContents, which then only stays transparent so that the
+// punch-out video shows through. Plays the same video as
+// ForceVideoSplashScreen, i.e., the one that the WebApp cached, with
+// EnableCachedSplashFile, or the built-in one, and takes precedence over it. If
+// the video can't be played this way, e.g., where Starboard media isn't used,
+// or fails before its first frame, the main WebContents shows right away
+// instead.
+// Locally: --enable-features=NativeVideoSplashScreen
+BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 

@@ -100,6 +100,41 @@ class SplashScreenTest : public ShellTestBase {
     shell->OnSplashScreenVideoSupportChecked(can_play_video);
   }
 
+  void CallOnNativeSplashVideoFirstFrame(Shell* shell) {
+    shell->OnNativeSplashVideoFirstFrame();
+  }
+
+  void CallOnNativeSplashVideoEnded(Shell* shell) {
+    shell->OnNativeSplashVideoEnded();
+  }
+
+  // As if the splash screen video started playing natively.
+  void SetAwaitingNativeSplashVideoFirstFrame(Shell* shell) {
+    shell->awaiting_splash_video_first_frame_ = true;
+  }
+
+  // As with NativeVideoSplashScreen, until the video plays natively.
+  void ShowNativeSplashVideoHole(Shell* shell) {
+    shell->LoadSplashScreenURL(Shell::SplashScreenPage::kNativeVideoHole);
+    shell->awaiting_splash_video_first_frame_ = true;
+  }
+
+  void CallOnNativeSplashVideoError(Shell* shell,
+                                    NativeSplashVideoPlayer::Error error) {
+    shell->OnNativeSplashVideoError(error);
+  }
+
+  // As when the app is concealed.
+  void CallStopNativeSplashVideo(Shell* shell) {
+    shell->StopNativeSplashVideo();
+  }
+
+  // As when the splash screen's page reports its load progress.
+  void CallSplashScreenLoadProgressChanged(Shell* shell, double progress) {
+    static_cast<WebContentsObserver*>(GetSplashScreenWebContentsObserver(shell))
+        ->LoadProgressChanged(progress);
+  }
+
   Shell::State GetSplashState(Shell* shell) { return shell->splash_state_; }
 
   bool IsMainFrameLoaded(Shell* shell) { return shell->is_main_frame_loaded_; }
@@ -608,6 +643,292 @@ TEST_F(SplashScreenTest, SplashTimeoutFromFeatureParam) {
   shell->Close();
 }
 
+TEST_F(SplashScreenTest, NativeVideoFirstFrameStartsSplashTimer) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(IsMainFrameLoaded(shell));
+  task_environment()->FastForwardBy(base::Seconds(10));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  // The video shows before the transparent splash screen page finishes
+  // loading, so the timeout counts from its first frame.
+  CallOnNativeSplashVideoFirstFrame(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnSplashScreenLoadComplete(shell);
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoEndKeepsSplashScreenUntilTimeout) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnNativeSplashVideoFirstFrame(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(1300));
+  CallOnNativeSplashVideoEnded(shell);
+
+  // The last frame of the video stays up until the timeout.
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
+  ExpectStateStarted(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  ExpectStateEnded(shell);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  // The main frame then shows as soon as it loads.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoPageLoadWaitsForFirstFrame) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  SetAwaitingNativeSplashVideoFirstFrame(shell);
+  // The page of the video loads before the video shows anything.
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1000));
+  CallOnNativeSplashVideoFirstFrame(shell);
+
+  // The timeout counts from the first frame.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(2900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoFirstFrameWaitIsBounded) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      cobalt::features::kSplashScreenConfig, {{"timeout", "3s"}});
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  SetAwaitingNativeSplashVideoFirstFrame(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+
+  // Without a first frame, the timeout starts 2 s after the page loaded.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(4900));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoErrorBeforeFirstFrameSwitchesToMainFrame) {
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+
+  // There's no other splash screen to fall back to: the main frame shows
+  // instead, even if it hasn't loaded yet.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kPlaybackError);
+  EXPECT_FALSE(IsMainFrameLoaded(shell));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(GetSplashScreenWebContents(shell), nullptr);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, NativeVideoErrorAfterFirstFrameKeepsTheVideo) {
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoFirstFrame(shell);
+  CallOnNativeSplashVideoError(
+      shell, NativeSplashVideoPlayer::Error::kPlaybackErrorAfterFirstFrame);
+
+  // The page isn't reloaded, which would restart the video.
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?native_video=true"));
+
+  // The splash screen still ends 1.5 s after the first frame.
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// Like splash.html when the platform doesn't play VP9: the image shows instead
+// of the video, and its duration counts from when its page has loaded.
+TEST_F(SplashScreenTest, NativeVideoUnsupportedShowsTheImage) {
+  Shell* shell = CreateShellWithSplashScreen();
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kUnsupported);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(
+      GetPendingSplashScreenURL(shell),
+      GURL(std::string(switches::kSplashScreenURL) + "?force_image=true"));
+
+  CallSplashScreenLoadProgressChanged(shell, 1.0);
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, ConcealSwitchesFromTheNativeVideoToTheMainFrame) {
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+
+  // The video hole would show the cleared video surface once revealed, so the
+  // main frame shows instead, even if it hasn't loaded yet.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallStopNativeSplashVideo(shell);
+  EXPECT_FALSE(IsMainFrameLoaded(shell));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+  EXPECT_EQ(GetSplashScreenWebContents(shell), nullptr);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, MainFrameLoadAfterTheConcealSwitchKeepsItShown) {
+  // The video splash screen hides the main frame until the switch.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoFirstFrame(shell);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallStopNativeSplashVideo(shell);
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  // The main frame loads after the switch, e.g., once the app is revealed: it
+  // stays shown.
+  CallLoadProgressChanged(shell, 1.0);
+  task_environment()->FastForwardBy(base::Seconds(3));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest,
+       SplashTimerAfterTheConcealSwitchKeepsTheMainFrameShown) {
+  // The video splash screen hides the main frame until the switch.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  // The page loads, and waits for the video's first frame within a limit.
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallStopNativeSplashVideo(shell);
+
+  // The limit passes after the switch: the main frame stays shown.
+  task_environment()->FastForwardBy(base::Seconds(3));
+  EXPECT_EQ(shell->web_contents()->GetVisibility(), Visibility::VISIBLE);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, ConcealKeepsTheHtmlVideoWaitingForItsFirstFrame) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      cobalt::features::kForceVideoSplashScreen);
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  CallLoadProgressChanged(shell, 1.0);
+  CallStopNativeSplashVideo(shell);
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallOnSplashScreenVideoStarted(shell);
+
+  // The splash screen still starts with the HTML video's first frame.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(0);
+  task_environment()->FastForwardBy(base::Milliseconds(1400));
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
 TEST_F(SplashScreenTest, VideoPageLoadWaitsForFirstFrame) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
@@ -945,6 +1266,48 @@ TEST_F(SplashScreenTest, StartupMetricsForVideoSplashScreen) {
   shell->Close();
 }
 
+TEST_F(SplashScreenTest, StartupMetricsForNativeVideoSplashScreen) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);  // t=0
+  task_environment()->FastForwardBy(base::Milliseconds(200));
+  // The page's video hole doesn't play: the video played natively reports its
+  // own first frame and end.
+  CallOnNativeSplashVideoFirstFrame(shell);  // t=200
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  CallLoadProgressChanged(shell, 1.0);  // t=700
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+  // The splash screen closes when the video ends, before the 1500ms minimum
+  // duration elapses.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallOnNativeSplashVideoEnded(shell);  // t=1200
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.LoadedToContentShown.Video",
+      base::Milliseconds(200), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.SplashScreen.Time.ContentShownToSwitch.Video",
+      base::Milliseconds(1000), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Cobalt.Startup.Timeline.SplashContentEnded.Video",
+      base::Milliseconds(1200), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.ContentEndedBeforeSwitch.Video", true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Video",
+      SplashScreenMetrics::SwitchTrigger::kSplashClosed, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.SplashScreen.SwitchTrigger.Image",
+                                    0);
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
 TEST_F(SplashScreenTest, StartupMetricsWithoutSplashScreen) {
   base::HistogramTester histogram_tester;
   WebContents::CreateParams create_params(browser_context());
@@ -995,6 +1358,65 @@ TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterConceal) {
   EXPECT_TRUE(
       histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
           .empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+TEST_F(SplashScreenTest, StartupMetricsNotRecordedAfterNativeVideoError) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnSplashScreenLoadComplete(shell);
+  // The launch loses its splash screen early, so its timings aren't comparable
+  // to the others'.
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kPlaybackError);
+  CallLoadProgressChanged(shell, 1.0);
+  shell->OnMainReady();
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  // Only the outcome of the video is recorded.
+  EXPECT_THAT(histogram_tester.GetTotalCountsForPrefix("Cobalt.SplashScreen."),
+              testing::ElementsAre(
+                  testing::Pair("Cobalt.SplashScreen.NativeVideo.Outcome", 1)));
+  EXPECT_TRUE(
+      histogram_tester.GetTotalCountsForPrefix("Cobalt.Startup.Timeline.")
+          .empty());
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+}
+
+// When the platform doesn't play the video natively, the image shows instead,
+// and the launch is recorded as an image launch, as with splash.html without
+// VP9.
+TEST_F(SplashScreenTest, StartupMetricsForUnsupportedNativeVideo) {
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  ShowNativeSplashVideoHole(shell);
+  CallOnNativeSplashVideoError(shell,
+                               NativeSplashVideoPlayer::Error::kUnsupported);
+  CallSplashScreenLoadProgressChanged(shell, 1.0);
+  CallLoadProgressChanged(shell, 1.0);
+  EXPECT_CALL(*platform_, UpdateContents(shell)).Times(1);
+  task_environment()->FastForwardBy(base::Milliseconds(1600));
+  EXPECT_TRUE(HasSwitchedToMainFrame(shell));
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.SwitchTrigger.Image",
+      SplashScreenMetrics::SwitchTrigger::kTimer, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.SplashScreen.SwitchTrigger.Video",
+                                    0);
+  histogram_tester.ExpectTotalCount("Cobalt.Startup.Timeline.MainVisible.Image",
+                                    1);
 
   EXPECT_CALL(*platform_, DestroyShell(shell));
   EXPECT_CALL(*platform_, CleanUp(shell));

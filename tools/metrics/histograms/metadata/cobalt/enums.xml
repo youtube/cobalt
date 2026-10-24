@@ -145,6 +145,20 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="2" label="Exceeds Max Limit"/>
 </enum>
 
+<enum name="NativeSplashVideoOutcome">
+  <int value="0" label="Started"/>
+  <int value="1" label="First frame presented"/>
+  <int value="2" label="Ended"/>
+  <int value="3" label="Not started: invalid video"/>
+  <int value="4" label="Image shown: VP9 or punch-out unsupported"/>
+  <int value="5" label="Failed: SbPlayerCreate() failed"/>
+  <int value="6" label="Failed: playback error before the first frame"/>
+  <int value="7" label="Cached video rejected: invalid or unsupported"/>
+  <int value="8" label="Failed: playback error after the first frame"/>
+  <int value="9" label="Cached video failed before its first frame"/>
+  <int value="10" label="Stopped: app concealed"/>
+</enum>
+
 <enum name="SentinelWriteResult">
   <int value="0" label="Success"/>
   <int value="1" label="Empty Path"/>
@@ -178,6 +192,7 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
       label="Error: Content from cache is too large, fallback to builtin."/>
   <int value="4" label="Error: Failed to read cache, fallback to builtin."/>
   <int value="5" label="Error: Builtin resource not found."/>
+  <int value="6" label="Skipped: cached assets disabled"/>
 </enum>
 
 <enum name="StorageInjectionResult">

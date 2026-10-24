@@ -6,6 +6,8 @@ include_rules = [
   "+components/prefs",
   "+components/origin_trials",
   "+components/variations",
+  "+media/base/video_util.h",
+  "+media/formats/webm",
   "+services/device/public/cpp",
   "+services/network/public",
   "+services/service_manager/public/cpp",
