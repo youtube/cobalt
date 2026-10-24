@@ -113,6 +113,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC B2): Disable the splash screen to remove its
+               // 1500 ms floor and second WebContents overhead on cold start.
+               "DisableSplashScreen",
            },
            ",")},
       {::switches::kDisableFeatures,
