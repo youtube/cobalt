@@ -21,10 +21,12 @@
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
@@ -217,17 +219,21 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mime_type_ = kMimeTypeVideoWebM;
     }
 
-    // Splash caching only serves the png and webm resources defined in
-    // the resource map.
-    const bool supports_splash_caching =
+    // Splash assets are the png and webm resources defined in the resource
+    // map.
+    const bool is_splash_asset =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
         base::Contains(resource_map, key);
+    // Whether to read the splash asset that the WebApp cached.
+    const bool supports_splash_caching =
+        is_splash_asset &&
+        H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled();
 
-    // For png/webm, override resource_key with "fallback" query param.
-    // If requested key is not found in cache, loader returns the fallback
-    // resource.
+    // For splash assets, override resource_key with "fallback" query param.
+    // If requested key is not found in cache, or the cache isn't read, loader
+    // returns the fallback resource.
     std::string fallback;
-    if (supports_splash_caching &&
+    if (is_splash_asset &&
         net::GetValueForKeyInQuery(url_, "fallback", &fallback)) {
       LOG(INFO) << "Fallback splash: " << fallback;
       resource_key = std::move(fallback);
@@ -249,6 +255,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     if (content_.empty()) {
       SendNotFoundResponse(key);
+      return;
+    }
+
+    if (is_splash_asset && !supports_splash_caching) {
+      // As on a cache miss: the built-in resource, which the "fallback"
+      // query param may have chosen, e.g., the 480p video.
+      LOG(INFO) << "Cached splash assets are disabled. Using built-in "
+                << resource_key << ".";
+      SendResponse(SplashScreenFetchedState::kSkippedCachedAssets);
       return;
     }
 
@@ -472,6 +487,8 @@ std::optional<std::string>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
 std::optional<int>
     H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
+std::optional<bool>
+    H5vccSchemeURLLoaderFactory::global_cached_splash_file_enabled_test_;
 const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
     nullptr;
 
@@ -514,6 +531,15 @@ void H5vccSchemeURLLoaderFactory::Clone(
       std::move(receiver));
 }
 
+// static
+bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
+  if (global_cached_splash_file_enabled_test_.has_value()) {
+    return *global_cached_splash_file_enabled_test_;
+  }
+  return base::FeatureList::IsEnabled(
+      cobalt::features::kEnableCachedSplashFile);
+}
+
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
     const GeneratedResourceMap* resource_map_test) {
   resource_map_test_ = resource_map_test;
@@ -527,6 +553,11 @@ void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
 void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(
     const std::optional<int>& size) {
   global_splash_content_size_test_ = size;
+}
+
+void H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+    const std::optional<bool>& enabled) {
+  global_cached_splash_file_enabled_test_ = enabled;
 }
 
 }  // namespace content
