@@ -110,10 +110,12 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/services/storage/public/cpp",
     "//components/variations/service",
     "//components/viz/common",
     "//gpu/config",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
+    "//sql",
     "//starboard:starboard_group",
   ]
 
