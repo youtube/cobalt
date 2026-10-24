@@ -23,6 +23,11 @@ jinja_template("cobalt_manifest") {
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
   ]
+  if (cobalt_is_release_build && !is_androidtv) {
+    variables += [ "debuggable=false" ]
+  } else {
+    variables += [ "debuggable=true" ]
+  }
 }
 
 java_cpp_features("java_features_srcjar") {
