@@ -1340,6 +1340,11 @@ if (is_cobalt) {
             [
               "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/wasm/dedicated_worker_global_scope_h_5_vcc_wasm_imports.idl",
+              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_imports.idl",
+              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_player.idl",
+              "//third_party/blink/renderer/modules/cobalt/wasm/h_5_vcc_wasm_surface.idl",
+              "//third_party/blink/renderer/modules/cobalt/wasm/window_h_5_vcc_wasm_imports.idl",
             ],
             "abspath")
   }

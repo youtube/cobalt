@@ -1,0 +1,11 @@
+specific_include_rules = {
+  "wasm_hole_web_media_player(_unittest)?\\.cc": [
+    # MediaPlayerClient is what HTMLMediaElement passes as the
+    # WebMediaPlayerClient (see WebMediaPlayerBuilder).
+    "+third_party/blink/renderer/platform/media/media_player_client.h",
+    "+third_party/blink/renderer/platform/weborigin/kurl.h",
+  ],
+  "wasm_hole_web_media_player_unittest\\.cc": [
+    "+third_party/blink/renderer/platform/wtf/allocator/partitions.h",
+  ],
+}
