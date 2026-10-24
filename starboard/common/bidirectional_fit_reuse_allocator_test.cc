@@ -539,4 +539,59 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, TieredDecommit) {
   EXPECT_TRUE(found_block4);
 }
 
+TYPED_TEST(BidirectionalFitReuseAllocatorTest,
+           TryToDecommitOneBlockGracePeriodAndCapacity) {
+  const size_t kAlignment = sizeof(void*);
+  const size_t kBlockSize = 64 * 1024;
+
+  this->ResetAllocatorWithTieredDecommitSupport(/*retain_blocks=*/1,
+                                                /*conservative_blocks=*/0);
+
+  void* block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  void* block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+
+  const size_t full_allocated = this->allocator_->GetAllocated();
+  const size_t full_capacity = this->allocator_->GetCapacity();
+  EXPECT_GT(full_allocated, 0U);
+  EXPECT_GE(full_capacity, full_allocated);
+
+  // Freeing one block should immediately reduce GetAllocated().
+  this->allocator_->Free(block1);
+  EXPECT_LT(this->allocator_->GetAllocated(), full_allocated);
+  EXPECT_GT(this->allocator_->GetAllocated(), 0U);
+
+  // Freeing the remaining block reaches idle and reclaims fallback blocks.
+  this->allocator_->Free(block2);
+  EXPECT_EQ(this->allocator_->GetAllocated(), 0U);
+  EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+
+  // During the 3-tick grace period, TryToDecommitOneBlock(1) should not
+  // decommit any blocks.
+  for (int i = 0; i < 3; ++i) {
+    this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+    EXPECT_EQ(this->mock_fallback_allocator_->decommits.size(), 0U);
+    EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+  }
+
+  // On the 4th tick after reaching idle, the non-retained block is decommitted
+  // and subtracted from GetCapacity().
+  this->allocator_->TryToDecommitOneBlock(/*cadence=*/1);
+  ASSERT_EQ(this->mock_fallback_allocator_->decommits.size(), 1U);
+  EXPECT_EQ(this->allocator_->GetCapacity(),
+            full_capacity - this->mock_fallback_allocator_->decommits[0].size);
+
+  // Re-allocating both blocks re-activates the decommitted block and restores
+  // full capacity.
+  block1 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  block2 = this->allocator_->Allocate(kBlockSize, kAlignment);
+  ASSERT_NE(block1, nullptr);
+  ASSERT_NE(block2, nullptr);
+  EXPECT_EQ(this->allocator_->GetCapacity(), full_capacity);
+
+  this->allocator_->Free(block1);
+  this->allocator_->Free(block2);
+}
+
 }  // namespace starboard
