@@ -127,6 +127,29 @@ jobs:
           set -x
           includes=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -c '.includes')
           echo "includes=${includes}" >> "${GITHUB_OUTPUT}"
+      - name: Set target OS
+        id: set-target-os
+        shell: bash
+        run: |
+          set -x
+          target_os=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -r '.target_os // empty')
+          echo "target_os=${target_os}" >> "${GITHUB_OUTPUT}"
+      - name: Set target CPU
+        id: set-target-cpu
+        shell: bash
+        run: |
+          set -x
+          target_cpu=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.target_cpu // empty')
+          echo "target_cpu=${target_cpu}" >> "${GITHUB_OUTPUT}"
+      - name: Set golden workspace publishing
+        id: set-publish-golden
+        shell: bash
+        run: |
+          set -x
+          publish_golden=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -r '.publish_golden // false')
+          publish_src=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -r '.publish_src // false')
+          echo "publish_golden=${publish_golden}" >> "${GITHUB_OUTPUT}"
+          echo "publish_src=${publish_src}" >> "${GITHUB_OUTPUT}"
       - name: Set Docker service
         id: set-docker-service
         shell: bash
@@ -419,6 +442,10 @@ jobs:
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      target_os: ${{ steps.set-target-os.outputs.target_os }}
+      target_cpu: ${{ steps.set-target-cpu.outputs.target_cpu }}
+      publish_golden: ${{ steps.set-publish-golden.outputs.publish_golden }}
+      publish_src: ${{ steps.set-publish-golden.outputs.publish_src }}
       expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
 
@@ -536,19 +563,20 @@ jobs:
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Prepare OverlayFS Workspace
         id: overlay_workspace
-        if: ${{ !contains(matrix.platform, 'tvos') }}
+        if: ${{ needs.initialize.outputs.target_os != 'ios' }}
         uses: ./.github/actions/overlay_workspace
         with:
           path: cobalt
           platform: ${{ matrix.platform || inputs.platform }}
+          target_os: ${{ needs.initialize.outputs.target_os }}
           use_gcloud: true
 
       - name: Runner Cache Hot
-        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit == 'true' }}
+        if: ${{ needs.initialize.outputs.target_os != 'ios' && steps.overlay_workspace.outputs.cache_hit == 'true' }}
         shell: bash
         run: echo "Golden workspace found on SSD."
       - name: Runner Cache Cold
-        if: ${{ !contains(matrix.platform, 'tvos') && steps.overlay_workspace.outputs.cache_hit != 'true' }}
+        if: ${{ needs.initialize.outputs.target_os != 'ios' && steps.overlay_workspace.outputs.cache_hit != 'true' }}
         shell: bash
         run: echo "Golden workspace missing or corrupted. Triggered full initialization sync."
 
@@ -569,6 +597,10 @@ jobs:
         uses: ./.github/actions/depot_tools
         with:
           platform: ${{ matrix.platform || inputs.platform }}
+          target_os: ${{ needs.initialize.outputs.target_os }}
+          target_cpu: ${{ needs.initialize.outputs.target_cpu }}
+          publish_golden: ${{ needs.initialize.outputs.publish_golden }}
+          publish_src: ${{ needs.initialize.outputs.publish_src }}
           use_gcloud: true
 
       - name: Build Cobalt
@@ -1002,6 +1034,7 @@ jobs:
         with:
           path: cobalt
           platform: ${{ matrix.platform || inputs.platform }}
+          target_os: ${{ needs.initialize.outputs.target_os }}
 
       - name: Runner Cache Hot
         if: steps.overlay_workspace.outputs.cache_hit == 'true'

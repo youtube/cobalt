@@ -17,6 +17,18 @@ inputs:
   platform:
     description: "The platform for which to publish the golden snapshot."
     default: ''
+  target_os:
+    description: "Target OS for gclient (linux, android, ios)."
+    default: ''
+  target_cpu:
+    description: "Target CPU(s) for gclient (e.g. ['x64', 'arm64'])."
+    default: ''
+  publish_golden:
+    description: "Whether this platform publishes golden workspace snapshots."
+    default: 'false'
+  publish_src:
+    description: "Whether to publish the universal src layer snapshot."
+    default: 'false'
 
 runs:
   using: "composite"
@@ -79,6 +91,8 @@ runs:
       env:
         RBE_INSTANCE: ${{ inputs.rbe_instance }}
         REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+        TARGET_OS: ${{ inputs.target_os }}
+        TARGET_CPU: ${{ inputs.target_cpu }}
       run: |
         set -x
         cd cobalt
@@ -88,40 +102,17 @@ runs:
             --name=src \
             --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
             "${REPOSITORY}"
+          if [[ -n "${TARGET_OS}" ]]; then
+            echo "target_os=['${TARGET_OS}']" >> .gclient
+          fi
+          if [[ -n "${TARGET_CPU}" ]]; then
+            echo "target_cpu=${TARGET_CPU}" >> .gclient
+          fi
+          gclient validate
         else
           echo ".gclient already exists. Skipping gclient config."
         fi
       shell: bash
-
-    - name: Set target OS
-      shell: bash
-      working-directory: cobalt
-      env:
-        PLATFORM: ${{ matrix.platform }}
-      run: |
-        if ! grep -q "target_os" .gclient; then
-          if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
-            echo "target_os=['android']" >> .gclient
-          elif [[ "${PLATFORM}" == *"tvos"* ]]; then
-            echo "target_os=['ios']" >> .gclient
-          fi
-        fi
-        gclient validate
-
-    - name: Set target CPU
-      shell: bash
-      working-directory: cobalt
-      env:
-        PLATFORM: ${{ matrix.platform }}
-      run: |
-        if ! grep -q "target_cpu" .gclient; then
-          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
-            echo "target_cpu=['x64', 'arm64']" >> .gclient
-          elif [[ "${PLATFORM}" == *"evergreen-arm"* ]]; then
-            echo "target_cpu=['x64', 'arm']" >> .gclient
-          fi
-        fi
-        gclient validate
 
     - name: Check Golden Workspace DEPS Match
       id: check-deps
@@ -130,10 +121,11 @@ runs:
       working-directory: cobalt
       env:
         PLATFORM: ${{ inputs.platform || matrix.platform }}
+        TARGET_OS: ${{ inputs.target_os }}
       run: |
         set -euo pipefail
         deps_match=false
-        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+        LOWER_DIR="/runner-cache/golden-workspace/gclient/${TARGET_OS:-linux}"
 
         if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
           echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
@@ -182,26 +174,56 @@ runs:
       # no usable snapshot existed), and only from one config per platform: the
       # snapshot is taken before the build, so its content is config-independent.
       id: publish-snapshot
-      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true' && matrix.config == 'devel' && github.event_name == 'push' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      if: |
+        inputs.run_sync == 'true' &&
+        steps.check-deps.outputs.deps_match != 'true' &&
+        matrix.config == 'devel' &&
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
       shell: bash
       working-directory: cobalt
       env:
         PLATFORM: ${{ inputs.platform || matrix.platform }}
+        TARGET_OS: ${{ inputs.target_os }}
+        PUBLISH_GOLDEN: ${{ inputs.publish_golden }}
+        PUBLISH_SRC: ${{ inputs.publish_src }}
       run: |
-        BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
-        ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
-        TARGET_URI="gs://${BUCKET}/${PLATFORM}"
-        trap 'rm -f "${ARCHIVE}"' EXIT
-
-        DIGEST=$(tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
-          -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
-
-        SNAPSHOT_GCS="${TARGET_URI}/${DIGEST}.tar.zst"
-        if ! gcloud storage ls "${SNAPSHOT_GCS}" >/dev/null 2>&1; then
-          gcloud storage cp --no-clobber "${ARCHIVE}" "${SNAPSHOT_GCS}"
+        set -euo pipefail
+        TARGET_OS="${TARGET_OS:-linux}"
+        if [ "${TARGET_OS}" = "ios" ] || [ "${PUBLISH_GOLDEN}" != "true" ]; then
+          echo "Skipping golden snapshot publishing."
+          exit 0
         fi
 
-        mkdir -p "${RUNNER_TEMP}/golden" && echo "${DIGEST}" > "${RUNNER_TEMP}/golden/${PLATFORM}"
+        BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
+        ARCHIVE="/runner-cache/golden-${PLATFORM}.$$.tar.zst"
+        trap 'rm -f "${ARCHIVE}"' EXIT
+        mkdir -p "${RUNNER_TEMP}/golden"
+        : > "${RUNNER_TEMP}/golden/${PLATFORM}"
+
+        upload_part() {
+          gcloud storage cp -n "${ARCHIVE}" "gs://${BUCKET}/$1/$2.tar.zst"
+          echo "$1 $2" >> "${RUNNER_TEMP}/golden/${PLATFORM}"
+        }
+
+        TAR_ARGS=(
+          --sort=name
+          --mtime='1970-01-01 00:00:00Z'
+          --owner=0
+          --group=0
+          --numeric-owner
+        )
+
+        if [ "${PUBLISH_SRC}" = "true" ]; then
+          SRC_DIGEST=$(tar "${TAR_ARGS[@]}" -C "${SRC_DIR}" -cf - src \
+            | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+          upload_part "src" "${SRC_DIGEST}"
+        fi
+
+        GCLIENT_DIGEST=$(tar "${TAR_ARGS[@]}" --exclude='*.wh..wh.*' \
+          -C "${UPPER_DIR}" -cf - depot_tools .gclient src \
+          | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+        upload_part "gclient/${TARGET_OS}" "${GCLIENT_DIGEST}"
         echo "published=true" >> "${GITHUB_OUTPUT}"
 
     - name: Upload Golden Workspace Metadata

@@ -1,5 +1,6 @@
 {
   "docker_service": "linux",
+  "target_os": "android",
   "platforms": [
     "chromium_android-arm"
   ],
