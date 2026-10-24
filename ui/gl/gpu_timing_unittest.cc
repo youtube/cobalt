@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_context_stub.h"
 #include "ui/gl/gl_implementation.h"
@@ -140,6 +141,28 @@ TEST_F(GPUTimingTest, QueryTimeStampTest) {
   EXPECT_EQ(begin_cpu_time, start);
   EXPECT_EQ(begin_cpu_time, end);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+TEST_F(GPUTimingTest, TimestampUnitCalibration) {
+  scoped_refptr<GPUTimingClient> client = CreateGPUTimingClient();
+  gpu_timing_fake_queries_.SetGLTimestampNanosPerUnit(1e9 / 24e6);
+  gpu_timing_fake_queries_.SetCPUGLOffset(2250900);
+  gpu_timing_fake_queries_.ExpectGPUTimerQuery(*gl_, false);
+  gpu_timing_fake_queries_.ExpectDisjointCalls(*gl_);
+
+  int64_t cpu_time = 367060000000LL;  // >4 days of uptime
+  int64_t start = 0, end = 0;
+  for (int i = 0; i < 7; ++i, cpu_time += 100000) {
+    gpu_timing_fake_queries_.SetCurrentCPUTime(cpu_time);
+    std::unique_ptr<GPUTimer> timer = client->CreateGPUTimer(false);
+    timer->QueryTimeStamp();
+    ASSERT_TRUE(timer->IsAvailable());
+    timer->GetStartEndTimestamps(&start, &end);
+    timer->Destroy(true);
+  }
+  EXPECT_NEAR(cpu_time - 100000, start, 1000);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 TEST_F(GPUTimingTest, QueryTimestampUsingElapsedTest) {
   // Test timestamp queries on platforms with GL_EXT_disjoint_timer_query but
