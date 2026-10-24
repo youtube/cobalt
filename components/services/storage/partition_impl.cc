@@ -8,19 +8,20 @@
 #include <utility>
 
 #include "base/debug/crash_logging.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "components/services/storage/dom_storage/local_storage_impl.h"
 #include "components/services/storage/dom_storage/session_storage_impl.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/storage_service_impl.h"
 
 namespace storage {
 
 namespace {
-
-const char kSessionStorageDirectory[] = "Session Storage";
 
 template <typename T>
 base::OnceClosure MakeDeferredDeleter(std::unique_ptr<T> object) {
@@ -72,7 +73,21 @@ void PartitionImpl::BindSessionStorageControl(
           {base::MayBlock(), base::WithBaseSyncPrimitives(),
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN}),
       base::SequencedTaskRunner::GetCurrentDefault(),
+#if BUILDFLAG(IS_COBALT)
+      // Cobalt runs a single-tab web application with no multi-tab session
+      // restore across restarts. When kCobaltStorageCleanup is enabled, keep
+      // Session Storage purely in-memory to avoid LevelDB disk writes and
+      // fdatasync() overhead during startup and navigation.
+      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)
+          ? SessionStorageImpl::BackingMode::kNoDisk
 #if BUILDFLAG(IS_ANDROID)
+          : SessionStorageImpl::BackingMode::kClearDiskStateOnOpen,
+#else
+          : (path_.has_value()
+                 ? SessionStorageImpl::BackingMode::kRestoreDiskState
+                 : SessionStorageImpl::BackingMode::kNoDisk),
+#endif
+#elif BUILDFLAG(IS_ANDROID)
       // On Android there is no support for session storage restoring, and since
       // the restoring code is responsible for database cleanup, we must
       // manually delete the old database here before we open a new one.
