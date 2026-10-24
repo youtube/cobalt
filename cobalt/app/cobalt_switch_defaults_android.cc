@@ -137,6 +137,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // [PoC][C7] Suppress per-subresource SubresourceResponseStarted
                // IPC.
                "ReduceSubresourceResponseStartedIPC",
+               // [PoC][C8] Disable Android TextAutosizer for 1080p TV UI.
+               "ForceOffTextAutosizing",
            },
            ",")},
       {::switches::kDisableFeatures,
