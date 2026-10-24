@@ -22,12 +22,30 @@
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/env.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
 namespace storage {
+
+#if BUILDFLAG(IS_COBALT)
+// Reasons why a persistent LocalStorage LevelDB database was reset or
+// recreated. Logged to "Cobalt.LocalStorage.DatabaseResetReason".
+//
+// LINT.IfChange(LocalStorageDatabaseResetReason)
+enum class LocalStorageDatabaseResetReason {
+  kOpenError = 0,
+  kVersionMismatch = 1,
+  kReadError = 2,
+  kCommitErrorThresholdExceeded = 3,
+  kUnknown = 4,
+  kMissingCurrentFile = 5,
+  kMaxValue = kMissingCurrentFile,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/cobalt/enums.xml:LocalStorageDatabaseResetReason)
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Wraps its own leveldb::DB instance on behalf of the DOM Storage backend
 // implementation. This object is not sequence-safe and must be instantiated on
@@ -141,6 +159,20 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // Commits operations in |batch| to the database.
   Status Commit(leveldb::WriteBatch* batch) const;
 
+#if BUILDFLAG(IS_COBALT)
+  bool IsInMemory() const { return env_ != nullptr; }
+
+  void MakeAllCommitsFailWithCorruptionForTesting() {
+    fail_commits_with_corruption_for_testing_ = true;
+  }
+
+  int total_commit_count_for_testing() const {
+    return total_commit_count_for_testing_;
+  }
+
+  const leveldb_env::Options& options_for_testing() const { return options_; }
+#endif
+
   // Rewrites the database on disk to clean up traces of deleted entries.
   //
   // NOTE: If |RewriteDB()| fails, this DomStorageDatabase may no longer be
@@ -200,6 +232,11 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // Causes all calls to |Commit()| to fail with an IOError for simulated
   // disk failures in testing.
   bool fail_commits_for_testing_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  bool fail_commits_with_corruption_for_testing_ = false;
+  mutable int total_commit_count_for_testing_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Callback to run on destruction in tests.
   base::OnceClosure destruction_callback_;

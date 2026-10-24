@@ -44,6 +44,10 @@
 #include "storage/common/database/database_identifier.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 // LevelDB database schema
@@ -83,6 +87,9 @@ const int64_t kCurrentLocalStorageSchemaVersion = 1;
 // After this many consecutive commit errors we'll throw away the entire
 // database.
 const int kCommitErrorThreshold = 8;
+#if BUILDFLAG(IS_COBALT)
+const int kCobaltOptimizedCommitErrorThreshold = 32;
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
@@ -677,8 +684,10 @@ void LocalStorageImpl::OnDatabaseOpened(leveldb::Status status) {
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
-#endif
+    DeleteAndRecreateDatabase(LocalStorageDatabaseResetReason::kOpenError);
+#else
     DeleteAndRecreateDatabase();
+#endif
     return;
   }
 
@@ -717,8 +726,11 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
       base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseVersionMismatch",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
-#endif
+      DeleteAndRecreateDatabase(
+          LocalStorageDatabaseResetReason::kVersionMismatch);
+#else
       DeleteAndRecreateDatabase();
+#endif
       return;
     }
 
@@ -729,8 +741,18 @@ void LocalStorageImpl::OnGotDatabaseVersion(leveldb::Status status,
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
-#endif
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltLocalStorageOptimization) &&
+        !status.IsCorruption()) {
+      // Do not wipe the on-disk database on a transient I/O error reading
+      // VERSION.
+      OnConnectionFinished();
+      return;
+    }
+    DeleteAndRecreateDatabase(LocalStorageDatabaseResetReason::kReadError);
+#else
     DeleteAndRecreateDatabase();
+#endif
     return;
   }
 
@@ -765,9 +787,19 @@ void LocalStorageImpl::OnConnectionFinished() {
   on_database_opened_callbacks_.clear();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void LocalStorageImpl::DeleteAndRecreateDatabase(
+    LocalStorageDatabaseResetReason reason) {
+#else
 void LocalStorageImpl::DeleteAndRecreateDatabase() {
+#endif
   if (connection_state_ == CONNECTION_SHUTDOWN)
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseResetReason",
+                                reason);
+#endif
 
   // We're about to set database_ to null, so delete the StorageAreaImpls
   // that might still be using the old database.
@@ -805,6 +837,19 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
     InitiateConnection(recreate_in_memory);
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void LocalStorageImpl::ReopenDatabaseWithoutDestroy() {
+  if (connection_state_ == CONNECTION_SHUTDOWN) {
+    return;
+  }
+  PurgeAllStorageAreas();
+  connection_state_ = CONNECTION_IN_PROGRESS;
+  commit_error_count_ = 0;
+  database_.reset();
+  InitiateConnection(in_memory_);
+}
+#endif
 
 void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory,
                                      leveldb::Status status) {
@@ -973,8 +1018,18 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
   }
 
   commit_error_count_++;
+#if BUILDFLAG(IS_COBALT)
+  const bool optimize_local_storage = base::FeatureList::IsEnabled(
+      base::features::kCobaltLocalStorageOptimization);
+  const int commit_error_threshold = optimize_local_storage
+                                         ? kCobaltOptimizedCommitErrorThreshold
+                                         : kCommitErrorThreshold;
+  if (commit_error_count_ > commit_error_threshold &&
+      connection_state_ != CONNECTION_SHUTDOWN) {
+#else
   if (commit_error_count_ > kCommitErrorThreshold &&
       connection_state_ != CONNECTION_SHUTDOWN) {
+#endif
     if (tried_to_recover_from_commit_errors_) {
       // We already tried to recover from a high commit error rate before, but
       // are still having problems: there isn't really anything left to try, so
@@ -990,8 +1045,17 @@ void LocalStorageImpl::OnCommitResult(leveldb::Status status) {
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
                                   leveldb_env::GetLevelDBStatusUMAValue(status),
                                   leveldb_env::LEVELDB_STATUS_MAX);
-#endif
+    if (optimize_local_storage && !status.IsCorruption()) {
+      // Reopen the database without DestroyDB to clear LevelDB's latched
+      // background error while preserving existing on-disk data.
+      ReopenDatabaseWithoutDestroy();
+      return;
+    }
+    DeleteAndRecreateDatabase(
+        LocalStorageDatabaseResetReason::kCommitErrorThresholdExceeded);
+#else
     DeleteAndRecreateDatabase();
+#endif
   }
 }
 
@@ -1086,6 +1150,18 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
   // These are counted independently to better track errors in rollout.
   base::UmaHistogramCounts100000(
       "LocalStorage.OrphanStorageAreasOnStartupCount", orphans_found);
+
+#if BUILDFLAG(IS_COBALT)
+  if (stale_storage_keys.empty() &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageOptimization)) {
+    base::UmaHistogramBoolean(
+        "LocalStorage.StaleStorageAreasDeletedOnStartupSuccess", true);
+    base::UmaHistogramCounts100000(
+        "LocalStorage.StaleStorageAreasDeletedOnStartupCount", 0);
+    return;
+  }
+#endif
 
   // Delete stale storage areas and count results.
   DeleteStorageKeys(
