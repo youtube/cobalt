@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,6 +51,15 @@ enum class SplashScreenFetchedState {
 
 // Records `state` in Cobalt.SplashScreen.FetchedFromCache.
 void RecordSplashScreenFetchedState(SplashScreenFetchedState state);
+
+// Whether to read the splash assets that the WebApp cached:
+// kEnableCachedSplashFile, unless overridden for testing.
+bool IsCachedSplashFileEnabled();
+
+// Overrides kEnableCachedSplashFile for IsCachedSplashFileEnabled(), as
+// browser tests can't override features once the browser starts.
+// std::nullopt uses the feature.
+void SetCachedSplashFileEnabledForTesting(std::optional<bool> enabled);
 
 // Reads a splash screen resource, e.g., "splash.webm", that the WebApp cached
 // with the Cache API of the splash domain: for splash.html, through

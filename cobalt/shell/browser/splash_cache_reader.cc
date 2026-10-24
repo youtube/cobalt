@@ -17,13 +17,14 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
+#include "cobalt/browser/features.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/public/browser/browser_context.h"
@@ -157,6 +158,23 @@ void RecordSplashScreenFetchedState(SplashScreenFetchedState state) {
   UMA_HISTOGRAM_ENUMERATION("Cobalt.SplashScreen.FetchedFromCache", state);
 }
 
+namespace {
+// Overrides kEnableCachedSplashFile for IsCachedSplashFileEnabled(), if set.
+std::optional<bool> g_cached_splash_file_enabled_for_testing;
+}  // namespace
+
+bool IsCachedSplashFileEnabled() {
+  if (g_cached_splash_file_enabled_for_testing.has_value()) {
+    return *g_cached_splash_file_enabled_for_testing;
+  }
+  return base::FeatureList::IsEnabled(
+      cobalt::features::kEnableCachedSplashFile);
+}
+
+void SetCachedSplashFileEnabledForTesting(std::optional<bool> enabled) {
+  g_cached_splash_file_enabled_for_testing = enabled;
+}
+
 SplashCacheReader::SplashCacheReader(BrowserContext* browser_context,
                                      const std::string& splash_domain,
                                      uint64_t max_content_size)
@@ -172,7 +190,7 @@ void SplashCacheReader::Read(const std::string& name,
   DCHECK(!callback_);
   callback_ = std::move(callback);
 
-  if (!H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled()) {
+  if (!IsCachedSplashFileEnabled()) {
     // As on a cache miss, the caller falls back to the built-in resource.
     LOG(INFO) << "Cached splash assets are disabled. Skipping the cached "
               << name << ".";

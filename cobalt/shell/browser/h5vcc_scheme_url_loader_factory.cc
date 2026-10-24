@@ -22,13 +22,11 @@
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -109,8 +107,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         base::Contains(resource_map, key);
     // Whether to read the splash asset that the WebApp cached.
     const bool supports_splash_caching =
-        is_splash_asset &&
-        H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled();
+        is_splash_asset && IsCachedSplashFileEnabled();
 
     // For splash assets, override resource_key with "fallback" query param.
     // If requested key is not found in cache, or the cache isn't read, loader
@@ -276,8 +273,6 @@ std::optional<std::string>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
 std::optional<int>
     H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
-std::optional<bool>
-    H5vccSchemeURLLoaderFactory::global_cached_splash_file_enabled_test_;
 const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
     nullptr;
 
@@ -353,15 +348,6 @@ void H5vccSchemeURLLoaderFactory::Clone(
       std::move(receiver));
 }
 
-// static
-bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
-  if (global_cached_splash_file_enabled_test_.has_value()) {
-    return *global_cached_splash_file_enabled_test_;
-  }
-  return base::FeatureList::IsEnabled(
-      cobalt::features::kEnableCachedSplashFile);
-}
-
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
     const GeneratedResourceMap* resource_map_test) {
   resource_map_test_ = resource_map_test;
@@ -375,11 +361,6 @@ void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
 void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(
     const std::optional<int>& size) {
   global_splash_content_size_test_ = size;
-}
-
-void H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
-    const std::optional<bool>& enabled) {
-  global_cached_splash_file_enabled_test_ = enabled;
 }
 
 }  // namespace content

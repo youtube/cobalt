@@ -22,6 +22,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -162,17 +163,16 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
     // is disabled by default. Browser tests can't override features once the
     // browser starts, e.g., with a ScopedFeatureList in
     // CreatedBrowserMainParts(), which fails a DCHECK on Android, so this
-    // overrides it in the factory before the browser starts. Otherwise, the
-    // feature's default applies.
-    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+    // overrides it with SetCachedSplashFileEnabledForTesting() before the
+    // browser starts. Otherwise, the feature's default applies.
+    SetCachedSplashFileEnabledForTesting(
         enable_cached_splash_file_ ? std::optional<bool>(true) : std::nullopt);
     H5vccSchemeURLLoaderFactoryBrowserTest::SetUp();
   }
 
   void TearDown() override {
     H5vccSchemeURLLoaderFactoryBrowserTest::TearDown();
-    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
-        std::nullopt);
+    SetCachedSplashFileEnabledForTesting(std::nullopt);
   }
 
   // Verifies that the splash video is correctly loaded from the cache (or
