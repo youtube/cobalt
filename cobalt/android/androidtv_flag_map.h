@@ -64,8 +64,10 @@ class AndroidTvFlagMap {
 
 // Expands the Android TV experiment keys in `flag_map` into the Chromium/Cobalt
 // switches and features they control. When `flag_map` is empty (no
-// experiments, or crash-streak safe mode), only the experiment-controlled
-// defaults are applied.
+// experiments, or crash-streak safe mode), nothing is added: the defaults for
+// experiment-controlled values come from
+// CommandLinePreprocessor::ApplyDefaults()
+// (cobalt/app/cobalt_switch_defaults_android.cc).
 //
 // Precedence:
 // - Plain switches are only set if absent, so user-provided switches win.
