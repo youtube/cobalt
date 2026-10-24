@@ -11,14 +11,9 @@
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-<<<<<<< HEAD
-#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
-=======
 #include "build/build_config.h"
-#include "components/services/storage/partition_impl.h"
+#include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/services/storage/public/cpp/constants.h"
-#include "components/services/storage/public/mojom/partition.mojom.h"
->>>>>>> 07fe9242bb ([Storage] Gate unused DBs & SessionStorage cleanup behind CobaltStorageCleanup (#13371))
 #include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
