@@ -204,6 +204,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // simplify the handling of threading, including the difference of a/v
   // threading in the original implementation in DecoderThreadFunc() above.
   void InputThreadFunc();
+  void InputThreadFuncV2();
 
   void OutputThreadFunc();
 
@@ -278,6 +279,12 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+  // Counts of pending inputs and input buffer indices held locally by the
+  // video input thread while blocked on |video_input_condition_variable_|, so
+  // producers only signal when a new item completes a pair.  Guarded by
+  // |mutex_|.  Only used when |enable_codec_thread_improvements_| is true.
+  size_t unmatched_input_thread_inputs_ = 0;
+  size_t unmatched_input_thread_indices_ = 0;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
