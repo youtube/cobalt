@@ -139,6 +139,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                "ReduceSubresourceResponseStartedIPC",
                // [PoC][C8] Disable Android TextAutosizer for 1080p TV UI.
                "ForceOffTextAutosizing",
+               // [PoC][C9] Shrink foreground ThreadPool min workers from 6 to 3
+               // on 4-core TV SoC.
+               "BrowserThreadPoolAdjustment:min/3",
            },
            ",")},
       {::switches::kDisableFeatures,
