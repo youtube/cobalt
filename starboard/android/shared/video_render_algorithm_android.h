@@ -54,6 +54,7 @@ class VideoRenderAlgorithmAndroid : public VideoRenderAlgorithm {
   int dropped_frames_ = 0;
   bool first_frame_released_ = false;
   int64_t seek_to_time_ = 0;  // microseconds
+  int64_t last_render_playback_time_ = -1;
 
   const bool release_frames_after_audio_starts_;
 };

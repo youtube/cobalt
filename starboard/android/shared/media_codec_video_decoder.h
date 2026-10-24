@@ -138,12 +138,30 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
+  bool enable_codec_thread_improvements() const {
+    return enable_codec_thread_improvements_;
+  }
+  // Returns true when the most recently requested sink playback rate is 0,
+  // since the media time provider continues reporting the pre-pause audio rate
+  // while paused.
+  bool is_playback_paused() const {
+    return sink_playback_rate_.load(std::memory_order_relaxed) == 0.0;
+  }
+  double sink_playback_rate() const {
+    return sink_playback_rate_.load(std::memory_order_relaxed);
+  }
+  void SetNextTickWaitDurationUs(int64_t wait_duration_us) {
+    next_tick_wait_duration_us_.store(wait_duration_us,
+                                      std::memory_order_relaxed);
+  }
+
   void OnFrameAvailable() override;
 
  private:
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
+  void OnSinkPlaybackRateChanged(double playback_rate);
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodec* media_codec_bridge,
@@ -152,6 +170,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnEndOfStreamWritten(MediaCodec* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodec* media_codec_bridge) override;
   bool Tick(MediaCodec* media_codec_bridge) override;
+  int64_t GetNextTickWaitDurationUs() const override;
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
@@ -248,7 +267,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // 1080p, and the frames being played are still at 480p.
   std::vector<FrameSize> frame_sizes_;
 
-  double playback_rate_ = 1.0;
+  std::atomic<double> playback_rate_{1.0};
+  // Only used when |enable_codec_thread_improvements_| is true.
+  std::atomic<double> sink_playback_rate_{1.0};
+  std::atomic<int64_t> next_tick_wait_duration_us_{
+      MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs};
 
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;

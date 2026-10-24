@@ -29,6 +29,7 @@
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/size.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -59,6 +60,7 @@ class MockHost : public MediaCodecDecoder::Host {
               (MediaCodec * media_codec),
               (override));
   MOCK_METHOD(bool, Tick, (MediaCodec * media_codec), (override));
+  MOCK_METHOD(int64_t, GetNextTickWaitDurationUs, (), (const, override));
   MOCK_METHOD(void, OnFlushing, (), (override));
   MOCK_METHOD(bool,
               IsBufferDecodeOnly,
@@ -205,6 +207,9 @@ class MediaCodecDecoderVideoDualThreadsTest
   bool enable_codec_thread_improvements() const { return GetParam(); }
 
   void SetUp() override {
+    ON_CALL(host_, GetNextTickWaitDurationUs())
+        .WillByDefault(
+            Return(MediaCodecDecoder::kDefaultWaitForNextFrameIntervalUs));
     ON_CALL(host_, ProcessOutputBuffer(_, _, _))
         .WillByDefault(
             Invoke([](MediaCodec* codec, const DequeueOutputResult& output,
@@ -300,6 +305,13 @@ class MediaCodecDecoderVideoDualThreadsTest
     return tick_condition_variable_.wait_for(
         lock, std::chrono::milliseconds(timeout_ms),
         [&] { return tick_count_.load() > after_tick_count; });
+  }
+
+  int64_t WaitForNextTickUs(int after_tick_count, int timeout_ms) {
+    const int64_t start = CurrentMonotonicTime();
+    return WaitForNextTick(after_tick_count, timeout_ms)
+               ? CurrentMonotonicTime() - start
+               : -1;
   }
 
   bool WaitForOutputFormatRefreshed(int after_count, int timeout_ms) {
@@ -559,6 +571,78 @@ TEST_P(MediaCodecDecoderVideoDualThreadsTest,
   ASSERT_EQ(queued.size(), 1U);
   EXPECT_EQ(queued[0].index, 2);
   EXPECT_EQ(queued[0].pts, 10000);
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest, TickCadenceFollowsHost) {
+  // Only the improved output thread honors the host's requested wait; the
+  // legacy one polls every 8ms.
+  constexpr int64_t kRequestedWaitUs = 40'000;
+  ON_CALL(host_, GetNextTickWaitDurationUs())
+      .WillByDefault(Return(kRequestedWaitUs));
+  codec_->SimulateInputBufferAvailable(0);
+  ASSERT_EQ(WriteAndWaitForQueuedInput(/*timestamp=*/0).size(), 1U);
+
+  // Let the output thread settle into idle ticking, then measure.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  const int ticks_before = tick_count();
+  const int64_t start_us = CurrentMonotonicTime();
+  constexpr int kMeasureMs = 400;
+  std::this_thread::sleep_for(std::chrono::milliseconds(kMeasureMs));
+  const int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+  const int ticks = tick_count() - ticks_before;
+  if (enable_codec_thread_improvements()) {
+    // ~10 ticks at 40ms; scale upper bound by elapsed time for CI jitter.
+    const int max_expected_ticks =
+        static_cast<int>(elapsed_us / kRequestedWaitUs) + 6;
+    EXPECT_GE(ticks, 5);
+    EXPECT_LE(ticks, max_expected_ticks);
+  } else {
+    // ~50 ticks at 8ms.
+    EXPECT_GE(ticks, 25);
+  }
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       SetPlaybackRateWakesOutputThreadWhenImproved) {
+  if (!enable_codec_thread_improvements()) {
+    GTEST_SKIP() << "The legacy output thread polls regardless.";
+  }
+  // Ask for long idle waits so that the wakeup is observable.
+  ON_CALL(host_, GetNextTickWaitDurationUs()).WillByDefault(Return(500'000));
+  codec_->SimulateInputBufferAvailable(0);
+  ASSERT_EQ(WriteAndWaitForQueuedInput(/*timestamp=*/0).size(), 1U);
+  // Wait until at least one Tick() has occurred and let the output thread
+  // settle into its 500ms wait_for() sleep.
+  ASSERT_TRUE(WaitForNextTick(0, kMaxQueueLatencyMs));
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+  const int ticks_before = tick_count();
+  decoder_->SetPlaybackRate(0.0);
+  const int64_t elapsed_us = WaitForNextTickUs(ticks_before, 1000);
+  EXPECT_GE(elapsed_us, 0) << "SetPlaybackRate() didn't wake the output thread";
+  EXPECT_LT(elapsed_us, 200'000);
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       ClampsNonPositiveHostWaitDurationWhenImproved) {
+  if (!enable_codec_thread_improvements()) {
+    GTEST_SKIP()
+        << "Only OutputThreadFuncV2 queries GetNextTickWaitDurationUs.";
+  }
+  ON_CALL(host_, GetNextTickWaitDurationUs()).WillByDefault(Return(0));
+  codec_->SimulateInputBufferAvailable(0);
+  ASSERT_EQ(WriteAndWaitForQueuedInput(/*timestamp=*/0).size(), 1U);
+  ASSERT_TRUE(WaitForNextTick(0, kMaxQueueLatencyMs));
+
+  const int ticks_before = tick_count();
+  const int64_t start_us = CurrentMonotonicTime();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  const int64_t elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
+  const int ticks = tick_count() - ticks_before;
+  // Clamped to >= 1ms (~50 ticks in 50ms), preventing an unbounded busy loop.
+  const int max_expected_ticks = static_cast<int>(elapsed_ms) + 50;
+  EXPECT_GE(ticks, 5);
+  EXPECT_LE(ticks, max_expected_ticks);
 }
 
 INSTANTIATE_TEST_SUITE_P(,
