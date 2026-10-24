@@ -35,11 +35,7 @@ namespace starboard {
 namespace {
 
 using ::testing::_;
-<<<<<<< HEAD
-=======
 using ::testing::AtLeast;
-using ::testing::Invoke;
->>>>>>> 88eeca2161 (android: Batch output processing before Tick in OutputThreadFuncV2 (#13574))
 using ::testing::NiceMock;
 using ::testing::Return;
 
