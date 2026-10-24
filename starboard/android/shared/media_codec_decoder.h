@@ -207,6 +207,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   void InputThreadFuncV2();
 
   void OutputThreadFunc();
+  void OutputThreadFuncV2();
 
   void TerminateDecoderThread();
 
