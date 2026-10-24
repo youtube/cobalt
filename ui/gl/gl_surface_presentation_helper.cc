@@ -18,6 +18,26 @@
 
 namespace gl {
 
+#if BUILDFLAG(IS_STARBOARD)
+namespace {
+
+// Re-poll interval for a GLFence that has not signalled yet. Upstream waits
+// for the next (synthetic) VSync tick, i.e. up to 16.7 ms, which lets two
+// buffered frames complete before one poll and stamps them together.
+constexpr base::TimeDelta kStarboardFencePollInterval = base::Milliseconds(2);
+
+// A fence that has not signalled this long after eglSwapBuffers() returned,
+// or a backlog this deep, is treated as a non-signalling driver fence.
+constexpr base::TimeDelta kStarboardMaxFenceWait = base::Milliseconds(100);
+constexpr size_t kStarboardMaxPendingFrames = 4;
+
+// Depth of the swapchain cushion within which a frame's timestamp may be
+// moved forward onto the next VSync slot.
+constexpr int kStarboardMaxBufferedFrames = 2;
+
+}  // namespace
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 GLSurfacePresentationHelper::ScopedSwapBuffers::ScopedSwapBuffers(
     GLSurfacePresentationHelper* helper,
     GLSurface::PresentationCallback callback)
@@ -98,9 +118,32 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
     frame.timer->GetStartEndTimestamps(&start, &end);
     *timestamp = base::TimeTicks() + base::Microseconds(start);
   } else {
+#if BUILDFLAG(IS_STARBOARD)
+    // Some embedded drivers never signal fences, or signal them only after a
+    // later swap. Do not let one such fence hold back every later frame: after
+    // kStarboardMaxFenceWait (or with a deep backlog) complete the frame from
+    // the time its swap returned and stop relying on fences.
+    if (!frame.fence->HasCompleted()) {
+      const base::TimeTicks now = base::TimeTicks::Now();
+      const bool hung =
+          (!frame.swap_completed_time.is_null() &&
+           now - frame.swap_completed_time > kStarboardMaxFenceWait) ||
+          pending_frames_.size() > kStarboardMaxPendingFrames;
+      if (!hung)
+        return false;
+      LOG(WARNING) << "GLFence did not signal within " << kStarboardMaxFenceWait
+                   << "; falling back to swap completion time.";
+      gl_fence_supported_ = false;
+      *timestamp =
+          frame.swap_completed_time.is_null() ? now : frame.swap_completed_time;
+    } else {
+      *timestamp = base::TimeTicks::Now();
+    }
+#else
     if (!frame.fence->HasCompleted())
       return false;
     *timestamp = base::TimeTicks::Now();
+#endif
   }
   // Below logic is used to calculate final values of timestamp, interval and
   // flags when using timer/fence to report the timestamps.
@@ -109,6 +152,14 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
   *interval = vsync_interval_;
   *flags = 0;
   if (vsync_interval_.is_zero() || fixed_vsync) {
+#if BUILDFLAG(IS_STARBOARD)
+    // No VSync source at all (e.g. Mali on RDK: no EGL_CHROMIUM_sync_control,
+    // no EGL_ANDROID_get_frame_timestamps, GPU timer skipped above). The raw
+    // fence time measures GPU completion, not scan-out; space consecutive
+    // frames by whole VSync slots so presentation feedback reflects the
+    // swapchain's FIFO cadence.
+    ApplyFifoVSyncSlot(timestamp, interval, flags);
+#endif
     // If VSync parameters are fixed or not available, we just run
     // presentation callbacks with timestamp from GPUTimers.
     return true;
@@ -142,6 +193,37 @@ bool GLSurfacePresentationHelper::GetFrameTimestampInfoIfAvailable(
   }
   return true;
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void GLSurfacePresentationHelper::ApplyFifoVSyncSlot(base::TimeTicks* timestamp,
+                                                     base::TimeDelta* interval,
+                                                     uint32_t* flags) {
+  const base::TimeDelta slot =
+      vsync_interval_.is_zero() ? base::Seconds(1) / 60 : vsync_interval_;
+  const base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeTicks ts = *timestamp;
+
+  if (!last_presented_timestamp_.is_null()) {
+    const base::TimeTicks next_slot = last_presented_timestamp_ + slot;
+    // Only frames that completed within the swapchain cushion of the previous
+    // one are candidates: anything older is a genuine late frame (or the
+    // first frame after an idle period) and keeps its own time.
+    if (ts < next_slot &&
+        next_slot - ts <= slot * kStarboardMaxBufferedFrames) {
+      ts = next_slot;
+      *flags |= gfx::PresentationFeedback::kVSync;
+    }
+  }
+  // viz::Display::SanitizePresentationFeedback() rejects timestamps in the
+  // future; never hand one out.
+  if (ts > now)
+    ts = now;
+
+  *timestamp = ts;
+  *interval = slot;
+  last_presented_timestamp_ = ts;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 void GLSurfacePresentationHelper::Frame::Destroy(bool has_context) {
   if (timer) {
@@ -255,6 +337,9 @@ void GLSurfacePresentationHelper::PostSwapBuffers(gfx::SwapResult result) {
   DCHECK(!pending_frames_.empty());
   auto& frame = pending_frames_.back();
   frame.result = result;
+#if BUILDFLAG(IS_STARBOARD)
+  frame.swap_completed_time = base::TimeTicks::Now();
+#endif
   ScheduleCheckPendingFrames(false /* align_with_next_vsync */);
 }
 
@@ -306,10 +391,27 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     for (auto& frame : pending_frames_) {
       if (frame.timer)
         frame.timer->Destroy(true /* has_context */);
-      if (frame.result == gfx::SwapResult::SWAP_ACK)
+      if (frame.result == gfx::SwapResult::SWAP_ACK) {
+#if BUILDFLAG(IS_STARBOARD)
+        if (!vsync_provider_) {
+          // No fence and no VSync source: the best per-frame signal is when
+          // its swap returned. Space frames by VSync slots as in the fence
+          // path so the feedback stays a FIFO cadence rather than a burst.
+          base::TimeTicks ts = frame.swap_completed_time.is_null()
+                                   ? timestamp
+                                   : frame.swap_completed_time;
+          base::TimeDelta slot_interval;
+          uint32_t slot_flags = 0;
+          ApplyFifoVSyncSlot(&ts, &slot_interval, &slot_flags);
+          std::move(frame.callback)
+              .Run(gfx::PresentationFeedback(ts, slot_interval, slot_flags));
+          continue;
+        }
+#endif
         std::move(frame.callback).Run(feedback);
-      else
+      } else {
         std::move(frame.callback).Run(gfx::PresentationFeedback::Failure());
+      }
     }
     pending_frames_.clear();
   }
@@ -404,6 +506,21 @@ void GLSurfacePresentationHelper::ScheduleCheckPendingFrames(
   // If the |vsync_provider_| can not notify us for the next VSync
   // asynchronically, we have to compute the next VSync time and post a delayed
   // task so we can check the VSync later.
+#if BUILDFLAG(IS_STARBOARD)
+  if (!vsync_provider_ && gl_fence_supported_) {
+    // Without a VSync source the "next VSync" below is a synthetic 16.7 ms
+    // grid unrelated to the display. Waiting for it lets two buffered frames
+    // complete before one poll and stamps them together; poll the fence
+    // promptly instead. The check is cheap and only runs while a frame is
+    // pending.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&GLSurfacePresentationHelper::CheckPendingFramesCallback,
+                       weak_ptr_factory_.GetWeakPtr()),
+        kStarboardFencePollInterval);
+    return;
+  }
+#endif
   base::TimeDelta interval =
       vsync_interval_.is_zero() ? base::Seconds(1) / 60 : vsync_interval_;
   auto now = base::TimeTicks::Now();
