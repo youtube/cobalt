@@ -58,6 +58,16 @@ config("starboard") {
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 
+  # Starboard code built by C++17 toolchains (e.g. AOSP) must be strictly C++17
+  # compliant. Clang accepts some C++20 features in C++17 mode as an extension
+  # without warning by default (e.g. designated initializers and
+  # [[likely]]/[[unlikely]]), so enable the whole -Wc++20-extensions group to
+  # turn them into build errors. Third-party code built by the same toolchains
+  # is exempted in //build/config/warning_suppression.txt.
+  if (is_clang && use_cxx17) {
+    cflags_cc = [ "-Wc++20-extensions" ]
+  }
+
   # b/432642933: The rpath option causes lld to fail when targeting tvOS
   # because -rpath=/path/to/something is not a valid linker option (and
   # everything works fine without it anyway).
