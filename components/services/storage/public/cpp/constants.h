@@ -14,6 +14,18 @@ COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
 extern const base::FilePath::CharType kWebStorageDirectory[];
 
 COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
+<<<<<<< HEAD
+=======
+extern const base::FilePath::CharType kLocalStoragePath[];
+
+COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
+extern const char kLocalStorageLeveldbName[];
+
+COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
+extern const char kSessionStorageDirectory[];
+
+COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
+>>>>>>> 07fe9242bb ([Storage] Gate unused DBs & SessionStorage cleanup behind CobaltStorageCleanup (#13371))
 extern const base::FilePath::CharType kServiceWorkerDirectory[];
 
 COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
