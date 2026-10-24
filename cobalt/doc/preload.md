@@ -114,7 +114,10 @@ application window:
         `starboard::Application::Get()->Link(url)`).
     2.  **Important:** `kSbEventTypeLink` **has no lifecycle transition
         side-effect**—it delivers the deep link to the web application, but does
-        **not** reveal or focus the application on its own.
+        **not** reveal or focus the application on its own. The one exception:
+        if the app was started by a `kSbEventTypeStart` whose URL carried
+        `launch=preload` (treated as a preload), the first `kSbEventTypeLink`
+        also brings it to `Started`.
     3.  To make the application visible and interactive when delivering the deep
         link, the platform **must also dispatch `kSbEventTypeFocus`**.
 

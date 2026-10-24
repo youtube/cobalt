@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_delegate.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -32,6 +33,40 @@
 namespace cobalt {
 
 namespace {
+
+// True if |input| carries launch=preload as a whole query/fragment parameter.
+bool HasPreloadQueryParam(std::string_view input) {
+  constexpr std::string_view kParam = "launch=preload";
+  for (size_t pos = input.find(kParam); pos != std::string_view::npos;
+       pos = input.find(kParam, pos + kParam.size())) {
+    const bool delimited_before =
+        pos > 0 && (input[pos - 1] == '?' || input[pos - 1] == '&' ||
+                    input[pos - 1] == '#');
+    const size_t end = pos + kParam.size();
+    const bool delimited_after =
+        end == input.size() || input[end] == '&' || input[end] == '#';
+    if (delimited_before && delimited_after) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// True for a kSbEventTypeStart whose argv or initial link carries
+// launch=preload.
+bool HasPreloadLaunchParam(const SbEvent* event) {
+  if (!event || event->type != kSbEventTypeStart || !event->data) {
+    return false;
+  }
+  const auto* data = static_cast<const SbEventStartData*>(event->data);
+  for (int i = 0; data->argument_values && i < data->argument_count; ++i) {
+    const char* arg = data->argument_values[i];
+    if (arg && HasPreloadQueryParam(arg)) {
+      return true;
+    }
+  }
+  return data->link && HasPreloadQueryParam(data->link);
+}
 
 AppEventDelegate::ApplicationState SbEventToTargetApplicationState(
     SbEventType type) {
@@ -193,11 +228,19 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
   if (application_state_ == ApplicationState::kInitial) {
     switch (event->type) {
       case kSbEventTypeStart:
-      case kSbEventTypePreload:
+      case kSbEventTypePreload: {
+        // A Start with launch=preload is a boot-time preload: start concealed.
+        SbEvent preload_event;
+        if (HasPreloadLaunchParam(event)) {
+          awaiting_first_reveal_from_rewritten_start_ = true;
+          preload_event = {kSbEventTypePreload, event->timestamp, event->data};
+          event = &preload_event;
+        }
         runner_->OnStart(event);
         SetApplicationState(SbEventToTargetApplicationState(event->type));
         target_state_ = application_state_;
         return;
+      }
       default:
         // Robustly handle events received before the application has started or
         // preloaded. This ensures that any early events are preceded by a
@@ -246,14 +289,31 @@ void AppEventDelegate::HandleEventLocked(const SbEvent* event) {
     case kSbEventTypeStop:
     case kSbEventTypeReveal:
     case kSbEventTypeFreeze:
-    case kSbEventTypeUnfreeze:
+    case kSbEventTypeUnfreeze: {
+      const ApplicationState target =
+          SbEventToTargetApplicationState(event->type);
+      const ApplicationState effective_state =
+          is_transitioning_ ? target_state_ : application_state_;
+      // Blur only deactivates. After a Start rewritten to a preload, the
+      // platform still believes it is Started and prefixes any Conceal, Freeze
+      // or Stop with a Blur; treating that as an activation would reveal the
+      // window while going to the background.
+      if (event->type == kSbEventTypeBlur && effective_state >= target) {
+        break;
+      }
       // Ensure all intermediate state changes are triggered.
-      TransitionToLifeCycleState(SbEventToTargetApplicationState(event->type));
+      TransitionToLifeCycleState(target);
       break;
+    }
     case kSbEventTypeInput:
       runner_->OnInput(event);
       break;
     case kSbEventTypeLink:
+      // After a rewritten start the user's first launch arrives as a bare link.
+      if (awaiting_first_reveal_from_rewritten_start_) {
+        awaiting_first_reveal_from_rewritten_start_ = false;
+        TransitionToLifeCycleState(ApplicationState::kStarted);
+      }
       runner_->OnLink(event);
       break;
     case kSbEventTypeLowMemory:
@@ -468,6 +528,9 @@ void AppEventDelegate::SetApplicationState(ApplicationState state) {
     return;
   }
   application_state_ = state;
+  if (state == ApplicationState::kStarted) {
+    awaiting_first_reveal_from_rewritten_start_ = false;
+  }
   SetApplicationStateAnnotation(state);
 }
 

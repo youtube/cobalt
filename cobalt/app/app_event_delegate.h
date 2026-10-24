@@ -171,6 +171,11 @@ class AppEventDelegate {
   bool is_tearing_down_ GUARDED_BY(lock_) = false;
   base::OnceClosure quit_closure_ GUARDED_BY(lock_);
 
+  // Set when a Start with launch=preload was treated as a preload; the first
+  // kSbEventTypeLink consumes it and brings the app to kStarted (also cleared
+  // whenever kStarted is reached by any other route).
+  bool awaiting_first_reveal_from_rewritten_start_ GUARDED_BY(lock_) = false;
+
 #if BUILDFLAG(IS_STARBOARD)
   // Ozone-specific bridge that converts Starboard events to Chromium events.
   // Non-Starboard platforms (like Android) handle these events natively.
