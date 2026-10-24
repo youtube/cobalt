@@ -40,7 +40,7 @@ void InterruptSignalHandler(int) {}
 void* SendSigusr1Routine(void* arg) {
   pthread_t* target_thread_id = static_cast<pthread_t*>(arg);
 
-  struct timespec delay = {0, kSignalSendDelayNs};
+  struct timespec delay = {.tv_sec = 0, .tv_nsec = kSignalSendDelayNs};
   nanosleep(&delay, nullptr);
 
   pthread_kill(*target_thread_id, SIGUSR1);

@@ -89,14 +89,17 @@ span<uint8_t> FakeMediaCodec::GetOutputBufferAddress(jint index) {
 
 void FakeMediaCodec::ReleaseOutputBuffer(jint index, jboolean render) {
   std::lock_guard lock(mutex_);
-  released_outputs_.push_back({index, static_cast<bool>(render), -1});
+  released_outputs_.push_back({.index = index,
+                               .render = static_cast<bool>(render),
+                               .timestamp_ns = -1});
   cv_.notify_all();
 }
 
 void FakeMediaCodec::ReleaseOutputBufferAtTimestamp(jint index,
                                                     jlong render_timestamp_ns) {
   std::lock_guard lock(mutex_);
-  released_outputs_.push_back({index, true, render_timestamp_ns});
+  released_outputs_.push_back(
+      {.index = index, .render = true, .timestamp_ns = render_timestamp_ns});
   cv_.notify_all();
 }
 
@@ -121,7 +124,7 @@ std::optional<FrameSize> FakeMediaCodec::GetOutputSize() {
 }
 
 std::optional<AudioOutputFormatResult> FakeMediaCodec::GetAudioOutputFormat() {
-  return AudioOutputFormatResult{44100, 2};
+  return AudioOutputFormatResult{.sample_rate = 44100, .channel_count = 2};
 }
 
 void FakeMediaCodec::SimulateInputBufferAvailable(int index) {

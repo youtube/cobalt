@@ -1070,8 +1070,8 @@ DevInput::Event* CreateMoveEventWithKey(SbWindow window,
   data->key_modifiers = modifiers;
   data->position = input_vector;
   data->pressure = NAN;
-  data->size = {NAN, NAN};
-  data->tilt = {NAN, NAN};
+  data->size = {.x = NAN, .y = NAN};
+  data->tilt = {.x = NAN, .y = NAN};
 
   return new DevInput::Event(kSbEventTypeInput, data,
                              &Application::DeleteDestructor<SbInputData>);
@@ -1095,8 +1095,8 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
   data->key_modifiers = modifiers;
   data->position = input_vector;
   data->pressure = NAN;
-  data->size = {NAN, NAN};
-  data->tilt = {NAN, NAN};
+  data->size = {.x = NAN, .y = NAN};
+  data->tilt = {.x = NAN, .y = NAN};
 
   return new DevInput::Event(kSbEventTypeInput, data,
                              &Application::DeleteDestructor<SbInputData>);

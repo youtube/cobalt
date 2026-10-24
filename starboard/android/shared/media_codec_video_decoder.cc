@@ -154,8 +154,10 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
                                           const SbDrmKeyStatus* key_statuses) {}
 
 const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
-    StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
-    StubDrmSessionKeyStatusesChangedFunc};
+    .update_request = StubDrmSessionUpdateRequestFunc,
+    .session_updated = StubDrmSessionUpdatedFunc,
+    .key_statuses_changed = StubDrmSessionKeyStatusesChangedFunc,
+};
 
 bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
                                       const Size& max_video_size) {

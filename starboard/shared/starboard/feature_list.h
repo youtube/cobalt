@@ -145,7 +145,9 @@ struct SbFeatureParamExt : public SbFeatureParam {
                 "Unsupported Starboard FeatureParam<> type");
 
   constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
-      : SbFeatureParam{feature.name, name, GetParamType()} {}
+      : SbFeatureParam{.feature_name = feature.name,
+                       .param_name = name,
+                       .type = GetParamType()} {}
 
   // Function used to retrieve the parameter value for a given param. Outside
   // code will call this function, which will then call the corresponding

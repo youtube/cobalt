@@ -69,10 +69,13 @@ void RegisterDumpWithoutCrashingCallback(void (*callback)()) {
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName,     4,
-    &OverrideCrashpadAnnotations,         &SetString,
-    &RegisterSetStringCallback,           &DumpWithoutCrashing,
-    &RegisterDumpWithoutCrashingCallback,
+    .name = kCobaltExtensionCrashHandlerName,
+    .version = 4,
+    .OverrideCrashpadAnnotations = &OverrideCrashpadAnnotations,
+    .SetString = &SetString,
+    .RegisterSetStringCallback = &RegisterSetStringCallback,
+    .DumpWithoutCrashing = &DumpWithoutCrashing,
+    .RegisterDumpWithoutCrashingCallback = &RegisterDumpWithoutCrashingCallback,
 };
 
 }  // namespace

@@ -247,10 +247,14 @@ MediaCodecDecoder::MediaCodecDecoder(
   auto media_codec_bridge = media_codec_factory.CreateVideoMediaCodec(
       video_codec, frame_size_hint, fps, max_frame_size,
       /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
-      {max_video_input_size, experimental_options.skip_video_frames_over_60_fps,
-       enable_frame_renderer_listener, require_secured_decoder,
-       require_software_codec, tunnel_mode_audio_session_id,
-       experimental_options.enable_ndk_video});
+      {.max_input_size = max_video_input_size,
+       .skip_video_frames_over_60_fps =
+           experimental_options.skip_video_frames_over_60_fps,
+       .enable_frame_renderer_listener = enable_frame_renderer_listener,
+       .require_secured_decoder = require_secured_decoder,
+       .require_software_codec = require_software_codec,
+       .tunnel_mode_audio_session_id = tunnel_mode_audio_session_id,
+       .enable_ndk_video = experimental_options.enable_ndk_video});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
@@ -965,9 +969,11 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
     if (enable_trivial_optimizations_) {
-      pending_input_to_retry_ = {input_buffer_index, std::move(pending_input)};
+      pending_input_to_retry_ = {.input_buffer_index = input_buffer_index,
+                                 .pending_input = std::move(pending_input)};
     } else {
-      pending_input_to_retry_ = {input_buffer_index, pending_input};
+      pending_input_to_retry_ = {.input_buffer_index = input_buffer_index,
+                                 .pending_input = pending_input};
     }
     return false;
   }

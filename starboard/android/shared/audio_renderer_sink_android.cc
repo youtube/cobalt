@@ -52,7 +52,9 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
       auto aaudio_sink = AaudioAudioSink::Create(
           channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
           frame_buffers_size_in_frames,
-          {update_source_status_func, consume_frames_func, error_func},
+          {.update_source_status = update_source_status_func,
+           .consume_frames = consume_frames_func,
+           .error = error_func},
           /*is_web_audio=*/false, context);
       if (aaudio_sink != nullptr) {
         return aaudio_sink.release();
@@ -65,13 +67,15 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
         SbAudioSinkImpl::GetPreferredType());
     SB_CHECK(type);
 
-    return type->Create(
-        channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
-        frame_buffers_size_in_frames,
-        {update_source_status_func, consume_frames_func, error_func},
-        start_media_time, options.tunnel_mode_audio_session_id,
-        /*is_web_audio=*/false, options.allow_audio_writing_on_pause,
-        options.pause_using_audio_track_state, context);
+    return type->Create(channels, sampling_frequency_hz, audio_sample_type,
+                        frame_buffers, frame_buffers_size_in_frames,
+                        {.update_source_status = update_source_status_func,
+                         .consume_frames = consume_frames_func,
+                         .error = error_func},
+                        start_media_time, options.tunnel_mode_audio_session_id,
+                        /*is_web_audio=*/false,
+                        options.allow_audio_writing_on_pause,
+                        options.pause_using_audio_track_state, context);
   };
 }
 
@@ -168,8 +172,11 @@ void AudioRendererSinkAndroid::Start(int64_t media_start_time,
   // Re-use the existing audio sink if the new audio parameters match the
   // existing ones. Otherwise, fall back to the default behavior of destroying
   // and re-creating the sink.
-  const AudioFormat audio_format = {channels, audio_sample_type,
-                                    sampling_frequency_hz};
+  const AudioFormat audio_format = {
+      .channels = channels,
+      .sample_type = audio_sample_type,
+      .sampling_frequency_hz = sampling_frequency_hz,
+  };
   if (allow_flush_during_seek_ && audio_sink_ &&
       audio_format == current_audio_format_) {
     SB_LOG(INFO) << "Audio sink is already started with the same config, "

@@ -121,8 +121,8 @@ DrmOperationResult ToOperationResult(
       status = DRM_OPERATION_STATUS_OPERATION_FAILED;
   }
   return {
-      status,
-      ConvertJavaStringToUTF8(
+      .status = status,
+      .error_message = ConvertJavaStringToUTF8(
           Java_OperationResult_getErrorMessage(env, result)),
   };
 }
@@ -331,6 +331,7 @@ starboard::DrmKeyStatusInfo FromJniType<starboard::DrmKeyStatusInfo>(
   }
   SbDrmKeyStatus status = starboard::ToSbDrmKeyStatus(
       starboard::Java_KeyStatus_getStatusCode(env, j_key_status));
-  return starboard::DrmKeyStatusInfo{std::move(key_id_bytes), status};
+  return starboard::DrmKeyStatusInfo{.key_id = std::move(key_id_bytes),
+                                     .status = status};
 }
 }  // namespace jni_zero

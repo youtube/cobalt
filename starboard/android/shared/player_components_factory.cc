@@ -571,16 +571,31 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     return MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
-        {creation_parameters.video_stream_info(),
-         creation_parameters.drm_system(), creation_parameters.output_mode(),
-         creation_parameters.decode_target_graphics_context_provider(),
-         creation_parameters.surface_view(),
-         creation_parameters.max_video_capabilities(),
-         creation_parameters.max_video_resolution()},
-        {tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode},
-        {max_video_input_size, enable_flush_during_seek, use_dual_threads,
-         experimental_features},
-        {reset_delay_usec, flush_delay_usec});
+        {
+            .video_stream_info = creation_parameters.video_stream_info(),
+            .drm_system = creation_parameters.drm_system(),
+            .output_mode = creation_parameters.output_mode(),
+            .decode_target_graphics_context_provider =
+                creation_parameters.decode_target_graphics_context_provider(),
+            .surface_view = creation_parameters.surface_view(),
+            .max_video_capabilities =
+                creation_parameters.max_video_capabilities(),
+            .max_video_resolution = creation_parameters.max_video_resolution(),
+        },
+        {
+            .audio_session_id = tunnel_mode_audio_session_id,
+            .force_secure_pipeline = force_secure_pipeline_under_tunnel_mode,
+        },
+        {
+            .max_input_size = max_video_input_size,
+            .enable_flush_during_seek = enable_flush_during_seek,
+            .use_dual_threads = use_dual_threads,
+            .experimental_features = experimental_features,
+        },
+        {
+            .reset_delay_usec = reset_delay_usec,
+            .flush_delay_usec = flush_delay_usec,
+        });
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

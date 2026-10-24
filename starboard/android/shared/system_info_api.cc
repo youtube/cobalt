@@ -32,9 +32,9 @@ int64_t GetAppStartWithAndroidFix() {
 }
 
 const StarboardExtensionSystemInfoApi kSystemInfoApi = {
-    kStarboardExtensionSystemInfoName,
-    1,  // API version that's implemented.
-    &GetAppStartWithAndroidFix,
+    .name = kStarboardExtensionSystemInfoName,
+    .version = 1,  // API version that's implemented.
+    .GetAppStartWithAndroidFix = &GetAppStartWithAndroidFix,
 };
 
 }  // namespace

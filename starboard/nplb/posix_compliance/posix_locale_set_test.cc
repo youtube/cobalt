@@ -231,9 +231,12 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
 }
 
 const LocaleCategoryParam kLocaleCategories[] = {
-    {LC_CTYPE, "LcCtype"},       {LC_NUMERIC, "LcNumeric"},
-    {LC_TIME, "LcTime"},         {LC_COLLATE, "LcCollate"},
-    {LC_MONETARY, "LcMonetary"}, {LC_MESSAGES, "LcMessages"},
+    {.category = LC_CTYPE, .name = "LcCtype"},
+    {.category = LC_NUMERIC, .name = "LcNumeric"},
+    {.category = LC_TIME, .name = "LcTime"},
+    {.category = LC_COLLATE, .name = "LcCollate"},
+    {.category = LC_MONETARY, .name = "LcMonetary"},
+    {.category = LC_MESSAGES, .name = "LcMessages"},
 };
 
 INSTANTIATE_TEST_SUITE_P(

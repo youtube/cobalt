@@ -373,7 +373,8 @@ constexpr TimeTestData kMktimeCases[] = {
 INSTANTIATE_TEST_SUITE_P(Timegm,
                          PosixTimeImplosionTest,
                          ::testing::Combine(::testing::Values(TimeFunctionInfo{
-                                                "Timegm", timegm}),
+                                                .name = "Timegm",
+                                                .function = timegm}),
                                             ::testing::ValuesIn(kTimegmCases)),
                          [](const auto& info) {
                            return std::string(std::get<0>(info.param).name) +
@@ -383,7 +384,8 @@ INSTANTIATE_TEST_SUITE_P(Timegm,
 INSTANTIATE_TEST_SUITE_P(Mktime,
                          PosixTimeImplosionTest,
                          ::testing::Combine(::testing::Values(TimeFunctionInfo{
-                                                "Mktime", mktime}),
+                                                .name = "Mktime",
+                                                .function = mktime}),
                                             ::testing::ValuesIn(kMktimeCases)),
                          [](const auto& info) {
                            return std::string(std::get<0>(info.param).name) +

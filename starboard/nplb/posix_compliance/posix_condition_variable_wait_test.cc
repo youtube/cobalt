@@ -22,8 +22,9 @@ namespace nplb {
 namespace {
 
 TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
-  TakeThenSignalContext context = {TestSemaphore(0), PTHREAD_MUTEX_INITIALIZER,
-                                   PTHREAD_COND_INITIALIZER};
+  TakeThenSignalContext context = {.do_signal = TestSemaphore(0),
+                                   .mutex = PTHREAD_MUTEX_INITIALIZER,
+                                   .condition = PTHREAD_COND_INITIALIZER};
   // Start the thread.
   pthread_t thread = 0;
   pthread_create(&thread, nullptr, TakeThenSignalEntryPoint, &context);

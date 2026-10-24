@@ -30,13 +30,15 @@ using ::starboard::CreateDummyDrmSystem;
 
 SbPlayerCreationParam GetDefaultPlaybackParam() {
   SbPlayerCreationParam creation_param = {
-      kSbDrmSystemInvalid,
-      {
-          kSbMediaAudioCodecAac,
-      },
-      {
-          kSbMediaVideoCodecVp9,
-      },
+      .drm_system = kSbDrmSystemInvalid,
+      .audio_stream_info =
+          {
+              kSbMediaAudioCodecAac,
+          },
+      .video_stream_info =
+          {
+              kSbMediaVideoCodecVp9,
+          },
   };
 
   creation_param.audio_stream_info.mime = "";

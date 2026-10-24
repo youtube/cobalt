@@ -372,10 +372,11 @@ constexpr TimeTestData kLocaltimeCases[] = {
 INSTANTIATE_TEST_SUITE_P(
     Gmtime,
     PosixTimeExplosionTest,
-    ::testing::Combine(::testing::Values(TimeFunctionInfo{"Gmtime",
-                                                          gmtime_wrapper},
-                                         TimeFunctionInfo{"GmtimeR", gmtime_r}),
-                       ::testing::ValuesIn(kGmtimeCases)),
+    ::testing::Combine(
+        ::testing::Values(
+            TimeFunctionInfo{.name = "Gmtime", .function = gmtime_wrapper},
+            TimeFunctionInfo{.name = "GmtimeR", .function = gmtime_r}),
+        ::testing::ValuesIn(kGmtimeCases)),
     [](const auto& info) {
       return std::string(std::get<0>(info.param).name) + "_" +
              std::get<1>(info.param).case_name;
@@ -385,8 +386,10 @@ INSTANTIATE_TEST_SUITE_P(
     Localtime,
     PosixTimeExplosionTest,
     ::testing::Combine(
-        ::testing::Values(TimeFunctionInfo{"Localtime", localtime_wrapper},
-                          TimeFunctionInfo{"LocaltimeR", localtime_r}),
+        ::testing::Values(TimeFunctionInfo{.name = "Localtime",
+                                           .function = localtime_wrapper},
+                          TimeFunctionInfo{.name = "LocaltimeR",
+                                           .function = localtime_r}),
         ::testing::ValuesIn(kLocaltimeCases)),
     [](const auto& info) {
       return std::string(std::get<0>(info.param).name) + "_" +
@@ -458,10 +461,11 @@ constexpr TimeTestData kLocaltimeOverflowCases[] = {
 INSTANTIATE_TEST_SUITE_P(
     Gmtime,
     PosixTimeExplosionOverflowTest,
-    ::testing::Combine(::testing::Values(TimeFunctionInfo{"Gmtime",
-                                                          gmtime_wrapper},
-                                         TimeFunctionInfo{"GmtimeR", gmtime_r}),
-                       ::testing::ValuesIn(kGmtimeOverflowCases)),
+    ::testing::Combine(
+        ::testing::Values(
+            TimeFunctionInfo{.name = "Gmtime", .function = gmtime_wrapper},
+            TimeFunctionInfo{.name = "GmtimeR", .function = gmtime_r}),
+        ::testing::ValuesIn(kGmtimeOverflowCases)),
     [](const auto& info) {
       return std::string(std::get<0>(info.param).name) + "_" +
              std::get<1>(info.param).case_name;
@@ -471,8 +475,10 @@ INSTANTIATE_TEST_SUITE_P(
     Localtime,
     PosixTimeExplosionOverflowTest,
     ::testing::Combine(
-        ::testing::Values(TimeFunctionInfo{"Localtime", localtime_wrapper},
-                          TimeFunctionInfo{"LocaltimeR", localtime_r}),
+        ::testing::Values(TimeFunctionInfo{.name = "Localtime",
+                                           .function = localtime_wrapper},
+                          TimeFunctionInfo{.name = "LocaltimeR",
+                                           .function = localtime_r}),
         ::testing::ValuesIn(kLocaltimeOverflowCases)),
     [](const auto& info) {
       return std::string(std::get<0>(info.param).name) + "_" +

@@ -87,20 +87,23 @@ SlotSelectionStatus GetSlotSelectionStatus() {
 }
 
 const StarboardExtensionLoaderAppMetricsApi kLoaderAppMetricsApi = {
-    kStarboardExtensionLoaderAppMetricsName,
-    3,
-    &SetCrashpadInstallationStatus,
-    &GetCrashpadInstallationStatus,
-    &SetElfLibraryStoredCompressed,
-    &GetElfLibraryStoredCompressed,
-    &SetElfLoadDurationMicroseconds,
-    &GetElfLoadDurationMicroseconds,
-    &SetElfDecompressionDurationMicroseconds,
-    &GetElfDecompressionDurationMicroseconds,
-    &RecordUsedCpuBytesDuringElfLoad,
-    &GetMaxSampledUsedCpuBytesDuringElfLoad,
-    &SetSlotSelectionStatus,
-    &GetSlotSelectionStatus};
+    .name = kStarboardExtensionLoaderAppMetricsName,
+    .version = 3,
+    .SetCrashpadInstallationStatus = &SetCrashpadInstallationStatus,
+    .GetCrashpadInstallationStatus = &GetCrashpadInstallationStatus,
+    .SetElfLibraryStoredCompressed = &SetElfLibraryStoredCompressed,
+    .GetElfLibraryStoredCompressed = &GetElfLibraryStoredCompressed,
+    .SetElfLoadDurationMicroseconds = &SetElfLoadDurationMicroseconds,
+    .GetElfLoadDurationMicroseconds = &GetElfLoadDurationMicroseconds,
+    .SetElfDecompressionDurationMicroseconds =
+        &SetElfDecompressionDurationMicroseconds,
+    .GetElfDecompressionDurationMicroseconds =
+        &GetElfDecompressionDurationMicroseconds,
+    .RecordUsedCpuBytesDuringElfLoad = &RecordUsedCpuBytesDuringElfLoad,
+    .GetMaxSampledUsedCpuBytesDuringElfLoad =
+        &GetMaxSampledUsedCpuBytesDuringElfLoad,
+    .SetSlotSelectionStatus = &SetSlotSelectionStatus,
+    .GetSlotSelectionStatus = &GetSlotSelectionStatus};
 
 }  // namespace
 

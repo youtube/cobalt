@@ -19,12 +19,12 @@
 namespace starboard {
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
-    kStarboardExtensionAccessibilityName,
-    1,
-    &GetTextToSpeechSettings,
-    &GetDisplaySettings,
-    &GetCaptionSettings,
-    &SetCaptionsEnabled};
+    .name = kStarboardExtensionAccessibilityName,
+    .version = 1,
+    .GetTextToSpeechSettings = &GetTextToSpeechSettings,
+    .GetDisplaySettings = &GetDisplaySettings,
+    .GetCaptionSettings = &GetCaptionSettings,
+    .SetCaptionsEnabled = &SetCaptionsEnabled};
 
 const void* GetAccessibilityApi() {
   return &kAccessibilityAPI;

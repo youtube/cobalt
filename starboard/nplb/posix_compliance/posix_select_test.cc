@@ -54,7 +54,7 @@ void CreatePipe(int* fds) {
 
 TEST(PosixSelectTest, NoFdsReturnsImmediately) {
   // select with nfds = 0 should return 0 immediately.
-  struct timeval timeout = {0, 100000};  // 100ms
+  struct timeval timeout = {.tv_sec = 0, .tv_usec = 100000};  // 100ms
   EXPECT_EQ(select(0, NULL, NULL, NULL, &timeout), 0);
 }
 
@@ -65,7 +65,7 @@ TEST(PosixSelectTest, TimeoutWithNoEvents) {
   FD_ZERO(&read_fds);
   FD_SET(fds[0], &read_fds);
 
-  struct timeval timeout = {0, 50000};  // 50ms
+  struct timeval timeout = {.tv_sec = 0, .tv_usec = 50000};  // 50ms
   EXPECT_EQ(select(fds[0] + 1, &read_fds, NULL, NULL, &timeout), 0);
 
   close(fds[0]);
@@ -90,7 +90,7 @@ TEST(PosixSelectTest, ReadEvent) {
   int res = write(fds[1], buffer, sizeof(buffer));
   EXPECT_NE(res, -1);
 
-  struct timeval timeout = {1, 0};  // 1 second
+  struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};  // 1 second
   int result = select(fds[0] + 1, &read_fds, NULL, NULL, &timeout);
 
   EXPECT_EQ(result, 1);
@@ -107,7 +107,7 @@ TEST(PosixSelectTest, WriteEvent) {
   FD_ZERO(&write_fds);
   FD_SET(fds[1], &write_fds);
 
-  struct timeval timeout = {1, 0};
+  struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
   int result = select(fds[1] + 1, NULL, &write_fds, NULL, &timeout);
 
   EXPECT_EQ(result, 1);
@@ -124,7 +124,7 @@ TEST(PosixSelectTest, ZeroTimeoutReturnsImmediately) {
   FD_ZERO(&read_fds);
   FD_SET(fds[0], &read_fds);
 
-  struct timeval timeout = {0, 0};
+  struct timeval timeout = {.tv_sec = 0, .tv_usec = 0};
   EXPECT_EQ(select(fds[0] + 1, &read_fds, NULL, NULL, &timeout), 0);
 
   close(fds[0]);
@@ -133,7 +133,7 @@ TEST(PosixSelectTest, ZeroTimeoutReturnsImmediately) {
 
 TEST(PosixSelectTest, InvalidTimeout) {
   // A timeout with a negative value is invalid.
-  struct timeval timeout = {-1, 0};
+  struct timeval timeout = {.tv_sec = -1, .tv_usec = 0};
   EXPECT_EQ(select(0, NULL, NULL, NULL, &timeout), -1);
   EXPECT_EQ(errno, EINVAL);
 }

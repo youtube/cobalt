@@ -34,9 +34,9 @@ void InitializeStarboardFeatures(const SbFeature* features,
 }
 
 constexpr StarboardExtensionFeaturesApi kFeaturesApi = {
-    kStarboardExtensionFeaturesName,
-    FEATURES_API_EXTENSION_VERSION,
-    &InitializeStarboardFeatures,
+    .name = kStarboardExtensionFeaturesName,
+    .version = FEATURES_API_EXTENSION_VERSION,
+    .InitializeStarboardFeatures = &InitializeStarboardFeatures,
 };
 
 const void* GetFeaturesApi() {

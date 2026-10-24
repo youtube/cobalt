@@ -31,10 +31,10 @@ bool SetString(const char* key, const char* value) {
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName,
-    2,
-    &OverrideCrashpadAnnotations,
-    &SetString,
+    .name = kCobaltExtensionCrashHandlerName,
+    .version = 2,
+    .OverrideCrashpadAnnotations = &OverrideCrashpadAnnotations,
+    .SetString = &SetString,
 };
 
 const void* GetCrashHandlerApi() {

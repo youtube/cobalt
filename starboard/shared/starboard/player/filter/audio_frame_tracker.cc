@@ -43,8 +43,9 @@ void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
 
   if (frame_records_.empty() ||
       frame_records_.back().playback_rate != playback_rate) {
-    FrameRecord record = {number_of_frames, 0 /* number_of_played_frames */,
-                          playback_rate};
+    FrameRecord record = {.number_of_frames = number_of_frames,
+                          .number_of_played_frames = 0,
+                          .playback_rate = playback_rate};
     frame_records_.push_back(record);
   } else {
     frame_records_.back().number_of_frames += number_of_frames;
