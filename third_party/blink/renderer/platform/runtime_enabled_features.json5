@@ -3096,6 +3096,18 @@
     // trial on the calling document and flips the global flag for contexts
     // created afterwards.
     // TODO(b/571981376): Remove once experiments have run.
+    // Cobalt: MediaSource.changeTo() and standby SourceBuffers
+    // (addSourceBuffer(type, {standby})), for switching between SourceBuffers.
+    // Enabled at runtime through the H5VCC setting
+    // `Media.EnableMultiSourceBufferSwitching`, which force-enables the
+    // (token-less) origin trial on the calling document and the global flag
+    // for contexts created afterwards.
+    {
+      name: "MediaSourceChangeTo",
+      base_feature: "none",
+      origin_trial_feature_name: "MediaSourceChangeTo",
+      public: true,
+    },
     {
       name: "MediaSourceChangeType",
       base_feature: "none",

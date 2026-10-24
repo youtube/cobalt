@@ -31,6 +31,8 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_SOURCE_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_SOURCE_H_
 
+#include <vector>
+
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_time_range.h"
 #include "third_party/blink/public/platform/web_url.h"
@@ -100,6 +102,12 @@ class WebMediaSource {
   virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       const WebString& mime_type,
       AddStatus& out_status /* out */) = 0;
+
+  // Multi-SourceBuffer switching: makes playback read |source_buffers|, at
+  // most one per media type, from the next seek. Returns false, and changes
+  // nothing, if it can't.
+  virtual bool ChangeTo(
+      const std::vector<WebSourceBuffer*>& source_buffers) = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual double Duration() = 0;

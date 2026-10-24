@@ -8,11 +8,14 @@
 #include <memory>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/platform/web_media_source.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/html/media/media_source_tracer.h"
 #include "third_party/blink/renderer/core/html/time_ranges.h"
@@ -38,6 +41,10 @@ class HTMLMediaElement;
 class CrossThreadMediaSourceAttachment;
 class SameThreadMediaSourceAttachment;
 class SourceBufferConfig;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class ScriptState;
+class SourceBufferInit;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 class TrackBase;
 class V8EndOfStreamError;
 class WebSourceBuffer;
@@ -84,6 +91,19 @@ class MediaSource final : public EventTarget,
       LOCKS_EXCLUDED(attachment_link_lock_);
   void removeSourceBuffer(SourceBuffer*, ExceptionState&)
       LOCKS_EXCLUDED(attachment_link_lock_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Multi-SourceBuffer switching, exposed by the H5VCC setting
+  // `Media.EnableMultiSourceBufferSwitching`. Defined in
+  // media_source_starboard.cc.
+  SourceBuffer* AddSourceBufferWithInit(const String& type,
+                                        const SourceBufferInit* init,
+                                        ExceptionState&)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  ScriptPromise<IDLUndefined> changeTo(
+      ScriptState*,
+      const HeapVector<Member<SourceBuffer>>& source_buffers,
+      ExceptionState&) LOCKS_EXCLUDED(attachment_link_lock_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void setDuration(double, ExceptionState&)
       LOCKS_EXCLUDED(attachment_link_lock_);
   double duration() LOCKS_EXCLUDED(attachment_link_lock_);
@@ -212,6 +232,21 @@ class MediaSource final : public EventTarget,
       SourceBuffer* buffer /* in */,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */)
       LOCKS_EXCLUDED(attachment_link_lock_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Helpers of changeTo(), defined in media_source_starboard.cc.
+  void SetStandby_Locked(
+      SourceBuffer* source_buffer /* in */,
+      bool* succeeded /* out */,
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void ChangeTo_Locked(
+      const std::vector<WebSourceBuffer*>* web_source_buffers /* in */,
+      bool* changed /* out */,
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void UpdateTracksAfterChangeTo(
+      const HeapVector<Member<SourceBuffer>>& source_buffers);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetLiveSeekableRange_Locked(
       double start,
       double end,

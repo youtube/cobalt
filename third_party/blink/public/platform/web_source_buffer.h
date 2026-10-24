@@ -165,6 +165,11 @@ class WebSourceBuffer {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Return the highest presentation timestamp written to the Renderer.
   virtual double GetWriteHead(ExceptionState& exception_state) const = 0;
+
+  // Multi-SourceBuffer switching: marks this SourceBuffer as buffering media
+  // that plays later, until WebMediaSource::ChangeTo() selects it. Returns
+  // false if it can't.
+  virtual bool SetStandby() = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

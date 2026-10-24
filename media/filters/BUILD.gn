@@ -84,6 +84,11 @@ source_set("filters") {
   ]
 
   if (use_starboard_media) {
+    sources += [
+      "starboard/chunk_demuxer_starboard.cc",
+      "starboard/selected_track_stream.cc",
+      "starboard/selected_track_stream.h",
+    ]
     deps += [ "//starboard:starboard_headers_only" ]
   }
 

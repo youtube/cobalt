@@ -22,6 +22,8 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("mediasource") {
   sources = [
+    "media_source_change_to.cc",
+    "media_source_change_to.h",
     "source_buffer_write_head.cc",
     "source_buffer_write_head.h",
   ]

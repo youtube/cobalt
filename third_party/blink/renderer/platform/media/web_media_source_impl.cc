@@ -88,6 +88,17 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
 
   return nullptr;
 }
+
+bool WebMediaSourceImpl::ChangeTo(
+    const std::vector<WebSourceBuffer*>& source_buffers) {
+  std::vector<std::string> ids;
+  ids.reserve(source_buffers.size());
+  for (WebSourceBuffer* source_buffer : source_buffers) {
+    // Every WebSourceBuffer of this WebMediaSource is a WebSourceBufferImpl.
+    ids.push_back(static_cast<WebSourceBufferImpl*>(source_buffer)->id());
+  }
+  return demuxer_->ChangeTo(ids);
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 double WebMediaSourceImpl::Duration() {

@@ -224,6 +224,7 @@ bool GetAppendFirstSegmentSynchronouslySetting(
   }
   return false;
 }
+
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
@@ -1751,6 +1752,13 @@ bool SourceBuffer::InitializationSegmentReceived(
     //     decode error parameter set to true and abort these steps.
     // This is done in Chromium code, see MediaSourceState::OnNewConfigs.
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // The tracks of a standby SourceBuffer (MediaSource.addSourceBuffer(type,
+    // {standby: true})) stay disabled until MediaSource.changeTo() selects it.
+    const bool may_enable_audio_track = !standby_;
+    const bool may_select_video_track = !standby_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
     // 5.2 For each audio track in the initialization segment, run following
     //     steps:
     for (const MediaTrackInfo& track_info : new_audio_tracks) {
@@ -1792,7 +1800,11 @@ bool SourceBuffer::InitializationSegmentReceived(
           /*exclusive=*/false);
       SourceBufferTrackBaseSupplement::SetSourceBuffer(*audio_track, this);
       // 5.2.8.7 If audioTracks.length equals 0, then run the following steps:
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (audioTracks().length() == 0 && may_enable_audio_track) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       if (audioTracks().length() == 0) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         // 5.2.8.7.1 Set the enabled property on new audio track to true.
         audio_track->setEnabled(true);
         // 5.2.8.7.2 Set active track flag to true.
@@ -1853,7 +1865,11 @@ bool SourceBuffer::InitializationSegmentReceived(
           track_info.id, kind, std::move(label), std::move(language), false);
       SourceBufferTrackBaseSupplement::SetSourceBuffer(*video_track, this);
       // 5.3.8.7 If videoTracks.length equals 0, then run the following steps:
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (videoTracks().length() == 0 && may_select_video_track) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       if (videoTracks().length() == 0) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         // 5.3.8.7.1 Set the selected property on new audio track to true.
         video_track->setSelected(true);
         // 5.3.8.7.2 Set active track flag to true.
@@ -1991,6 +2007,19 @@ bool SourceBuffer::PrepareAppend(double media_time,
                                     TRACE_ID_LOCAL(this));
     return false;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // MediaSource.changeTo() makes the SourceBuffers it switches away from
+  // read-only.
+  if (switched_away_) {
+    MediaSource::LogAndThrowDOMException(
+        exception_state, DOMExceptionCode::kInvalidStateError,
+        "This SourceBuffer was switched away from by MediaSource.changeTo().");
+    TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::prepareAppend",
+                                    TRACE_ID_LOCAL(this));
+    return false;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 4. If the readyState attribute of the parent media source is in the "ended"
   //    state then run the following steps:
