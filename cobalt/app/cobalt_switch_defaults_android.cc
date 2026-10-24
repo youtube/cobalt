@@ -110,6 +110,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // [PoC][C7] Suppress per-subresource SubresourceResponseStarted
+               // IPC.
+               "ReduceSubresourceResponseStartedIPC",
            },
            ",")},
       {::switches::kDisableFeatures,
@@ -133,6 +136,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // never reported as audible, meaning deferred audio focus is
                // never executed.
                media::kDeferAudioFocusUntilAudible.name,
+               // [PoC][C7] Disable DIPS bounce-tracking SQLite DB & keepalive
+               // UI-thread proxy.
+               "DIPS",
+               "KeepAliveInBrowserMigration",
            },
            ",")},
   };

@@ -117,13 +117,15 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
       process->GetBrowserContext(), origin, is_for_isolated_world,
       is_for_service_worker, params.get());
 
+#if !BUILDFLAG(IS_COBALT)
   params->cookie_observer = std::move(cookie_observer);
   params->trust_token_observer = std::move(trust_token_observer);
   params->shared_dictionary_observer = std::move(shared_dictionary_observer);
-  params->url_loader_network_observer = std::move(url_loader_network_observer);
-  params->devtools_observer = std::move(devtools_observer);
   params->device_bound_session_observer =
       std::move(device_bound_session_observer);
+#endif
+  params->url_loader_network_observer = std::move(url_loader_network_observer);
+  params->devtools_observer = std::move(devtools_observer);
 
   params->cookie_setting_overrides = cookie_setting_overrides;
 
