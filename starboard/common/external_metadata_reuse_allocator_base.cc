@@ -32,9 +32,6 @@ namespace {
 // to ensure that a zero sized allocation will return a non-zero sized block.
 const size_t kMinBlockSizeBytes = 16;
 
-// Number of allocations between attempts to decommit one pending idle block.
-constexpr int kDecommitCadence = 100;
-
 int ceil_power_2(int i) {
   SB_DCHECK_GE(i, 0);
 
@@ -178,9 +175,6 @@ void* ExternalMetadataReuseAllocatorBase::Allocate(size_t size,
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
-  if (enable_decommit_on_idle_) {
-    TryToDecommitOneBlock(kDecommitCadence);
-  }
 
   return user_address;
 }
