@@ -17,7 +17,10 @@
 
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/threading/sequence_bound.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "content/public/browser/document_user_data.h"
 #include "content/public/browser/render_frame_host.h"
@@ -27,6 +30,12 @@
 
 namespace h5vcc_platform_service {
 
+// Returns the dedicated single-thread task runner for platform services.
+scoped_refptr<base::SingleThreadTaskRunner> GetPlatformServiceTaskRunner();
+
+// Resets the non-Android platform service task runner between unit tests.
+void ResetPlatformServiceTaskRunnerForTesting();
+
 // Implements the mojom::H5vccPlatformServiceManager interface and extends
 // content::DocumentUserData to tie an instance's lifetime to the document /
 // RenderFrameHost, with one instance per RenderFrameHost.
@@ -35,7 +44,8 @@ class H5vccPlatformServiceManagerImpl
       public mojom::H5vccPlatformServiceManager {
  public:
   // Gets the existing instance for the RFH or creates a new one,
-  // and binds the receiver.
+  // and binds the receiver on either the UI thread or the dedicated platform
+  // service thread depending on features::kCobaltPlatformServicesOffUiThread.
   static void GetOrCreate(
       content::RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<mojom::H5vccPlatformServiceManager> receiver);
@@ -56,10 +66,15 @@ class H5vccPlatformServiceManagerImpl
             OpenCallback callback) override;
 
  private:
+  class OffUiThreadPlatformServiceManager;
+
   // No public constructors, to force going through static methods of
   // content::DocumentUserData (e.g., GetOrCreateForCurrentDocument).
   explicit H5vccPlatformServiceManagerImpl(
       content::RenderFrameHost* render_frame_host);
+
+  void BindReceiver(
+      mojo::PendingReceiver<mojom::H5vccPlatformServiceManager> receiver);
 
   // Called when a receiver in the set disconnects.
   void OnReceiverDisconnect();
@@ -68,6 +83,7 @@ class H5vccPlatformServiceManagerImpl
   DOCUMENT_USER_DATA_KEY_DECL();
 
   mojo::ReceiverSet<mojom::H5vccPlatformServiceManager> receivers_;
+  base::SequenceBound<OffUiThreadPlatformServiceManager> off_ui_thread_manager_;
   base::WeakPtrFactory<H5vccPlatformServiceManagerImpl> weak_factory_{this};
 };
 
