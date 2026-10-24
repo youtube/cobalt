@@ -132,6 +132,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // and image transfer cache copies in single-process mode.
                "CobaltInProcessDirectRaster",
                "CobaltInProcessImageTransferCache",
+               // [PoC][C5] Enable main-frame-before-activation.
+               "CobaltMainFrameBeforeActivation",
            },
            ",")},
       {::switches::kDisableFeatures,
