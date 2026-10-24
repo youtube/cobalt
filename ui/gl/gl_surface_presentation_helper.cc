@@ -18,6 +18,25 @@
 
 namespace gl {
 
+#if BUILDFLAG(IS_STARBOARD)
+namespace {
+
+// Without a VSyncProvider the only per-frame signal on Starboard is the GL
+// fence, and the "next VSync" used to schedule its re-check is a synthetic
+// 16.7 ms grid unrelated to the display. Two buffered frames that complete
+// inside one grid tick are then both resolved at the same wakeup and their
+// presentation timestamps collapse to a few ms apart. Re-check the fence a
+// bounded number of times at a shorter interval first; after that fall back
+// to the grid. eglGetSyncAttribKHR() is a non-blocking status read, so the
+// cost is at most kStarboardMaxFenceFastPolls short tasks per frame, and only
+// while a fence is pending.
+constexpr base::TimeDelta kStarboardFenceFastPollInterval =
+    base::Milliseconds(4);
+constexpr int kStarboardMaxFenceFastPolls = 4;
+
+}  // namespace
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 GLSurfacePresentationHelper::ScopedSwapBuffers::ScopedSwapBuffers(
     GLSurfacePresentationHelper* helper,
     GLSurface::PresentationCallback callback)
@@ -314,6 +333,9 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     pending_frames_.clear();
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  const size_t pending_before = pending_frames_.size();
+#endif
   while (!pending_frames_.empty()) {
     auto& frame = pending_frames_.front();
     // Helper lambda for running the presentation callback and releasing the
@@ -345,6 +367,12 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
     feedback.writes_done_timestamp = writes_done;
     frame_presentation_callback(feedback);
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  if (pending_frames_.size() < pending_before) {
+    fence_fast_polls_ = 0;
+  }
+#endif
 
   if (!pending_frames_.empty())
     ScheduleCheckPendingFrames(true /* align_with_next_vsync */);
@@ -400,6 +428,21 @@ void GLSurfacePresentationHelper::ScheduleCheckPendingFrames(
                        weak_ptr_factory_.GetWeakPtr()));
     return;
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  const bool on_fence_path =
+      !egl_timestamp_client_ && !gpu_timing_client_ && gl_fence_supported_;
+  if (!vsync_provider_ && on_fence_path &&
+      fence_fast_polls_ < kStarboardMaxFenceFastPolls) {
+    ++fence_fast_polls_;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&GLSurfacePresentationHelper::CheckPendingFramesCallback,
+                       weak_ptr_factory_.GetWeakPtr()),
+        kStarboardFenceFastPollInterval);
+    return;
+  }
+#endif
 
   // If the |vsync_provider_| can not notify us for the next VSync
   // asynchronically, we have to compute the next VSync time and post a delayed
