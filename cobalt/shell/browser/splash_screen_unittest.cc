@@ -21,6 +21,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
+#include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 #include "cobalt/shell/common/shell_switches.h"
@@ -33,6 +34,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/mock_sbplayer_interface.h"
+#include "media/starboard/sbplayer_interface.h"
+#include "starboard/player.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using testing::_;
 
@@ -832,6 +839,45 @@ TEST_F(SplashScreenTest, NativeVideoUnsupportedShowsTheImage) {
   EXPECT_CALL(*platform_, CleanUp(shell));
   shell->Close();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Without EnableCachedSplashFile, e.g., by default or in Finch's crash safe
+// mode, the native video splash screen doesn't read the video that the WebApp
+// cached, which is recorded as skipped, and plays the built-in video instead.
+TEST_F(SplashScreenTest,
+       NativeVideoWithoutCachedSplashFilePlaysTheBuiltInVideo) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureStates(
+      {{cobalt::features::kNativeVideoSplashScreen, true},
+       {cobalt::features::kEnableCachedSplashFile, false}});
+  // The video plays with a mock SbPlayer.
+  testing::NiceMock<media::MockSbPlayerInterface> sbplayer;
+  ON_CALL(sbplayer, Create(_, _, _, _, _, _, _, _))
+      .WillByDefault(testing::InvokeWithoutArgs([] {
+        return reinterpret_cast<SbPlayer>(new media::MockSbPlayer());
+      }));
+  media::ScopedSbPlayerInterfaceForTesting scoped_sbplayer(&sbplayer);
+  base::HistogramTester histogram_tester;
+  Shell* shell = CreateShellWithSplashScreen();
+
+  CallLoadSplashScreenWebContents(shell);
+  task_environment()->RunUntilIdle();
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.SplashScreen.FetchedFromCache",
+      SplashScreenFetchedState::kSkippedCachedAssets, 1);
+  // NativeSplashVideoOutcome::kStarted: the built-in video plays natively.
+  histogram_tester.ExpectBucketCount("Cobalt.SplashScreen.NativeVideo.Outcome",
+                                     0, 1);
+  EXPECT_FALSE(HasSwitchedToMainFrame(shell));
+
+  EXPECT_CALL(*platform_, DestroyShell(shell));
+  EXPECT_CALL(*platform_, CleanUp(shell));
+  shell->Close();
+  // The SbPlayer is destroyed on the player's thread, before the mock.
+  task_environment()->RunUntilIdle();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 TEST_F(SplashScreenTest, ConcealSwitchesFromTheNativeVideoToTheMainFrame) {
   Shell* shell = CreateShellWithSplashScreen();
