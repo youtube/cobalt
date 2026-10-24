@@ -9,9 +9,16 @@
 #include "base/containers/circular_deque.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_version_info.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <cmath>
+
+#include "base/logging.h"
+#endif
 
 namespace gl {
 
@@ -85,6 +92,12 @@ class GPUTimingImpl : public GPUTiming {
   uint32_t disjoint_counter_ = 0;
   int64_t offset_ = 0;  // offset cache when timer_type_ == kTimerTypeARB
   bool offset_valid_ = false;
+#if BUILDFLAG(IS_STARBOARD)
+  int64_t first_gl_now_ = 0;
+  int64_t first_cpu_time_ = 0;
+  double gl_now_units_per_us_ = base::Time::kNanosecondsPerMicrosecond;
+  bool gl_now_calibrated_ = false;
+#endif
   bool force_time_elapsed_query_ = false;
   int32_t timestamp_bit_count_gl_ = -1;  // gl implementation timestamp bits
 
@@ -358,7 +371,33 @@ int64_t GPUTimingImpl::CalculateTimerOffset() {
       GLint64 gl_now = 0;
       glGetInteger64v(GL_TIMESTAMP_EXT, &gl_now);
       const int64_t cpu_time = GetCurrentCPUTime();
+#if BUILDFLAG(IS_STARBOARD)
+      // By spec GL_TIMESTAMP_EXT is in nanoseconds (1000 units/us), but some
+      // drivers (e.g. Mali on RDK) return raw crystal ticks (24 units/us).
+      // Measure units/us over 500 ms; if outside 1000 +/- 20, round to 0.1
+      // so CPU jitter is not amplified across multi-day uptimes.
+      if (first_cpu_time_ == 0) {
+        first_gl_now_ = gl_now;
+        first_cpu_time_ = cpu_time;
+      } else if (!gl_now_calibrated_ && cpu_time - first_cpu_time_ >= 500000 &&
+                 gl_now > first_gl_now_) {
+        const double units_per_us =
+            std::round(static_cast<double>(gl_now - first_gl_now_) /
+                       (cpu_time - first_cpu_time_) * 10.0) /
+            10.0;
+        if (units_per_us > 0.0 && std::abs(units_per_us - 1000.0) > 20.0) {
+          gl_now_units_per_us_ = units_per_us;
+          LOG(WARNING) << "GL_TIMESTAMP rate is " << units_per_us
+                       << " units/us (expected 1000); rescaling.";
+        }
+        gl_now_calibrated_ = true;
+      }
+      const int64_t gl_now_micro =
+          static_cast<int64_t>(gl_now / gl_now_units_per_us_);
+      const int64_t micro_offset = cpu_time - gl_now_micro;
+#else
       const int64_t micro_offset = cpu_time - NanoToMicro(gl_now);
+#endif
 
       // We cannot expect these instructions to run with the accuracy
       // within 1 microsecond, instead discard differences which are less

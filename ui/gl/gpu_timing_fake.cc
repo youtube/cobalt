@@ -31,6 +31,9 @@ GPUTimingFake::~GPUTimingFake() {
 
 void GPUTimingFake::Reset() {
   current_gl_time_ = 0;
+#if BUILDFLAG(IS_STARBOARD)
+  gl_timestamp_nanos_per_unit_ = 1.0;
+#endif
   gl_cpu_time_offset_ = 0;
   next_query_id_ = 23;
   allocated_queries_.clear();
@@ -53,6 +56,12 @@ void GPUTimingFake::SetCurrentCPUTime(int64_t current_time) {
   current_gl_time_ = (fake_cpu_time_ + gl_cpu_time_offset_) *
                      base::Time::kNanosecondsPerMicrosecond;
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void GPUTimingFake::SetGLTimestampNanosPerUnit(double nanos_per_unit) {
+  gl_timestamp_nanos_per_unit_ = nanos_per_unit;
+}
+#endif
 
 void GPUTimingFake::SetCurrentGLTime(GLint64 current_time) {
   current_gl_time_ = current_time;
@@ -249,7 +258,12 @@ void GPUTimingFake::FakeGLQueryCounter(GLuint id, GLenum target) {
 void GPUTimingFake::FakeGLGetInteger64v(GLenum pname, GLint64* data) {
   switch (pname) {
     case GL_TIMESTAMP_EXT:
+#if BUILDFLAG(IS_STARBOARD)
+      *data =
+          static_cast<GLint64>(current_gl_time_ / gl_timestamp_nanos_per_unit_);
+#else
       *data = current_gl_time_;
+#endif
       break;
     default:
       FAIL() << "Invalid variable passed to GetInteger64v: " << pname;

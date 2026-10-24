@@ -272,14 +272,17 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   }
   SB_DCHECK_NE(surface_, EGL_NO_SURFACE);
 
-  // Create the GLES2 or GLES3 Context.
+  // Create an OpenGL ES 3 context, falling back to ES 2.0 if the platform
+  // cannot provide one.
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION,
       3,
       EGL_NONE,
   };
-  if (context_ == EGL_NO_CONTEXT) {
-    // Create an OpenGL ES 2.0 context.
+  context_ = EGL_CALL_SIMPLE(
+      eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list));
+  if (context_ == EGL_NO_CONTEXT ||
+      EGL_SUCCESS != EGL_CALL_SIMPLE(eglGetError())) {
     context_attrib_list[1] = 2;
     context_ = EGL_CALL_SIMPLE(eglCreateContext(
         display_, config, EGL_NO_CONTEXT, context_attrib_list));
