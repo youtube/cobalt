@@ -116,6 +116,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // ATOM_PERF (PoC B2): Disable the splash screen to remove its
                // 1500 ms floor and second WebContents overhead on cold start.
                "DisableSplashScreen",
+               // ATOM_PERF (PoC C1): Skip per-request TrustedHeaderClient Mojo
+               // round-trips to the UI thread.
+               "CobaltSkipTrustedHeaderClient",
            },
            ",")},
       {::switches::kDisableFeatures,
