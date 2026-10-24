@@ -50,7 +50,11 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  size_t GetAllocated() const override { return total_allocated_in_bytes_; }
+  size_t GetAllocated() const override {
+    return total_allocated_in_bytes_ >= pending_free_bytes_
+               ? total_allocated_in_bytes_ - pending_free_bytes_
+               : 0;
+  }
 
   void PrintAllocations(bool align_allocated_size,
                         int max_allocations_to_print) const override;
@@ -182,6 +186,9 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
 
   // How many bytes has been allocated from us.
   size_t total_allocated_in_bytes_ = 0;
+
+  // How many bytes are currently queued in `pending_frees_`.
+  size_t pending_free_bytes_ = 0;
 
   // How many allocations has been allocated from us.
   size_t total_allocated_blocks_ = 0;
