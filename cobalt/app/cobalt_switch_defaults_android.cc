@@ -128,6 +128,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // ATOM_PERF (PoC C3 + A1): Keep shelf containers composited so
                // prepainted tiles are used across transitions.
                "CobaltPreserveTrivial3DTransform",
+               // ATOM_PERF (PoC C4): Skip PaintOp serialization/deserialization
+               // and image transfer cache copies in single-process mode.
+               "CobaltInProcessDirectRaster",
+               "CobaltInProcessImageTransferCache",
            },
            ",")},
       {::switches::kDisableFeatures,
