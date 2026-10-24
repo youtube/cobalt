@@ -222,6 +222,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  void OnDrmKeyStateChanged();
 
   // MediaCodec::Handler methods
   void OnMediaCodecError(bool is_recoverable,

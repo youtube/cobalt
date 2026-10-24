@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -100,6 +101,19 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady();
 
+  // Observers of DRM key state changes (e.g. when IsReady() becomes true, a
+  // license is provided, or key statuses change).  Callbacks run on arbitrary
+  // threads under an internal lock, so they must be lightweight and must not
+  // call back into DrmSystem.  UnregisterKeyStateChangedCallback() blocks until
+  // any in-flight callback returns.
+  using KeyStateChangedCallback = std::function<void()>;
+  void RegisterKeyStateChangedCallback(const void* observer,
+                                       KeyStateChangedCallback callback);
+  void UnregisterKeyStateChangedCallback(const void* observer);
+  uint64_t GetKeyStateGeneration() const {
+    return key_state_generation_.load(std::memory_order_acquire);
+  }
+
  private:
   class SessionUpdateRequest {
    public:
@@ -126,12 +140,22 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
   void HandlePendingRequests();
   void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
+  // Bumps |key_state_generation_| and runs registered callbacks; must not be
+  // called with |mutex_| held.
+  void NotifyKeyStateChanged();
 
   const std::string key_system_;
   const raw_ptr<void> context_;
   const Callbacks callbacks_;
 
   std::mutex mutex_;
+  // Guards |key_state_callbacks_| and is held while callbacks run; never
+  // acquired while |mutex_| is held.
+  std::mutex key_state_callbacks_mutex_;
+  std::map<const void*, KeyStateChangedCallback> key_state_callbacks_;
+  // Incremented before callbacks run so observers snapshotting before an
+  // operation cannot miss an intervening key state change.
+  std::atomic<uint64_t> key_state_generation_{0};
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;  // Guarded by |mutex_|.
