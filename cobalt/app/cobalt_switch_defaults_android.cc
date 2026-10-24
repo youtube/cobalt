@@ -66,6 +66,8 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // ATOM_PERF (PoC C2): Use eglSwapInterval(0) to avoid BufferQueue
       // stuffing latency.
       ::switches::kDisableGpuVsync,
+      // [Atom C14] Disable BackForwardCache for single-page TV web app.
+      ::switches::kDisableBackForwardCache,
   };
   return kCobaltToggleSwitches;
 }
@@ -169,6 +171,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // UI-thread proxy.
                "DIPS",
                "KeepAliveInBrowserMigration",
+               // [Atom C14] Disable BackForwardCache.
+               features::kBackForwardCache.name,
            },
            ",")},
   };
