@@ -33,6 +33,7 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
+import org.chromium.base.metrics.UmaRecorderHolder;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
@@ -62,6 +63,11 @@ public class MainActivity extends BaseCobaltActivity {
     if (loadError != null) {
       throw loadError;
     }
+
+    // Java UMA samples are cached until a native recorder takes them over. None ever does here:
+    // Cobalt's metrics are recorded in libcobalt, which Java has no access to. Discard the samples,
+    // so that the cache does not fill up and assert.
+    UmaRecorderHolder.setNonNativeDelegate(new DiscardingUmaRecorder());
   }
 
   @NativeMethods
