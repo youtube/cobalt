@@ -19,7 +19,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "cobalt/browser/features.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -155,21 +154,22 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
       : H5vccSchemeURLLoaderFactoryCacheBrowserTest(
             /*enable_cached_splash_file=*/true) {}
 
-  void CreatedBrowserMainParts(BrowserMainParts* browser_main_parts) override {
-    H5vccSchemeURLLoaderFactoryBrowserTest::CreatedBrowserMainParts(
-        browser_main_parts);
+  void SetUp() override {
     // Cached splash assets are only read with kEnableCachedSplashFile, which
-    // is disabled by default. Set here rather than in the constructor, as
-    // BrowserTestBase::SetUp() resets base::FeatureList before entering
-    // ContentMain(), and ShellMainDelegate doesn't re-create it from the
-    // command-line switches.
-    cached_splash_feature_list_.InitWithFeatureState(
-        cobalt::features::kEnableCachedSplashFile, enable_cached_splash_file_);
+    // is disabled by default. Browser tests can't override features once the
+    // browser starts, e.g., with a ScopedFeatureList in
+    // CreatedBrowserMainParts(), which fails a DCHECK on Android, so this
+    // overrides it in the factory before the browser starts. Otherwise, the
+    // feature's default applies.
+    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+        enable_cached_splash_file_ ? std::optional<bool>(true) : std::nullopt);
+    H5vccSchemeURLLoaderFactoryBrowserTest::SetUp();
   }
 
-  void TearDownOnMainThread() override {
-    cached_splash_feature_list_.Reset();
-    H5vccSchemeURLLoaderFactoryBrowserTest::TearDownOnMainThread();
+  void TearDown() override {
+    H5vccSchemeURLLoaderFactoryBrowserTest::TearDown();
+    H5vccSchemeURLLoaderFactory::SetCachedSplashFileEnabledForTesting(
+        std::nullopt);
   }
 
   // Verifies that the splash video is correctly loaded from the cache (or
@@ -321,7 +321,6 @@ class H5vccSchemeURLLoaderFactoryCacheBrowserTest
 
  private:
   const bool enable_cached_splash_file_;
-  base::test::ScopedFeatureList cached_splash_feature_list_;
 };
 
 // As in Finch's crash safe mode, or with the kill switch.

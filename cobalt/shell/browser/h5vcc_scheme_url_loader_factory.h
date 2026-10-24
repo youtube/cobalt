@@ -79,12 +79,20 @@ class H5vccSchemeURLLoaderFactory final
   void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
       override;
 
+  // Whether to read the splash assets that the WebApp cached:
+  // kEnableCachedSplashFile, unless overridden for testing.
+  static bool IsCachedSplashFileEnabled();
+
   // Testing seam to inject a resource map.
   static void SetResourceMapForTesting(
       const GeneratedResourceMap* resource_map_test);
   static void SetSplashDomainForTesting(
       const std::optional<std::string>& domain);
   static void SetSplashContentSizeForTesting(const std::optional<int>& size);
+  // Overrides kEnableCachedSplashFile, as browser tests can't override
+  // features once the browser starts. std::nullopt uses the feature.
+  static void SetCachedSplashFileEnabledForTesting(
+      const std::optional<bool>& enabled);
 
  private:
   GeneratedResourceMap resource_map_;
@@ -93,6 +101,7 @@ class H5vccSchemeURLLoaderFactory final
   uint64_t splash_content_size_limit_;
   static std::optional<std::string> global_splash_domain_test_;
   static std::optional<int> global_splash_content_size_test_;
+  static std::optional<bool> global_cached_splash_file_enabled_test_;
   BrowserContext* browser_context_;
 };
 
