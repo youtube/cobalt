@@ -2582,7 +2582,9 @@ void RenderFrameImpl::NotifyResourceLoadCompleted(
     blink::mojom::ResourceLoadInfoPtr resource_load_info,
     const network::URLLoaderCompletionStatus& status) {
   DidCompleteResponse(resource_load_info->request_id, status);
+#if !BUILDFLAG(IS_COBALT)
   GetFrameHost()->ResourceLoadComplete(std::move(resource_load_info));
+#endif
 }
 
 void RenderFrameImpl::NotifyResourceLoadCanceled(int64_t request_id) {

@@ -134,6 +134,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                "CobaltInProcessImageTransferCache",
                // [PoC][C5] Enable main-frame-before-activation.
                "CobaltMainFrameBeforeActivation",
+               // [PoC][C7] Suppress per-subresource SubresourceResponseStarted
+               // IPC.
+               "ReduceSubresourceResponseStartedIPC",
            },
            ",")},
       {::switches::kDisableFeatures,
@@ -157,6 +160,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // never reported as audible, meaning deferred audio focus is
                // never executed.
                media::kDeferAudioFocusUntilAudible.name,
+               // [PoC][C7] Disable DIPS bounce-tracking SQLite DB & keepalive
+               // UI-thread proxy.
+               "DIPS",
+               "KeepAliveInBrowserMigration",
            },
            ",")},
   };
