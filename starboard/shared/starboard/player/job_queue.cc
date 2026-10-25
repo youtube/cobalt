@@ -227,7 +227,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   auto now = CurrentMonotonicTime();
   auto elapsed = now - start;
   if (elapsed > max_job_interval_) {
-    job_record_with_max_interval_ = job_record;
+    // Only the stack is logged, so don't keep the job (and whatever it
+    // captures) alive until a slower job comes along.
+    job_record.job = nullptr;
+    job_record_with_max_interval_ = std::move(job_record);
     max_job_interval_ = elapsed;
   }
   if (now - last_reset_time_ > kProfileResetIntervalUsec) {
@@ -235,16 +238,17 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
                  << " jobs processed, and waited for " << wait_times_
                  << " times since last reset on 0x" << this
                  << ", max job takes " << max_job_interval_;
-    for (int i = 0; i < job_record.stack_size; ++i) {
+    for (int i = 0; i < job_record_with_max_interval_.stack_size; ++i) {
       char function_name[1024];
       // Subtract one as return address of function may be in the next function
       // when a function is annotated as noreturn.
-      const void* call = static_cast<const char*>(job_record.stack[i]) - 1;
+      const void* call =
+          static_cast<const char*>(job_record_with_max_interval_.stack[i]) - 1;
       if (SbSystemSymbolize(call, function_name,
                             SB_ARRAY_SIZE_INT(function_name))) {
         SB_LOG(INFO) << "    " << function_name;
       } else {
-        SB_LOG(INFO) << "    " << job_record.stack[i];
+        SB_LOG(INFO) << "    " << job_record_with_max_interval_.stack[i];
       }
     }
     last_reset_time_ = now;
