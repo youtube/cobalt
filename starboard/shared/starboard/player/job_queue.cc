@@ -16,10 +16,23 @@
 
 #include <atomic>
 #include <chrono>
+#include <memory>
+#include <type_traits>
 
 #include "starboard/system.h"
 
 namespace starboard {
+
+namespace {
+
+constexpr bool kAreOptimizationsDefaultEnabled = false;
+
+static_assert(std::is_trivially_destructible<std::atomic<bool>>::value,
+              "g_enable_optimizations must be trivially destructible.");
+// Latched by every JobQueue in its constructor, see EnableOptimizations().
+std::atomic<bool> g_enable_optimizations{kAreOptimizationsDefaultEnabled};
+
+}  // namespace
 
 const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
     JobQueue::JobToken();
@@ -29,10 +42,27 @@ JobQueue::JobToken JobQueue::JobToken::Generate() {
   return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
 }
 
-JobQueue::JobQueue() = default;
+JobQueue::JobQueue()
+    : optimizations_enabled_(
+          g_enable_optimizations.load(std::memory_order_acquire)) {}
 
 JobQueue::~JobQueue() {
   StopSoon();
+}
+
+// static
+void JobQueue::EnableOptimizations() {
+  g_enable_optimizations.store(true, std::memory_order_release);
+}
+
+JobQueue::ScopedOptimizationsForTesting::ScopedOptimizationsForTesting(
+    bool enabled)
+    : previous_value_(
+          g_enable_optimizations.exchange(enabled, std::memory_order_acq_rel)) {
+}
+
+JobQueue::ScopedOptimizationsForTesting::~ScopedOptimizationsForTesting() {
+  g_enable_optimizations.store(previous_value_, std::memory_order_release);
 }
 
 JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
@@ -42,6 +72,30 @@ JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
 void JobQueue::ScheduleAndWait(Job job) {
   // TODO: Allow calling from the JobQueue thread.
   SB_CHECK(!BelongsToCurrentThread());
+
+  if (optimizations_enabled_) {
+    // A single job runs the caller's job, destroys it (so its captures are
+    // gone before the caller is released, like with the original two jobs)
+    // and then signals its completion through a heap allocated flag, so it
+    // never accesses the caller's stack, even when this function returns
+    // early because the queue is stopped while the job is running.  The
+    // caller waits on |sync_condition_|, which keeps the worker the only
+    // waiter of |condition_| (see Schedule()).
+    auto finished = std::make_shared<bool>(false);
+    Schedule([this, finished, job = std::move(job)]() mutable {
+      job();
+      job = nullptr;
+      {
+        std::lock_guard lock(mutex_);
+        *finished = true;
+      }
+      sync_condition_.notify_all();
+    });
+
+    std::unique_lock lock(mutex_);
+    sync_condition_.wait(lock, [&] { return *finished || stopped_; });
+    return;
+  }
 
   Schedule(std::move(job));
 
@@ -86,10 +140,22 @@ void JobQueue::StopSoon() {
     time_to_job_record_map_.clear();
   }
   condition_.notify_all();
+  if (optimizations_enabled_) {
+    sync_condition_.notify_all();
+  }
 }
 
 void JobQueue::RunUntilStopped() {
   SB_CHECK(BelongsToCurrentThread());
+
+  if (optimizations_enabled_) {
+    // |stopped_| is atomic, so there is no need to take the lock for every job
+    // just to check it; TryToRunOneJob() checks it under the lock anyway.
+    while (!stopped_.load(std::memory_order_relaxed)) {
+      TryToRunOneJob(/*wait_for_next_job =*/true);
+    }
+    return;
+  }
 
   for (;;) {
     {
@@ -119,7 +185,7 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   SB_DCHECK(job);
   SB_DCHECK_GE(delay_usec, 0);
 
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
   if (stopped_) {
     return JobToken::kUnscheduled;
   }
@@ -138,8 +204,24 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
                       time_to_run_job < time_to_job_record_map_.begin()->first;
 
   time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
-  if (is_first_job) {
-    condition_.notify_all();
+  if (!optimizations_enabled_) {
+    if (is_first_job) {
+      condition_.notify_all();
+    }
+    return job_token;
+  }
+
+  // The worker only has to be woken up when it is actually waiting, which
+  // avoids a syscall for every job scheduled while it is busy (in particular
+  // for the jobs it schedules to itself).  It is signaled after the lock is
+  // released, so that it doesn't immediately block on the mutex still held by
+  // this thread.  The worker is the only waiter of |condition_|, as
+  // ScheduleAndWait() waits on |sync_condition_| when optimizations are
+  // enabled.
+  const bool wake_worker = is_first_job && worker_waiting_;
+  lock.unlock();
+  if (wake_worker) {
+    condition_.notify_one();
   }
   return job_token;
 }
@@ -170,9 +252,11 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
+      worker_waiting_ = true;
       condition_.wait(lock, [this] {
         return stopped_ || !time_to_job_record_map_.empty();
       });
+      worker_waiting_ = false;
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -186,12 +270,14 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (delay_usec > 0) {
       if (wait_for_next_job) {
         int64_t scheduled_time = first_delayed_job->first;
+        worker_waiting_ = true;
         condition_.wait_for(
             lock, std::chrono::microseconds(delay_usec),
             [this, scheduled_time] {
               return stopped_ || time_to_job_record_map_.empty() ||
                      time_to_job_record_map_.begin()->first != scheduled_time;
             });
+        worker_waiting_ = false;
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING

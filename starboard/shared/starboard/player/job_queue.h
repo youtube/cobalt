@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
@@ -46,6 +47,17 @@ namespace starboard {
 // This class implements a job queue where jobs can be posted to it on any
 // thread and will be processed on one thread that this job queue is linked to.
 // A thread can only have one job queue.
+//
+// Jobs are run in the order of their scheduled time (i.e. the time Schedule()
+// is called plus the delay), and jobs with the same scheduled time are run in
+// the order they are scheduled.
+//
+// EnableOptimizations() enables a set of optimizations that don't change the
+// observable behavior of the queue but reduce its overhead (syscalls, heap
+// allocations, lock hold times and wake ups per job).  They are opt-in: the
+// original code path is used unless they are enabled, e.g. via an
+// experimental feature, and every JobQueue latches the switch when it is
+// constructed.  See the individual members for the details.
 class JobQueue {
  public:
   // A move-only type-erased wrapper for callables with signature void().
@@ -276,6 +288,29 @@ class JobQueue {
   JobQueue();
   ~JobQueue();
 
+  // Enables the optimizations for all JobQueues constructed afterwards, the
+  // JobQueues that already exist are not affected.  Called when the
+  // "Media.EnableTrivialOptimizations" experimental feature is set, see
+  // experimental_features.cc.
+  static void EnableOptimizations();
+
+  // Sets the optimizations switch for the JobQueues constructed during its
+  // lifetime and restores the previous value when destroyed, so that tests
+  // can cover both code paths.
+  class ScopedOptimizationsForTesting {
+   public:
+    explicit ScopedOptimizationsForTesting(bool enabled);
+    ~ScopedOptimizationsForTesting();
+
+    ScopedOptimizationsForTesting(const ScopedOptimizationsForTesting&) =
+        delete;
+    ScopedOptimizationsForTesting& operator=(
+        const ScopedOptimizationsForTesting&) = delete;
+
+   private:
+    const bool previous_value_;
+  };
+
   JobToken Schedule(Job job, int64_t delay_usec = 0);
   void ScheduleAndWait(Job job);
   void RemoveJobByToken(JobToken* job_token);
@@ -289,6 +324,8 @@ class JobQueue {
   void RunUntilIdle();
 
   bool BelongsToCurrentThread() const;
+
+  bool optimizations_enabled() const { return optimizations_enabled_; }
 
  private:
 #if ENABLE_JOB_QUEUE_PROFILING
@@ -321,7 +358,20 @@ class JobQueue {
   std::mutex mutex_;
   std::condition_variable condition_;
   TimeToJobRecordMap time_to_job_record_map_;  // Guarded by |mutex_|.
-  bool stopped_ = false;
+  // Written with |mutex_| held.  With optimizations enabled, RunUntilStopped()
+  // reads it without the lock.
+  std::atomic<bool> stopped_{false};
+
+  const bool optimizations_enabled_;
+  // The members below are only used when |optimizations_enabled_| is true.
+  // Signaled when a job scheduled via ScheduleAndWait() is finished, or when
+  // the queue is stopped, so that the thread running the jobs is the only
+  // waiter of |condition_|.
+  std::condition_variable sync_condition_;
+  // True while the thread running the jobs is waiting on |condition_|, so that
+  // Schedule() only signals it (a syscall) when it is actually waiting.
+  // Guarded by |mutex_|.
+  bool worker_waiting_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING
   int64_t last_reset_time_ = CurrentMonotonicTime();
