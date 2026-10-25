@@ -277,25 +277,35 @@ TEST_P(JobQueueTest, CancelPendingJobsCancelsImmediateAndDelayedJobs) {
 
 TEST_P(JobQueueTest, JobsAreDestroyedWhenRemoved) {
   struct DestructionTracker {
-    explicit DestructionTracker(int* destroyed) : destroyed(destroyed) {}
+    DestructionTracker(int* destroyed, JobQueue* job_queue)
+        : destroyed(destroyed), job_queue(job_queue) {}
     ~DestructionTracker() {
       if (destroyed) {
         ++*destroyed;
       }
+      if (job_queue) {
+        // Deadlocks if the job is destroyed while the queue's lock is held.
+        job_queue->Schedule([] {});
+      }
     }
     DestructionTracker(DestructionTracker&& other)
-        : destroyed(other.destroyed) {
+        : destroyed(other.destroyed), job_queue(other.job_queue) {
       other.destroyed = nullptr;
+      other.job_queue = nullptr;
     }
     int* destroyed;
+    JobQueue* job_queue;
   };
 
+  // With optimizations enabled the removed jobs are destroyed after the lock
+  // is released, which the tracker verifies by scheduling from its destructor.
+  JobQueue* job_queue = GetParam() ? &job_queue_ : nullptr;
   int destroyed = 0;
-  auto token =
-      job_queue_.Schedule([tracker = DestructionTracker(&destroyed)] {});
-  job_owner_.Schedule([tracker = DestructionTracker(&destroyed)] {},
+  auto token = job_queue_.Schedule(
+      [tracker = DestructionTracker(&destroyed, job_queue)] {});
+  job_owner_.Schedule([tracker = DestructionTracker(&destroyed, job_queue)] {},
                       1 * kPrecisionUsec);
-  job_queue_.Schedule([tracker = DestructionTracker(&destroyed)] {},
+  job_queue_.Schedule([tracker = DestructionTracker(&destroyed, job_queue)] {},
                       1 * kPrecisionUsec);
 
   job_queue_.RemoveJobByToken(&token);

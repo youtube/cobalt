@@ -17,7 +17,9 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <type_traits>
+#include <vector>
 
 #include "starboard/system.h"
 
@@ -37,9 +39,10 @@ std::atomic<bool> g_enable_optimizations{kAreOptimizationsDefaultEnabled};
 const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
     JobQueue::JobToken();
 
-JobQueue::JobToken JobQueue::JobToken::Generate() {
+JobQueue::JobToken JobQueue::JobToken::Generate(int64_t scheduled_time) {
   static std::atomic<int64_t> s_current_token{0};
-  return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
+  return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1,
+                  scheduled_time);
 }
 
 JobQueue::JobQueue()
@@ -120,6 +123,28 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
     return;
   }
 
+  if (optimizations_enabled_) {
+    // The job is located via its scheduled time instead of scanning all
+    // pending jobs, and it is destroyed outside of the lock as its destructor
+    // may release arbitrary resources (e.g. media buffers).
+    std::optional<JobRecord> removed_job_record;
+    {
+      std::lock_guard lock(mutex_);
+      // All jobs with the same scheduled time are adjacent in the map.
+      auto range =
+          time_to_job_record_map_.equal_range(job_token->scheduled_time_);
+      for (auto iter = range.first; iter != range.second; ++iter) {
+        if (iter->second.job_token == *job_token) {
+          removed_job_record.emplace(std::move(iter->second));
+          time_to_job_record_map_.erase(iter);
+          break;
+        }
+      }
+    }
+    job_token->Reset();
+    return;
+  }
+
   {
     std::lock_guard lock(mutex_);
     for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
@@ -134,10 +159,18 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
 }
 
 void JobQueue::StopSoon() {
+  // With optimizations enabled the pending jobs are moved here and destroyed
+  // after the lock is released, as their destructors may release arbitrary
+  // resources (e.g. media buffers).
+  TimeToJobRecordMap pending_jobs;
   {
     std::lock_guard lock(mutex_);
     stopped_ = true;
-    time_to_job_record_map_.clear();
+    if (optimizations_enabled_) {
+      pending_jobs.swap(time_to_job_record_map_);
+    } else {
+      time_to_job_record_map_.clear();
+    }
   }
   condition_.notify_all();
   if (optimizations_enabled_) {
@@ -190,7 +223,8 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
     return JobToken::kUnscheduled;
   }
 
-  JobToken job_token = JobToken::Generate();
+  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
+  JobToken job_token = JobToken::Generate(time_to_run_job);
   JobRecord job_record = {job_token, std::move(job), owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {
@@ -199,7 +233,6 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
   bool is_first_job = time_to_job_record_map_.empty() ||
                       time_to_run_job < time_to_job_record_map_.begin()->first;
 
@@ -230,13 +263,22 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
-  std::lock_guard lock(mutex_);
-  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
-       iter != time_to_job_record_map_.end();) {
-    if (iter->second.owner == owner) {
-      iter = time_to_job_record_map_.erase(iter);
-    } else {
-      ++iter;
+  // With optimizations enabled the removed jobs are moved here and destroyed
+  // after the lock is released, as their destructors may release arbitrary
+  // resources (e.g. media buffers).
+  std::vector<JobRecord> removed_job_records;
+  {
+    std::lock_guard lock(mutex_);
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end();) {
+      if (iter->second.owner == owner) {
+        if (optimizations_enabled_) {
+          removed_job_records.push_back(std::move(iter->second));
+        }
+        iter = time_to_job_record_map_.erase(iter);
+      } else {
+        ++iter;
+      }
     }
   }
 }

@@ -222,10 +222,11 @@ class JobQueue {
    private:
     friend class JobQueue;
 
-    static JobToken Generate();
+    static JobToken Generate(int64_t scheduled_time);
 
     JobToken() = default;
-    explicit JobToken(int64_t token) : token_(token) {}
+    JobToken(int64_t token, int64_t scheduled_time)
+        : token_(token), scheduled_time_(scheduled_time) {}
 
     void Reset() { token_ = std::nullopt; }
 
@@ -234,6 +235,10 @@ class JobQueue {
     }
 
     std::optional<int64_t> token_;
+
+    // Only used when optimizations are enabled: the time the job is scheduled
+    // to run at, to locate the job in the JobQueue quickly when it is removed.
+    int64_t scheduled_time_ = 0;
   };
 
   class JobOwner {
