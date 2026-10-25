@@ -186,6 +186,126 @@ TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
   EXPECT_TRUE(job_queue_.BelongsToCurrentThread());
 }
 
+TEST_F(JobQueueTest, ReadyDelayedJobsRunBeforeLaterImmediateJobs) {
+  std::vector<int> values;
+  job_queue_.Schedule([&]() { values.push_back(1); }, 1 * kPrecisionUsec);
+  job_queue_.Schedule([&]() { values.push_back(2); }, 2 * kPrecisionUsec);
+  // Sleep past the delayed jobs, and then schedule an immediate job, which has
+  // a later scheduled time than both delayed jobs.
+  usleep(3 * kPrecisionUsec);
+  job_queue_.Schedule([&]() { values.push_back(3); });
+  job_queue_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+
+  job_queue_.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 2, 3));
+
+  usleep(2 * kPrecisionUsec);
+  job_queue_.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 2, 3, 4));
+}
+
+TEST_F(JobQueueTest, ImmediateJobsRunBeforeLaterDelayedJobs) {
+  std::vector<int> values;
+  job_queue_.Schedule([&]() { values.push_back(1); });
+  job_queue_.Schedule([&]() { values.push_back(2); }, 1 * kPrecisionUsec);
+  job_queue_.Schedule([&]() { values.push_back(3); });
+
+  usleep(2 * kPrecisionUsec);
+  job_queue_.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 3, 2));
+}
+
+TEST_F(JobQueueTest, RemoveJobByTokenRemovesImmediateAndDelayedJobs) {
+  std::vector<int> values;
+  auto token_1 = job_queue_.Schedule([&]() { values.push_back(1); });
+  auto token_2 = job_queue_.Schedule([&]() { values.push_back(2); });
+  auto token_3 = job_queue_.Schedule([&]() { values.push_back(3); });
+  auto token_4 =
+      job_queue_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  auto token_5 =
+      job_queue_.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  auto token_6 =
+      job_queue_.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+
+  // Remove jobs from the middle, the front and the back of the queue.
+  job_queue_.RemoveJobByToken(&token_2);
+  job_queue_.RemoveJobByToken(&token_1);
+  job_queue_.RemoveJobByToken(&token_5);
+  job_queue_.RemoveJobByToken(&token_6);
+  EXPECT_FALSE(token_1);
+  EXPECT_FALSE(token_2);
+  EXPECT_FALSE(token_5);
+  EXPECT_FALSE(token_6);
+  EXPECT_TRUE(token_3);
+  EXPECT_TRUE(token_4);
+
+  usleep(2 * kPrecisionUsec);
+  job_queue_.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(3, 4));
+
+  // Removing jobs that already ran is a no-op.
+  job_queue_.RemoveJobByToken(&token_3);
+  job_queue_.RemoveJobByToken(&token_4);
+  EXPECT_FALSE(token_3);
+  EXPECT_FALSE(token_4);
+}
+
+TEST_F(JobQueueTest, CancelPendingJobsCancelsImmediateAndDelayedJobs) {
+  std::vector<int> values;
+  job_queue_.Schedule([&]() { values.push_back(1); });
+  job_owner_.Schedule([&]() { values.push_back(2); });
+  job_queue_.Schedule([&]() { values.push_back(3); });
+  job_owner_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  job_queue_.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+
+  job_owner_.CancelPendingJobs();
+
+  usleep(2 * kPrecisionUsec);
+  job_queue_.RunUntilIdle();
+  EXPECT_THAT(values, ElementsAre(1, 3, 5));
+}
+
+TEST_F(JobQueueTest, JobsAreDestroyedWhenRemoved) {
+  struct DestructionTracker {
+    explicit DestructionTracker(int* destroyed) : destroyed(destroyed) {}
+    ~DestructionTracker() {
+      if (destroyed) {
+        ++*destroyed;
+      }
+    }
+    DestructionTracker(DestructionTracker&& other)
+        : destroyed(other.destroyed) {
+      other.destroyed = nullptr;
+    }
+    int* destroyed;
+  };
+
+  int destroyed = 0;
+  auto token =
+      job_queue_.Schedule([tracker = DestructionTracker(&destroyed)] {});
+  job_owner_.Schedule([tracker = DestructionTracker(&destroyed)] {},
+                      1 * kPrecisionUsec);
+  job_queue_.Schedule([tracker = DestructionTracker(&destroyed)] {},
+                      1 * kPrecisionUsec);
+
+  job_queue_.RemoveJobByToken(&token);
+  EXPECT_EQ(destroyed, 1);
+  job_owner_.CancelPendingJobs();
+  EXPECT_EQ(destroyed, 2);
+  job_queue_.StopSoon();
+  EXPECT_EQ(destroyed, 3);
+}
+
+TEST_F(JobQueueTest, ScheduleAfterStopIsRejected) {
+  std::atomic_bool job_1 = {false};
+  job_queue_.StopSoon();
+  auto token = job_queue_.Schedule([&]() { job_1 = true; });
+  EXPECT_FALSE(token);
+  job_queue_.RunUntilIdle();
+  EXPECT_FALSE(job_1);
+}
+
 }  // namespace
 
 }  // namespace starboard
