@@ -426,7 +426,11 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records whether a splash screen resource was successfully retrieved from
     cache and indicates the reason when on error. This is recorded for every
-    splash screen request handled by h5vcc scheme loader.
+    splash screen request handled by h5vcc scheme loader. When the
+    EnableCachedSplashFile feature is disabled, e.g., by default or in Finch's
+    crash safe mode, the cache isn't read and the built-in resource is used,
+    which is recorded as &quot;Skipped: cached assets disabled&quot;, not as
+    &quot;Success: Content from builtin&quot;, which remains a cache miss.
   </summary>
 </histogram>
 
