@@ -61,6 +61,7 @@ blink_modules_sources("mediasource") {
     ]
 
     if (use_starboard_media) {
+      sources += [ "media_source_starboard.cc" ]
       deps += [ "//starboard:starboard_group" ]
     }
   }

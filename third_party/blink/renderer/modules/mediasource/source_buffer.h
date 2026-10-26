@@ -121,6 +121,26 @@ class SourceBuffer final : public EventTarget,
   // Cobalt-specific method that returns the highest presentation
   // timestamp written to the Renderer.
   double GetWriteHead(ExceptionState& exception_state) const;
+
+  // Multi-SourceBuffer switching (MediaSource.changeTo()), defined in
+  // media_source_starboard.cc.
+
+  // Makes this SourceBuffer standby: its tracks start disabled, and it doesn't
+  // take part in playback until MediaSource.changeTo() selects it. Returns
+  // false if the media stack can't.
+  bool SetStandby_Locked(
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+  bool IsStandby() const { return standby_; }
+
+  // The WebSourceBuffer that MediaSource.changeTo() passes down.
+  WebSourceBuffer* GetWebSourceBufferForChangeTo() const {
+    return web_source_buffer_.get();
+  }
+
+  // Called by MediaSource.changeTo(): this SourceBuffer is now played
+  // (|selected|), or, if it was played, switched away from, which makes it
+  // read-only.
+  void OnChangeTo(bool selected, bool was_active);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // "_Locked" requires these be called while in the scope of callback of
@@ -288,6 +308,9 @@ class SourceBuffer final : public EventTarget,
   void LogFirstSegmentAppendDelay();
 
   const bool append_first_segment_synchronously_;
+  // See SetStandby_Locked() and OnChangeTo().
+  bool standby_ = false;
+  bool switched_away_ = false;
   bool first_segment_appended_ = false;
   bool first_segment_appended_logged_ = false;
   base::TimeTicks first_segment_append_start_time_;

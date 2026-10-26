@@ -1340,6 +1340,8 @@ if (is_cobalt) {
             [
               "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/mediasource/media_source_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_init.idl",
             ],
             "abspath")
   }

@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/filters/chunk_demuxer.h"
 #include "media/starboard/decoder_buffer_allocator.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -151,6 +152,25 @@ bool ExposeSourceBufferChangeType(ExecutionContext* execution_context) {
       mojom::blink::OriginTrialFeature::kMediaSourceChangeType);
   return true;
 }
+
+// Exposes MediaSource.changeTo() and standby SourceBuffers, which pages use to
+// switch between SourceBuffers. They are hidden by default behind the
+// MediaSourceChangeTo runtime feature.
+bool ExposeMediaSourceChangeTo(ExecutionContext* execution_context) {
+  if (!execution_context) {
+    return false;
+  }
+  auto* origin_trial_context = execution_context->GetOriginTrialContext();
+  if (!origin_trial_context) {
+    return false;
+  }
+
+  WebRuntimeFeatures::EnableMediaSourceChangeTo(true);
+  // Installs the API into the already-created MediaSource.prototype.
+  origin_trial_context->AddFeature(
+      mojom::blink::OriginTrialFeature::kMediaSourceChangeTo);
+  return true;
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace
@@ -197,6 +217,19 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         script_state, exception_context, name, *value, [script_state] {
           return ExposeSourceBufferChangeType(
               ExecutionContext::From(script_state));
+        });
+  }
+  if (name == "Media.EnableMultiSourceBufferSwitching") {
+    return ProcessSettingAsEnableOnly(
+        script_state, exception_context, name, *value, [script_state] {
+          // The page switches with MediaSource.changeTo(), so only enable
+          // switching if it can reach it.
+          if (!ExposeMediaSourceChangeTo(
+                  ExecutionContext::From(script_state))) {
+            return false;
+          }
+          ::media::ChunkDemuxer::SetEnableMultiSourceBufferSwitching(true);
+          return true;
         });
   }
   if (name == "Media.IncrementalParseLookAhead") {

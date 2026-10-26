@@ -41,6 +41,7 @@ class PLATFORM_EXPORT WebMediaSourceImpl : public WebMediaSource {
   std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       const WebString& mime_type,
       AddStatus& out_status /* out */) override;
+  bool ChangeTo(const std::vector<WebSourceBuffer*>& source_buffers) override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   double Duration() override;
   void SetDuration(double duration) override;
