@@ -106,13 +106,10 @@ namespace internal {
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
-<<<<<<< HEAD
 concept HasCalledByNatives =
     requires { sizeof(jni_zero_internal::_CalledByNatives<T>); };
-=======
-concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
-#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -233,13 +230,9 @@ class JavaRef : public JavaRef<jobject> {
   T obj() const { return static_cast<T>(JavaRef<jobject>::obj()); }
 
   // Define this only when the _jni.h header has been #included.
-<<<<<<< HEAD
   const jni_zero_internal::_CalledByNatives<T>* operator->() const
-=======
-  const internal::_CalledByNatives<T>* operator->() const
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     requires internal::HasCalledByNatives<T>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {

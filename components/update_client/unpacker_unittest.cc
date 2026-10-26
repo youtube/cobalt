@@ -111,13 +111,8 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
 #else
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
-<<<<<<< HEAD
       base::ToVector(jebg_hash), GetTestFilePath("file_not_found.crx"), nullptr,
-=======
-      std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
-      GetTestFilePath("file_not_found.crx"), nullptr,
 #endif
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       crx_file::VerifierFormat::CRX3,
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);

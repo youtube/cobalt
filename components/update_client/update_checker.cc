@@ -287,14 +287,8 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         app_id, current_version, crx_component->ap, crx_component->brand,
 #else
         app_id, crx_component->version, crx_component->ap, crx_component->brand,
-<<<<<<< HEAD
-        active_ids.contains(app_id) ? metadata->GetInstallId(app_id) : "",
-=======
 #endif
-        active_ids.find(app_id) != active_ids.end()
-            ? metadata->GetInstallId(app_id)
-            : "",
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+        active_ids.contains(app_id) ? metadata->GetInstallId(app_id) : "",
         crx_component->lang.empty() ? config_->GetLang() : crx_component->lang,
         metadata->GetInstallDate(app_id), install_source,
         crx_component->install_location, crx_component->installer_attributes,
