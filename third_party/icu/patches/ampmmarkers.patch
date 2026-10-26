@@ -1,0 +1,236 @@
+diff --git a/source/data/locales/bgc.txt b/source/data/locales/bgc.txt
+index 5251e4956..bbc5bd712 100644
+--- a/source/data/locales/bgc.txt
++++ b/source/data/locales/bgc.txt
+@@ -17,7 +17,7 @@ bgc{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "तडके",
+                 "सांझ",
+             }
+diff --git a/source/data/locales/bho.txt b/source/data/locales/bho.txt
+index b869208dc..4dc7609e0 100644
+--- a/source/data/locales/bho.txt
++++ b/source/data/locales/bho.txt
+@@ -19,7 +19,7 @@ bho{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "भोर",
+                 "सांझ",
+             }
+diff --git a/source/data/locales/en_IE.txt b/source/data/locales/en_IE.txt
+index 6a943323b..3a8ebdef0 100644
+--- a/source/data/locales/en_IE.txt
++++ b/source/data/locales/en_IE.txt
+@@ -53,6 +53,10 @@ en_IE{
+                 "a.m.",
+                 "p.m.",
+             }
++            AmPmMarkersAbbr{
++                "a.m.",
++                "p.m.",
++            }
+             DateTimePatterns{
+                 "HH:mm:ss zzzz",
+                 "HH:mm:ss z",
+diff --git a/source/data/locales/fr_MA.txt b/source/data/locales/fr_MA.txt
+index f72f9365b..7f20b6c1f 100644
+--- a/source/data/locales/fr_MA.txt
++++ b/source/data/locales/fr_MA.txt
+@@ -12,7 +12,7 @@ fr_MA{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "a.m.",
+                 "p.m.",
+             }
+diff --git a/source/data/locales/gaa.txt b/source/data/locales/gaa.txt
+index 22d10956f..c80acea07 100644
+--- a/source/data/locales/gaa.txt
++++ b/source/data/locales/gaa.txt
+@@ -23,7 +23,7 @@ gaa{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "LEEBI",
+                 "SHWANE",
+             }
+diff --git a/source/data/locales/ko.txt b/source/data/locales/ko.txt
+index 581320b7a..8828ecbbc 100644
+--- a/source/data/locales/ko.txt
++++ b/source/data/locales/ko.txt
+@@ -1070,7 +1070,7 @@ ko{
+             }
+         }
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "오전",
+                 "오후",
+             }
+diff --git a/source/data/locales/ks.txt b/source/data/locales/ks.txt
+index fd1002ee5..244610e6d 100644
+--- a/source/data/locales/ks.txt
++++ b/source/data/locales/ks.txt
+@@ -189,7 +189,7 @@ ks{
+             }
+         }
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "اے ایم",
+                 "پی ایم",
+             }
+diff --git a/source/data/locales/ks_Deva.txt b/source/data/locales/ks_Deva.txt
+index 590f97672..870c150df 100644
+--- a/source/data/locales/ks_Deva.txt
++++ b/source/data/locales/ks_Deva.txt
+@@ -41,7 +41,7 @@ ks_Deva{
+             }
+         }
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "ये एम",
+                 "पी एम",
+             }
+diff --git a/source/data/locales/lmo.txt b/source/data/locales/lmo.txt
+index 2c67a4911..dd295b203 100644
+--- a/source/data/locales/lmo.txt
++++ b/source/data/locales/lmo.txt
+@@ -15,7 +15,7 @@ lmo{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "del matin",
+                 "de sira",
+             }
+diff --git a/source/data/locales/os.txt b/source/data/locales/os.txt
+index 49b32b84a..9d3fe5ba2 100644
+--- a/source/data/locales/os.txt
++++ b/source/data/locales/os.txt
+@@ -97,7 +97,7 @@ os{
+             }
+         }
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "ӕмбисбоны размӕ",
+                 "ӕмбисбоны фӕстӕ",
+             }
+diff --git a/source/data/locales/prg.txt b/source/data/locales/prg.txt
+index 64b35e5ef..34ed4ff1a 100644
+--- a/source/data/locales/prg.txt
++++ b/source/data/locales/prg.txt
+@@ -21,7 +21,7 @@ prg{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "ankstāinan",
+                 "pa pussideinan",
+             }
+diff --git a/source/data/locales/raj.txt b/source/data/locales/raj.txt
+index 35a0f8b45..9828ab982 100644
+--- a/source/data/locales/raj.txt
++++ b/source/data/locales/raj.txt
+@@ -17,7 +17,7 @@ raj{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "सबेरे",
+                 "सांम",
+             }
+diff --git a/source/data/locales/sa.txt b/source/data/locales/sa.txt
+index 428cce7f3..7fe28a439 100644
+--- a/source/data/locales/sa.txt
++++ b/source/data/locales/sa.txt
+@@ -75,7 +75,7 @@ sa{
+             }
+         }
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "पूर्वाह्न",
+                 "अपराह्न",
+             }
+diff --git a/source/data/locales/sat.txt b/source/data/locales/sat.txt
+index 0e9f4064e..5c2a3b9db 100644
+--- a/source/data/locales/sat.txt
++++ b/source/data/locales/sat.txt
+@@ -25,7 +25,7 @@ sat{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "ᱥᱮᱛᱟᱜ",
+                 "ᱧᱤᱫᱟᱹ",
+             }
+diff --git a/source/data/locales/st.txt b/source/data/locales/st.txt
+index eb4ea6528..78fe805e3 100644
+--- a/source/data/locales/st.txt
++++ b/source/data/locales/st.txt
+@@ -14,7 +14,7 @@ st{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "Hoseng",
+                 "Thapama",
+             }
+diff --git a/source/data/locales/tok.txt b/source/data/locales/tok.txt
+index bce08a9be..d06413ca3 100644
+--- a/source/data/locales/tok.txt
++++ b/source/data/locales/tok.txt
+@@ -30,7 +30,7 @@ tok{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "pi open suno",
+                 "pi pini suno",
+             }
+diff --git a/source/data/locales/vmw.txt b/source/data/locales/vmw.txt
+index 8b98404dd..2483c7039 100644
+--- a/source/data/locales/vmw.txt
++++ b/source/data/locales/vmw.txt
+@@ -20,7 +20,7 @@ vmw{
+     }
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "vaasisu",
+                 "makaaripi",
+             }
+diff --git a/source/data/locales/za.txt b/source/data/locales/za.txt
+index 962aa083b..303ed8e4f 100644
+--- a/source/data/locales/za.txt
++++ b/source/data/locales/za.txt
+@@ -7,7 +7,7 @@ za{
+     ExemplarCharactersPunctuation{"[\\- ‐‑ – — , ; \\: ! ? . … '‘’ \u0022“” ( ) \\[ \\] § @ * / \\& # † ‡ ′ ″]"}
+     calendar{
+         gregorian{
+-            AmPmMarkers{
++            AmPmMarkersAbbr{
+                 "banhaet",
+                 "banringzgvaq",
+             }

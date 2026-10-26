@@ -1,0 +1,437 @@
+#!/usr/bin/env python3
+# Copyright (C) 2023 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from python.generators.diff_tests.testing import Path, DataPath, Metric
+from python.generators.diff_tests.testing import Csv, Json, TextProto
+from python.generators.diff_tests.testing import DiffTestBlueprint
+from python.generators.diff_tests.testing import TestSuite
+
+
+class DynamicTables(TestSuite):
+  # Tests for custom dynamic tables. Ancestor slice table.
+  def test_ancestor_slice(self):
+    return DiffTestBlueprint(
+        trace=Path('relationship_tables.textproto'),
+        query="""
+        SELECT slice.name AS currentSliceName, ancestor.name AS ancestorSliceName
+        FROM slice LEFT JOIN ancestor_slice(slice.id) AS ancestor
+        ORDER BY slice.ts ASC, ancestor.ts ASC, slice.name ASC, ancestor.name ASC;
+        """,
+        out=Path('ancestor_slice.out'))
+
+  # Descendant slice table.
+  def test_descendant_slice(self):
+    return DiffTestBlueprint(
+        trace=Path('relationship_tables.textproto'),
+        query="""
+        SELECT slice.name AS currentSliceName, descendant.name AS descendantSliceName
+        FROM slice LEFT JOIN descendant_slice(slice.id) AS descendant
+        ORDER BY slice.ts ASC, descendant.ts ASC, slice.name ASC, descendant.name ASC;
+        """,
+        out=Path('descendant_slice.out'))
+
+  # Regression test for b/4350: descendant_slice should not return adjacent
+  # slices when stacks share the exact same timestamp boundary.
+  def test_descendant_slice_adjacent_stacks(self):
+    return DiffTestBlueprint(
+        trace=TextProto(r"""
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 0
+          incremental_state_cleared: true
+          track_descriptor {
+            uuid: 1
+            parent_uuid: 10
+            thread {
+              pid: 5
+              tid: 1
+              thread_name: "t1"
+            }
+          }
+          trace_packet_defaults {
+            track_event_defaults {
+              track_uuid: 1
+            }
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 0
+          track_descriptor {
+            uuid: 10
+            process {
+              pid: 5
+              process_name: "p1"
+            }
+          }
+        }
+        # Stack A: [1000, 3000) depth 0 and depth 1
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 1000
+          track_event {
+            categories: "cat"
+            name: "A0"
+            type: 1
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 1000
+          track_event {
+            categories: "cat"
+            name: "A1"
+            type: 1
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "A1"
+            type: 2
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "A0"
+            type: 2
+          }
+        }
+        # Stack B: [3000, 5000) depth 0 and depth 1 (adjacent to Stack A)
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "B0"
+            type: 1
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "B1"
+            type: 1
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 5000
+          track_event {
+            categories: "cat"
+            name: "B1"
+            type: 2
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 5000
+          track_event {
+            categories: "cat"
+            name: "B0"
+            type: 2
+          }
+        }
+        """),
+        query="""
+        SELECT d.name AS descendant_name
+        FROM slice AS s
+        JOIN descendant_slice(s.id) AS d
+        WHERE s.name = 'A0'
+        ORDER BY d.ts, d.name;
+        """,
+        out=Csv("""
+        "descendant_name"
+        "A1"
+        """))
+
+  # Regression test: an instant child slice at the exact boundary between its
+  # parent and a subsequent sibling ("uncle") should not appear as a descendant
+  # of the uncle. The instant is emitted while the parent is still open, so its
+  # parent_id correctly points to the parent, not the uncle.
+  def test_descendant_slice_boundary_instant(self):
+    return DiffTestBlueprint(
+        trace=TextProto(r"""
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 0
+          incremental_state_cleared: true
+          track_descriptor {
+            uuid: 1
+            parent_uuid: 10
+            thread {
+              pid: 5
+              tid: 1
+              thread_name: "t1"
+            }
+          }
+          trace_packet_defaults {
+            track_event_defaults {
+              track_uuid: 1
+            }
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 0
+          track_descriptor {
+            uuid: 10
+            process {
+              pid: 5
+              process_name: "p1"
+            }
+          }
+        }
+        # Parent slice [1000, 3000)
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 1000
+          track_event {
+            categories: "cat"
+            name: "parent"
+            type: 1
+          }
+        }
+        # Child instant at ts=3000, emitted while parent is still open
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "child_instant"
+            type: 3
+          }
+        }
+        # Parent ends at 3000
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "parent"
+            type: 2
+          }
+        }
+        # Uncle slice [3000, 5000) adjacent to parent
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 3000
+          track_event {
+            categories: "cat"
+            name: "uncle"
+            type: 1
+          }
+        }
+        packet {
+          trusted_packet_sequence_id: 1
+          timestamp: 5000
+          track_event {
+            categories: "cat"
+            name: "uncle"
+            type: 2
+          }
+        }
+        """),
+        query="""
+        SELECT d.name AS descendant_name
+        FROM slice AS s
+        JOIN descendant_slice(s.id) AS d
+        WHERE s.name = 'uncle'
+        ORDER BY d.ts, d.name;
+        """,
+        out=Csv("""
+        "descendant_name"
+        """))
+
+  # Ancestor slice by stack table.
+  def testancestor_slice_by_stack(self):
+    return DiffTestBlueprint(
+        trace=Path('slice_stacks.textproto'),
+        query="""
+        INCLUDE PERFETTO MODULE slices.stack;
+        SELECT ts, name FROM ancestor_slice_by_stack((
+          SELECT stack_id FROM slice_with_stack_id
+          WHERE name = 'event_depth_2'
+          LIMIT 1
+          ));
+        """,
+        out=Csv("""
+        "ts","name"
+        1000,"event_depth_0"
+        2000,"event_depth_1"
+        3000,"event_depth_2"
+        8000,"event_depth_0"
+        9000,"event_depth_1"
+        10000,"event_depth_2"
+        """))
+
+  # Descendant slice by stack table.
+  def testdescendant_slice_by_stack(self):
+    return DiffTestBlueprint(
+        trace=Path('slice_stacks.textproto'),
+        query="""
+        INCLUDE PERFETTO MODULE slices.stack;
+        SELECT ts, name FROM descendant_slice_by_stack((
+          SELECT stack_id FROM slice_with_stack_id
+          WHERE name = 'event_depth_0'
+          LIMIT 1
+          ));
+        """,
+        out=Csv("""
+        "ts","name"
+        1000,"event_depth_0"
+        2000,"event_depth_1"
+        3000,"event_depth_2"
+        8000,"event_depth_0"
+        9000,"event_depth_1"
+        10000,"event_depth_2"
+        """))
+
+  # Connected/Following/Perceeding flow table.
+  def test_connected_flow(self):
+    return DiffTestBlueprint(
+        trace=Path('connected_flow_data.json'),
+        query=Path('connected_flow_test.sql'),
+        out=Path('connected_flow.out'))
+
+  # Annotated callstacks.
+  def test_perf_sample_sc_annotated_callstack(self):
+    return DiffTestBlueprint(
+        trace=DataPath('perf_sample_sc.pb'),
+        query="""
+        SELECT eac.id, eac.depth, eac.frame_id, eac.annotation,
+               spf.name
+        FROM perf_sample ps
+        JOIN experimental_annotated_callstack(ps.callsite_id) eac
+        JOIN stack_profile_frame spf
+          ON (eac.frame_id = spf.id)
+        ORDER BY ps.callsite_id ASC, eac.depth ASC;
+        """,
+        out=Path('perf_sample_sc_annotated_callstack.out'))
+
+  # ABS_TIME_STR function
+  def test_various_clocks_abs_time_str(self):
+    return DiffTestBlueprint(
+        trace=Path('various_clocks.textproto'),
+        query="""
+        SELECT
+          ABS_TIME_STR(15) AS t15,
+          ABS_TIME_STR(25) AS t25,
+          ABS_TIME_STR(35) AS t35;
+        """,
+        out=Csv("""
+        "t15","t25","t35"
+        "1970-01-01T00:00:00.000000005","2022-05-18T19:59:59.999999995","2022-05-18T20:00:00.000000000"
+        """))
+
+  def test_empty_abs_time_str(self):
+    return DiffTestBlueprint(
+        trace=TextProto(r"""
+
+        """),
+        query="""
+        SELECT
+          ABS_TIME_STR(15) AS t15,
+          ABS_TIME_STR(25) AS t25,
+          ABS_TIME_STR(35) AS t35;
+        """,
+        out=Csv("""
+        "t15","t25","t35"
+        "[NULL]","[NULL]","[NULL]"
+        """))
+
+  # TO_REALTIME function
+  def test_various_clocks_to_realtime(self):
+    return DiffTestBlueprint(
+        trace=Path('various_clocks.textproto'),
+        query="""
+        SELECT
+          TO_REALTIME(15) AS t15,
+          TO_REALTIME(25) AS t25,
+          TO_REALTIME(35) AS t35;
+        """,
+        out=Csv("""
+        "t15","t25","t35"
+        5,1652903999999999995,1652904000000000000
+        """))
+
+  def test_empty_to_realtime(self):
+    return DiffTestBlueprint(
+        trace=TextProto(r"""
+
+        """),
+        query="""
+        SELECT
+          TO_REALTIME(15) AS t15,
+          TO_REALTIME(25) AS t25,
+          TO_REALTIME(35) AS t35;
+        """,
+        out=Csv("""
+        "t15","t25","t35"
+        "[NULL]","[NULL]","[NULL]"
+        """))
+
+  # TO_MONOTONIC function
+  def test_various_clocks_to_monotonic(self):
+    return DiffTestBlueprint(
+        trace=Path('various_clocks.textproto'),
+        query="""
+        SELECT
+          TO_MONOTONIC(25) AS t15,
+          TO_MONOTONIC(35) AS t20,
+          TO_MONOTONIC(50) AS t25;
+        """,
+        out=Csv("""
+        "t15","t20","t25"
+        15,20,25
+        """))
+
+  def test_empty_to_monotonic(self):
+    return DiffTestBlueprint(
+        trace=TextProto(r"""
+
+        """),
+        query="""
+        SELECT
+          TO_MONOTONIC(25) AS t15,
+          TO_MONOTONIC(35) AS t20,
+          TO_MONOTONIC(50) AS t25;
+        """,
+        out=Csv("""
+        "t15","t20","t25"
+        "[NULL]","[NULL]","[NULL]"
+        """))
+
+  # TO_TIMECODE function
+  def test_various_clocks_to_timecode(self):
+    return DiffTestBlueprint(
+        trace=Path('various_clocks.textproto'),
+        query="""
+        SELECT
+          TO_TIMECODE(0) AS t0,
+          TO_TIMECODE(3599123456789) AS t1,
+          TO_TIMECODE(3600123456789) AS t2
+        """,
+        out=Csv("""
+        "t0","t1","t2"
+        "00:00:00 000 000 000","00:59:59 123 456 789","01:00:00 123 456 789"
+        """))
